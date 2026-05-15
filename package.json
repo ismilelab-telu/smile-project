@@ -1,0 +1,18 @@
+{
+  "name": "smile-project",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "prepare": "husky",
+    "commitlint": "commitlint --edit",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.0.1",
+    "@commitlint/config-conventional": "^21.0.1",
+    "@types/bun": "latest",
+    "husky": "^9.1.7"
+  }
+}

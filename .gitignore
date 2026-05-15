@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Bun
+bun.lockb
+
+# Build output
+dist/
+coverage/
+
+# Data and model artifacts
+data/raw/*
+data/processed/*
+models/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!models/.gitkeep
+
+# Local config
+.env
+.env.*

@@ -1,0 +1,64 @@
+#:schema https://developers.openai.com/codex/config-schema.json
+
+# Shared Codex defaults for this repository.
+
+model = "gpt-5.5"
+model_context_window = 900000
+model_auto_compact_token_limit = 800000
+model_reasoning_effort = "xhigh"
+plan_mode_reasoning_effort = "xhigh"
+personality = "pragmatic"
+steer = true
+web_search = "disabled"
+suppress_unstable_features_warning = true
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
+[agents.default]
+description = "General task executor"
+config_file = "agents/custom-default.toml"
+
+[agents.explorer]
+description = "Codebase explorer for read-heavy tasks."
+config_file = "agents/custom-explorer.toml"
+
+[agents.review-commit]
+description = "Inspect working-tree changes, generate conventional commit messages, and commit without pushing."
+config_file = "agents/review-commit.toml"
+
+[features]
+unified_exec = true
+shell_snapshot = true
+collaboration_modes = true
+multi_agent = true
+goal = true
+js_repl = true
+
+[mcp_servers.shadcn]
+command = "npx"
+args = ["shadcn@latest", "mcp"]
+startup_timeout_sec = 20
+enabled = false
+
+[mcp_servers."ag-mcp"]
+command = "npx"
+args = ["ag-mcp"]
+enabled = true
+
+[mcp_servers.chrome-devtools]
+command = "npx"
+args = ["chrome-devtools-mcp@latest", "--headless=true"]
+enabled = false
+
+[mcp_servers.exa]
+url = "https://mcp.exa.ai/mcp?tools=web_search_exa,web_search_advanced_exa,get_code_context_exa,crawling_exa,company_research_exa,people_search_exa,deep_researcher_start,deep_researcher_check,deep_search_exa"
+enabled = true
+
+[mcp_servers.notion]
+url = "https://mcp.notion.com/mcp"
+enabled = false
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["@playwright/mcp@latest", "--extension"]
+enabled = true
