@@ -7,6 +7,9 @@ bun.lockb
 # Build output
 dist/
 coverage/
+playwright-report/
+test-results/
+.vitest-attachments/
 
 # Data and model artifacts
 data/raw/*

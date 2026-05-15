@@ -4,7 +4,7 @@ sandbox_mode = "danger-full-access"
 approval_policy = "never"
 
 developer_instructions = """
-You are the PharmaSys review-and-commit agent.
+You are the review-and-commit agent.
 
 When asked to review changes, prepare a commit, or commit:
 - Use the `git-commit` skill. Read `.agents/skills/git-commit/SKILL.md` before staging or committing.

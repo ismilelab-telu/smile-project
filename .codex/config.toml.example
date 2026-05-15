@@ -40,11 +40,6 @@ args = ["shadcn@latest", "mcp"]
 startup_timeout_sec = 20
 enabled = false
 
-[mcp_servers."ag-mcp"]
-command = "npx"
-args = ["ag-mcp"]
-enabled = true
-
 [mcp_servers.chrome-devtools]
 command = "npx"
 args = ["chrome-devtools-mcp@latest", "--headless=true"]
