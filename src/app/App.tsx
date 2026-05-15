@@ -170,7 +170,7 @@ export function App() {
       >
         <div className="relative z-10" ref={modePickerRef}>
           <motion.button
-            className="inline-flex min-h-[42px] w-[min(360px,52vw)] min-w-[280px] cursor-pointer items-center justify-between gap-2.5 rounded-2xl border border-[rgba(23,32,25,0.12)] bg-white/75 px-3.5 text-[#172019] shadow-[0_10px_26px_rgba(36,44,39,0.08)] max-[820px]:w-[min(68vw,320px)] max-[820px]:min-w-0 max-[820px]:max-w-[min(68vw,320px)] [&_svg]:shrink-0"
+            className="inline-flex min-h-[42px] w-[min(360px,52vw)] min-w-[280px] cursor-pointer items-center justify-between gap-2.5 rounded-xl border border-[rgba(23,32,25,0.12)] bg-white/75 px-3.5 text-[#172019] shadow-[0_10px_26px_rgba(36,44,39,0.08)] max-[820px]:w-[min(68vw,320px)] max-[820px]:min-w-0 max-[820px]:max-w-[min(68vw,320px)] [&_svg]:shrink-0"
             type="button"
             whileHover={{ y: -1 }}
             whileTap={{ scale: 0.98 }}
@@ -196,7 +196,7 @@ export function App() {
           <AnimatePresence>
             {isModeMenuOpen ? (
               <motion.div
-                className="absolute top-[calc(100%_+_10px)] left-0 max-h-[min(72vh,620px)] w-[min(420px,calc(100vw_-_32px))] origin-top-left overflow-y-auto overscroll-contain rounded-2xl border border-[rgba(23,32,25,0.12)] bg-white/90 p-2.5 shadow-[0_22px_54px_rgba(34,40,37,0.18)] backdrop-blur-[18px] max-[820px]:max-h-[68vh] max-[820px]:w-[min(92vw,420px)]"
+                className="absolute top-[calc(100%_+_10px)] left-0 max-h-[min(72vh,620px)] w-[min(420px,calc(100vw_-_32px))] origin-top-left overflow-y-auto overscroll-contain rounded-xl border border-[rgba(23,32,25,0.12)] bg-white/90 p-2.5 shadow-[0_22px_54px_rgba(34,40,37,0.18)] backdrop-blur-[18px] max-[820px]:max-h-[68vh] max-[820px]:w-[min(92vw,420px)]"
                 id={listboxId}
                 role="listbox"
                 aria-label="Machine learning models"
@@ -234,7 +234,7 @@ export function App() {
                           return (
                             <motion.button
                               className={classNames(
-                                "flex min-h-9 w-full cursor-pointer items-center justify-between gap-3 rounded-2xl border-0 bg-transparent py-2 pr-[9px] pl-2.5 text-left text-[#23352e] hover:bg-[rgba(43,116,108,0.1)]",
+                                "flex min-h-9 w-full cursor-pointer items-center justify-between gap-3 rounded-md border-0 bg-transparent py-2 pr-[9px] pl-2.5 text-left text-[#23352e] hover:bg-[rgba(43,116,108,0.1)]",
                                 isSelected &&
                                   "bg-[rgba(43,116,108,0.1)] font-extrabold text-[#1d625b]",
                               )}
@@ -270,7 +270,7 @@ export function App() {
         </div>
 
         <a
-          className="inline-flex min-h-[42px] items-center gap-2.5 rounded-2xl font-bold text-[#23352e] [&_svg]:shrink-0"
+          className="inline-flex min-h-[42px] items-center gap-2.5 rounded-xl font-bold text-[#23352e] [&_svg]:shrink-0"
           href="/"
           aria-label="Smile Project home"
         >

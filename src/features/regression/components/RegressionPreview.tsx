@@ -40,7 +40,7 @@ export function RegressionPreview() {
 
   return (
     <div className="grid w-full gap-[18px]" ref={containerRef} aria-label="Regression plot preview">
-      <div className="relative aspect-[1.2] w-full overflow-hidden rounded-2xl border border-[rgba(23,32,25,0.12)] bg-[length:44px_44px] shadow-[0_22px_56px_rgba(34,40,37,0.12)] [background:linear-gradient(rgba(23,32,25,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(23,32,25,0.06)_1px,transparent_1px),rgba(255,255,255,0.72)]">
+      <div className="relative aspect-[1.2] w-full overflow-hidden rounded-xl border border-[rgba(23,32,25,0.12)] bg-[length:44px_44px] shadow-[0_22px_56px_rgba(34,40,37,0.12)] [background:linear-gradient(rgba(23,32,25,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(23,32,25,0.06)_1px,transparent_1px),rgba(255,255,255,0.72)]">
         <div className="absolute right-[8%] bottom-[12%] left-[8%] h-px bg-[rgba(23,32,25,0.4)]" />
         <div className="absolute top-[8%] bottom-[12%] left-[8%] w-px bg-[rgba(23,32,25,0.4)]" />
         <div
@@ -62,13 +62,13 @@ export function RegressionPreview() {
       </div>
 
       <dl className="m-0 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-[rgba(23,32,25,0.1)] bg-white/65 px-4 py-3.5">
+        <div className="rounded-xl border border-[rgba(23,32,25,0.1)] bg-white/65 px-4 py-3.5">
           <dt className="mt-0 mb-1 text-[0.78rem] font-bold text-[#647169] uppercase">Slope</dt>
           <dd className="m-0 text-[1.55rem] font-extrabold text-[#172019]">
             {model.slope.toFixed(2)}
           </dd>
         </div>
-        <div className="rounded-2xl border border-[rgba(23,32,25,0.1)] bg-white/65 px-4 py-3.5">
+        <div className="rounded-xl border border-[rgba(23,32,25,0.1)] bg-white/65 px-4 py-3.5">
           <dt className="mt-0 mb-1 text-[0.78rem] font-bold text-[#647169] uppercase">Intercept</dt>
           <dd className="m-0 text-[1.55rem] font-extrabold text-[#172019]">
             {model.intercept.toFixed(2)}
