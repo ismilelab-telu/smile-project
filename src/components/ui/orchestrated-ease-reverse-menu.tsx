@@ -12,11 +12,11 @@ const islandCirclePath =
   "M25 2 C37.7 2 48 12.3 48 25 C48 37.7 37.7 48 25 48 C12.3 48 2 37.7 2 25 C2 12.3 12.3 2 25 2 Z";
 const islandHeartPath =
   "M25 45 C20 40 6 29 6 17 C6 9.8 11.1 5 17.3 5 C20.9 5 23.7 6.8 25 9.5 C26.3 6.8 29.1 5 32.7 5 C38.9 5 44 9.8 44 17 C44 29 30 40 25 45 Z";
-const islandDefaultFill = "oklch(98.5% 0 0)";
+const islandDefaultFill = "oklch(100% 0 0)";
 const islandDefaultStroke = "oklch(87.1108% 0.0055 286.29)";
 const islandDefaultStrokeWidth = 1;
-const islandShapeRestFill = "transparent";
-const islandShapeRestStroke = "transparent";
+const islandShapeRestFill = islandDefaultFill;
+const islandShapeRestStroke = islandDefaultStroke;
 const islandHeartFill = "oklch(61.224% 0.2313 22.61)";
 const islandHeartStroke = "oklch(61.224% 0.2313 22.61)";
 const islandHeartScale = 1.48;
@@ -42,6 +42,8 @@ const menuItems = [
 export function OrchestratedEaseReverseMenu() {
   const rootRef = useRef<HTMLDivElement>(null);
   const islandRef = useRef<HTMLDivElement>(null);
+  const islandSurfaceRef = useRef<HTMLDivElement>(null);
+  const islandSvgRef = useRef<SVGSVGElement>(null);
   const islandShapeRef = useRef<SVGPathElement>(null);
   const logoRef = useRef<HTMLImageElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -68,6 +70,8 @@ export function OrchestratedEaseReverseMenu() {
   const { contextSafe } = useGSAP(
     () => {
       const island = islandRef.current;
+      const islandSurface = islandSurfaceRef.current;
+      const islandSvg = islandSvgRef.current;
       const islandShape = islandShapeRef.current;
       const logo = logoRef.current;
       const overlay = overlayRef.current;
@@ -80,6 +84,8 @@ export function OrchestratedEaseReverseMenu() {
 
       if (
         !island ||
+        !islandSurface ||
+        !islandSvg ||
         !islandShape ||
         !logo ||
         !overlay ||
@@ -94,21 +100,30 @@ export function OrchestratedEaseReverseMenu() {
 
       gsap.set(overlay, { pointerEvents: "none" });
       gsap.set(island, {
-        backgroundColor: islandDefaultFill,
-        borderColor: islandDefaultStroke,
         borderRadius: 999,
-        borderStyle: "solid",
-        borderWidth: islandDefaultStrokeWidth,
         force3D: false,
         x: 0,
         xPercent: -50,
         y: 0,
       });
+      gsap.set(islandSurface, {
+        autoAlpha: 1,
+        backgroundColor: islandDefaultFill,
+        borderColor: islandDefaultStroke,
+        borderRadius: 999,
+        borderStyle: "solid",
+        borderWidth: islandDefaultStrokeWidth,
+      });
+      gsap.set(islandSvg, {
+        autoAlpha: 0,
+        scale: 1,
+        transformOrigin: "50% 50%",
+      });
       gsap.set(islandShape, {
         attr: { d: islandCirclePath },
         fill: islandShapeRestFill,
         stroke: islandShapeRestStroke,
-        strokeWidth: 0,
+        strokeWidth: islandDefaultStrokeWidth,
       });
 
       const motionPreferences = gsap.matchMedia();
@@ -185,23 +200,47 @@ export function OrchestratedEaseReverseMenu() {
           setDockedY(y);
         };
 
+        const setSvgShapeVisual = (isHeart: boolean) => {
+          gsap.killTweensOf(islandShape, "fill,stroke,strokeWidth");
+          gsap.set(islandShape, {
+            fill: isHeart ? islandHeartFill : islandShapeRestFill,
+            stroke: isHeart ? islandHeartStroke : islandShapeRestStroke,
+            strokeWidth: isHeart ? 0 : islandDefaultStrokeWidth,
+          });
+        };
+
+        const setVisualLayer = (mode: "surface" | "shape" | "heart", immediate = false) => {
+          const duration = immediate ? 0 : 0.18;
+          const showSurface = mode === "surface";
+
+          gsap.killTweensOf([islandSurface, islandSvg], "autoAlpha");
+          setSvgShapeVisual(mode === "heart");
+          gsap.to(islandSurface, {
+            autoAlpha: showSurface ? 1 : 0,
+            duration,
+            ease: "power2.out",
+          });
+          gsap.to(islandSvg, {
+            autoAlpha: showSurface ? 0 : 1,
+            duration,
+            ease: "power2.out",
+          });
+        };
+
+        const setRestVisualLayer = (immediate = false) => {
+          setVisualLayer(isAwayFromTopRef.current ? "shape" : "surface", immediate);
+        };
+
         const setLoveVisual = (isActive: boolean, immediate = false) => {
           const duration = immediate ? 0 : 0.34;
           isLoveMenuDisabledRef.current = isActive;
           setIsLoveMenuDisabled(isActive);
 
-          gsap.killTweensOf(island, "backgroundColor,borderColor");
-          gsap.killTweensOf(islandShape, "fill,stroke,strokeWidth");
           gsap.killTweensOf(menuBars, "stroke");
-          gsap.set(island, {
-            backgroundColor: isActive ? "transparent" : islandDefaultFill,
-            borderColor: isActive ? "transparent" : islandDefaultStroke,
-          });
-          gsap.set(islandShape, {
-            fill: isActive ? islandHeartFill : islandShapeRestFill,
-            stroke: isActive ? islandHeartStroke : islandShapeRestStroke,
-            strokeWidth: 0,
-          });
+          setVisualLayer(
+            isActive ? "heart" : isAwayFromTopRef.current ? "shape" : "surface",
+            immediate,
+          );
           gsap.set(menuBars, {
             stroke: isActive ? islandLoveMenuStroke : islandMenuStroke,
           });
@@ -317,6 +356,7 @@ export function OrchestratedEaseReverseMenu() {
             return;
           }
 
+          setRestVisualLayer(immediate);
           moveToBasePosition(immediate ? 0 : 0.55);
         };
 
@@ -377,8 +417,8 @@ export function OrchestratedEaseReverseMenu() {
           }
 
           if (isDocked) {
-            heartMorph.play();
             setLoveVisual(true, immediate);
+            heartMorph.play();
             fitLoveTarget(immediate ? 0 : loveDockTransitionDuration);
             return;
           }
@@ -457,18 +497,25 @@ export function OrchestratedEaseReverseMenu() {
         isLoveSectionActiveRef.current = false;
         setIsLoveMenuDisabled(false);
         gsap.set(island, {
-          backgroundColor: islandDefaultFill,
-          borderColor: islandDefaultStroke,
-          borderWidth: islandDefaultStrokeWidth,
           scale: 1,
           x: 0,
           y: 0,
+        });
+        gsap.set(islandSurface, {
+          autoAlpha: 1,
+          backgroundColor: islandDefaultFill,
+          borderColor: islandDefaultStroke,
+          borderWidth: islandDefaultStrokeWidth,
+        });
+        gsap.set(islandSvg, {
+          autoAlpha: 0,
+          scale: 1,
         });
         gsap.set(islandShape, {
           attr: { d: islandCirclePath },
           fill: islandShapeRestFill,
           stroke: islandShapeRestStroke,
-          strokeWidth: 0,
+          strokeWidth: islandDefaultStrokeWidth,
         });
         gsap.set([topBar, midBar, bottomBar], { opacity: 1, stroke: islandMenuStroke });
       });
@@ -476,17 +523,27 @@ export function OrchestratedEaseReverseMenu() {
       const timeline = gsap
         .timeline({ paused: true })
         .set(overlay, { pointerEvents: "auto" })
+        .set(island, { scale: 1 }, 0)
         .set(
-          island,
+          islandSurface,
           {
+            autoAlpha: 1,
             backgroundColor: islandDefaultFill,
             borderColor: islandDefaultStroke,
             borderWidth: islandDefaultStrokeWidth,
-            scale: 1,
           },
           0,
         )
-        .set(islandShape, { fill: islandShapeRestFill, stroke: islandShapeRestStroke }, 0)
+        .set(islandSvg, { autoAlpha: 0 }, 0)
+        .set(
+          islandShape,
+          {
+            fill: islandShapeRestFill,
+            stroke: islandShapeRestStroke,
+            strokeWidth: islandDefaultStrokeWidth,
+          },
+          0,
+        )
         .set([topBar, midBar, bottomBar], { stroke: islandMenuStroke }, 0)
         .to(
           island,
@@ -594,12 +651,14 @@ export function OrchestratedEaseReverseMenu() {
 
   const restoreClosedIsland = contextSafe((duration = 0.7) => {
     const island = islandRef.current;
+    const islandSurface = islandSurfaceRef.current;
+    const islandSvg = islandSvgRef.current;
     const islandShape = islandShapeRef.current;
     const menuBars = [topBarRef.current, midBarRef.current, bottomBarRef.current].filter(
       (bar): bar is SVGLineElement => bar !== null,
     );
 
-    if (!island || !islandShape) {
+    if (!island || !islandSurface || !islandSvg || !islandShape) {
       return;
     }
 
@@ -609,21 +668,34 @@ export function OrchestratedEaseReverseMenu() {
     isLoveMenuDisabledRef.current = isLoveActive;
     setIsLoveMenuDisabled(isLoveActive);
 
-    gsap.killTweensOf(island, "backgroundColor,borderColor");
+    const showShapeLayer = isLoveActive || isAwayFromTopRef.current;
+
+    gsap.killTweensOf([islandSurface, islandSvg], "autoAlpha");
     gsap.killTweensOf(islandShape, "fill,stroke,strokeWidth");
     gsap.killTweensOf(menuBars, "stroke");
-    gsap.set(island, {
-      backgroundColor: isLoveActive ? "transparent" : islandDefaultFill,
-      borderColor: isLoveActive ? "transparent" : islandDefaultStroke,
+    gsap.set(islandSurface, {
+      backgroundColor: islandDefaultFill,
+      borderColor: islandDefaultStroke,
       borderWidth: islandDefaultStrokeWidth,
     });
     gsap.set(islandShape, {
       fill: isLoveActive ? islandHeartFill : islandShapeRestFill,
       stroke: isLoveActive ? islandHeartStroke : islandShapeRestStroke,
-      strokeWidth: 0,
+      strokeWidth: isLoveActive ? 0 : islandDefaultStrokeWidth,
     });
     gsap.set(menuBars, {
       stroke: isLoveActive ? islandLoveMenuStroke : islandMenuStroke,
+    });
+
+    gsap.to(islandSurface, {
+      autoAlpha: showShapeLayer ? 0 : 1,
+      duration: Math.min(duration, 0.2),
+      ease: "power2.out",
+    });
+    gsap.to(islandSvg, {
+      autoAlpha: showShapeLayer ? 1 : 0,
+      duration: Math.min(duration, 0.2),
+      ease: "power2.out",
     });
 
     gsap.to(islandShape, {
@@ -825,14 +897,20 @@ export function OrchestratedEaseReverseMenu() {
   return (
     <div data-orchestrated-menu onKeyDown={handleKeyDown} ref={rootRef}>
       <div
-        className={`fixed top-2 left-1/2 z-[1000] flex h-[50px] w-[50px] items-center justify-between overflow-visible rounded-[99px] border border-[oklch(87.1108%_0.0055_286.29)] bg-[oklch(98.5%_0_0)] whitespace-nowrap ${isOpen ? "cursor-pointer" : ""}`}
+        className={`fixed top-2 left-1/2 z-[1000] flex h-[50px] w-[50px] items-center justify-between overflow-visible rounded-[99px] whitespace-nowrap ${isOpen ? "cursor-pointer" : ""}`}
         onClick={handleIslandClick}
         ref={islandRef}
       >
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-0 rounded-[99px] border border-[oklch(87.1108%_0.0055_286.29)] bg-[oklch(100%_0_0)]"
+          ref={islandSurfaceRef}
+        />
         <svg
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-0 size-full overflow-visible"
+          className="pointer-events-none absolute inset-0 z-[1] size-full overflow-visible"
           preserveAspectRatio="none"
+          ref={islandSvgRef}
           viewBox="0 0 50 50"
         >
           <path
@@ -840,7 +918,7 @@ export function OrchestratedEaseReverseMenu() {
             fill={islandShapeRestFill}
             ref={islandShapeRef}
             stroke={islandShapeRestStroke}
-            strokeWidth={0}
+            strokeWidth={islandDefaultStrokeWidth}
             vectorEffect="non-scaling-stroke"
           />
         </svg>
@@ -866,7 +944,7 @@ export function OrchestratedEaseReverseMenu() {
                 ? "Close navigation menu"
                 : "Open navigation menu"
           }
-          className={`absolute top-1/2 right-2 flex size-[34px] -translate-y-1/2 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 ${isLoveMenuDisabled ? "cursor-default" : "cursor-pointer"}`}
+          className={`absolute top-1/2 right-2 z-10 flex size-[34px] -translate-y-1/2 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 ${isLoveMenuDisabled ? "cursor-default" : "cursor-pointer"}`}
           disabled={isLoveMenuDisabled}
           onClick={handleMenuButtonClick}
           ref={menuButtonRef}
