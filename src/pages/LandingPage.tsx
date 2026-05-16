@@ -359,6 +359,14 @@ export function LandingPage() {
             scrollStart="center bottom+=50%"
             stagger={0.03}
             textClassName="!text-4xl !leading-[1.08] !font-black tracking-normal sm:!text-5xl lg:!text-7xl xl:!text-8xl"
+            trailingAnchor={
+              <span aria-hidden="true" className="relative inline-flex h-[1em] w-0 align-baseline">
+                <span
+                  className="absolute top-1/2 left-4 size-[50px] -translate-y-1/2"
+                  data-love-scroll-target
+                />
+              </span>
+            }
           >
             {playgroundFinalCopy}
           </ScrollFloat>

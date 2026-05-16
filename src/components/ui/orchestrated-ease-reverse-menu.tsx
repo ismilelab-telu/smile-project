@@ -1,12 +1,13 @@
 import { type KeyboardEvent, useRef, useState } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
+import { Flip } from "gsap/Flip";
 import { MorphSVGPlugin } from "gsap/MorphSVGPlugin";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import smileIcon from "../../../assets/smile.svg";
 
-gsap.registerPlugin(useGSAP, MorphSVGPlugin, ScrollTrigger);
+gsap.registerPlugin(useGSAP, Flip, MorphSVGPlugin, ScrollTrigger);
 
 const islandCirclePath =
   "M25 2 C37.7 2 48 12.3 48 25 C48 37.7 37.7 48 25 48 C12.3 48 2 37.7 2 25 C2 12.3 12.3 2 25 2 Z";
@@ -38,6 +39,7 @@ export function OrchestratedEaseReverseMenu() {
   const linkRefs = useRef<Array<HTMLAnchorElement | null>>([]);
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const isOpenRef = useRef(false);
+  const isLoveDockedRef = useRef(false);
   const isLoveSectionActiveRef = useRef(false);
   const exitSpeedRef = useRef(1.5);
   const [isOpen, setIsOpen] = useState(false);
@@ -80,8 +82,15 @@ export function OrchestratedEaseReverseMenu() {
 
       motionPreferences.add("(prefers-reduced-motion: no-preference)", () => {
         const loveSection = document.querySelector<HTMLElement>("[data-love-scroll-section]");
+        const loveTarget = document.querySelector<HTMLElement>("[data-love-scroll-target]");
 
-        if (!loveSection) {
+        if (!loveSection || !loveTarget) {
+          return undefined;
+        }
+
+        const loveText = loveTarget.closest<HTMLElement>("h2");
+
+        if (!loveText) {
           return undefined;
         }
 
@@ -91,6 +100,24 @@ export function OrchestratedEaseReverseMenu() {
           morphSVG: islandHeartPath,
           paused: true,
         });
+
+        const fitLoveTarget = (duration: number) => {
+          Flip.fit(island, loveTarget, {
+            duration,
+            ease: "power2.out",
+            scale: false,
+          });
+        };
+
+        const resetIslandPosition = (duration: number) => {
+          gsap.to(island, {
+            duration,
+            ease: "power2.out",
+            x: 0,
+            xPercent: -50,
+            y: 0,
+          });
+        };
 
         const setLoveShape = (isActive: boolean, immediate = false) => {
           isLoveSectionActiveRef.current = isActive;
@@ -109,10 +136,27 @@ export function OrchestratedEaseReverseMenu() {
             return;
           }
 
+          isLoveDockedRef.current = false;
           heartMorph.reverse();
+          resetIslandPosition(0.45);
         };
 
-        const trigger = ScrollTrigger.create({
+        const setLoveDocked = (isDocked: boolean, immediate = false) => {
+          isLoveDockedRef.current = isDocked;
+
+          if (isOpenRef.current) {
+            return;
+          }
+
+          if (isDocked) {
+            fitLoveTarget(immediate ? 0 : 0.45);
+            return;
+          }
+
+          resetIslandPosition(immediate ? 0 : 0.45);
+        };
+
+        const sectionTrigger = ScrollTrigger.create({
           end: "bottom 35%",
           invalidateOnRefresh: true,
           onEnter: () => setLoveShape(true),
@@ -124,13 +168,29 @@ export function OrchestratedEaseReverseMenu() {
           trigger: loveSection,
         });
 
+        const dockTrigger = ScrollTrigger.create({
+          end: "bottom 35%",
+          endTrigger: loveSection,
+          invalidateOnRefresh: true,
+          onEnter: () => setLoveDocked(true),
+          onEnterBack: () => setLoveDocked(true),
+          onLeave: () => setLoveDocked(false),
+          onLeaveBack: () => setLoveDocked(false),
+          onRefresh: (self) => setLoveDocked(self.isActive, true),
+          start: "bottom bottom-=40%",
+          trigger: loveText,
+        });
+
         return () => {
-          trigger.kill();
+          sectionTrigger.kill();
+          dockTrigger.kill();
           heartMorph.kill();
+          gsap.killTweensOf(island);
         };
       });
 
       motionPreferences.add("(prefers-reduced-motion: reduce)", () => {
+        isLoveDockedRef.current = false;
         isLoveSectionActiveRef.current = false;
         gsap.set(island, { x: 0, y: 0 });
         gsap.set(islandShape, { attr: { d: islandCirclePath } });
@@ -253,6 +313,42 @@ export function OrchestratedEaseReverseMenu() {
     { scope: rootRef },
   );
 
+  const restoreClosedIsland = contextSafe((duration = 0.24) => {
+    const island = islandRef.current;
+    const islandShape = islandShapeRef.current;
+
+    if (!island || !islandShape) {
+      return;
+    }
+
+    gsap.to(islandShape, {
+      duration,
+      ease: "power2.out",
+      morphSVG: isLoveSectionActiveRef.current ? islandHeartPath : islandCirclePath,
+    });
+
+    if (isLoveDockedRef.current) {
+      const loveTarget = document.querySelector<HTMLElement>("[data-love-scroll-target]");
+
+      if (loveTarget) {
+        Flip.fit(island, loveTarget, {
+          duration,
+          ease: "power2.out",
+          scale: false,
+        });
+        return;
+      }
+    }
+
+    gsap.to(island, {
+      duration,
+      ease: "power2.out",
+      x: 0,
+      xPercent: -50,
+      y: 0,
+    });
+  });
+
   const closeMenu = contextSafe(() => {
     const timeline = timelineRef.current;
 
@@ -269,15 +365,7 @@ export function OrchestratedEaseReverseMenu() {
         gsap.set(overlay, { pointerEvents: "none" });
       }
 
-      const islandShape = islandShapeRef.current;
-
-      if (islandShape) {
-        gsap.to(islandShape, {
-          duration: 0.24,
-          ease: "power2.out",
-          morphSVG: isLoveSectionActiveRef.current ? islandHeartPath : islandCirclePath,
-        });
-      }
+      restoreClosedIsland();
     });
     timeline.timeScale(exitSpeedRef.current).reverse();
   });
@@ -305,15 +393,7 @@ export function OrchestratedEaseReverseMenu() {
         gsap.set(overlay, { pointerEvents: "none" });
       }
 
-      const islandShape = islandShapeRef.current;
-
-      if (islandShape) {
-        gsap.to(islandShape, {
-          duration: 0.24,
-          ease: "power2.out",
-          morphSVG: isLoveSectionActiveRef.current ? islandHeartPath : islandCirclePath,
-        });
-      }
+      restoreClosedIsland();
     });
     timeline.timeScale(exitSpeedRef.current).reverse();
   });

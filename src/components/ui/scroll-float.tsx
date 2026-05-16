@@ -17,6 +17,7 @@ type ScrollFloatProps = {
   scrollStart?: string;
   stagger?: number;
   textClassName?: string;
+  trailingAnchor?: ReactNode;
 };
 
 export function ScrollFloat({
@@ -29,6 +30,7 @@ export function ScrollFloat({
   scrollStart = "center bottom+=50%",
   scrollEnd = "bottom bottom-=40%",
   stagger = 0.03,
+  trailingAnchor,
 }: ScrollFloatProps) {
   const containerRef = useRef<HTMLHeadingElement | null>(null);
 
@@ -107,6 +109,7 @@ export function ScrollFloat({
     <h2 ref={containerRef} className={`my-5 overflow-hidden ${containerClassName}`}>
       <span className={`inline-block text-[clamp(1.6rem,4vw,3rem)] leading-[1.5] ${textClassName}`}>
         {splitText}
+        {trailingAnchor}
       </span>
     </h2>
   );
