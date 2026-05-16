@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import { IconArrowRight } from "@tabler/icons-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -12,17 +12,26 @@ gsap.registerPlugin(useGSAP, ScrollTrigger);
 
 export function LandingPage() {
   const landingRef = useRef<HTMLElement>(null);
+  const heroActionRef = useRef<HTMLDivElement>(null);
   const exploreZoneRef = useRef<HTMLDivElement>(null);
   const exploreButtonRef = useRef<HTMLAnchorElement>(null);
   const exploreLabelRef = useRef<HTMLSpanElement>(null);
+  const [canStartDescriptionAnimation, setCanStartDescriptionAnimation] = useState(false);
+  const [canRevealHeroAction, setCanRevealHeroAction] = useState(false);
+  const startDescriptionAnimation = useCallback(() => {
+    setCanStartDescriptionAnimation(true);
+  }, []);
+  const revealHeroAction = useCallback(() => {
+    setCanRevealHeroAction(true);
+  }, []);
 
   useGSAP(
     () => {
-      const targets = "[data-landing-reveal]";
       const contentTarget = "[data-landing-scroll-content]";
       const fadeTarget = "[data-landing-scroll-fade]";
       const surfaceTarget = "[data-landing-scroll-surface]";
-      const visibleTargets = `${targets}, ${contentTarget}, ${surfaceTarget}`;
+      const actionTarget = "[data-hero-action]";
+      const visibleTargets = `${contentTarget}, ${surfaceTarget}, ${actionTarget}`;
 
       if (typeof window.matchMedia !== "function") {
         gsap.set(visibleTargets, { autoAlpha: 1, clearProps: "all" });
@@ -46,20 +55,6 @@ export function LandingPage() {
         );
         const strength = 0.4;
         const labelStrength = 0.24;
-
-        gsap
-          .timeline({
-            defaults: {
-              clearProps: "transform,opacity,visibility",
-              ease: "power3.out",
-            },
-          })
-          .from("[data-landing-reveal]", {
-            autoAlpha: 0,
-            duration: 0.72,
-            stagger: 0.1,
-            y: 26,
-          });
 
         gsap
           .timeline({
@@ -167,6 +162,38 @@ export function LandingPage() {
     { scope: landingRef },
   );
 
+  useGSAP(
+    () => {
+      const heroAction = heroActionRef.current;
+
+      if (!heroAction) {
+        return;
+      }
+
+      if (
+        typeof window.matchMedia !== "function" ||
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ) {
+        gsap.set(heroAction, { autoAlpha: 1, clearProps: "transform" });
+        return;
+      }
+
+      if (!canRevealHeroAction) {
+        gsap.set(heroAction, { autoAlpha: 0, y: 26 });
+        return;
+      }
+
+      gsap.to(heroAction, {
+        autoAlpha: 1,
+        clearProps: "transform,opacity,visibility",
+        duration: 0.42,
+        ease: "power3.out",
+        y: 0,
+      });
+    },
+    { dependencies: [canRevealHeroAction], scope: landingRef },
+  );
+
   return (
     <>
       <main
@@ -187,6 +214,7 @@ export function LandingPage() {
             ease="power3.out"
             from={{ opacity: 0, y: 40 }}
             id="landing-title"
+            onLetterAnimationHalfway={startDescriptionAnimation}
             replayOnEnter
             rootMargin="-100px"
             splitType="chars"
@@ -198,21 +226,26 @@ export function LandingPage() {
             to={{ opacity: 1, y: 0 }}
           />
           <SplitText
+            animateTarget="lines"
             className="mt-6 max-w-2xl text-[clamp(1rem,2vw,1.3rem)] leading-[1.65] text-muted-foreground"
-            delay={20}
-            duration={0.35}
-            ease="power4"
-            from={{ opacity: 0, x: 150 }}
-            splitType="chars"
-            style={{ overflow: "visible" }}
+            delay={100}
+            duration={0.6}
+            ease="expo.out"
+            from={{ opacity: 0, yPercent: 100 }}
+            mask="lines"
+            onLetterAnimationHalfway={revealHeroAction}
+            splitType="words,lines"
+            startAnimation={canStartDescriptionAnimation}
             tag="p"
             text="Explore ML models through visual feedback, fully-animated, and built to make learning ML feel fun."
             textAlign="center"
-            to={{ opacity: 1, x: 0 }}
+            to={{ opacity: 1, yPercent: 0 }}
+            triggerOnScroll={false}
           />
           <div
             className="mt-8 flex flex-wrap items-center justify-center gap-3"
-            data-landing-reveal
+            data-hero-action
+            ref={heroActionRef}
           >
             <div
               className="flex size-[200px] cursor-pointer items-center justify-center -my-[76px]"
