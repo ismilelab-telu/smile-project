@@ -15,9 +15,9 @@
 - Start local development: `vp dev`
 - Production build: `vp build`
 - Preview production build: `vp preview`
-- Full project check: `vp check`
-- Lint: `vp lint src tests vite.config.ts playwright.config.ts`
-- Format: `vp fmt --write src tests index.html vite.config.ts playwright.config.ts package.json tsconfig.json`
+- Project check: `vp check src`
+- Lint: `vp lint <edited files>`
+- Format: `vp fmt --write <edited files>`
 - Unit tests: `vp test run`
 - Unit test watch mode: `vp test`
 
