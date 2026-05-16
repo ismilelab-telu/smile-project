@@ -1,13 +1,12 @@
 import { type KeyboardEvent, useRef, useState } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { Flip } from "gsap/Flip";
 import { MorphSVGPlugin } from "gsap/MorphSVGPlugin";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import smileIcon from "../../../assets/smile.svg";
 
-gsap.registerPlugin(useGSAP, Flip, MorphSVGPlugin, ScrollTrigger);
+gsap.registerPlugin(useGSAP, MorphSVGPlugin, ScrollTrigger);
 
 const islandCirclePath =
   "M25 2 C37.7 2 48 12.3 48 25 C48 37.7 37.7 48 25 48 C12.3 48 2 37.7 2 25 C2 12.3 12.3 2 25 2 Z";
@@ -17,14 +16,19 @@ const islandExpandedPillPath =
   "M3.125 2 H46.875 C48.6 2 50 12.3 50 25 C50 37.7 48.6 48 46.875 48 H3.125 C1.4 48 0 37.7 0 25 C0 12.3 1.4 2 3.125 2 Z";
 const islandDefaultFill = "white";
 const islandDefaultStroke = "#d4d4d8";
+const islandDefaultStrokeWidth = 1;
 const islandHeartFill = "#ef233c";
 const islandHeartStroke = "#ef233c";
-const islandHeartScale = 1.16;
+const islandHeartScale = 1.48;
 const islandMenuStroke = "#111111";
 const islandLoveMenuStroke = "white";
 const closedIslandSize = 50;
-const loveDockTransitionDuration = 0.82;
-const loveUndockTransitionDuration = 0.72;
+const loveDockYOffset = 10;
+const loveDockViewportRatio = 0.7;
+const loveDockExitViewportRatio = 0.35;
+const loveDockTransitionDuration = 0.48;
+const loveUndockTransitionDuration = 0.46;
+const heroTitleCutoffTop = 96;
 const topRightInset = 16;
 
 const menuItems = [
@@ -52,9 +56,11 @@ export function OrchestratedEaseReverseMenu() {
   const isAwayFromTopRef = useRef(false);
   const isOpenRef = useRef(false);
   const isLoveDockedRef = useRef(false);
+  const isLoveMenuDisabledRef = useRef(false);
   const isLoveSectionActiveRef = useRef(false);
   const exitSpeedRef = useRef(1.5);
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoveMenuDisabled, setIsLoveMenuDisabled] = useState(false);
   const useReverseEase = true;
 
   isOpenRef.current = isOpen;
@@ -92,7 +98,7 @@ export function OrchestratedEaseReverseMenu() {
         attr: { d: islandCirclePath },
         fill: islandDefaultFill,
         stroke: islandDefaultStroke,
-        strokeWidth: 1.5,
+        strokeWidth: islandDefaultStrokeWidth,
       });
 
       const motionPreferences = gsap.matchMedia();
@@ -100,6 +106,7 @@ export function OrchestratedEaseReverseMenu() {
       motionPreferences.add("(prefers-reduced-motion: no-preference)", () => {
         const loveSection = document.querySelector<HTMLElement>("[data-love-scroll-section]");
         const loveTarget = document.querySelector<HTMLElement>("[data-love-scroll-target]");
+        const heroTitle = document.querySelector<HTMLElement>("[data-landing-scroll-title]");
 
         if (!loveSection || !loveTarget) {
           return undefined;
@@ -148,7 +155,11 @@ export function OrchestratedEaseReverseMenu() {
               targetBounds.left + targetBounds.width / 2 - window.innerWidth / 2,
             ),
             y: snapToDevicePixel(
-              targetBounds.top + targetBounds.height / 2 - islandTop - islandHeight / 2,
+              targetBounds.top +
+                targetBounds.height / 2 -
+                islandTop -
+                islandHeight / 2 +
+                loveDockYOffset,
             ),
           };
         };
@@ -166,6 +177,8 @@ export function OrchestratedEaseReverseMenu() {
 
         const setLoveVisual = (isActive: boolean, immediate = false) => {
           const duration = immediate ? 0 : 0.34;
+          isLoveMenuDisabledRef.current = isActive;
+          setIsLoveMenuDisabled(isActive);
 
           gsap.to(island, {
             duration,
@@ -180,12 +193,13 @@ export function OrchestratedEaseReverseMenu() {
             ease: "power2.out",
             fill: isActive ? islandHeartFill : islandDefaultFill,
             stroke: isActive ? islandHeartStroke : islandDefaultStroke,
-            strokeWidth: isActive ? 0 : 1.5,
+            strokeWidth: isActive ? 0 : islandDefaultStrokeWidth,
           });
 
           gsap.to(menuBars, {
             duration,
             ease: "power2.out",
+            opacity: isActive ? 0 : 1,
             stroke: isActive ? islandLoveMenuStroke : islandMenuStroke,
           });
         };
@@ -215,7 +229,7 @@ export function OrchestratedEaseReverseMenu() {
 
           dockTransitionTween = gsap.to(dockProgress, {
             duration,
-            ease: "power2.inOut",
+            ease: "power3.out",
             onUpdate: () => {
               const targetPosition = getLoveTargetPosition();
 
@@ -257,8 +271,12 @@ export function OrchestratedEaseReverseMenu() {
 
         const getTopRightX = () => window.innerWidth / 2 - topRightInset - closedIslandSize / 2;
         const getBaseX = () => (isAwayFromTopRef.current ? getTopRightX() : 0);
+        const shouldDockTopRight = () =>
+          heroTitle
+            ? heroTitle.getBoundingClientRect().top <= heroTitleCutoffTop
+            : window.scrollY > 1;
 
-        const moveToBasePosition = (duration: number) => {
+        const moveToBasePosition = (duration: number, onComplete?: () => void) => {
           dockedPosition.x = Number.NaN;
           dockedPosition.y = Number.NaN;
           dockTransitionTween?.kill();
@@ -268,6 +286,7 @@ export function OrchestratedEaseReverseMenu() {
             duration,
             ease: "power2.out",
             force3D: false,
+            onComplete,
             x: getBaseX,
             xPercent: -50,
             y: 0,
@@ -285,7 +304,7 @@ export function OrchestratedEaseReverseMenu() {
         };
 
         const handleScroll = () => {
-          setAwayFromTop(window.scrollY > 1);
+          setAwayFromTop(shouldDockTopRight());
         };
 
         const handleResize = () => {
@@ -298,10 +317,10 @@ export function OrchestratedEaseReverseMenu() {
             return;
           }
 
-          moveToBasePosition(0);
+          setAwayFromTop(shouldDockTopRight(), true);
         };
 
-        setAwayFromTop(window.scrollY > 1, true);
+        setAwayFromTop(shouldDockTopRight(), true);
         window.addEventListener("scroll", handleScroll, { passive: true });
         window.addEventListener("resize", handleResize);
 
@@ -313,21 +332,24 @@ export function OrchestratedEaseReverseMenu() {
           }
 
           if (immediate) {
-            heartMorph.progress(isActive ? 1 : 0).pause();
-            setLoveVisual(isActive, true);
+            if (!isActive) {
+              heartMorph.progress(0).pause();
+              setLoveVisual(false, true);
+            }
             return;
           }
 
           if (isActive) {
-            heartMorph.play();
-            setLoveVisual(true);
             return;
           }
 
           isLoveDockedRef.current = false;
-          heartMorph.reverse();
-          setLoveVisual(false);
-          moveToBasePosition(loveUndockTransitionDuration);
+          moveToBasePosition(loveUndockTransitionDuration, () => {
+            if (!isLoveDockedRef.current && !isOpenRef.current) {
+              heartMorph.reverse();
+              setLoveVisual(false);
+            }
+          });
         };
 
         const setLoveDocked = (isDocked: boolean, immediate = false) => {
@@ -338,11 +360,42 @@ export function OrchestratedEaseReverseMenu() {
           }
 
           if (isDocked) {
+            heartMorph.play();
+            setLoveVisual(true, immediate);
             fitLoveTarget(immediate ? 0 : loveDockTransitionDuration);
             return;
           }
 
-          moveToBasePosition(immediate ? 0 : loveUndockTransitionDuration);
+          moveToBasePosition(immediate ? 0 : loveUndockTransitionDuration, () => {
+            if (!isLoveDockedRef.current && !isOpenRef.current) {
+              heartMorph.reverse();
+              setLoveVisual(false, immediate);
+            }
+          });
+        };
+
+        const shouldDockLove = () => {
+          const targetBounds = loveTarget.getBoundingClientRect();
+          const sectionBounds = loveSection.getBoundingClientRect();
+
+          return (
+            targetBounds.top <= window.innerHeight * loveDockViewportRatio &&
+            sectionBounds.bottom >= window.innerHeight * loveDockExitViewportRatio
+          );
+        };
+
+        const updateLoveDockFromViewport = (immediate = false) => {
+          const nextIsDocked = shouldDockLove();
+
+          if (nextIsDocked === isLoveDockedRef.current) {
+            if (nextIsDocked && !immediate) {
+              syncDockedLoveTarget();
+            }
+
+            return;
+          }
+
+          setLoveDocked(nextIsDocked, immediate);
         };
 
         const sectionTrigger = ScrollTrigger.create({
@@ -358,17 +411,16 @@ export function OrchestratedEaseReverseMenu() {
         });
 
         const dockTrigger = ScrollTrigger.create({
-          end: "bottom 35%",
-          endTrigger: loveSection,
+          end: "bottom top",
           invalidateOnRefresh: true,
-          onEnter: () => setLoveDocked(true),
-          onEnterBack: () => setLoveDocked(true),
+          onEnter: () => updateLoveDockFromViewport(),
+          onEnterBack: () => updateLoveDockFromViewport(),
           onLeave: () => setLoveDocked(false),
           onLeaveBack: () => setLoveDocked(false),
-          onRefresh: (self) => setLoveDocked(self.isActive, true),
-          onUpdate: syncDockedLoveTarget,
-          start: "center 72%",
-          trigger: loveText,
+          onRefresh: () => updateLoveDockFromViewport(true),
+          onUpdate: () => updateLoveDockFromViewport(),
+          start: "top bottom",
+          trigger: loveSection,
         });
 
         return () => {
@@ -384,15 +436,17 @@ export function OrchestratedEaseReverseMenu() {
       motionPreferences.add("(prefers-reduced-motion: reduce)", () => {
         isAwayFromTopRef.current = false;
         isLoveDockedRef.current = false;
+        isLoveMenuDisabledRef.current = false;
         isLoveSectionActiveRef.current = false;
+        setIsLoveMenuDisabled(false);
         gsap.set(island, { scale: 1, x: 0, y: 0 });
         gsap.set(islandShape, {
           attr: { d: islandCirclePath },
           fill: islandDefaultFill,
           stroke: islandDefaultStroke,
-          strokeWidth: 1.5,
+          strokeWidth: islandDefaultStrokeWidth,
         });
-        gsap.set([topBar, midBar, bottomBar], { stroke: islandMenuStroke });
+        gsap.set([topBar, midBar, bottomBar], { opacity: 1, stroke: islandMenuStroke });
       });
 
       const timeline = gsap
@@ -418,7 +472,7 @@ export function OrchestratedEaseReverseMenu() {
             fill: islandDefaultFill,
             morphSVG: islandExpandedPillPath,
             stroke: islandDefaultStroke,
-            strokeWidth: 1.5,
+            strokeWidth: islandDefaultStrokeWidth,
           },
           0,
         )
@@ -538,7 +592,9 @@ export function OrchestratedEaseReverseMenu() {
 
     const getBaseX = () =>
       isAwayFromTopRef.current ? window.innerWidth / 2 - topRightInset - closedIslandSize / 2 : 0;
-    const isLoveActive = isLoveSectionActiveRef.current;
+    const isLoveActive = isLoveDockedRef.current;
+    isLoveMenuDisabledRef.current = isLoveActive;
+    setIsLoveMenuDisabled(isLoveActive);
 
     gsap.to(islandShape, {
       duration,
@@ -546,12 +602,13 @@ export function OrchestratedEaseReverseMenu() {
       fill: isLoveActive ? islandHeartFill : islandDefaultFill,
       morphSVG: isLoveActive ? islandHeartPath : islandCirclePath,
       stroke: isLoveActive ? islandHeartStroke : islandDefaultStroke,
-      strokeWidth: isLoveActive ? 0 : 1.5,
+      strokeWidth: isLoveActive ? 0 : islandDefaultStrokeWidth,
     });
 
     gsap.to(menuBars, {
       duration,
       ease: "power2.out",
+      opacity: isLoveActive ? 0 : 1,
       stroke: isLoveActive ? islandLoveMenuStroke : islandMenuStroke,
     });
 
@@ -559,17 +616,23 @@ export function OrchestratedEaseReverseMenu() {
       const loveTarget = document.querySelector<HTMLElement>("[data-love-scroll-target]");
 
       if (loveTarget) {
+        const targetBounds = loveTarget.getBoundingClientRect();
+        const islandTop = Number.parseFloat(window.getComputedStyle(island).top) || 0;
+        const islandHeight = island.offsetHeight || closedIslandSize;
+
         gsap.to(island, {
           duration,
           ease: "power2.out",
           force3D: false,
           scale: isLoveActive ? islandHeartScale : 1,
-        });
-
-        Flip.fit(island, loveTarget, {
-          duration,
-          ease: "power2.out",
-          scale: false,
+          x: targetBounds.left + targetBounds.width / 2 - window.innerWidth / 2,
+          xPercent: -50,
+          y:
+            targetBounds.top +
+            targetBounds.height / 2 -
+            islandTop -
+            islandHeight / 2 +
+            loveDockYOffset,
         });
         return;
       }
@@ -610,7 +673,7 @@ export function OrchestratedEaseReverseMenu() {
   const toggleMenu = contextSafe(() => {
     const timeline = timelineRef.current;
 
-    if (!timeline) {
+    if (!timeline || (isLoveMenuDisabledRef.current && !isOpenRef.current)) {
       return;
     }
 
@@ -704,7 +767,7 @@ export function OrchestratedEaseReverseMenu() {
             fill={islandDefaultFill}
             ref={islandShapeRef}
             stroke={islandDefaultStroke}
-            strokeWidth="1.5"
+            strokeWidth={islandDefaultStrokeWidth}
             vectorEffect="non-scaling-stroke"
           />
         </svg>
@@ -721,9 +784,17 @@ export function OrchestratedEaseReverseMenu() {
         </div>
         <button
           aria-controls="orchestrated-menu-overlay"
+          aria-disabled={isLoveMenuDisabled}
           aria-expanded={isOpen}
-          aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
-          className="absolute top-1/2 right-2 flex size-[34px] -translate-y-1/2 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950"
+          aria-label={
+            isLoveMenuDisabled
+              ? "Navigation menu disabled"
+              : isOpen
+                ? "Close navigation menu"
+                : "Open navigation menu"
+          }
+          className={`absolute top-1/2 right-2 flex size-[34px] -translate-y-1/2 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 ${isLoveMenuDisabled ? "cursor-default" : "cursor-pointer"}`}
+          disabled={isLoveMenuDisabled}
           onClick={toggleMenu}
           ref={menuButtonRef}
           type="button"
