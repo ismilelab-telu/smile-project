@@ -6,6 +6,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import { DottedSurface } from "@/components/ui/dotted-surface";
 import { CinematicFooter } from "@/components/ui/motion-footer";
+import { SplitText } from "@/components/ui/split-text";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
@@ -179,13 +180,23 @@ export function LandingPage() {
           data-landing-scroll-content
           aria-labelledby="landing-title"
         >
-          <h1
+          <SplitText
             className="max-w-full whitespace-nowrap text-[clamp(2.8rem,10vw,8.6rem)] leading-[0.9] tracking-normal text-foreground font-semibold"
-            data-landing-reveal
+            delay={55}
+            duration={0.72}
+            ease="power3.out"
+            from={{ opacity: 0, y: 40 }}
             id="landing-title"
-          >
-            Smile Project
-          </h1>
+            replayOnEnter
+            rootMargin="-100px"
+            splitType="chars"
+            style={{ overflow: "visible", whiteSpace: "nowrap" }}
+            tag="h1"
+            text="Smile Project"
+            textAlign="center"
+            threshold={0.1}
+            to={{ opacity: 1, y: 0 }}
+          />
           <p
             className="mt-6 max-w-2xl text-[clamp(1rem,2vw,1.3rem)] leading-[1.65] text-muted-foreground"
             data-landing-reveal
