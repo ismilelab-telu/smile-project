@@ -1,10 +1,19 @@
 import { type KeyboardEvent, useRef, useState } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
+import { MorphSVGPlugin } from "gsap/MorphSVGPlugin";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import smileIcon from "../../../assets/smile.svg";
 
-gsap.registerPlugin(useGSAP);
+gsap.registerPlugin(useGSAP, MorphSVGPlugin, ScrollTrigger);
+
+const islandCirclePath =
+  "M25 2 C37.7 2 48 12.3 48 25 C48 37.7 37.7 48 25 48 C12.3 48 2 37.7 2 25 C2 12.3 12.3 2 25 2 Z";
+const islandHeartPath =
+  "M25 45 C20 40 6 29 6 17 C6 9.8 11.1 5 17.3 5 C20.9 5 23.7 6.8 25 9.5 C26.3 6.8 29.1 5 32.7 5 C38.9 5 44 9.8 44 17 C44 29 30 40 25 45 Z";
+const islandExpandedPillPath =
+  "M3.125 2 H46.875 C48.6 2 50 12.3 50 25 C50 37.7 48.6 48 46.875 48 H3.125 C1.4 48 0 37.7 0 25 C0 12.3 1.4 2 3.125 2 Z";
 
 const menuItems = [
   { href: "#work", label: "Work", number: "01" },
@@ -17,6 +26,7 @@ const menuItems = [
 export function OrchestratedEaseReverseMenu() {
   const rootRef = useRef<HTMLDivElement>(null);
   const islandRef = useRef<HTMLDivElement>(null);
+  const islandShapeRef = useRef<SVGPathElement>(null);
   const logoRef = useRef<HTMLImageElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -28,6 +38,7 @@ export function OrchestratedEaseReverseMenu() {
   const linkRefs = useRef<Array<HTMLAnchorElement | null>>([]);
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const isOpenRef = useRef(false);
+  const isLoveSectionActiveRef = useRef(false);
   const exitSpeedRef = useRef(1.5);
   const [isOpen, setIsOpen] = useState(false);
   const useReverseEase = true;
@@ -37,6 +48,7 @@ export function OrchestratedEaseReverseMenu() {
   const { contextSafe } = useGSAP(
     () => {
       const island = islandRef.current;
+      const islandShape = islandShapeRef.current;
       const logo = logoRef.current;
       const overlay = overlayRef.current;
       const backdrop = backdropRef.current;
@@ -46,11 +58,83 @@ export function OrchestratedEaseReverseMenu() {
       const bottomBar = bottomBarRef.current;
       const links = linkRefs.current.filter((link): link is HTMLAnchorElement => link !== null);
 
-      if (!island || !logo || !overlay || !backdrop || !panel || !topBar || !midBar || !bottomBar) {
+      if (
+        !island ||
+        !islandShape ||
+        !logo ||
+        !overlay ||
+        !backdrop ||
+        !panel ||
+        !topBar ||
+        !midBar ||
+        !bottomBar
+      ) {
         return;
       }
 
       gsap.set(overlay, { pointerEvents: "none" });
+      gsap.set(island, { x: 0, xPercent: -50, y: 0 });
+      gsap.set(islandShape, { attr: { d: islandCirclePath } });
+
+      const motionPreferences = gsap.matchMedia();
+
+      motionPreferences.add("(prefers-reduced-motion: no-preference)", () => {
+        const loveSection = document.querySelector<HTMLElement>("[data-love-scroll-section]");
+
+        if (!loveSection) {
+          return undefined;
+        }
+
+        const heartMorph = gsap.to(islandShape, {
+          duration: 0.36,
+          ease: "power2.out",
+          morphSVG: islandHeartPath,
+          paused: true,
+        });
+
+        const setLoveShape = (isActive: boolean, immediate = false) => {
+          isLoveSectionActiveRef.current = isActive;
+
+          if (isOpenRef.current) {
+            return;
+          }
+
+          if (immediate) {
+            heartMorph.progress(isActive ? 1 : 0).pause();
+            return;
+          }
+
+          if (isActive) {
+            heartMorph.play();
+            return;
+          }
+
+          heartMorph.reverse();
+        };
+
+        const trigger = ScrollTrigger.create({
+          end: "bottom 35%",
+          invalidateOnRefresh: true,
+          onEnter: () => setLoveShape(true),
+          onEnterBack: () => setLoveShape(true),
+          onLeave: () => setLoveShape(false),
+          onLeaveBack: () => setLoveShape(false),
+          onRefresh: (self) => setLoveShape(self.isActive, true),
+          start: "top 65%",
+          trigger: loveSection,
+        });
+
+        return () => {
+          trigger.kill();
+          heartMorph.kill();
+        };
+      });
+
+      motionPreferences.add("(prefers-reduced-motion: reduce)", () => {
+        isLoveSectionActiveRef.current = false;
+        gsap.set(island, { x: 0, y: 0 });
+        gsap.set(islandShape, { attr: { d: islandCirclePath } });
+      });
 
       const timeline = gsap
         .timeline({ paused: true })
@@ -62,6 +146,16 @@ export function OrchestratedEaseReverseMenu() {
             ease: "back.out(2)",
             easeReverse: useReverseEase ? "power2.out" : false,
             width: () => Math.min(window.innerWidth * 0.9, 400),
+          },
+          0,
+        )
+        .to(
+          islandShape,
+          {
+            duration: 0.8,
+            ease: "back.out(2)",
+            easeReverse: useReverseEase ? "power2.out" : false,
+            morphSVG: islandExpandedPillPath,
           },
           0,
         )
@@ -151,6 +245,7 @@ export function OrchestratedEaseReverseMenu() {
       timelineRef.current = timeline;
 
       return () => {
+        motionPreferences.revert();
         timeline.kill();
         timelineRef.current = null;
       };
@@ -172,6 +267,16 @@ export function OrchestratedEaseReverseMenu() {
 
       if (overlay) {
         gsap.set(overlay, { pointerEvents: "none" });
+      }
+
+      const islandShape = islandShapeRef.current;
+
+      if (islandShape) {
+        gsap.to(islandShape, {
+          duration: 0.24,
+          ease: "power2.out",
+          morphSVG: isLoveSectionActiveRef.current ? islandHeartPath : islandCirclePath,
+        });
       }
     });
     timeline.timeScale(exitSpeedRef.current).reverse();
@@ -198,6 +303,16 @@ export function OrchestratedEaseReverseMenu() {
 
       if (overlay) {
         gsap.set(overlay, { pointerEvents: "none" });
+      }
+
+      const islandShape = islandShapeRef.current;
+
+      if (islandShape) {
+        gsap.to(islandShape, {
+          duration: 0.24,
+          ease: "power2.out",
+          morphSVG: isLoveSectionActiveRef.current ? islandHeartPath : islandCirclePath,
+        });
       }
     });
     timeline.timeScale(exitSpeedRef.current).reverse();
@@ -246,9 +361,25 @@ export function OrchestratedEaseReverseMenu() {
   return (
     <div data-orchestrated-menu onKeyDown={handleKeyDown} ref={rootRef}>
       <div
-        className="fixed top-2 left-1/2 z-[1000] flex h-[50px] w-[50px] -translate-x-1/2 items-center justify-between overflow-hidden rounded-full border border-zinc-300 bg-white p-2 whitespace-nowrap shadow-[0_6px_18px_rgba(17,17,17,0.06)]"
+        className="fixed top-2 left-1/2 z-[1000] flex h-[50px] w-[50px] items-center justify-between whitespace-nowrap"
         ref={islandRef}
       >
+        <svg
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-0 size-full overflow-visible drop-shadow-[0_6px_18px_rgba(17,17,17,0.06)]"
+          preserveAspectRatio="none"
+          viewBox="0 0 50 50"
+        >
+          <path
+            d={islandCirclePath}
+            fill="white"
+            ref={islandShapeRef}
+            stroke="#d4d4d8"
+            strokeWidth="1.5"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+
         <div className="pointer-events-none absolute top-1/2 left-[15px] z-10 flex size-8 -translate-y-1/2 items-center justify-center">
           <img
             alt=""

@@ -347,7 +347,10 @@ export function LandingPage() {
           </ScrollFloat>
         </div>
 
-        <div className="flex min-h-[100svh] items-center justify-center py-20 sm:py-24 lg:py-28">
+        <div
+          className="flex min-h-[100svh] items-center justify-center py-20 sm:py-24 lg:py-28"
+          data-love-scroll-section
+        >
           <ScrollFloat
             animationDuration={1}
             containerClassName="mx-auto w-full max-w-screen-2xl text-center"
