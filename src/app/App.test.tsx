@@ -27,7 +27,7 @@ describe("App", () => {
 
     expect(menuButton).toHaveAttribute("aria-expanded", "true");
     expect(workLink).toBeInTheDocument();
-    expect(within(menuDialog).getByRole("link", { name: "Contact 05" })).toBeInTheDocument();
+    expect(within(menuDialog).getByRole("link", { name: "Contacts 05" })).toBeInTheDocument();
   });
 
   it("renders fuzzy text utility pages", () => {

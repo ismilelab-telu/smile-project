@@ -33,11 +33,11 @@ const heroTitleCutoffTop = 96;
 const topRightInset = 16;
 
 const menuItems = [
-  { href: "#work", label: "Work", number: "01" },
-  { href: "#about", label: "About", number: "02" },
-  { href: "#studio", label: "Studio", number: "03" },
-  { href: "#journal", label: "Journal", number: "04" },
-  { href: "#contact", label: "Contact", number: "05" },
+  { href: "/404", label: "Work", number: "01" },
+  { href: "/404", label: "Milestone", number: "02" },
+  { href: "/404", label: "About", number: "03" },
+  { href: "/404", label: "Support", number: "04" },
+  { href: "/404", label: "Contacts", number: "05" },
 ];
 
 export function OrchestratedEaseReverseMenu() {
@@ -1177,10 +1177,10 @@ export function OrchestratedEaseReverseMenu() {
                 <a
                   aria-label={`${item.label} ${item.number}`}
                   className="group flex items-center justify-between px-4 py-[13px] text-base leading-none font-normal text-zinc-800 outline-none transition-colors first:rounded-t-[10px] last:rounded-b-[10px] hover:text-emerald-500 focus-visible:bg-zinc-100 focus-visible:text-emerald-500 [&+&]:border-t [&+&]:border-zinc-200"
+                  data-app-link
                   data-orchestrated-focusable
                   href={item.href}
                   key={item.label}
-                  onClick={(event) => event.preventDefault()}
                   ref={(node) => {
                     linkRefs.current[index] = node;
                   }}

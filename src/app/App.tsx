@@ -4,7 +4,7 @@ import { FuzzyTextPage } from "../pages/FuzzyTextPage";
 import { LandingPage } from "../pages/LandingPage";
 import { ModelPickerPage } from "../pages/ModelPickerPage";
 
-const fuzzyTextRoutes = new Set(["/about", "/contributing", "/follow-us", "/support"]);
+const fuzzyTextRoutes = new Set(["/404", "/about", "/contributing", "/follow-us", "/support"]);
 
 function getCurrentPath() {
   return typeof window === "undefined" ? "/" : window.location.pathname;
