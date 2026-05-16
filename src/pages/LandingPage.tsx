@@ -197,13 +197,19 @@ export function LandingPage() {
             threshold={0.1}
             to={{ opacity: 1, y: 0 }}
           />
-          <p
+          <SplitText
             className="mt-6 max-w-2xl text-[clamp(1rem,2vw,1.3rem)] leading-[1.65] text-muted-foreground"
-            data-landing-reveal
-          >
-            Explore ML models through visual feedback, fully-animated, and built to make learning ML
-            feel fun.
-          </p>
+            delay={20}
+            duration={0.35}
+            ease="power4"
+            from={{ opacity: 0, x: 150 }}
+            splitType="chars"
+            style={{ overflow: "visible" }}
+            tag="p"
+            text="Explore ML models through visual feedback, fully-animated, and built to make learning ML feel fun."
+            textAlign="center"
+            to={{ opacity: 1, x: 0 }}
+          />
           <div
             className="mt-8 flex flex-wrap items-center justify-center gap-3"
             data-landing-reveal
