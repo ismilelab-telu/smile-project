@@ -11,6 +11,8 @@ import { useGSAP } from "@gsap/react";
 import { SplitText } from "gsap/SplitText";
 import { AnimatePresence, motion } from "motion/react";
 
+import { cn } from "@/lib/utils";
+
 import { RegressionPreview } from "../features/regression/components/RegressionPreview";
 
 gsap.registerPlugin(useGSAP, SplitText);
@@ -135,10 +137,6 @@ const optionHighlightTransition = {
 
 function getModelGroup(modelName: string) {
   return modelGroups.find((group) => group.models.includes(modelName))?.label ?? "Machine Learning";
-}
-
-function classNames(...classes: Array<string | false>) {
-  return classes.filter(Boolean).join(" ");
 }
 
 export function ModelPickerPage() {
@@ -346,7 +344,7 @@ export function ModelPickerPage() {
 
   return (
     <main
-      className="min-h-screen overflow-hidden text-[#111111] [background:linear-gradient(135deg,rgba(0,0,0,0.06),transparent_38%),linear-gradient(235deg,rgba(82,82,82,0.1),transparent_44%),#f7f7f7]"
+      className="min-h-screen overflow-hidden text-foreground [background:linear-gradient(135deg,rgb(0_0_0_/_6%),transparent_38%),linear-gradient(235deg,color-mix(in_oklch,var(--muted-foreground)_10%,transparent),transparent_44%),var(--background)]"
       ref={introRef}
     >
       <header
@@ -355,7 +353,7 @@ export function ModelPickerPage() {
       >
         <div className="relative z-10" data-intro-nav ref={modePickerRef}>
           <motion.button
-            className="inline-flex min-h-[42px] w-[min(360px,52vw)] min-w-[280px] cursor-pointer items-center justify-between gap-2.5 rounded-xl border border-[rgba(17,17,17,0.14)] bg-white/80 px-3.5 text-[#111111] shadow-[0_10px_26px_rgba(0,0,0,0.08)] max-[820px]:w-[min(68vw,320px)] max-[820px]:min-w-0 max-[820px]:max-w-[min(68vw,320px)] [&_svg]:shrink-0"
+            className="inline-flex min-h-[42px] w-[min(360px,52vw)] min-w-[280px] cursor-pointer items-center justify-between gap-2.5 rounded-xl border border-foreground/[0.14] bg-surface/80 px-3.5 text-foreground shadow-[0_10px_26px_rgb(0_0_0_/_8%)] max-[820px]:w-[min(68vw,320px)] max-[820px]:min-w-0 max-[820px]:max-w-[min(68vw,320px)] [&_svg]:shrink-0"
             type="button"
             whileHover={{ y: -1 }}
             whileTap={{ scale: 0.98 }}
@@ -381,7 +379,7 @@ export function ModelPickerPage() {
           <AnimatePresence>
             {isModeMenuOpen ? (
               <motion.div
-                className="absolute top-[calc(100%_+_10px)] left-0 max-h-[min(72vh,620px)] w-[min(420px,calc(100vw_-_32px))] origin-top-left overflow-y-auto overscroll-contain rounded-xl border border-[rgba(17,17,17,0.14)] bg-white/90 p-2.5 shadow-[0_22px_54px_rgba(0,0,0,0.16)] backdrop-blur-[18px] max-[820px]:max-h-[68vh] max-[820px]:w-[min(92vw,420px)]"
+                className="absolute top-[calc(100%_+_10px)] left-0 max-h-[min(72vh,620px)] w-[min(420px,calc(100vw_-_32px))] origin-top-left overflow-y-auto overscroll-contain rounded-xl border border-foreground/[0.14] bg-surface/90 p-2.5 shadow-[0_22px_54px_rgb(0_0_0_/_16%)] backdrop-blur-[18px] max-[820px]:max-h-[68vh] max-[820px]:w-[min(92vw,420px)]"
                 id={listboxId}
                 role="listbox"
                 aria-label="Machine learning models"
@@ -395,7 +393,7 @@ export function ModelPickerPage() {
                   {highlightFrame ? (
                     <motion.span
                       aria-hidden="true"
-                      className="pointer-events-none absolute top-0 left-0 z-0 rounded-md bg-[rgba(17,17,17,0.08)]"
+                      className="pointer-events-none absolute top-0 left-0 z-0 rounded-md bg-foreground/[0.08]"
                       data-model-option-highlight=""
                       initial={false}
                       animate={highlightFrame}
@@ -407,9 +405,9 @@ export function ModelPickerPage() {
 
                     return (
                       <motion.div
-                        className={classNames(
+                        className={cn(
                           "block",
-                          groupIndex > 0 && "mt-2.5 border-t border-[rgba(17,17,17,0.1)] pt-2.5",
+                          groupIndex > 0 && "mt-2.5 border-t border-foreground/10 pt-2.5",
                         )}
                         key={group.label}
                         role="group"
@@ -417,7 +415,7 @@ export function ModelPickerPage() {
                         variants={groupVariants}
                       >
                         <motion.p
-                          className="mx-2 mt-0 mb-[7px] text-[0.72rem] font-extrabold tracking-normal text-[#6b7280] uppercase"
+                          className="mx-2 mb-[7px] text-[0.72rem] font-extrabold tracking-normal text-plot-point uppercase"
                           id={groupLabelId}
                           variants={labelVariants}
                         >
@@ -430,9 +428,9 @@ export function ModelPickerPage() {
 
                             return (
                               <motion.button
-                                className={classNames(
-                                  "relative z-10 flex min-h-9 w-full cursor-pointer items-center justify-between gap-3 rounded-md border-0 bg-transparent py-2 pr-[9px] pl-2.5 text-left text-[#333333]",
-                                  isSelected && "font-extrabold text-[#111111]",
+                                className={cn(
+                                  "relative z-10 flex min-h-9 w-full cursor-pointer items-center justify-between gap-3 rounded-md border-0 bg-transparent py-2 pr-[9px] pl-2.5 text-left text-ink-soft",
+                                  isSelected && "font-extrabold text-foreground",
                                 )}
                                 data-model-option={modelName}
                                 key={modelName}
@@ -457,7 +455,7 @@ export function ModelPickerPage() {
                                   {modelName}
                                 </span>
                                 <span
-                                  className="relative z-10 inline-flex flex-[0_0_18px] items-center justify-center text-[#111111]"
+                                  className="relative z-10 inline-flex flex-[0_0_18px] items-center justify-center text-foreground"
                                   aria-hidden="true"
                                 >
                                   {isSelected ? <IconCheck size={15} /> : null}
@@ -476,7 +474,7 @@ export function ModelPickerPage() {
         </div>
 
         <a
-          className="inline-flex min-h-[42px] items-center gap-2.5 rounded-xl font-bold text-[#333333] [&_svg]:shrink-0"
+          className="inline-flex min-h-[42px] items-center gap-2.5 rounded-xl font-bold text-ink-soft [&_svg]:shrink-0"
           data-intro-nav
           href="/"
           data-app-link
@@ -493,7 +491,7 @@ export function ModelPickerPage() {
       >
         <div className="max-w-[520px]">
           <p
-            className="mt-0 mr-0 mb-[18px] ml-0 inline-flex items-center gap-2 text-[0.9rem] font-bold text-[#404040]"
+            className="mb-[18px] inline-flex items-center gap-2 text-[0.9rem] font-bold text-kicker"
             data-intro-kicker
             data-testid="selected-model-group"
           >
@@ -501,7 +499,7 @@ export function ModelPickerPage() {
             {selectedGroup}
           </p>
           <h1
-            className="m-0 text-[clamp(2.6rem,5.4vw,5.8rem)] leading-[0.96] text-[#111111] [perspective:500px]"
+            className="text-[clamp(2.6rem,5.4vw,5.8rem)] leading-[0.96] text-foreground [perspective:500px]"
             data-intro-title
             id="workspace-title"
           >

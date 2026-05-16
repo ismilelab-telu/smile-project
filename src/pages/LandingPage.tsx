@@ -52,7 +52,7 @@ export function LandingPage() {
   return (
     <>
       <main
-        className="relative z-10 min-h-screen overflow-x-hidden bg-[#f7f7f7] text-[#111111]"
+        className="relative z-10 min-h-screen overflow-x-hidden bg-background text-foreground"
         ref={landingRef}
       >
         <DottedSurface />
@@ -62,14 +62,14 @@ export function LandingPage() {
           aria-labelledby="landing-title"
         >
           <h1
-            className="m-0 max-w-full whitespace-nowrap text-[clamp(2.8rem,10vw,8.6rem)] leading-[0.9] tracking-normal text-[#111111]"
+            className="max-w-full whitespace-nowrap text-[clamp(2.8rem,10vw,8.6rem)] leading-[0.9] tracking-normal text-foreground"
             data-landing-reveal
             id="landing-title"
           >
             Smile Project
           </h1>
           <p
-            className="mt-6 mb-0 max-w-2xl text-[clamp(1rem,2vw,1.3rem)] leading-[1.65] text-[#525252]"
+            className="mt-6 max-w-2xl text-[clamp(1rem,2vw,1.3rem)] leading-[1.65] text-muted-foreground"
             data-landing-reveal
           >
             Explore ML models through visual feedback, fully-animated, and built to make learning ML
@@ -77,7 +77,7 @@ export function LandingPage() {
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3" data-landing-reveal>
             <a
-              className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#111111] px-5 font-semibold text-white shadow-[0_16px_34px_rgba(0,0,0,0.18)] transition-colors hover:bg-black"
+              className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-primary px-5 font-semibold text-white shadow-[0_16px_34px_rgb(0_0_0_/_18%)] transition-colors hover:bg-foreground"
               data-app-link
               href="/model-picker"
             >

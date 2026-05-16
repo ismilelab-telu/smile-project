@@ -40,16 +40,16 @@ export function RegressionPreview() {
 
   return (
     <div className="grid w-full gap-[18px]" ref={containerRef} aria-label="Regression plot preview">
-      <div className="relative aspect-[1.2] w-full overflow-hidden rounded-xl border border-[rgba(17,17,17,0.14)] bg-[length:44px_44px] shadow-[0_22px_56px_rgba(0,0,0,0.12)] [background:linear-gradient(rgba(17,17,17,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(17,17,17,0.06)_1px,transparent_1px),rgba(255,255,255,0.82)]">
-        <div className="absolute right-[8%] bottom-[12%] left-[8%] h-px bg-[rgba(17,17,17,0.45)]" />
-        <div className="absolute top-[8%] bottom-[12%] left-[8%] w-px bg-[rgba(17,17,17,0.45)]" />
+      <div className="relative aspect-[1.2] w-full overflow-hidden rounded-xl border border-foreground/[0.14] bg-[length:44px_44px] shadow-[0_22px_56px_rgb(0_0_0_/_12%)] [background:linear-gradient(color-mix(in_oklch,var(--foreground)_6%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_oklch,var(--foreground)_6%,transparent)_1px,transparent_1px),color-mix(in_oklch,var(--surface)_82%,transparent)]">
+        <div className="absolute right-[8%] bottom-[12%] left-[8%] h-px bg-foreground/45" />
+        <div className="absolute top-[8%] bottom-[12%] left-[8%] w-px bg-foreground/45" />
         <div
-          className="absolute right-[10%] bottom-[24%] left-[10%] h-[3px] rotate-[-30deg] rounded-full bg-[#111111] shadow-[0_8px_20px_rgba(0,0,0,0.22)]"
+          className="absolute right-[10%] bottom-[24%] left-[10%] h-[3px] rotate-[-30deg] rounded-full bg-foreground shadow-[0_8px_20px_rgb(0_0_0_/_22%)]"
           data-trend-line
         />
         {predictions.map((point) => (
           <span
-            className="absolute h-3.5 w-3.5 -translate-x-1/2 translate-y-1/2 rounded-full border-[3px] border-[#f7f7f7] bg-[#6b7280] shadow-[0_8px_18px_rgba(0,0,0,0.24)]"
+            className="absolute h-3.5 w-3.5 -translate-x-1/2 translate-y-1/2 rounded-full border-[3px] border-background bg-plot-point shadow-[0_8px_18px_rgb(0_0_0_/_24%)]"
             data-plot-point
             key={`${point.x}-${point.y}`}
             style={{
@@ -61,16 +61,16 @@ export function RegressionPreview() {
         ))}
       </div>
 
-      <dl className="m-0 grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-[rgba(17,17,17,0.12)] bg-white/80 px-4 py-3.5">
-          <dt className="mt-0 mb-1 text-[0.78rem] font-bold text-[#6b7280] uppercase">Slope</dt>
-          <dd className="m-0 text-[1.55rem] font-extrabold text-[#111111]">
+      <dl className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl border border-border bg-surface/80 px-4 py-3.5">
+          <dt className="mb-1 text-[0.78rem] font-bold text-plot-point uppercase">Slope</dt>
+          <dd className="text-[1.55rem] font-extrabold text-foreground">
             {model.slope.toFixed(2)}
           </dd>
         </div>
-        <div className="rounded-xl border border-[rgba(17,17,17,0.12)] bg-white/80 px-4 py-3.5">
-          <dt className="mt-0 mb-1 text-[0.78rem] font-bold text-[#6b7280] uppercase">Intercept</dt>
-          <dd className="m-0 text-[1.55rem] font-extrabold text-[#111111]">
+        <div className="rounded-xl border border-border bg-surface/80 px-4 py-3.5">
+          <dt className="mb-1 text-[0.78rem] font-bold text-plot-point uppercase">Intercept</dt>
+          <dd className="text-[1.55rem] font-extrabold text-foreground">
             {model.intercept.toFixed(2)}
           </dd>
         </div>
