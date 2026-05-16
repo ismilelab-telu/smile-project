@@ -179,7 +179,7 @@ export function CurvedLoop({
     >
       <svg
         aria-hidden="true"
-        className="block aspect-[100/12] w-full select-none overflow-visible text-[clamp(1.75rem,5.5vw,5.75rem)] leading-none font-black tracking-normal"
+        className="block aspect-[100/12] w-full select-none overflow-visible text-[clamp(1.75rem,5.5vw,5.75rem)] leading-none font-semibold tracking-tight"
         viewBox="0 0 1440 120"
       >
         <text

@@ -38,8 +38,7 @@ const glassPillClassName =
   "relative isolate overflow-hidden bg-transparent transition-colors duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)] hover:text-foreground";
 
 const footerHeadingText = "ML should be fun!";
-const footerCurvedLoopText =
-  "One of the key algorithms of compassionate artificial intelligence is Mother-Infant Inter-brain Synchrony algorithm / which mimics the brain-to-brain synchrony of gaze, facial expressions, touch and heart rhythms of mother and child /";
+const footerCurvedLoopText = "Predicting the future isn't magic, it's artificial intelligence.";
 const footerHeadingWordDelay = 150;
 const footerHeadingStepDuration = 0.35;
 const footerHeadingRevealProgress = 0.8;
@@ -263,14 +262,14 @@ export function CinematicFooter() {
           />
           <div className={cn("pointer-events-none absolute inset-0 z-0", footerFogClassName)} />
 
-          <div className="pointer-events-none absolute inset-x-0 top-8 z-10 opacity-55 md:top-10">
+          <div className="pointer-events-none absolute inset-x-0 -top-20 z-10 opacity-55">
             <CurvedLoop
-              className="fill-foreground"
-              curveAmount={130}
+              className="fill-zinc-500"
+              curveAmount={360}
               direction="left"
               interactive={false}
               marqueeText={footerCurvedLoopText}
-              speed={0.65}
+              speed={2}
             />
           </div>
 
