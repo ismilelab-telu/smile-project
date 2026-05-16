@@ -15,6 +15,21 @@ describe("App", () => {
     expect(screen.getByRole("link", { name: /Open model picker/ })).toBeInTheDocument();
   });
 
+  it("opens the orchestrated GSAP navigation island", async () => {
+    render(<App />);
+
+    const menuButton = screen.getByRole("button", { name: "Open navigation menu" });
+
+    fireEvent.click(menuButton);
+
+    const menuDialog = screen.getByRole("dialog", { name: "Navigation menu" });
+    const workLink = await within(menuDialog).findByRole("link", { name: "Work 01" });
+
+    expect(menuButton).toHaveAttribute("aria-expanded", "true");
+    expect(workLink).toBeInTheDocument();
+    expect(within(menuDialog).getByRole("link", { name: "Contact 05" })).toBeInTheDocument();
+  });
+
   it("renders fuzzy text utility pages", () => {
     window.history.pushState(null, "", "/support");
     render(<App />);

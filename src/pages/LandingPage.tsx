@@ -7,6 +7,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { DottedSurface } from "@/components/ui/dotted-surface";
 import { GlassSurface } from "@/components/ui/glass-surface";
 import { CinematicFooter } from "@/components/ui/motion-footer";
+import { OrchestratedEaseReverseMenu } from "@/components/ui/orchestrated-ease-reverse-menu";
 import ScrollFloat from "@/components/ui/scroll-float";
 import ScrollReveal from "@/components/ui/scroll-reveal";
 import { SplitText } from "@/components/ui/split-text";
@@ -209,6 +210,8 @@ export function LandingPage() {
 
   return (
     <>
+      <OrchestratedEaseReverseMenu />
+
       <main
         className="relative z-10 min-h-screen overflow-x-hidden bg-background text-foreground"
         ref={landingRef}
