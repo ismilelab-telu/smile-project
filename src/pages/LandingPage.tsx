@@ -19,8 +19,15 @@ export function LandingPage() {
   const exploreLabelRef = useRef<HTMLSpanElement>(null);
   const [canStartDescriptionAnimation, setCanStartDescriptionAnimation] = useState(false);
   const [canRevealHeroAction, setCanRevealHeroAction] = useState(false);
+  const [descriptionReplayKey, setDescriptionReplayKey] = useState(0);
   const startDescriptionAnimation = useCallback(() => {
+    setCanRevealHeroAction(false);
+    setDescriptionReplayKey((key) => key + 1);
     setCanStartDescriptionAnimation(true);
+  }, []);
+  const resetHeroIntro = useCallback(() => {
+    setCanRevealHeroAction(false);
+    setCanStartDescriptionAnimation(false);
   }, []);
   const revealHeroAction = useCallback(() => {
     setCanRevealHeroAction(true);
@@ -28,12 +35,11 @@ export function LandingPage() {
 
   useGSAP(
     () => {
-      const contentTarget = "[data-landing-scroll-content]";
       const fadeTarget = "[data-landing-scroll-fade]";
-      const heroExploreFadeTarget = "[data-hero-glass-surface], [data-hero-explore-label]";
       const surfaceTarget = "[data-landing-scroll-surface]";
+      const titleTarget = "[data-landing-scroll-title]";
       const actionTarget = "[data-hero-action]";
-      const visibleTargets = `${contentTarget}, ${surfaceTarget}, ${actionTarget}`;
+      const visibleTargets = `${titleTarget}, ${surfaceTarget}, ${actionTarget}`;
 
       if (typeof window.matchMedia !== "function") {
         gsap.set(visibleTargets, { autoAlpha: 1, clearProps: "all" });
@@ -77,26 +83,13 @@ export function LandingPage() {
               ease: "none",
             },
             0,
-          )
-          .to(
-            contentTarget,
-            {
-              autoAlpha: 0,
-              ease: "none",
-              filter: "blur(6px)",
-              scale: 0.975,
-              y: -64,
-            },
-            0,
-          )
-          .to(
-            heroExploreFadeTarget,
-            {
-              autoAlpha: 0,
-              ease: "none",
-            },
-            0,
           );
+
+        ScrollTrigger.create({
+          onLeave: resetHeroIntro,
+          start: "bottom 44%",
+          trigger: landingRef.current,
+        });
 
         if (!exploreZone || !exploreButton || !exploreLabel) {
           return undefined;
@@ -169,7 +162,7 @@ export function LandingPage() {
         motionPreferences.revert();
       };
     },
-    { scope: landingRef },
+    { dependencies: [resetHeroIntro], scope: landingRef },
   );
 
   useGSAP(
@@ -216,9 +209,10 @@ export function LandingPage() {
           className="relative z-10 mx-auto flex min-h-[100svh] w-[min(1180px,calc(100%_-_32px))] flex-col items-center justify-center pt-28 pb-28 text-center"
           aria-labelledby="landing-title"
         >
-          <div className="flex flex-col items-center" data-landing-scroll-content>
+          <div className="flex flex-col items-center">
             <SplitText
               className="max-w-full whitespace-nowrap text-[clamp(2.8rem,10vw,8.6rem)] leading-[0.9] tracking-normal text-foreground font-semibold"
+              data-landing-scroll-title
               delay={55}
               duration={0.72}
               ease="power3.out"
@@ -242,6 +236,7 @@ export function LandingPage() {
               duration={0.6}
               ease="expo.out"
               from={{ opacity: 0, yPercent: 100 }}
+              key={descriptionReplayKey}
               mask="lines"
               onLetterAnimationHalfway={revealHeroAction}
               splitType="words,lines"

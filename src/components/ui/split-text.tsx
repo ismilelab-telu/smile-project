@@ -174,6 +174,10 @@ export function SplitText({
           }
 
           if (replayOnEnter) {
+            const resetTween = () => {
+              animationHalfwayRef.current = false;
+              tween.pause(0);
+            };
             const tween = gsap.fromTo(targets, from, {
               ...to,
               duration,
@@ -194,10 +198,16 @@ export function SplitText({
               anticipatePin: 0.4,
               end: "bottom top",
               fastScrollEnd: true,
-              onEnter: () => tween.restart(),
-              onEnterBack: () => tween.restart(),
-              onLeave: () => tween.pause(0),
-              onLeaveBack: () => tween.pause(0),
+              onEnter: () => {
+                animationHalfwayRef.current = false;
+                tween.restart();
+              },
+              onEnterBack: () => {
+                animationHalfwayRef.current = false;
+                tween.restart();
+              },
+              onLeave: resetTween,
+              onLeaveBack: resetTween,
               start,
               trigger: element,
             });
