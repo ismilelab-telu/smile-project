@@ -14,6 +14,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import ShapeGrid from "@/components/ShapeGrid";
 import { BlurText } from "@/components/ui/blur-text";
+import { CurvedLoop } from "@/components/ui/curved-loop";
 import { GlassSurface } from "@/components/ui/glass-surface";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +38,8 @@ const glassPillClassName =
   "relative isolate overflow-hidden bg-transparent transition-colors duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)] hover:text-foreground";
 
 const footerHeadingText = "ML should be fun!";
+const footerCurvedLoopText =
+  "One of the key algorithms of compassionate artificial intelligence is Mother-Infant Inter-brain Synchrony algorithm / which mimics the brain-to-brain synchrony of gaze, facial expressions, touch and heart rhythms of mother and child /";
 const footerHeadingWordDelay = 150;
 const footerHeadingStepDuration = 0.35;
 const footerHeadingRevealProgress = 0.8;
@@ -259,6 +262,17 @@ export function CinematicFooter() {
             )}
           />
           <div className={cn("pointer-events-none absolute inset-0 z-0", footerFogClassName)} />
+
+          <div className="pointer-events-none absolute inset-x-0 top-8 z-10 opacity-55 md:top-10">
+            <CurvedLoop
+              className="fill-foreground"
+              curveAmount={130}
+              direction="left"
+              interactive={false}
+              marqueeText={footerCurvedLoopText}
+              speed={0.65}
+            />
+          </div>
 
           <div
             ref={giantTextRef}
