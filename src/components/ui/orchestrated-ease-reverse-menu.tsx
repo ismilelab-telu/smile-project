@@ -25,6 +25,7 @@ const islandLoveMenuStroke = "oklch(100% 0 0)";
 const closedIslandSize = 50;
 const loveDockYOffset = 10;
 const loveDockViewportRatio = 0.86;
+const loveDockScrollUpExitViewportRatio = 0.54;
 const loveDockExitViewportRatio = 0.35;
 const loveDockTransitionDuration = 0.72;
 const loveUndockTransitionDuration = 0.6;
@@ -58,6 +59,7 @@ export function OrchestratedEaseReverseMenu() {
   const isAwayFromTopRef = useRef(false);
   const isOpenRef = useRef(false);
   const isLoveDockedRef = useRef(false);
+  const isLoveExitingRef = useRef(false);
   const isLoveMenuDisabledRef = useRef(false);
   const isLoveSectionActiveRef = useRef(false);
   const exitSpeedRef = useRef(1.5);
@@ -260,6 +262,68 @@ export function OrchestratedEaseReverseMenu() {
           });
         };
 
+        const settleWhiteCircleVisual = () => {
+          const shouldShowShape = isAwayFromTopRef.current;
+
+          isLoveMenuDisabledRef.current = false;
+          setIsLoveMenuDisabled(false);
+          gsap.killTweensOf([islandSurface, islandSvg], "autoAlpha");
+          gsap.killTweensOf(menuBars, "stroke,opacity");
+          gsap.set(islandSurface, {
+            autoAlpha: shouldShowShape ? 0 : 1,
+            backgroundColor: islandDefaultFill,
+            borderColor: islandDefaultStroke,
+            borderWidth: islandDefaultStrokeWidth,
+          });
+          gsap.set(islandSvg, {
+            autoAlpha: shouldShowShape ? 1 : 0,
+          });
+          setSvgShapeVisual(false);
+          gsap.set(menuBars, { stroke: islandMenuStroke });
+          isLoveExitingRef.current = false;
+          gsap.to(menuBars, {
+            duration: 0.18,
+            ease: "power2.out",
+            opacity: 1,
+          });
+        };
+
+        const reverseLoveToCircle = (immediate = false) => {
+          if (immediate) {
+            heartMorph.eventCallback("onReverseComplete", null);
+            heartMorph.progress(0).pause();
+            isLoveExitingRef.current = false;
+            setLoveVisual(false, true);
+            return;
+          }
+
+          isLoveMenuDisabledRef.current = true;
+          setIsLoveMenuDisabled(true);
+          setVisualLayer("shape", true);
+          gsap.set(menuBars, { stroke: islandMenuStroke });
+          gsap.to(island, {
+            duration: 0.34,
+            ease: "power2.out",
+            force3D: false,
+            scale: 1,
+            transformOrigin: "50% 50%",
+          });
+
+          heartMorph.eventCallback("onReverseComplete", () => {
+            heartMorph.eventCallback("onReverseComplete", null);
+
+            if (!isLoveDockedRef.current && !isOpenRef.current) {
+              settleWhiteCircleVisual();
+            }
+          });
+          gsap.to(menuBars, {
+            duration: 0.22,
+            ease: "power2.out",
+            opacity: 1,
+          });
+          heartMorph.reverse();
+        };
+
         const fitLoveTarget = (duration: number) => {
           const { x, y } = getLoveTargetPosition();
 
@@ -343,6 +407,24 @@ export function OrchestratedEaseReverseMenu() {
             ease: "power2.out",
             force3D: false,
             onComplete,
+            overwrite: "auto",
+            x: getBaseX,
+            xPercent: -50,
+            y: 0,
+          });
+        };
+
+        const moveLoveToBasePosition = (duration: number) => {
+          dockedPosition.x = Number.NaN;
+          dockedPosition.y = Number.NaN;
+          dockTransitionTween?.kill();
+          dockTransitionTween = null;
+
+          gsap.to(island, {
+            duration,
+            ease: "power2.out",
+            force3D: false,
+            overwrite: "auto",
             x: getBaseX,
             xPercent: -50,
             y: 0,
@@ -350,9 +432,14 @@ export function OrchestratedEaseReverseMenu() {
         };
 
         const setAwayFromTop = (isAwayFromTop: boolean, immediate = false) => {
+          const didChange = isAwayFromTopRef.current !== isAwayFromTop;
           isAwayFromTopRef.current = isAwayFromTop;
 
-          if (isOpenRef.current || isLoveDockedRef.current) {
+          if (isOpenRef.current || isLoveDockedRef.current || isLoveExitingRef.current) {
+            return;
+          }
+
+          if (!immediate && !didChange) {
             return;
           }
 
@@ -366,6 +453,10 @@ export function OrchestratedEaseReverseMenu() {
 
         const handleResize = () => {
           if (isOpenRef.current) {
+            return;
+          }
+
+          if (isLoveExitingRef.current) {
             return;
           }
 
@@ -400,16 +491,25 @@ export function OrchestratedEaseReverseMenu() {
             return;
           }
 
+          if (isLoveExitingRef.current) {
+            return;
+          }
+
           isLoveDockedRef.current = false;
-          moveToBasePosition(loveUndockTransitionDuration, () => {
-            if (!isLoveDockedRef.current && !isOpenRef.current) {
-              heartMorph.reverse();
-              setLoveVisual(false);
+          isLoveExitingRef.current = true;
+          moveLoveToBasePosition(loveUndockTransitionDuration);
+          gsap.delayedCall(Math.min(0.16, loveUndockTransitionDuration * 0.36), () => {
+            if (!isLoveDockedRef.current && !isOpenRef.current && isLoveExitingRef.current) {
+              reverseLoveToCircle();
             }
           });
         };
 
         const setLoveDocked = (isDocked: boolean, immediate = false) => {
+          if (isLoveExitingRef.current) {
+            return;
+          }
+
           isLoveDockedRef.current = isDocked;
 
           if (isOpenRef.current) {
@@ -417,32 +517,50 @@ export function OrchestratedEaseReverseMenu() {
           }
 
           if (isDocked) {
+            isLoveExitingRef.current = false;
+            heartMorph.eventCallback("onReverseComplete", null);
             setLoveVisual(true, immediate);
             heartMorph.play();
             fitLoveTarget(immediate ? 0 : loveDockTransitionDuration);
             return;
           }
 
-          moveToBasePosition(immediate ? 0 : loveUndockTransitionDuration, () => {
-            if (!isLoveDockedRef.current && !isOpenRef.current) {
-              heartMorph.reverse();
-              setLoveVisual(false, immediate);
+          isLoveExitingRef.current = true;
+          if (immediate) {
+            moveToBasePosition(0, () => {
+              reverseLoveToCircle(immediate);
+            });
+            return;
+          }
+
+          moveLoveToBasePosition(loveUndockTransitionDuration);
+          gsap.delayedCall(Math.min(0.16, loveUndockTransitionDuration * 0.36), () => {
+            if (!isLoveDockedRef.current && !isOpenRef.current && isLoveExitingRef.current) {
+              reverseLoveToCircle();
             }
           });
         };
 
-        const shouldDockLove = () => {
+        const shouldDockLove = (direction = 1) => {
           const targetBounds = loveTarget.getBoundingClientRect();
           const sectionBounds = loveSection.getBoundingClientRect();
+          const dockViewportRatio =
+            isLoveDockedRef.current && direction < 0
+              ? loveDockScrollUpExitViewportRatio
+              : loveDockViewportRatio;
 
           return (
-            targetBounds.top <= window.innerHeight * loveDockViewportRatio &&
+            targetBounds.top <= window.innerHeight * dockViewportRatio &&
             sectionBounds.bottom >= window.innerHeight * loveDockExitViewportRatio
           );
         };
 
-        const updateLoveDockFromViewport = (immediate = false) => {
-          const nextIsDocked = shouldDockLove();
+        const updateLoveDockFromViewport = (immediate = false, direction = 1) => {
+          if (isLoveExitingRef.current && !immediate) {
+            return;
+          }
+
+          const nextIsDocked = shouldDockLove(direction);
 
           if (nextIsDocked === isLoveDockedRef.current) {
             if (nextIsDocked && !immediate) {
@@ -470,12 +588,12 @@ export function OrchestratedEaseReverseMenu() {
         const dockTrigger = ScrollTrigger.create({
           end: "bottom top",
           invalidateOnRefresh: true,
-          onEnter: () => updateLoveDockFromViewport(),
-          onEnterBack: () => updateLoveDockFromViewport(),
+          onEnter: (self) => updateLoveDockFromViewport(false, self.direction),
+          onEnterBack: (self) => updateLoveDockFromViewport(false, self.direction),
           onLeave: () => setLoveDocked(false),
           onLeaveBack: () => setLoveDocked(false),
           onRefresh: () => updateLoveDockFromViewport(true),
-          onUpdate: () => updateLoveDockFromViewport(),
+          onUpdate: (self) => updateLoveDockFromViewport(false, self.direction),
           start: "top bottom",
           trigger: loveSection,
         });
