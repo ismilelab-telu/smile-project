@@ -15,7 +15,16 @@ const islandHeartPath =
   "M25 45 C20 40 6 29 6 17 C6 9.8 11.1 5 17.3 5 C20.9 5 23.7 6.8 25 9.5 C26.3 6.8 29.1 5 32.7 5 C38.9 5 44 9.8 44 17 C44 29 30 40 25 45 Z";
 const islandExpandedPillPath =
   "M3.125 2 H46.875 C48.6 2 50 12.3 50 25 C50 37.7 48.6 48 46.875 48 H3.125 C1.4 48 0 37.7 0 25 C0 12.3 1.4 2 3.125 2 Z";
+const islandDefaultFill = "white";
+const islandDefaultStroke = "#d4d4d8";
+const islandHeartFill = "#ef233c";
+const islandHeartStroke = "#ef233c";
+const islandHeartScale = 1.16;
+const islandMenuStroke = "#111111";
+const islandLoveMenuStroke = "white";
 const closedIslandSize = 50;
+const loveDockTransitionDuration = 0.82;
+const loveUndockTransitionDuration = 0.72;
 const topRightInset = 16;
 
 const menuItems = [
@@ -78,8 +87,13 @@ export function OrchestratedEaseReverseMenu() {
       }
 
       gsap.set(overlay, { pointerEvents: "none" });
-      gsap.set(island, { x: 0, xPercent: -50, y: 0 });
-      gsap.set(islandShape, { attr: { d: islandCirclePath } });
+      gsap.set(island, { force3D: false, x: 0, xPercent: -50, y: 0 });
+      gsap.set(islandShape, {
+        attr: { d: islandCirclePath },
+        fill: islandDefaultFill,
+        stroke: islandDefaultStroke,
+        strokeWidth: 1.5,
+      });
 
       const motionPreferences = gsap.matchMedia();
 
@@ -104,39 +118,137 @@ export function OrchestratedEaseReverseMenu() {
           paused: true,
         });
 
+        const menuBars = [topBar, midBar, bottomBar];
+        const dockedPosition = { x: Number.NaN, y: Number.NaN };
+        const setDockedX = gsap.quickSetter(island, "x", "px");
+        const setDockedY = gsap.quickSetter(island, "y", "px");
+        let dockTransitionTween: gsap.core.Tween | null = null;
+
+        const snapToDevicePixel = (value: number) => {
+          const pixelRatio = window.devicePixelRatio || 1;
+
+          return Math.round(value * pixelRatio) / pixelRatio;
+        };
+
+        const interpolate = (start: number, end: number, progress: number) =>
+          start + (end - start) * progress;
+
+        const getIslandPosition = () => ({
+          x: snapToDevicePixel(Number(gsap.getProperty(island, "x")) || 0),
+          y: snapToDevicePixel(Number(gsap.getProperty(island, "y")) || 0),
+        });
+
         const getLoveTargetPosition = () => {
           const targetBounds = loveTarget.getBoundingClientRect();
           const islandTop = Number.parseFloat(window.getComputedStyle(island).top) || 0;
           const islandHeight = island.offsetHeight || closedIslandSize;
 
           return {
-            x: targetBounds.left + targetBounds.width / 2 - window.innerWidth / 2,
-            y: targetBounds.top + targetBounds.height / 2 - islandTop - islandHeight / 2,
+            x: snapToDevicePixel(
+              targetBounds.left + targetBounds.width / 2 - window.innerWidth / 2,
+            ),
+            y: snapToDevicePixel(
+              targetBounds.top + targetBounds.height / 2 - islandTop - islandHeight / 2,
+            ),
           };
+        };
+
+        const setDockedPosition = (x: number, y: number) => {
+          if (Math.abs(dockedPosition.x - x) < 0.01 && Math.abs(dockedPosition.y - y) < 0.01) {
+            return;
+          }
+
+          dockedPosition.x = x;
+          dockedPosition.y = y;
+          setDockedX(x);
+          setDockedY(y);
+        };
+
+        const setLoveVisual = (isActive: boolean, immediate = false) => {
+          const duration = immediate ? 0 : 0.34;
+
+          gsap.to(island, {
+            duration,
+            ease: isActive ? "back.out(1.8)" : "power2.out",
+            force3D: false,
+            scale: isActive ? islandHeartScale : 1,
+            transformOrigin: "50% 50%",
+          });
+
+          gsap.to(islandShape, {
+            duration,
+            ease: "power2.out",
+            fill: isActive ? islandHeartFill : islandDefaultFill,
+            stroke: isActive ? islandHeartStroke : islandDefaultStroke,
+            strokeWidth: isActive ? 0 : 1.5,
+          });
+
+          gsap.to(menuBars, {
+            duration,
+            ease: "power2.out",
+            stroke: isActive ? islandLoveMenuStroke : islandMenuStroke,
+          });
         };
 
         const fitLoveTarget = (duration: number) => {
           const { x, y } = getLoveTargetPosition();
 
-          gsap.killTweensOf(island, "x,y");
-
           if (duration <= 0) {
-            gsap.set(island, { x, xPercent: -50, y });
+            dockTransitionTween?.kill();
+            dockTransitionTween = null;
+
+            if (gsap.isTweening(island)) {
+              gsap.killTweensOf(island, "x,y");
+            }
+
+            gsap.set(island, { force3D: false, xPercent: -50 });
+            setDockedPosition(x, y);
             return;
           }
 
-          gsap.to(island, {
+          gsap.killTweensOf(island, "x,y");
+          dockTransitionTween?.kill();
+          gsap.set(island, { force3D: false, xPercent: -50 });
+
+          const startPosition = getIslandPosition();
+          const dockProgress = { value: 0 };
+
+          dockTransitionTween = gsap.to(dockProgress, {
             duration,
-            ease: "power3.out",
+            ease: "power2.inOut",
+            onUpdate: () => {
+              const targetPosition = getLoveTargetPosition();
+
+              setDockedPosition(
+                snapToDevicePixel(
+                  interpolate(startPosition.x, targetPosition.x, dockProgress.value),
+                ),
+                snapToDevicePixel(
+                  interpolate(startPosition.y, targetPosition.y, dockProgress.value),
+                ),
+              );
+            },
+            onComplete: () => {
+              dockTransitionTween = null;
+
+              if (isLoveDockedRef.current && !isOpenRef.current) {
+                fitLoveTarget(0);
+              }
+            },
+            onInterrupt: () => {
+              dockTransitionTween = null;
+            },
             overwrite: "auto",
-            x,
-            xPercent: -50,
-            y,
+            value: 1,
           });
         };
 
         const syncDockedLoveTarget = () => {
           if (!isLoveDockedRef.current || isOpenRef.current) {
+            return;
+          }
+
+          if (dockTransitionTween?.isActive()) {
             return;
           }
 
@@ -147,9 +259,15 @@ export function OrchestratedEaseReverseMenu() {
         const getBaseX = () => (isAwayFromTopRef.current ? getTopRightX() : 0);
 
         const moveToBasePosition = (duration: number) => {
+          dockedPosition.x = Number.NaN;
+          dockedPosition.y = Number.NaN;
+          dockTransitionTween?.kill();
+          dockTransitionTween = null;
+
           gsap.to(island, {
             duration,
             ease: "power2.out",
+            force3D: false,
             x: getBaseX,
             xPercent: -50,
             y: 0,
@@ -196,17 +314,20 @@ export function OrchestratedEaseReverseMenu() {
 
           if (immediate) {
             heartMorph.progress(isActive ? 1 : 0).pause();
+            setLoveVisual(isActive, true);
             return;
           }
 
           if (isActive) {
             heartMorph.play();
+            setLoveVisual(true);
             return;
           }
 
           isLoveDockedRef.current = false;
           heartMorph.reverse();
-          moveToBasePosition(0.75);
+          setLoveVisual(false);
+          moveToBasePosition(loveUndockTransitionDuration);
         };
 
         const setLoveDocked = (isDocked: boolean, immediate = false) => {
@@ -217,11 +338,11 @@ export function OrchestratedEaseReverseMenu() {
           }
 
           if (isDocked) {
-            fitLoveTarget(immediate ? 0 : 0.75);
+            fitLoveTarget(immediate ? 0 : loveDockTransitionDuration);
             return;
           }
 
-          moveToBasePosition(immediate ? 0 : 0.75);
+          moveToBasePosition(immediate ? 0 : loveUndockTransitionDuration);
         };
 
         const sectionTrigger = ScrollTrigger.create({
@@ -264,8 +385,14 @@ export function OrchestratedEaseReverseMenu() {
         isAwayFromTopRef.current = false;
         isLoveDockedRef.current = false;
         isLoveSectionActiveRef.current = false;
-        gsap.set(island, { x: 0, y: 0 });
-        gsap.set(islandShape, { attr: { d: islandCirclePath } });
+        gsap.set(island, { scale: 1, x: 0, y: 0 });
+        gsap.set(islandShape, {
+          attr: { d: islandCirclePath },
+          fill: islandDefaultFill,
+          stroke: islandDefaultStroke,
+          strokeWidth: 1.5,
+        });
+        gsap.set([topBar, midBar, bottomBar], { stroke: islandMenuStroke });
       });
 
       const timeline = gsap
@@ -277,6 +404,7 @@ export function OrchestratedEaseReverseMenu() {
             duration: 0.8,
             ease: "back.out(2)",
             easeReverse: useReverseEase ? "power2.out" : false,
+            scale: 1,
             width: () => Math.min(window.innerWidth * 0.9, 400),
           },
           0,
@@ -287,7 +415,19 @@ export function OrchestratedEaseReverseMenu() {
             duration: 0.8,
             ease: "back.out(2)",
             easeReverse: useReverseEase ? "power2.out" : false,
+            fill: islandDefaultFill,
             morphSVG: islandExpandedPillPath,
+            stroke: islandDefaultStroke,
+            strokeWidth: 1.5,
+          },
+          0,
+        )
+        .to(
+          [topBar, midBar, bottomBar],
+          {
+            duration: 0.2,
+            ease: "power2.out",
+            stroke: islandMenuStroke,
           },
           0,
         )
@@ -388,6 +528,9 @@ export function OrchestratedEaseReverseMenu() {
   const restoreClosedIsland = contextSafe((duration = 0.7) => {
     const island = islandRef.current;
     const islandShape = islandShapeRef.current;
+    const menuBars = [topBarRef.current, midBarRef.current, bottomBarRef.current].filter(
+      (bar): bar is SVGLineElement => bar !== null,
+    );
 
     if (!island || !islandShape) {
       return;
@@ -395,17 +538,34 @@ export function OrchestratedEaseReverseMenu() {
 
     const getBaseX = () =>
       isAwayFromTopRef.current ? window.innerWidth / 2 - topRightInset - closedIslandSize / 2 : 0;
+    const isLoveActive = isLoveSectionActiveRef.current;
 
     gsap.to(islandShape, {
       duration,
       ease: "power2.out",
-      morphSVG: isLoveSectionActiveRef.current ? islandHeartPath : islandCirclePath,
+      fill: isLoveActive ? islandHeartFill : islandDefaultFill,
+      morphSVG: isLoveActive ? islandHeartPath : islandCirclePath,
+      stroke: isLoveActive ? islandHeartStroke : islandDefaultStroke,
+      strokeWidth: isLoveActive ? 0 : 1.5,
+    });
+
+    gsap.to(menuBars, {
+      duration,
+      ease: "power2.out",
+      stroke: isLoveActive ? islandLoveMenuStroke : islandMenuStroke,
     });
 
     if (isLoveDockedRef.current) {
       const loveTarget = document.querySelector<HTMLElement>("[data-love-scroll-target]");
 
       if (loveTarget) {
+        gsap.to(island, {
+          duration,
+          ease: "power2.out",
+          force3D: false,
+          scale: isLoveActive ? islandHeartScale : 1,
+        });
+
         Flip.fit(island, loveTarget, {
           duration,
           ease: "power2.out",
@@ -418,6 +578,8 @@ export function OrchestratedEaseReverseMenu() {
     gsap.to(island, {
       duration,
       ease: "power2.out",
+      force3D: false,
+      scale: isLoveActive ? islandHeartScale : 1,
       x: getBaseX,
       xPercent: -50,
       y: 0,
@@ -539,9 +701,9 @@ export function OrchestratedEaseReverseMenu() {
         >
           <path
             d={islandCirclePath}
-            fill="white"
+            fill={islandDefaultFill}
             ref={islandShapeRef}
-            stroke="#d4d4d8"
+            stroke={islandDefaultStroke}
             strokeWidth="1.5"
             vectorEffect="non-scaling-stroke"
           />
@@ -577,7 +739,7 @@ export function OrchestratedEaseReverseMenu() {
             >
               <line
                 ref={topBarRef}
-                stroke="#111111"
+                stroke={islandMenuStroke}
                 strokeLinecap="round"
                 strokeWidth="1.5"
                 x1="2"
@@ -587,7 +749,7 @@ export function OrchestratedEaseReverseMenu() {
               />
               <line
                 ref={midBarRef}
-                stroke="#111111"
+                stroke={islandMenuStroke}
                 strokeLinecap="round"
                 strokeWidth="1.5"
                 x1="2"
@@ -597,7 +759,7 @@ export function OrchestratedEaseReverseMenu() {
               />
               <line
                 ref={bottomBarRef}
-                stroke="#111111"
+                stroke={islandMenuStroke}
                 strokeLinecap="round"
                 strokeWidth="1.5"
                 x1="2"
