@@ -3,6 +3,7 @@
 import {
   useEffect,
   useRef,
+  useState,
   type CSSProperties,
   type ElementType,
   type HTMLAttributes,
@@ -12,6 +13,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import ShapeGrid from "@/components/ShapeGrid";
+import { BlurText } from "@/components/ui/blur-text";
 import { cn } from "@/lib/utils";
 
 if (typeof window !== "undefined") {
@@ -115,15 +117,28 @@ const MagneticButton = ({
 export function CinematicFooter() {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const giantTextRef = useRef<HTMLDivElement>(null);
-  const headingRef = useRef<HTMLHeadingElement>(null);
+  const headingRef = useRef<HTMLDivElement>(null);
   const linksRef = useRef<HTMLDivElement>(null);
+  const [isHeadingTextVisible, setIsHeadingTextVisible] = useState(false);
+  const [headingTextReplayKey, setHeadingTextReplayKey] = useState(0);
 
   useEffect(() => {
     if (!wrapperRef.current || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setIsHeadingTextVisible(true);
       return;
     }
 
     const ctx = gsap.context(() => {
+      ScrollTrigger.create({
+        onEnter: () => {
+          setHeadingTextReplayKey((key) => key + 1);
+          setIsHeadingTextVisible(true);
+        },
+        onLeaveBack: () => setIsHeadingTextVisible(false),
+        start: "top 70%",
+        trigger: wrapperRef.current,
+      });
+
       gsap.fromTo(
         giantTextRef.current,
         { opacity: 0, scale: 0.86, y: "10vh" },
@@ -207,15 +222,24 @@ export function CinematicFooter() {
           </div>
 
           <div className="relative z-10 mx-auto mt-20 flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-6">
-            <h2
-              ref={headingRef}
-              className={cn(
-                "mb-9 text-center text-[clamp(2.7rem,9vw,6.2rem)] leading-[0.95] font-black tracking-normal",
-                textGlowClassName,
-              )}
-            >
-              ML should be fun!
-            </h2>
+            <div ref={headingRef} className="mb-9">
+              <BlurText
+                animateBy="words"
+                as="h2"
+                className={cn(
+                  "justify-center text-center text-[clamp(2.7rem,9vw,6.2rem)] leading-[0.95] font-black tracking-normal",
+                )}
+                delay={150}
+                direction="top"
+                replayKey={headingTextReplayKey}
+                rootMargin="0px 0px -12% 0px"
+                segmentClassName={textGlowClassName}
+                startAnimation={isHeadingTextVisible}
+                stepDuration={0.35}
+                text="ML should be fun!"
+                threshold={0.2}
+              />
+            </div>
 
             <div ref={linksRef} className="flex w-full flex-col items-center gap-5">
               <div className="flex w-full flex-wrap justify-center gap-4">
