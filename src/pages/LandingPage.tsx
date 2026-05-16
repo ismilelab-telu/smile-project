@@ -102,7 +102,7 @@ export function LandingPage() {
           aria-labelledby="landing-title"
         >
           <h1
-            className="max-w-full whitespace-nowrap text-[clamp(2.8rem,10vw,8.6rem)] leading-[0.9] tracking-normal text-foreground"
+            className="max-w-full whitespace-nowrap text-[clamp(2.8rem,10vw,8.6rem)] leading-[0.9] tracking-normal text-foreground font-semibold"
             data-landing-reveal
             id="landing-title"
           >
@@ -121,7 +121,7 @@ export function LandingPage() {
               data-app-link
               href="/model-picker"
             >
-              Open model picker
+                  Explore
               <IconArrowRight aria-hidden="true" size={18} />
             </a>
           </div>

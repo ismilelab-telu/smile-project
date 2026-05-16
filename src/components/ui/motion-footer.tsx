@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useRef, type ElementType, type HTMLAttributes } from "react";
+import {
+  useEffect,
+  useRef,
+  type CSSProperties,
+  type ElementType,
+  type HTMLAttributes,
+} from "react";
 import { IconArrowRight, IconChevronUp, IconTopologyStar3 } from "@tabler/icons-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
+import ShapeGrid from "@/components/ShapeGrid";
 import { cn } from "@/lib/utils";
 
 if (typeof window !== "undefined") {
@@ -12,10 +19,10 @@ if (typeof window !== "undefined") {
 }
 
 const footerAuroraClassName =
-  "bg-[radial-gradient(circle_at_50%_50%,color-mix(in_oklch,var(--foreground)_13%,transparent)_0%,color-mix(in_oklch,var(--muted-foreground)_12%,transparent)_42%,transparent_70%)]";
+  "bg-[radial-gradient(circle_at_50%_50%,color-mix(in_oklch,var(--foreground)_18%,transparent)_0%,color-mix(in_oklch,var(--muted-foreground)_14%,transparent)_42%,transparent_70%)]";
 
-const footerGridClassName =
-  "bg-[size:60px_60px] [background-image:linear-gradient(to_right,color-mix(in_oklch,var(--foreground)_5%,transparent)_1px,transparent_1px),linear-gradient(to_bottom,color-mix(in_oklch,var(--foreground)_5%,transparent)_1px,transparent_1px)] [mask-image:linear-gradient(to_bottom,transparent,black_30%,black_70%,transparent)] [-webkit-mask-image:linear-gradient(to_bottom,transparent,black_30%,black_70%,transparent)]";
+const footerFogClassName =
+  "bg-[radial-gradient(ellipse_at_center,transparent_0%,transparent_48%,oklch(0.985_0_0_/_72%)_100%),linear-gradient(to_bottom,oklch(0.985_0_0_/_88%)_0%,transparent_18%,transparent_76%,oklch(0.985_0_0_/_92%)_100%)]";
 
 const giantTextClassName =
   "bg-[linear-gradient(180deg,color-mix(in_oklch,var(--foreground)_12%,transparent)_0%,transparent_62%)] bg-clip-text text-[clamp(8rem,24vw,24rem)] leading-[0.75] font-black tracking-normal text-transparent [-webkit-text-stroke:1px_color-mix(in_oklch,var(--foreground)_7%,transparent)]";
@@ -25,6 +32,15 @@ const textGlowClassName =
 
 const glassPillClassName =
   "border border-[color:color-mix(in_oklch,var(--foreground)_12%,transparent)] bg-[linear-gradient(145deg,color-mix(in_oklch,var(--foreground)_5%,transparent)_0%,color-mix(in_oklch,var(--foreground)_1%,transparent)_100%)] shadow-[0_10px_30px_-10px_color-mix(in_oklch,var(--foreground)_14%,transparent),inset_0_1px_1px_color-mix(in_oklch,var(--background)_70%,transparent)] backdrop-blur-[16px] transition-[background,border-color,box-shadow,color] duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)] hover:border-[color:color-mix(in_oklch,var(--foreground)_28%,transparent)] hover:bg-[linear-gradient(145deg,color-mix(in_oklch,var(--foreground)_10%,transparent)_0%,color-mix(in_oklch,var(--foreground)_3%,transparent)_100%)] hover:text-foreground hover:shadow-[0_20px_40px_-10px_color-mix(in_oklch,var(--foreground)_22%,transparent),inset_0_1px_1px_color-mix(in_oklch,var(--background)_70%,transparent)]";
+
+type FooterThemeStyle = CSSProperties & Record<`--${string}`, string>;
+
+const footerThemeStyle: FooterThemeStyle = {
+  "--background": "oklch(0.985 0 0)",
+  "--foreground": "oklch(0.145 0 0)",
+  "--muted-foreground": "oklch(0.42 0 0)",
+  "--surface": "oklch(1 0 0)",
+};
 
 type MagneticButtonProps = HTMLAttributes<HTMLElement> & {
   as?: ElementType;
@@ -156,14 +172,29 @@ export function CinematicFooter() {
         ref={wrapperRef}
         className="relative h-[100svh] w-full [clip-path:polygon(0%_0,100%_0%,100%_100%,0_100%)] [mask-image:linear-gradient(to_bottom,transparent_0%,black_22%,black_100%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent_0%,black_22%,black_100%)]"
       >
-        <footer className="fixed bottom-0 left-0 flex h-[100svh] w-full flex-col justify-between overflow-hidden bg-background font-sans text-foreground antialiased">
+        <footer
+          className="fixed bottom-0 left-0 flex h-[100svh] w-full flex-col justify-between overflow-hidden bg-background font-sans text-foreground antialiased"
+          style={footerThemeStyle}
+        >
+          <div aria-hidden="true" className="absolute inset-0 z-0 bg-background">
+            <ShapeGrid
+              borderColor="oklch(0.72 0 0 / 0.42)"
+              className="opacity-100"
+              direction="diagonal"
+              hoverFillColor="oklch(0.28 0 0 / 0.36)"
+              hoverTrailAmount={0}
+              shape="square"
+              speed={0.5}
+              squareSize={40}
+            />
+          </div>
           <div
             className={cn(
-              "pointer-events-none absolute top-1/2 left-1/2 z-0 h-[60vh] w-[80vw] -translate-x-1/2 -translate-y-1/2 animate-[footer-breathe_8s_ease-in-out_infinite_alternate] rounded-[50%] blur-[80px]",
+              "pointer-events-none absolute top-1/2 left-1/2 z-0 h-[62vh] w-[82vw] -translate-x-1/2 -translate-y-1/2 animate-[footer-breathe_8s_ease-in-out_infinite_alternate] rounded-[50%] blur-[82px]",
               footerAuroraClassName,
             )}
           />
-          <div className={cn("pointer-events-none absolute inset-0 z-0", footerGridClassName)} />
+          <div className={cn("pointer-events-none absolute inset-0 z-0", footerFogClassName)} />
 
           <div
             ref={giantTextRef}
