@@ -15,6 +15,8 @@ const islandHeartPath =
   "M25 45 C20 40 6 29 6 17 C6 9.8 11.1 5 17.3 5 C20.9 5 23.7 6.8 25 9.5 C26.3 6.8 29.1 5 32.7 5 C38.9 5 44 9.8 44 17 C44 29 30 40 25 45 Z";
 const islandExpandedPillPath =
   "M3.125 2 H46.875 C48.6 2 50 12.3 50 25 C50 37.7 48.6 48 46.875 48 H3.125 C1.4 48 0 37.7 0 25 C0 12.3 1.4 2 3.125 2 Z";
+const closedIslandSize = 50;
+const topRightInset = 16;
 
 const menuItems = [
   { href: "#work", label: "Work", number: "01" },
@@ -38,6 +40,7 @@ export function OrchestratedEaseReverseMenu() {
   const bottomBarRef = useRef<SVGLineElement>(null);
   const linkRefs = useRef<Array<HTMLAnchorElement | null>>([]);
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
+  const isAwayFromTopRef = useRef(false);
   const isOpenRef = useRef(false);
   const isLoveDockedRef = useRef(false);
   const isLoveSectionActiveRef = useRef(false);
@@ -109,15 +112,49 @@ export function OrchestratedEaseReverseMenu() {
           });
         };
 
-        const resetIslandPosition = (duration: number) => {
+        const getTopRightX = () => window.innerWidth / 2 - topRightInset - closedIslandSize / 2;
+        const getBaseX = () => (isAwayFromTopRef.current ? getTopRightX() : 0);
+
+        const moveToBasePosition = (duration: number) => {
           gsap.to(island, {
             duration,
             ease: "power2.out",
-            x: 0,
+            x: getBaseX,
             xPercent: -50,
             y: 0,
           });
         };
+
+        const setAwayFromTop = (isAwayFromTop: boolean, immediate = false) => {
+          isAwayFromTopRef.current = isAwayFromTop;
+
+          if (isOpenRef.current || isLoveDockedRef.current) {
+            return;
+          }
+
+          moveToBasePosition(immediate ? 0 : 0.32);
+        };
+
+        const handleScroll = () => {
+          setAwayFromTop(window.scrollY > 1);
+        };
+
+        const handleResize = () => {
+          if (isOpenRef.current) {
+            return;
+          }
+
+          if (isLoveDockedRef.current) {
+            fitLoveTarget(0);
+            return;
+          }
+
+          moveToBasePosition(0);
+        };
+
+        setAwayFromTop(window.scrollY > 1, true);
+        window.addEventListener("scroll", handleScroll, { passive: true });
+        window.addEventListener("resize", handleResize);
 
         const setLoveShape = (isActive: boolean, immediate = false) => {
           isLoveSectionActiveRef.current = isActive;
@@ -138,7 +175,7 @@ export function OrchestratedEaseReverseMenu() {
 
           isLoveDockedRef.current = false;
           heartMorph.reverse();
-          resetIslandPosition(0.45);
+          moveToBasePosition(0.45);
         };
 
         const setLoveDocked = (isDocked: boolean, immediate = false) => {
@@ -153,7 +190,7 @@ export function OrchestratedEaseReverseMenu() {
             return;
           }
 
-          resetIslandPosition(immediate ? 0 : 0.45);
+          moveToBasePosition(immediate ? 0 : 0.45);
         };
 
         const sectionTrigger = ScrollTrigger.create({
@@ -186,10 +223,13 @@ export function OrchestratedEaseReverseMenu() {
           dockTrigger.kill();
           heartMorph.kill();
           gsap.killTweensOf(island);
+          window.removeEventListener("scroll", handleScroll);
+          window.removeEventListener("resize", handleResize);
         };
       });
 
       motionPreferences.add("(prefers-reduced-motion: reduce)", () => {
+        isAwayFromTopRef.current = false;
         isLoveDockedRef.current = false;
         isLoveSectionActiveRef.current = false;
         gsap.set(island, { x: 0, y: 0 });
@@ -321,6 +361,9 @@ export function OrchestratedEaseReverseMenu() {
       return;
     }
 
+    const getBaseX = () =>
+      isAwayFromTopRef.current ? window.innerWidth / 2 - topRightInset - closedIslandSize / 2 : 0;
+
     gsap.to(islandShape, {
       duration,
       ease: "power2.out",
@@ -343,7 +386,7 @@ export function OrchestratedEaseReverseMenu() {
     gsap.to(island, {
       duration,
       ease: "power2.out",
-      x: 0,
+      x: getBaseX,
       xPercent: -50,
       y: 0,
     });
@@ -382,6 +425,18 @@ export function OrchestratedEaseReverseMenu() {
     setIsOpen(nextIsOpen);
 
     if (nextIsOpen) {
+      const island = islandRef.current;
+
+      if (island) {
+        gsap.to(island, {
+          duration: 0.24,
+          ease: "power2.out",
+          x: 0,
+          xPercent: -50,
+          y: 0,
+        });
+      }
+
       timeline.invalidate().eventCallback("onReverseComplete", null).timeScale(1).play();
       return;
     }
