@@ -19,17 +19,17 @@
 
 @layer base {
   :root {
-    --background: oklch(0.985 0 0);
-    --border: rgba(17, 17, 17, 0.12);
-    --foreground: #111111;
-    --ink-soft: #333333;
-    --kicker: #404040;
-    --muted: #e5e5e5;
-    --muted-foreground: #525252;
-    --plot-point: #6b7280;
-    --primary: #111111;
-    --secondary: #737373;
-    --surface: #ffffff;
+    --background: oklch(98.5% 0 0);
+    --border: oklch(17.7638% 0 0 / 0.12);
+    --foreground: oklch(17.7638% 0 0);
+    --ink-soft: oklch(32.1093% 0 0);
+    --kicker: oklch(37.1495% 0 0);
+    --muted: oklch(92.1906% 0 0);
+    --muted-foreground: oklch(43.8605% 0 0);
+    --plot-point: oklch(55.1019% 0.0234 264.36);
+    --primary: oklch(17.7638% 0 0);
+    --secondary: oklch(55.5527% 0 0);
+    --surface: oklch(100% 0 0);
     --lightningcss-light: initial;
     --lightningcss-dark: ;
     color: var(--foreground);
@@ -96,12 +96,12 @@
     background: linear-gradient(
       90deg,
       transparent 0%,
-      rgba(255, 255, 255, 0.05) 14%,
-      rgba(255, 255, 255, 0.2) 30%,
-      rgba(255, 255, 255, 0.58) 46%,
-      rgba(255, 255, 255, 0.58) 54%,
-      rgba(255, 255, 255, 0.2) 70%,
-      rgba(255, 255, 255, 0.05) 86%,
+      oklch(100% 0 0 / 0.05) 14%,
+      oklch(100% 0 0 / 0.2) 30%,
+      oklch(100% 0 0 / 0.58) 46%,
+      oklch(100% 0 0 / 0.58) 54%,
+      oklch(100% 0 0 / 0.2) 70%,
+      oklch(100% 0 0 / 0.05) 86%,
       transparent 100%
     );
     bottom: -35%;

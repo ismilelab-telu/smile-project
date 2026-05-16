@@ -221,6 +221,102 @@ type PixelBlastProps = {
   variant?: keyof typeof SHAPE_MAP;
 };
 
+type OklchColor = {
+  chroma: number;
+  hue: number;
+  lightness: number;
+};
+
+const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+
+const srgbChannelToLinear = (channel: number) => {
+  const value = clamp01(channel / 255);
+
+  return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+};
+
+const rgbToOklch = (red: number, green: number, blue: number): OklchColor => {
+  const linearRed = srgbChannelToLinear(red);
+  const linearGreen = srgbChannelToLinear(green);
+  const linearBlue = srgbChannelToLinear(blue);
+  const l = 0.4122214708 * linearRed + 0.5363325363 * linearGreen + 0.0514459929 * linearBlue;
+  const m = 0.2119034982 * linearRed + 0.6806995451 * linearGreen + 0.1073969566 * linearBlue;
+  const s = 0.0883024619 * linearRed + 0.2817188376 * linearGreen + 0.6299787005 * linearBlue;
+  const lRoot = Math.cbrt(l);
+  const mRoot = Math.cbrt(m);
+  const sRoot = Math.cbrt(s);
+  const lightness = 0.2104542553 * lRoot + 0.793617785 * mRoot - 0.0040720468 * sRoot;
+  const a = 1.9779984951 * lRoot - 2.428592205 * mRoot + 0.4505937099 * sRoot;
+  const b = 0.0259040371 * lRoot + 0.7827717662 * mRoot - 0.808675766 * sRoot;
+  const chroma = Math.hypot(a, b);
+  const hue = chroma < 0.00005 ? 0 : (Math.atan2(b, a) * 180) / Math.PI;
+
+  return {
+    chroma,
+    hue: hue < 0 ? hue + 360 : hue,
+    lightness,
+  };
+};
+
+const formatOklchFromSrgb = (red: number, green: number, blue: number, alpha = 1) => {
+  const { chroma, hue, lightness } = rgbToOklch(red, green, blue);
+  const normalizedChroma = chroma < 0.00005 ? 0 : chroma;
+  const alphaValue = Math.min(1, Math.max(0, alpha));
+  const alphaSuffix = alphaValue < 1 ? ` / ${Number(alphaValue.toFixed(4))}` : "";
+
+  return `oklch(${(lightness * 100).toFixed(4)}% ${Number(normalizedChroma.toFixed(4))} ${Number(hue.toFixed(2))}${alphaSuffix})`;
+};
+
+const parseOklchColor = (color: string): OklchColor | null => {
+  const match = color
+    .trim()
+    .match(
+      /^oklch\(\s*([+-]?(?:\d+|\d*\.\d+))(%?)\s+([+-]?(?:\d+|\d*\.\d+))\s+([+-]?(?:\d+|\d*\.\d+))(?:deg)?(?:\s*\/\s*[+-]?(?:\d+|\d*\.\d+)%?)?\s*\)$/i,
+    );
+
+  if (!match) {
+    return null;
+  }
+
+  const lightness = Number(match[1]) / (match[2] === "%" ? 100 : 1);
+
+  return {
+    chroma: Number(match[3]),
+    hue: Number(match[4]),
+    lightness,
+  };
+};
+
+const oklchToLinearSrgb = ({ chroma, hue, lightness }: OklchColor) => {
+  const hueRadians = (hue * Math.PI) / 180;
+  const a = chroma * Math.cos(hueRadians);
+  const b = chroma * Math.sin(hueRadians);
+  const lRoot = lightness + 0.3963377774 * a + 0.2158037573 * b;
+  const mRoot = lightness - 0.1055613458 * a - 0.0638541728 * b;
+  const sRoot = lightness - 0.0894841775 * a - 1.291485548 * b;
+  const l = lRoot ** 3;
+  const m = mRoot ** 3;
+  const s = sRoot ** 3;
+
+  return {
+    blue: clamp01(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s),
+    green: clamp01(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+    red: clamp01(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+  };
+};
+
+const createThreeColorFromCss = (color: string) => {
+  const oklchColor = parseOklchColor(color);
+
+  if (!oklchColor) {
+    return new THREE.Color(color);
+  }
+
+  const { blue, green, red } = oklchToLinearSrgb(oklchColor);
+
+  return new THREE.Color(red, green, blue);
+};
+
 function canUseWebGL() {
   if (
     typeof window === "undefined" ||
@@ -278,17 +374,17 @@ function createTouchTexture(): TouchTexture {
 
     intensity *= point.force;
 
-    const color = `${((point.vx + 1) / 2) * 255}, ${((point.vy + 1) / 2) * 255}, ${
-      intensity * 255
-    }`;
+    const red = ((point.vx + 1) / 2) * 255;
+    const green = ((point.vy + 1) / 2) * 255;
+    const blue = intensity * 255;
     const offset = size * 5;
 
     ctx.shadowOffsetX = offset;
     ctx.shadowOffsetY = offset;
     ctx.shadowBlur = radius;
-    ctx.shadowColor = `rgba(${color},${0.22 * intensity})`;
+    ctx.shadowColor = formatOklchFromSrgb(red, green, blue, 0.22 * intensity);
     ctx.beginPath();
-    ctx.fillStyle = "rgba(255,0,0,1)";
+    ctx.fillStyle = "oklch(62.7955% 0.2577 29.23)";
     ctx.arc(pos.x - offset, pos.y - offset, radius, 0, Math.PI * 2);
     ctx.fill();
   };
@@ -420,7 +516,7 @@ function randomFloat() {
 export function PixelBlast({
   variant = "square",
   pixelSize = 3,
-  color = "#B497CF",
+  color = "oklch(72.197% 0.0856 307.92)",
   className = "",
   style,
   antialias = true,
@@ -492,7 +588,7 @@ export function PixelBlast({
     if (transparent) {
       renderer.setClearAlpha(0);
     } else {
-      renderer.setClearColor(0x000000, 1);
+      renderer.setClearColor(createThreeColorFromCss("oklch(0% 0 0)"), 1);
     }
 
     const uniforms = {
@@ -500,7 +596,7 @@ export function PixelBlast({
         value: Array.from({ length: MAX_CLICKS }, () => new THREE.Vector2(-1, -1)),
       },
       uClickTimes: { value: new Float32Array(MAX_CLICKS) },
-      uColor: { value: new THREE.Color(color) },
+      uColor: { value: createThreeColorFromCss(color) },
       uDensity: { value: patternDensity },
       uEdgeFade: { value: edgeFade },
       uEnableRipples: { value: enableRipples ? 1 : 0 },

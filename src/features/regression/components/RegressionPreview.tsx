@@ -40,16 +40,16 @@ export function RegressionPreview() {
 
   return (
     <div className="grid w-full gap-[18px]" ref={containerRef} aria-label="Regression plot preview">
-      <div className="relative aspect-[1.2] w-full overflow-hidden rounded-xl border border-foreground/[0.14] bg-[length:44px_44px] shadow-[0_22px_56px_rgb(0_0_0_/_12%)] [background:linear-gradient(color-mix(in_oklch,var(--foreground)_6%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_oklch,var(--foreground)_6%,transparent)_1px,transparent_1px),color-mix(in_oklch,var(--surface)_82%,transparent)]">
+      <div className="relative aspect-[1.2] w-full overflow-hidden rounded-xl border border-foreground/[0.14] bg-[length:44px_44px] shadow-[0_22px_56px_oklch(0%_0_0_/_12%)] [background:linear-gradient(color-mix(in_oklch,var(--foreground)_6%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_oklch,var(--foreground)_6%,transparent)_1px,transparent_1px),color-mix(in_oklch,var(--surface)_82%,transparent)]">
         <div className="absolute right-[8%] bottom-[12%] left-[8%] h-px bg-foreground/45" />
         <div className="absolute top-[8%] bottom-[12%] left-[8%] w-px bg-foreground/45" />
         <div
-          className="absolute right-[10%] bottom-[24%] left-[10%] h-[3px] rotate-[-30deg] rounded-full bg-foreground shadow-[0_8px_20px_rgb(0_0_0_/_22%)]"
+          className="absolute right-[10%] bottom-[24%] left-[10%] h-[3px] rotate-[-30deg] rounded-full bg-foreground shadow-[0_8px_20px_oklch(0%_0_0_/_22%)]"
           data-trend-line
         />
         {predictions.map((point) => (
           <span
-            className="absolute h-3.5 w-3.5 -translate-x-1/2 translate-y-1/2 rounded-full border-[3px] border-background bg-plot-point shadow-[0_8px_18px_rgb(0_0_0_/_24%)]"
+            className="absolute h-3.5 w-3.5 -translate-x-1/2 translate-y-1/2 rounded-full border-[3px] border-background bg-plot-point shadow-[0_8px_18px_oklch(0%_0_0_/_24%)]"
             data-plot-point
             key={`${point.x}-${point.y}`}
             style={{

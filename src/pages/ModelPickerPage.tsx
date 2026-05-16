@@ -344,7 +344,7 @@ export function ModelPickerPage() {
 
   return (
     <main
-      className="min-h-screen overflow-hidden text-foreground [background:linear-gradient(135deg,rgb(0_0_0_/_6%),transparent_38%),linear-gradient(235deg,color-mix(in_oklch,var(--muted-foreground)_10%,transparent),transparent_44%),var(--background)]"
+      className="min-h-screen overflow-hidden text-foreground [background:linear-gradient(135deg,oklch(0%_0_0_/_6%),transparent_38%),linear-gradient(235deg,color-mix(in_oklch,var(--muted-foreground)_10%,transparent),transparent_44%),var(--background)]"
       ref={introRef}
     >
       <header
@@ -353,7 +353,7 @@ export function ModelPickerPage() {
       >
         <div className="relative z-10" data-intro-nav ref={modePickerRef}>
           <motion.button
-            className="inline-flex min-h-[42px] w-[min(360px,52vw)] min-w-[280px] cursor-pointer items-center justify-between gap-2.5 rounded-xl border border-foreground/[0.14] bg-surface/80 px-3.5 text-foreground shadow-[0_10px_26px_rgb(0_0_0_/_8%)] max-[820px]:w-[min(68vw,320px)] max-[820px]:min-w-0 max-[820px]:max-w-[min(68vw,320px)] [&_svg]:shrink-0"
+            className="inline-flex min-h-[42px] w-[min(360px,52vw)] min-w-[280px] cursor-pointer items-center justify-between gap-2.5 rounded-xl border border-foreground/[0.14] bg-surface/80 px-3.5 text-foreground shadow-[0_10px_26px_oklch(0%_0_0_/_8%)] max-[820px]:w-[min(68vw,320px)] max-[820px]:min-w-0 max-[820px]:max-w-[min(68vw,320px)] [&_svg]:shrink-0"
             type="button"
             whileHover={{ y: -1 }}
             whileTap={{ scale: 0.98 }}
@@ -379,7 +379,7 @@ export function ModelPickerPage() {
           <AnimatePresence>
             {isModeMenuOpen ? (
               <motion.div
-                className="absolute top-[calc(100%_+_10px)] left-0 max-h-[min(72vh,620px)] w-[min(420px,calc(100vw_-_32px))] origin-top-left overflow-y-auto overscroll-contain rounded-xl border border-foreground/[0.14] bg-surface/90 p-2.5 shadow-[0_22px_54px_rgb(0_0_0_/_16%)] backdrop-blur-[18px] max-[820px]:max-h-[68vh] max-[820px]:w-[min(92vw,420px)]"
+                className="absolute top-[calc(100%_+_10px)] left-0 max-h-[min(72vh,620px)] w-[min(420px,calc(100vw_-_32px))] origin-top-left overflow-y-auto overscroll-contain rounded-xl border border-foreground/[0.14] bg-surface/90 p-2.5 shadow-[0_22px_54px_oklch(0%_0_0_/_16%)] backdrop-blur-[18px] max-[820px]:max-h-[68vh] max-[820px]:w-[min(92vw,420px)]"
                 id={listboxId}
                 role="listbox"
                 aria-label="Machine learning models"

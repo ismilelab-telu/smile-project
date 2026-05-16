@@ -13,7 +13,7 @@ export function FuzzyTextPage() {
           baseIntensity={0.14}
           className="max-w-full"
           clickEffect
-          color="#111111"
+          color="oklch(17.7638% 0 0)"
           direction="horizontal"
           fontSize="clamp(5rem, 18vw, 14rem)"
           fontWeight={900}
@@ -30,7 +30,7 @@ export function FuzzyTextPage() {
           baseIntensity={0.16}
           className="max-w-full"
           clickEffect
-          color="#111111"
+          color="oklch(17.7638% 0 0)"
           direction="horizontal"
           fontSize="clamp(2rem, 7vw, 5rem)"
           fontWeight={900}
