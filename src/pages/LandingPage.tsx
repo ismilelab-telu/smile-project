@@ -16,8 +16,9 @@ gsap.registerPlugin(useGSAP, ScrollTrigger);
 const playgroundIntroCopy = [
   "Meet Interactive ML Playground\u2014where complex algorithms turn into visual, hands-on play.",
   'We\u2019ve stripped away the heavy coding of Colab and opened up the "black box" of Teachable Machine to give you the perfect sweet spot for learning.',
-  "Fully animated and relentlessly beginner-friendly, we don't just teach you Machine Learning.",
+  "Fully animated and relentlessly beginner-friendly.",
 ].join(" ");
+const playgroundTeachingCopy = "We don't just teach you Machine Learning.";
 const playgroundFinalCopy = "We make you fall in love with it.";
 
 export function LandingPage() {
@@ -312,7 +313,7 @@ export function LandingPage() {
       </main>
 
       <section
-        className="relative z-10 flex min-h-[90svh] flex-col items-center justify-center bg-zinc-50 px-6 py-24 text-zinc-950 sm:py-32 lg:py-40"
+        className="relative z-10 flex min-h-[165svh] flex-col items-center justify-center bg-zinc-50 px-6 py-24 text-zinc-950 sm:py-32 lg:py-40"
         aria-label="Interactive ML Playground introduction"
       >
         <ScrollReveal
@@ -328,12 +329,23 @@ export function LandingPage() {
         </ScrollReveal>
         <ScrollFloat
           animationDuration={1}
-          containerClassName="mx-auto mt-8 w-full max-w-screen-2xl text-center"
+          containerClassName="mx-auto mt-[34svh] w-full max-w-screen-2xl text-center sm:mt-[38svh] lg:mt-[44svh]"
           ease="back.inOut(2)"
           scrollEnd="bottom bottom-=32%"
           scrollStart="center bottom+=42%"
           stagger={0.026}
-          textClassName="text-balance !text-5xl !leading-[0.98] !font-black tracking-normal sm:!text-6xl lg:!text-7xl xl:!text-8xl"
+          textClassName="text-balance !text-4xl !leading-[1.02] !font-black tracking-normal sm:!text-5xl lg:!text-7xl xl:!text-8xl"
+        >
+          {playgroundTeachingCopy}
+        </ScrollFloat>
+        <ScrollFloat
+          animationDuration={1}
+          containerClassName="mx-auto mt-[30svh] w-full max-w-screen-2xl text-center sm:mt-[34svh] lg:mt-[40svh]"
+          ease="back.inOut(2)"
+          scrollEnd="bottom bottom-=28%"
+          scrollStart="center bottom+=38%"
+          stagger={0.026}
+          textClassName="text-balance !text-4xl !leading-[1.02] !font-black tracking-normal sm:!text-5xl lg:!text-7xl xl:!text-8xl"
         >
           {playgroundFinalCopy}
         </ScrollFloat>
