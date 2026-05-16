@@ -1,5 +1,6 @@
 # Smile Project
 
-Interactive ML Playground makes machine learning feel visual, playful, and easy to understand.
-Fully animated and beginner-friendly, it turns complex ideas into hands-on moments anyone can understand.
-Less technical than Colab, less black-box than Teachable Machine, and built to make learning ML feel fun.
+Meet Interactive ML Playground—where complex algorithms turn into visual, hands-on play.
+We’ve stripped away the heavy coding of Colab and opened up the "black box" of Teachable Machine to give you the perfect sweet spot for learning.
+Fully animated and relentlessly beginner-friendly, we don't just teach you Machine Learning.
+We make you fall in love with it.

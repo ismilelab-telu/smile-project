@@ -7,9 +7,18 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { DottedSurface } from "@/components/ui/dotted-surface";
 import { GlassSurface } from "@/components/ui/glass-surface";
 import { CinematicFooter } from "@/components/ui/motion-footer";
+import ScrollFloat from "@/components/ui/scroll-float";
+import ScrollReveal from "@/components/ui/scroll-reveal";
 import { SplitText } from "@/components/ui/split-text";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
+
+const playgroundIntroCopy = [
+  "Meet Interactive ML Playground\u2014where complex algorithms turn into visual, hands-on play.",
+  'We\u2019ve stripped away the heavy coding of Colab and opened up the "black box" of Teachable Machine to give you the perfect sweet spot for learning.',
+  "Fully animated and relentlessly beginner-friendly, we don't just teach you Machine Learning.",
+].join(" ");
+const playgroundFinalCopy = "We make you fall in love with it.";
 
 export function LandingPage() {
   const landingRef = useRef<HTMLElement>(null);
@@ -301,6 +310,34 @@ export function LandingPage() {
           data-landing-scroll-fade
         />
       </main>
+
+      <section
+        className="relative z-10 flex min-h-[90svh] flex-col items-center justify-center bg-zinc-50 px-6 py-24 text-zinc-950 sm:py-32 lg:py-40"
+        aria-label="Interactive ML Playground introduction"
+      >
+        <ScrollReveal
+          baseOpacity={0.14}
+          baseRotation={2.5}
+          blurStrength={8}
+          containerClassName="mx-auto w-full max-w-screen-2xl"
+          rotationEnd="bottom 72%"
+          textClassName="text-pretty text-3xl leading-[1.22] font-semibold tracking-normal sm:text-4xl sm:leading-[1.16] lg:text-6xl lg:leading-[1.08]"
+          wordAnimationEnd="bottom 76%"
+        >
+          {playgroundIntroCopy}
+        </ScrollReveal>
+        <ScrollFloat
+          animationDuration={1}
+          containerClassName="mx-auto mt-8 w-full max-w-screen-2xl text-center"
+          ease="back.inOut(2)"
+          scrollEnd="bottom bottom-=32%"
+          scrollStart="center bottom+=42%"
+          stagger={0.026}
+          textClassName="text-balance !text-5xl !leading-[0.98] !font-black tracking-normal sm:!text-6xl lg:!text-7xl xl:!text-8xl"
+        >
+          {playgroundFinalCopy}
+        </ScrollFloat>
+      </section>
 
       <CinematicFooter />
     </>
