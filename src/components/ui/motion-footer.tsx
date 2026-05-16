@@ -14,6 +14,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import ShapeGrid from "@/components/ShapeGrid";
 import { BlurText } from "@/components/ui/blur-text";
+import { GlassSurface } from "@/components/ui/glass-surface";
 import { cn } from "@/lib/utils";
 
 if (typeof window !== "undefined") {
@@ -33,7 +34,7 @@ const textGlowClassName =
   "bg-[linear-gradient(180deg,var(--foreground)_0%,color-mix(in_oklch,var(--foreground)_46%,transparent)_100%)] bg-clip-text [-webkit-text-fill-color:transparent] drop-shadow-[0_0_20px_color-mix(in_oklch,var(--foreground)_14%,transparent)]";
 
 const glassPillClassName =
-  "border border-[color:color-mix(in_oklch,var(--foreground)_12%,transparent)] bg-[linear-gradient(145deg,color-mix(in_oklch,var(--foreground)_5%,transparent)_0%,color-mix(in_oklch,var(--foreground)_1%,transparent)_100%)] shadow-[0_10px_30px_-10px_color-mix(in_oklch,var(--foreground)_14%,transparent),inset_0_1px_1px_color-mix(in_oklch,var(--background)_70%,transparent)] backdrop-blur-[16px] transition-[background,border-color,box-shadow,color] duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)] hover:border-[color:color-mix(in_oklch,var(--foreground)_28%,transparent)] hover:bg-[linear-gradient(145deg,color-mix(in_oklch,var(--foreground)_10%,transparent)_0%,color-mix(in_oklch,var(--foreground)_3%,transparent)_100%)] hover:text-foreground hover:shadow-[0_20px_40px_-10px_color-mix(in_oklch,var(--foreground)_22%,transparent),inset_0_1px_1px_color-mix(in_oklch,var(--background)_70%,transparent)]";
+  "relative isolate overflow-hidden bg-transparent shadow-[0_14px_34px_-18px_color-mix(in_oklch,var(--foreground)_32%,transparent)] transition-[box-shadow,color] duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)] hover:text-foreground hover:shadow-[0_24px_48px_-20px_color-mix(in_oklch,var(--foreground)_38%,transparent)]";
 
 type FooterThemeStyle = CSSProperties & Record<`--${string}`, string>;
 
@@ -54,6 +55,7 @@ const MagneticButton = ({
   as: Component = "button",
   children,
   className,
+  style,
   ...props
 }: MagneticButtonProps) => {
   const localRef = useRef<HTMLElement | null>(null);
@@ -107,9 +109,25 @@ const MagneticButton = ({
     <Component
       ref={localRef}
       className={cn("cursor-pointer [transform-style:preserve-3d]", className)}
+      style={{ appearance: "none", border: 0, outline: "none", ...style }}
       {...props}
     >
-      {children}
+      <GlassSurface
+        aria-hidden="true"
+        backgroundOpacity={0.14}
+        blur={10}
+        borderRadius={999}
+        brightness={62}
+        displace={0.35}
+        height="100%"
+        opacity={0.86}
+        saturation={1.15}
+        style={{ inset: 0, pointerEvents: "none", position: "absolute", zIndex: 0 }}
+        width="100%"
+      />
+      <span className="pointer-events-none relative z-10 inline-flex items-center justify-center gap-3">
+        {children}
+      </span>
     </Component>
   );
 };
@@ -195,7 +213,7 @@ export function CinematicFooter() {
             <ShapeGrid
               borderColor="oklch(0.72 0 0 / 0.42)"
               className="opacity-100"
-              direction="diagonal"
+              direction="down"
               hoverFillColor="oklch(0.28 0 0 / 0.36)"
               hoverTrailAmount={0}
               shape="square"
@@ -274,7 +292,7 @@ export function CinematicFooter() {
                 <MagneticButton
                   as="a"
                   className={cn(
-                    "rounded-full px-6 py-3 text-xs font-semibold text-muted-foreground hover:text-foreground md:text-sm",
+                    "rounded-full px-6 py-3 text-xs font-semibold text-foreground md:text-sm",
                     glassPillClassName,
                   )}
                   data-app-link
@@ -285,7 +303,7 @@ export function CinematicFooter() {
                 <MagneticButton
                   as="a"
                   className={cn(
-                    "rounded-full px-6 py-3 text-xs font-semibold text-muted-foreground hover:text-foreground md:text-sm",
+                    "rounded-full px-6 py-3 text-xs font-semibold text-foreground md:text-sm",
                     glassPillClassName,
                   )}
                   href="#support"
@@ -295,7 +313,7 @@ export function CinematicFooter() {
                 <MagneticButton
                   as="a"
                   className={cn(
-                    "rounded-full px-6 py-3 text-xs font-semibold text-muted-foreground hover:text-foreground md:text-sm",
+                    "rounded-full px-6 py-3 text-xs font-semibold text-foreground md:text-sm",
                     glassPillClassName,
                   )}
                   href="#about"
