@@ -62,6 +62,7 @@ export function OrchestratedEaseReverseMenu() {
   const isLoveExitingRef = useRef(false);
   const isLoveMenuDisabledRef = useRef(false);
   const isLoveSectionActiveRef = useRef(false);
+  const isLoveScrollUpExitLockedRef = useRef(false);
   const exitSpeedRef = useRef(1.5);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoveMenuDisabled, setIsLoveMenuDisabled] = useState(false);
@@ -494,6 +495,9 @@ export function OrchestratedEaseReverseMenu() {
         window.addEventListener("scroll", handleScroll, { passive: true });
         window.addEventListener("resize", handleResize);
 
+        const isScrollUpTopExitZone = () =>
+          loveSection.getBoundingClientRect().bottom > window.innerHeight;
+
         const setLoveShape = (isActive: boolean, immediate = false) => {
           isLoveSectionActiveRef.current = isActive;
 
@@ -501,15 +505,17 @@ export function OrchestratedEaseReverseMenu() {
             return;
           }
 
-          if (immediate) {
-            if (!isActive) {
-              heartMorph.progress(0).pause();
-              setLoveVisual(false, true);
-            }
+          if (isActive) {
             return;
           }
 
-          if (isActive) {
+          if (isScrollUpTopExitZone()) {
+            isLoveScrollUpExitLockedRef.current = true;
+          }
+
+          if (immediate) {
+            heartMorph.progress(0).pause();
+            setLoveVisual(false, true);
             return;
           }
 
@@ -537,6 +543,10 @@ export function OrchestratedEaseReverseMenu() {
         const setLoveDocked = (isDocked: boolean, immediate = false) => {
           if (isLoveExitingRef.current) {
             return;
+          }
+
+          if (isDocked) {
+            isLoveScrollUpExitLockedRef.current = false;
           }
 
           isLoveDockedRef.current = isDocked;
@@ -577,26 +587,35 @@ export function OrchestratedEaseReverseMenu() {
           );
         };
 
-        const shouldDockLove = (direction = 1) => {
+        const getLoveDockState = (direction = 1) => {
           const targetBounds = loveTarget.getBoundingClientRect();
           const sectionBounds = loveSection.getBoundingClientRect();
+          const isScrollUpTopExit = direction < 0 && sectionBounds.bottom > window.innerHeight;
           const dockViewportRatio =
             isLoveDockedRef.current && direction < 0
               ? loveDockScrollUpExitViewportRatio
               : loveDockViewportRatio;
-
-          return (
+          const isWithinDockRange =
             targetBounds.top <= window.innerHeight * dockViewportRatio &&
-            sectionBounds.bottom >= window.innerHeight * loveDockExitViewportRatio
-          );
+            sectionBounds.bottom >= window.innerHeight * loveDockExitViewportRatio;
+
+          return {
+            shouldDock:
+              isWithinDockRange && !(isLoveScrollUpExitLockedRef.current && isScrollUpTopExit),
+            isScrollUpTopExit,
+          };
         };
 
         const updateLoveDockFromViewport = (immediate = false, direction = 1) => {
+          if (immediate || direction > 0) {
+            isLoveScrollUpExitLockedRef.current = false;
+          }
+
           if (isLoveExitingRef.current && !immediate) {
             return;
           }
 
-          const nextIsDocked = shouldDockLove(direction);
+          const { isScrollUpTopExit, shouldDock: nextIsDocked } = getLoveDockState(direction);
 
           if (nextIsDocked === isLoveDockedRef.current) {
             if (nextIsDocked && !immediate) {
@@ -604,6 +623,10 @@ export function OrchestratedEaseReverseMenu() {
             }
 
             return;
+          }
+
+          if (!nextIsDocked && isLoveDockedRef.current && isScrollUpTopExit) {
+            isLoveScrollUpExitLockedRef.current = true;
           }
 
           setLoveDocked(nextIsDocked, immediate);
