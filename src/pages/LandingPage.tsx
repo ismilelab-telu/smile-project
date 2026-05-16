@@ -5,6 +5,7 @@ import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import { DottedSurface } from "@/components/ui/dotted-surface";
+import { GlassSurface } from "@/components/ui/glass-surface";
 import { CinematicFooter } from "@/components/ui/motion-footer";
 import { SplitText } from "@/components/ui/split-text";
 
@@ -256,19 +257,27 @@ export function LandingPage() {
             >
               <a
                 aria-label="Open model picker"
-                className="relative inline-flex min-h-12 items-center justify-center overflow-hidden rounded-[99px] border-0 px-8 font-semibold text-background shadow-[0_16px_34px_rgb(0_0_0_/_18%)] outline-none will-change-transform focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                className="relative isolate inline-flex min-h-12 items-center justify-center overflow-hidden rounded-[99px] border-0 bg-transparent px-8 font-semibold text-foreground shadow-[0_14px_34px_-18px_color-mix(in_oklch,var(--foreground)_32%,transparent)] outline-none will-change-transform"
                 data-app-link
                 data-hero-explore-button
                 href="/model-picker"
                 ref={exploreButtonRef}
               >
-                <span
+                <GlassSurface
                   aria-hidden="true"
-                  className="absolute inset-0 z-0 rounded-[99px] bg-foreground"
+                  backgroundOpacity={0.12}
+                  blur={10}
+                  borderRadius={99}
+                  brightness={62}
+                  displace={0.35}
+                  height="100%"
+                  opacity={0.86}
+                  saturation={1.15}
+                  style={{ inset: 0, pointerEvents: "none", position: "absolute", zIndex: 1 }}
+                  width="100%"
                 />
-                <span aria-hidden="true" className="hero-explore-shine" />
                 <span
-                  className="pointer-events-none relative z-10 inline-flex items-center gap-2"
+                  className="pointer-events-none relative z-20 inline-flex items-center gap-2"
                   data-hero-explore-label
                   ref={exploreLabelRef}
                 >

@@ -45,70 +45,22 @@ const footerThemeStyle: FooterThemeStyle = {
   "--surface": "oklch(1 0 0)",
 };
 
-type MagneticButtonProps = HTMLAttributes<HTMLElement> & {
+type FooterGlassButtonProps = HTMLAttributes<HTMLElement> & {
   as?: ElementType;
   href?: string;
   type?: "button" | "submit" | "reset";
 };
 
-const MagneticButton = ({
+const FooterGlassButton = ({
   as: Component = "button",
   children,
   className,
   style,
   ...props
-}: MagneticButtonProps) => {
-  const localRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    const element = localRef.current;
-
-    if (!element || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      return;
-    }
-
-    const handlePointerMove = (event: PointerEvent) => {
-      const rect = element.getBoundingClientRect();
-      const x = event.clientX - rect.left - rect.width / 2;
-      const y = event.clientY - rect.top - rect.height / 2;
-
-      gsap.to(element, {
-        duration: 0.4,
-        ease: "power2.out",
-        rotationX: -y * 0.15,
-        rotationY: x * 0.15,
-        scale: 1.05,
-        x: x * 0.32,
-        y: y * 0.32,
-      });
-    };
-
-    const handlePointerLeave = () => {
-      gsap.to(element, {
-        duration: 1.1,
-        ease: "elastic.out(1, 0.3)",
-        rotationX: 0,
-        rotationY: 0,
-        scale: 1,
-        x: 0,
-        y: 0,
-      });
-    };
-
-    element.addEventListener("pointermove", handlePointerMove);
-    element.addEventListener("pointerleave", handlePointerLeave);
-
-    return () => {
-      element.removeEventListener("pointermove", handlePointerMove);
-      element.removeEventListener("pointerleave", handlePointerLeave);
-      gsap.killTweensOf(element);
-    };
-  }, []);
-
+}: FooterGlassButtonProps) => {
   return (
     <Component
-      ref={localRef}
-      className={cn("cursor-pointer [transform-style:preserve-3d]", className)}
+      className={cn("cursor-pointer", className)}
       style={{ appearance: "none", border: 0, outline: "none", ...style }}
       {...props}
     >
@@ -261,7 +213,7 @@ export function CinematicFooter() {
 
             <div ref={linksRef} className="flex w-full flex-col items-center gap-5">
               <div className="flex w-full flex-wrap justify-center gap-4">
-                <MagneticButton
+                <FooterGlassButton
                   as="a"
                   className={cn(
                     "inline-flex items-center gap-3 rounded-full px-8 py-4 text-sm font-bold text-foreground md:px-10 md:py-5 md:text-base",
@@ -272,9 +224,9 @@ export function CinematicFooter() {
                 >
                   <IconTopologyStar3 aria-hidden="true" size={20} />
                   Explore models
-                </MagneticButton>
+                </FooterGlassButton>
 
-                <MagneticButton
+                <FooterGlassButton
                   as="button"
                   className={cn(
                     "inline-flex items-center gap-3 rounded-full px-8 py-4 text-sm font-bold text-foreground md:px-10 md:py-5 md:text-base",
@@ -285,11 +237,11 @@ export function CinematicFooter() {
                 >
                   <IconChevronUp aria-hidden="true" size={20} />
                   Back to hero
-                </MagneticButton>
+                </FooterGlassButton>
               </div>
 
               <div className="mt-1 flex w-full flex-wrap justify-center gap-3 md:gap-5">
-                <MagneticButton
+                <FooterGlassButton
                   as="a"
                   className={cn(
                     "rounded-full px-6 py-3 text-xs font-semibold text-foreground md:text-sm",
@@ -299,8 +251,8 @@ export function CinematicFooter() {
                   href="/"
                 >
                   Home
-                </MagneticButton>
-                <MagneticButton
+                </FooterGlassButton>
+                <FooterGlassButton
                   as="a"
                   className={cn(
                     "rounded-full px-6 py-3 text-xs font-semibold text-foreground md:text-sm",
@@ -309,8 +261,8 @@ export function CinematicFooter() {
                   href="#support"
                 >
                   Support
-                </MagneticButton>
-                <MagneticButton
+                </FooterGlassButton>
+                <FooterGlassButton
                   as="a"
                   className={cn(
                     "rounded-full px-6 py-3 text-xs font-semibold text-foreground md:text-sm",
@@ -319,7 +271,7 @@ export function CinematicFooter() {
                   href="#about"
                 >
                   About us
-                </MagneticButton>
+                </FooterGlassButton>
               </div>
             </div>
           </div>
@@ -329,7 +281,7 @@ export function CinematicFooter() {
               © 2026 Smile Project. All rights reserved.
             </div>
 
-            <MagneticButton
+            <FooterGlassButton
               as="button"
               aria-label="Back to top"
               className={cn(
@@ -340,7 +292,7 @@ export function CinematicFooter() {
               type="button"
             >
               <IconArrowRight aria-hidden="true" className="-rotate-90" size={20} />
-            </MagneticButton>
+            </FooterGlassButton>
           </div>
         </footer>
       </div>
