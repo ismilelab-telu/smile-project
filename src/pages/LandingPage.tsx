@@ -18,8 +18,8 @@ const playgroundIntroCopy = [
   'We\u2019ve stripped away the heavy coding of Colab and opened up the "black box" of Teachable Machine to give you the perfect sweet spot for learning.',
   "Fully animated and relentlessly beginner-friendly.",
 ].join(" ");
-const playgroundTeachingCopy = "We don't just teach you Machine Learning.";
-const playgroundFinalCopy = "We make you fall in love with it.";
+const playgroundTeachingCopy = "We don't just teach\nyou Machine Learning.";
+const playgroundFinalCopy = "We make you fall\nin love with it.";
 
 export function LandingPage() {
   const landingRef = useRef<HTMLElement>(null);
@@ -313,42 +313,50 @@ export function LandingPage() {
       </main>
 
       <section
-        className="relative z-10 flex min-h-[165svh] flex-col items-center justify-center bg-zinc-50 px-6 py-24 text-zinc-950 sm:py-32 lg:py-40"
+        className="relative z-10 bg-zinc-50 px-6 text-zinc-950"
         aria-label="Interactive ML Playground introduction"
       >
-        <ScrollReveal
-          baseOpacity={0.14}
-          baseRotation={2.5}
-          blurStrength={8}
-          containerClassName="mx-auto w-full max-w-screen-2xl"
-          rotationEnd="bottom 72%"
-          textClassName="text-pretty text-3xl leading-[1.22] font-semibold tracking-normal sm:text-4xl sm:leading-[1.16] lg:text-6xl lg:leading-[1.08]"
-          wordAnimationEnd="bottom 76%"
-        >
-          {playgroundIntroCopy}
-        </ScrollReveal>
-        <ScrollFloat
-          animationDuration={1}
-          containerClassName="mx-auto mt-[34svh] w-full max-w-screen-2xl text-center sm:mt-[38svh] lg:mt-[44svh]"
-          ease="back.inOut(2)"
-          scrollEnd="bottom bottom-=32%"
-          scrollStart="center bottom+=42%"
-          stagger={0.026}
-          textClassName="text-balance !text-4xl !leading-[1.02] !font-black tracking-normal sm:!text-5xl lg:!text-7xl xl:!text-8xl"
-        >
-          {playgroundTeachingCopy}
-        </ScrollFloat>
-        <ScrollFloat
-          animationDuration={1}
-          containerClassName="mx-auto mt-[30svh] w-full max-w-screen-2xl text-center sm:mt-[34svh] lg:mt-[40svh]"
-          ease="back.inOut(2)"
-          scrollEnd="bottom bottom-=28%"
-          scrollStart="center bottom+=38%"
-          stagger={0.026}
-          textClassName="text-balance !text-4xl !leading-[1.02] !font-black tracking-normal sm:!text-5xl lg:!text-7xl xl:!text-8xl"
-        >
-          {playgroundFinalCopy}
-        </ScrollFloat>
+        <div className="flex min-h-[100svh] items-center justify-center py-20 sm:py-24 lg:py-28">
+          <ScrollReveal
+            baseOpacity={0.14}
+            baseRotation={2.5}
+            blurStrength={8}
+            containerClassName="mx-auto w-full max-w-screen-2xl"
+            rotationEnd="bottom 72%"
+            textClassName="text-pretty text-3xl leading-[1.22] font-semibold tracking-normal sm:text-4xl sm:leading-[1.16] lg:text-6xl lg:leading-[1.08]"
+            wordAnimationEnd="bottom 76%"
+          >
+            {playgroundIntroCopy}
+          </ScrollReveal>
+        </div>
+
+        <div className="flex min-h-[100svh] items-center justify-center py-20 sm:py-24 lg:py-28">
+          <ScrollFloat
+            animationDuration={1}
+            containerClassName="mx-auto w-full max-w-screen-2xl text-center"
+            ease="back.inOut(2)"
+            scrollEnd="bottom bottom-=40%"
+            scrollStart="center bottom+=50%"
+            stagger={0.03}
+            textClassName="!text-4xl !leading-[1.08] !font-black tracking-normal sm:!text-5xl lg:!text-7xl xl:!text-8xl"
+          >
+            {playgroundTeachingCopy}
+          </ScrollFloat>
+        </div>
+
+        <div className="flex min-h-[100svh] items-center justify-center py-20 sm:py-24 lg:py-28">
+          <ScrollFloat
+            animationDuration={1}
+            containerClassName="mx-auto w-full max-w-screen-2xl text-center"
+            ease="back.inOut(2)"
+            scrollEnd="bottom bottom-=40%"
+            scrollStart="center bottom+=50%"
+            stagger={0.03}
+            textClassName="!text-4xl !leading-[1.08] !font-black tracking-normal sm:!text-5xl lg:!text-7xl xl:!text-8xl"
+          >
+            {playgroundFinalCopy}
+          </ScrollFloat>
+        </div>
       </section>
 
       <CinematicFooter />
