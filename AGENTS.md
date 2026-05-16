@@ -59,6 +59,7 @@
 - Prefer user-observable outcomes such as selected state, submitted data, interaction results, or rendered behavior that matters.
 - Avoid tests that only verify static markup, Tailwind classes, layout values, animation props, or that a component mounted.
 - Do not add a new test for a low-risk visual-only tweak unless it guards a real regression.
+- Do not initiate end-to-end testing with Playwright MCP or the Playwright CLI unless the user explicitly asks for E2E, browser, or Playwright verification.
 
 # Git
 
