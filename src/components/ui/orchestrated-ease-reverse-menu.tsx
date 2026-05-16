@@ -62,6 +62,7 @@ export function OrchestratedEaseReverseMenu() {
   const isLoveExitingRef = useRef(false);
   const isLoveMenuDisabledRef = useRef(false);
   const isLoveSectionActiveRef = useRef(false);
+  const isLoveHeldAfterSectionRef = useRef(false);
   const isLoveScrollUpExitLockedRef = useRef(false);
   const exitSpeedRef = useRef(1.5);
   const [isOpen, setIsOpen] = useState(false);
@@ -273,6 +274,7 @@ export function OrchestratedEaseReverseMenu() {
         const settleWhiteCircleVisual = () => {
           const shouldShowShape = isAwayFromTopRef.current;
 
+          isLoveHeldAfterSectionRef.current = false;
           isLoveMenuDisabledRef.current = false;
           setIsLoveMenuDisabled(false);
           gsap.killTweensOf([islandSurface, islandSvg], "autoAlpha");
@@ -315,6 +317,7 @@ export function OrchestratedEaseReverseMenu() {
 
           hasLoveExitMorphStarted = true;
           cancelLoveExitMorphDelay();
+          isLoveHeldAfterSectionRef.current = false;
           isLoveMenuDisabledRef.current = true;
           setIsLoveMenuDisabled(true);
           setVisualLayer("shape", true);
@@ -462,6 +465,10 @@ export function OrchestratedEaseReverseMenu() {
             return;
           }
 
+          if (isLoveHeldAfterSectionRef.current) {
+            return;
+          }
+
           if (!immediate && !didChange) {
             return;
           }
@@ -471,6 +478,11 @@ export function OrchestratedEaseReverseMenu() {
         };
 
         const handleScroll = () => {
+          if (isLoveHeldAfterSectionRef.current && !isOpenRef.current) {
+            fitLoveTarget(0);
+            return;
+          }
+
           setAwayFromTop(shouldDockTopRight());
         };
 
@@ -488,6 +500,11 @@ export function OrchestratedEaseReverseMenu() {
             return;
           }
 
+          if (isLoveHeldAfterSectionRef.current) {
+            fitLoveTarget(0);
+            return;
+          }
+
           setAwayFromTop(shouldDockTopRight(), true);
         };
 
@@ -497,6 +514,23 @@ export function OrchestratedEaseReverseMenu() {
 
         const isScrollUpTopExitZone = () =>
           loveSection.getBoundingClientRect().bottom > window.innerHeight;
+
+        const isScrollDownBottomExitZone = () =>
+          loveSection.getBoundingClientRect().bottom <
+          window.innerHeight * loveDockExitViewportRatio;
+
+        const holdLoveAfterSection = (immediate = false) => {
+          heartMorph.eventCallback("onReverseComplete", null);
+          cancelLoveExitMorphDelay();
+          hasLoveExitMorphStarted = false;
+          isLoveDockedRef.current = true;
+          isLoveExitingRef.current = false;
+          isLoveHeldAfterSectionRef.current = true;
+          isLoveScrollUpExitLockedRef.current = false;
+          setLoveVisual(true, immediate);
+          heartMorph.play();
+          fitLoveTarget(immediate ? 0 : loveUndockTransitionDuration);
+        };
 
         const setLoveShape = (isActive: boolean, immediate = false) => {
           isLoveSectionActiveRef.current = isActive;
@@ -513,7 +547,14 @@ export function OrchestratedEaseReverseMenu() {
             isLoveScrollUpExitLockedRef.current = true;
           }
 
+          isLoveHeldAfterSectionRef.current = false;
+
           if (immediate) {
+            if (isScrollDownBottomExitZone()) {
+              holdLoveAfterSection(true);
+              return;
+            }
+
             heartMorph.progress(0).pause();
             setLoveVisual(false, true);
             return;
@@ -546,7 +587,12 @@ export function OrchestratedEaseReverseMenu() {
           }
 
           if (isDocked) {
+            isLoveHeldAfterSectionRef.current = false;
             isLoveScrollUpExitLockedRef.current = false;
+          }
+
+          if (!isDocked) {
+            isLoveHeldAfterSectionRef.current = false;
           }
 
           isLoveDockedRef.current = isDocked;
@@ -591,6 +637,8 @@ export function OrchestratedEaseReverseMenu() {
           const targetBounds = loveTarget.getBoundingClientRect();
           const sectionBounds = loveSection.getBoundingClientRect();
           const isScrollUpTopExit = direction < 0 && sectionBounds.bottom > window.innerHeight;
+          const isScrollDownBottomExit =
+            direction > 0 && sectionBounds.bottom < window.innerHeight * loveDockExitViewportRatio;
           const dockViewportRatio =
             isLoveDockedRef.current && direction < 0
               ? loveDockScrollUpExitViewportRatio
@@ -602,6 +650,7 @@ export function OrchestratedEaseReverseMenu() {
           return {
             shouldDock:
               isWithinDockRange && !(isLoveScrollUpExitLockedRef.current && isScrollUpTopExit),
+            isScrollDownBottomExit,
             isScrollUpTopExit,
           };
         };
@@ -615,13 +664,31 @@ export function OrchestratedEaseReverseMenu() {
             return;
           }
 
-          const { isScrollUpTopExit, shouldDock: nextIsDocked } = getLoveDockState(direction);
+          const {
+            isScrollDownBottomExit,
+            isScrollUpTopExit,
+            shouldDock: nextIsDocked,
+          } = getLoveDockState(direction);
+
+          if (isLoveHeldAfterSectionRef.current) {
+            if (nextIsDocked) {
+              isLoveHeldAfterSectionRef.current = false;
+            }
+
+            fitLoveTarget(0);
+            return;
+          }
 
           if (nextIsDocked === isLoveDockedRef.current) {
             if (nextIsDocked && !immediate) {
               syncDockedLoveTarget();
             }
 
+            return;
+          }
+
+          if (isScrollDownBottomExit) {
+            holdLoveAfterSection(immediate);
             return;
           }
 
@@ -637,7 +704,7 @@ export function OrchestratedEaseReverseMenu() {
           invalidateOnRefresh: true,
           onEnter: () => setLoveShape(true),
           onEnterBack: () => setLoveShape(true),
-          onLeave: () => setLoveShape(false),
+          onLeave: () => holdLoveAfterSection(),
           onLeaveBack: () => setLoveShape(false),
           onRefresh: (self) => setLoveShape(self.isActive, true),
           start: "top 65%",
@@ -649,7 +716,7 @@ export function OrchestratedEaseReverseMenu() {
           invalidateOnRefresh: true,
           onEnter: (self) => updateLoveDockFromViewport(false, self.direction),
           onEnterBack: (self) => updateLoveDockFromViewport(false, self.direction),
-          onLeave: () => setLoveDocked(false),
+          onLeave: () => holdLoveAfterSection(),
           onLeaveBack: () => setLoveDocked(false),
           onRefresh: () => updateLoveDockFromViewport(true),
           onUpdate: (self) => updateLoveDockFromViewport(false, self.direction),
@@ -673,6 +740,8 @@ export function OrchestratedEaseReverseMenu() {
         isLoveDockedRef.current = false;
         isLoveMenuDisabledRef.current = false;
         isLoveSectionActiveRef.current = false;
+        isLoveHeldAfterSectionRef.current = false;
+        isLoveScrollUpExitLockedRef.current = false;
         setIsLoveMenuDisabled(false);
         gsap.set(island, {
           scale: 1,
