@@ -104,12 +104,43 @@ export function OrchestratedEaseReverseMenu() {
           paused: true,
         });
 
+        const getLoveTargetPosition = () => {
+          const targetBounds = loveTarget.getBoundingClientRect();
+          const islandTop = Number.parseFloat(window.getComputedStyle(island).top) || 0;
+          const islandHeight = island.offsetHeight || closedIslandSize;
+
+          return {
+            x: targetBounds.left + targetBounds.width / 2 - window.innerWidth / 2,
+            y: targetBounds.top + targetBounds.height / 2 - islandTop - islandHeight / 2,
+          };
+        };
+
         const fitLoveTarget = (duration: number) => {
-          Flip.fit(island, loveTarget, {
+          const { x, y } = getLoveTargetPosition();
+
+          gsap.killTweensOf(island, "x,y");
+
+          if (duration <= 0) {
+            gsap.set(island, { x, xPercent: -50, y });
+            return;
+          }
+
+          gsap.to(island, {
             duration,
-            ease: "power2.out",
-            scale: false,
+            ease: "power3.out",
+            overwrite: "auto",
+            x,
+            xPercent: -50,
+            y,
           });
+        };
+
+        const syncDockedLoveTarget = () => {
+          if (!isLoveDockedRef.current || isOpenRef.current) {
+            return;
+          }
+
+          fitLoveTarget(0);
         };
 
         const getTopRightX = () => window.innerWidth / 2 - topRightInset - closedIslandSize / 2;
@@ -214,7 +245,8 @@ export function OrchestratedEaseReverseMenu() {
           onLeave: () => setLoveDocked(false),
           onLeaveBack: () => setLoveDocked(false),
           onRefresh: (self) => setLoveDocked(self.isActive, true),
-          start: "bottom bottom-=40%",
+          onUpdate: syncDockedLoveTarget,
+          start: "center 72%",
           trigger: loveText,
         });
 
