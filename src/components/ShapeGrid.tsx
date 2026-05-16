@@ -9,16 +9,24 @@ type GridCell = {
   y: number;
 };
 
+type ShapeGridSnapshot = {
+  offset: GridCell;
+  updatedAt: number;
+};
+
 type ShapeGridProps = {
   borderColor?: string;
   className?: string;
   direction?: ShapeGridDirection;
   hoverFillColor?: string;
   hoverTrailAmount?: number;
+  persistenceKey?: string;
   shape?: ShapeGridShape;
   speed?: number;
   squareSize?: number;
 };
+
+const shapeGridSnapshots = new Map<string, ShapeGridSnapshot>();
 
 const ShapeGrid = ({
   direction = "right",
@@ -28,11 +36,16 @@ const ShapeGrid = ({
   hoverFillColor = "oklch(0.28 0 0 / 0.36)",
   shape = "square",
   hoverTrailAmount = 0,
+  persistenceKey,
   className = "",
 }: ShapeGridProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const requestRef = useRef<number | null>(null);
-  const gridOffset = useRef({ x: 0, y: 0 });
+  const gridOffset = useRef(
+    persistenceKey
+      ? { ...(shapeGridSnapshots.get(persistenceKey)?.offset ?? { x: 0, y: 0 }) }
+      : { x: 0, y: 0 },
+  );
   const hoveredSquare = useRef<GridCell | null>(null);
   const trailCells = useRef<GridCell[]>([]);
   const cellOpacities = useRef(new Map<string, number>());
@@ -223,8 +236,8 @@ const ShapeGrid = ({
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     };
 
-    const updateAnimation = () => {
-      const effectiveSpeed = Math.max(speed, 0.1);
+    const updateGridOffset = (frameCount = 1) => {
+      const effectiveSpeed = Math.max(speed, 0.1) * frameCount;
       const wrapX = isHex ? hexHoriz * 2 : squareSize;
       const wrapY = isHex ? hexVert : isTri ? squareSize * 2 : squareSize;
 
@@ -248,7 +261,10 @@ const ShapeGrid = ({
         default:
           break;
       }
+    };
 
+    const updateAnimation = () => {
+      updateGridOffset();
       updateCellOpacities();
       drawGrid();
       requestRef.current = requestAnimationFrame(updateAnimation);
@@ -408,9 +424,24 @@ const ShapeGrid = ({
     window.addEventListener("pointermove", handlePointerMove, { passive: true });
     window.addEventListener("blur", clearHoveredSquare);
 
+    if (persistenceKey) {
+      const snapshot = shapeGridSnapshots.get(persistenceKey);
+      if (snapshot) {
+        const elapsedFrames = Math.min((performance.now() - snapshot.updatedAt) / 16.67, 600);
+        updateGridOffset(elapsedFrames);
+      }
+    }
+
     requestRef.current = requestAnimationFrame(updateAnimation);
 
     return () => {
+      if (persistenceKey) {
+        shapeGridSnapshots.set(persistenceKey, {
+          offset: { ...gridOffset.current },
+          updatedAt: performance.now(),
+        });
+      }
+
       window.removeEventListener("resize", resizeCanvas);
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("blur", clearHoveredSquare);
@@ -418,7 +449,16 @@ const ShapeGrid = ({
         cancelAnimationFrame(requestRef.current);
       }
     };
-  }, [direction, speed, borderColor, hoverFillColor, squareSize, shape, hoverTrailAmount]);
+  }, [
+    direction,
+    speed,
+    borderColor,
+    hoverFillColor,
+    squareSize,
+    shape,
+    hoverTrailAmount,
+    persistenceKey,
+  ]);
 
   return <canvas ref={canvasRef} className={`shapegrid-canvas ${className}`} />;
 };

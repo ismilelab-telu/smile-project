@@ -19,7 +19,7 @@
 
 @layer base {
   :root {
-    --background: #f7f7f7;
+    --background: oklch(0.985 0 0);
     --border: rgba(17, 17, 17, 0.12);
     --foreground: #111111;
     --ink-soft: #333333;

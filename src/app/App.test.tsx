@@ -15,6 +15,15 @@ describe("App", () => {
     expect(screen.getByRole("link", { name: /Open model picker/ })).toBeInTheDocument();
   });
 
+  it("renders fuzzy text utility pages", () => {
+    window.history.pushState(null, "", "/support");
+    render(<App />);
+
+    expect(screen.getByRole("heading", { name: "404 not found." })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "404" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "not found." })).toBeInTheDocument();
+  });
+
   it("shows grouped machine learning models in the mode menu", () => {
     window.history.pushState(null, "", "/model-picker");
     render(<App />);

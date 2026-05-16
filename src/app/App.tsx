@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 
+import { FuzzyTextPage } from "../pages/FuzzyTextPage";
 import { LandingPage } from "../pages/LandingPage";
 import { ModelPickerPage } from "../pages/ModelPickerPage";
+
+const fuzzyTextRoutes = new Set(["/about", "/contributing", "/follow-us", "/support"]);
 
 function getCurrentPath() {
   return typeof window === "undefined" ? "/" : window.location.pathname;
@@ -51,6 +54,10 @@ export function App() {
 
   if (path === "/model-picker") {
     return <ModelPickerPage />;
+  }
+
+  if (fuzzyTextRoutes.has(path)) {
+    return <FuzzyTextPage />;
   }
 
   return <LandingPage />;

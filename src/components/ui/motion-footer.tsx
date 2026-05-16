@@ -8,7 +8,7 @@ import {
   type ElementType,
   type HTMLAttributes,
 } from "react";
-import { IconArrowRight, IconBrandGithub, IconGitPullRequest } from "@tabler/icons-react";
+import { IconBrandGithub, IconGitPullRequest } from "@tabler/icons-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
@@ -245,6 +245,7 @@ export function CinematicFooter() {
               direction="down"
               hoverFillColor="oklch(0.28 0 0 / 0.36)"
               hoverTrailAmount={0}
+              persistenceKey="footer-shape-grid"
               shape="square"
               speed={0.5}
               squareSize={40}
@@ -296,7 +297,8 @@ export function CinematicFooter() {
                     "inline-flex items-center gap-3 rounded-full px-8 py-4 text-sm font-bold text-foreground md:px-10 md:py-5 md:text-base",
                     glassPillClassName,
                   )}
-                  href="#support"
+                  data-app-link
+                  href="/follow-us"
                   revealed={areFooterButtonsVisible}
                 >
                   <IconBrandGithub aria-hidden="true" size={20} />
@@ -309,7 +311,8 @@ export function CinematicFooter() {
                     "inline-flex items-center gap-3 rounded-full px-8 py-4 text-sm font-bold text-foreground md:px-10 md:py-5 md:text-base",
                     glassPillClassName,
                   )}
-                  href="#about"
+                  data-app-link
+                  href="/contributing"
                   revealed={areFooterButtonsVisible}
                 >
                   <IconGitPullRequest aria-hidden="true" size={20} />
@@ -319,14 +322,14 @@ export function CinematicFooter() {
 
               <div className="mt-1 flex w-full flex-wrap justify-center gap-3 md:gap-5">
                 <FooterGlassButton
-                  as="a"
+                  as="button"
                   className={cn(
                     "rounded-full px-6 py-3 text-xs font-semibold text-foreground md:text-sm",
                     glassPillClassName,
                   )}
-                  data-app-link
-                  href="/"
+                  onClick={scrollToTop}
                   revealed={areFooterButtonsVisible}
+                  type="button"
                 >
                   Home
                 </FooterGlassButton>
@@ -336,7 +339,8 @@ export function CinematicFooter() {
                     "rounded-full px-6 py-3 text-xs font-semibold text-foreground md:text-sm",
                     glassPillClassName,
                   )}
-                  href="#support"
+                  data-app-link
+                  href="/support"
                   revealed={areFooterButtonsVisible}
                 >
                   Support
@@ -347,7 +351,8 @@ export function CinematicFooter() {
                     "rounded-full px-6 py-3 text-xs font-semibold text-foreground md:text-sm",
                     glassPillClassName,
                   )}
-                  href="#about"
+                  data-app-link
+                  href="/about"
                   revealed={areFooterButtonsVisible}
                 >
                   About us
@@ -360,20 +365,6 @@ export function CinematicFooter() {
             <div className="order-2 text-[10px] font-semibold text-muted-foreground uppercase md:order-1 md:text-xs">
               © 2026 Smile Project. All rights reserved.
             </div>
-
-            <FooterGlassButton
-              as="button"
-              aria-label="Back to top"
-              className={cn(
-                "order-3 flex size-12 items-center justify-center rounded-full text-muted-foreground hover:text-foreground",
-                glassPillClassName,
-              )}
-              onClick={scrollToTop}
-              revealed={areFooterButtonsVisible}
-              type="button"
-            >
-              <IconArrowRight aria-hidden="true" className="-rotate-90" size={20} />
-            </FooterGlassButton>
           </div>
         </footer>
       </div>
