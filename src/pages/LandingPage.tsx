@@ -205,44 +205,45 @@ export function LandingPage() {
 
         <section
           className="relative z-10 mx-auto flex min-h-[100svh] w-[min(1180px,calc(100%_-_32px))] flex-col items-center justify-center pt-28 pb-28 text-center"
-          data-landing-scroll-content
           aria-labelledby="landing-title"
         >
-          <SplitText
-            className="max-w-full whitespace-nowrap text-[clamp(2.8rem,10vw,8.6rem)] leading-[0.9] tracking-normal text-foreground font-semibold"
-            delay={55}
-            duration={0.72}
-            ease="power3.out"
-            from={{ opacity: 0, y: 40 }}
-            id="landing-title"
-            onLetterAnimationHalfway={startDescriptionAnimation}
-            replayOnEnter
-            rootMargin="-100px"
-            splitType="chars"
-            style={{ overflow: "visible", whiteSpace: "nowrap" }}
-            tag="h1"
-            text="Smile Project"
-            textAlign="center"
-            threshold={0.1}
-            to={{ opacity: 1, y: 0 }}
-          />
-          <SplitText
-            animateTarget="lines"
-            className="mt-6 max-w-2xl text-[clamp(1rem,2vw,1.3rem)] leading-[1.65] text-muted-foreground"
-            delay={100}
-            duration={0.6}
-            ease="expo.out"
-            from={{ opacity: 0, yPercent: 100 }}
-            mask="lines"
-            onLetterAnimationHalfway={revealHeroAction}
-            splitType="words,lines"
-            startAnimation={canStartDescriptionAnimation}
-            tag="p"
-            text="Explore ML models through visual feedback, fully-animated, and built to make learning ML feel fun."
-            textAlign="center"
-            to={{ opacity: 1, yPercent: 0 }}
-            triggerOnScroll={false}
-          />
+          <div className="flex flex-col items-center" data-landing-scroll-content>
+            <SplitText
+              className="max-w-full whitespace-nowrap text-[clamp(2.8rem,10vw,8.6rem)] leading-[0.9] tracking-normal text-foreground font-semibold"
+              delay={55}
+              duration={0.72}
+              ease="power3.out"
+              from={{ opacity: 0, y: 40 }}
+              id="landing-title"
+              onLetterAnimationHalfway={startDescriptionAnimation}
+              replayOnEnter
+              rootMargin="-100px"
+              splitType="chars"
+              style={{ overflow: "visible", whiteSpace: "nowrap" }}
+              tag="h1"
+              text="Smile Project"
+              textAlign="center"
+              threshold={0.1}
+              to={{ opacity: 1, y: 0 }}
+            />
+            <SplitText
+              animateTarget="lines"
+              className="mt-6 max-w-2xl text-[clamp(1rem,2vw,1.3rem)] leading-[1.65] text-muted-foreground"
+              delay={100}
+              duration={0.6}
+              ease="expo.out"
+              from={{ opacity: 0, yPercent: 100 }}
+              mask="lines"
+              onLetterAnimationHalfway={revealHeroAction}
+              splitType="words,lines"
+              startAnimation={canStartDescriptionAnimation}
+              tag="p"
+              text="Explore ML models through visual feedback, fully-animated, and built to make learning ML feel fun."
+              textAlign="center"
+              to={{ opacity: 1, yPercent: 0 }}
+              triggerOnScroll={false}
+            />
+          </div>
           <div
             className="mt-8 flex flex-wrap items-center justify-center gap-3"
             data-hero-action
@@ -257,7 +258,7 @@ export function LandingPage() {
             >
               <a
                 aria-label="Open model picker"
-                className="relative isolate inline-flex min-h-12 items-center justify-center overflow-hidden rounded-[99px] border-0 bg-transparent px-8 font-semibold text-foreground shadow-[0_14px_34px_-18px_color-mix(in_oklch,var(--foreground)_32%,transparent)] outline-none will-change-transform"
+                className="relative isolate inline-flex min-h-12 items-center justify-center overflow-hidden rounded-[99px] border-0 bg-transparent px-8 font-semibold text-foreground outline-none will-change-transform"
                 data-app-link
                 data-hero-explore-button
                 href="/model-picker"
@@ -265,14 +266,8 @@ export function LandingPage() {
               >
                 <GlassSurface
                   aria-hidden="true"
-                  backgroundOpacity={0.12}
-                  blur={10}
                   borderRadius={99}
-                  brightness={62}
-                  displace={0.35}
                   height="100%"
-                  opacity={0.86}
-                  saturation={1.15}
                   style={{ inset: 0, pointerEvents: "none", position: "absolute", zIndex: 1 }}
                   width="100%"
                 />

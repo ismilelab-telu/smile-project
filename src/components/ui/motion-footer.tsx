@@ -34,7 +34,7 @@ const textGlowClassName =
   "bg-[linear-gradient(180deg,var(--foreground)_0%,color-mix(in_oklch,var(--foreground)_46%,transparent)_100%)] bg-clip-text [-webkit-text-fill-color:transparent] drop-shadow-[0_0_20px_color-mix(in_oklch,var(--foreground)_14%,transparent)]";
 
 const glassPillClassName =
-  "relative isolate overflow-hidden bg-transparent shadow-[0_14px_34px_-18px_color-mix(in_oklch,var(--foreground)_32%,transparent)] transition-[box-shadow,color] duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)] hover:text-foreground hover:shadow-[0_24px_48px_-20px_color-mix(in_oklch,var(--foreground)_38%,transparent)]";
+  "relative isolate overflow-hidden bg-transparent transition-colors duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)] hover:text-foreground";
 
 type FooterThemeStyle = CSSProperties & Record<`--${string}`, string>;
 
@@ -66,14 +66,8 @@ const FooterGlassButton = ({
     >
       <GlassSurface
         aria-hidden="true"
-        backgroundOpacity={0.14}
-        blur={10}
         borderRadius={999}
-        brightness={62}
-        displace={0.35}
         height="100%"
-        opacity={0.86}
-        saturation={1.15}
         style={{ inset: 0, pointerEvents: "none", position: "absolute", zIndex: 0 }}
         width="100%"
       />
@@ -127,12 +121,11 @@ export function CinematicFooter() {
       );
 
       gsap.fromTo(
-        [headingRef.current, linksRef.current],
+        headingRef.current,
         { opacity: 0, y: 50 },
         {
           ease: "power3.out",
           opacity: 1,
-          stagger: 0.15,
           scrollTrigger: {
             end: "bottom bottom",
             scrub: 1,
@@ -142,6 +135,8 @@ export function CinematicFooter() {
           y: 0,
         },
       );
+
+      gsap.set(linksRef.current, { clearProps: "opacity,transform,visibility" });
     }, wrapperRef);
 
     return () => ctx.revert();
