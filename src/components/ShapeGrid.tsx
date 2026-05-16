@@ -18,6 +18,7 @@ type ShapeGridProps = {
   borderColor?: string;
   className?: string;
   direction?: ShapeGridDirection;
+  disableHover?: boolean;
   hoverFillColor?: string;
   hoverTrailAmount?: number;
   persistenceKey?: string;
@@ -33,6 +34,7 @@ const ShapeGrid = ({
   speed = 1,
   borderColor = "oklch(0.72 0 0 / 0.42)",
   squareSize = 40,
+  disableHover = false,
   hoverFillColor = "oklch(0.28 0 0 / 0.36)",
   shape = "square",
   hoverTrailAmount = 0,
@@ -305,6 +307,10 @@ const ShapeGrid = ({
     };
 
     const clearHoveredSquare = () => {
+      if (disableHover) {
+        return;
+      }
+
       if (hoveredSquare.current && hoverTrailAmount > 0) {
         trailCells.current.unshift({ ...hoveredSquare.current });
         if (trailCells.current.length > hoverTrailAmount) {
@@ -315,6 +321,10 @@ const ShapeGrid = ({
     };
 
     const handlePointerMove = (event: PointerEvent) => {
+      if (disableHover) {
+        return;
+      }
+
       const rect = canvas.getBoundingClientRect();
       const mouseX = event.clientX - rect.left;
       const mouseY = event.clientY - rect.top;
@@ -421,8 +431,10 @@ const ShapeGrid = ({
       }
     };
 
-    window.addEventListener("pointermove", handlePointerMove, { passive: true });
-    window.addEventListener("blur", clearHoveredSquare);
+    if (!disableHover) {
+      window.addEventListener("pointermove", handlePointerMove, { passive: true });
+      window.addEventListener("blur", clearHoveredSquare);
+    }
 
     if (persistenceKey) {
       const snapshot = shapeGridSnapshots.get(persistenceKey);
@@ -443,8 +455,10 @@ const ShapeGrid = ({
       }
 
       window.removeEventListener("resize", resizeCanvas);
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("blur", clearHoveredSquare);
+      if (!disableHover) {
+        window.removeEventListener("pointermove", handlePointerMove);
+        window.removeEventListener("blur", clearHoveredSquare);
+      }
       if (requestRef.current !== null) {
         cancelAnimationFrame(requestRef.current);
       }
@@ -453,6 +467,7 @@ const ShapeGrid = ({
     direction,
     speed,
     borderColor,
+    disableHover,
     hoverFillColor,
     squareSize,
     shape,

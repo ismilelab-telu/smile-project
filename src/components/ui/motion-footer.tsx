@@ -242,6 +242,7 @@ export function CinematicFooter() {
             <ShapeGrid
               borderColor="oklch(0.72 0 0 / 0.42)"
               className="opacity-100"
+              disableHover
               direction="down"
               hoverFillColor="oklch(0.28 0 0 / 0.36)"
               hoverTrailAmount={0}
