@@ -132,7 +132,7 @@ export function OrchestratedEaseReverseMenu() {
             return;
           }
 
-          moveToBasePosition(immediate ? 0 : 0.32);
+          moveToBasePosition(immediate ? 0 : 0.55);
         };
 
         const handleScroll = () => {
@@ -175,7 +175,7 @@ export function OrchestratedEaseReverseMenu() {
 
           isLoveDockedRef.current = false;
           heartMorph.reverse();
-          moveToBasePosition(0.45);
+          moveToBasePosition(0.75);
         };
 
         const setLoveDocked = (isDocked: boolean, immediate = false) => {
@@ -186,11 +186,11 @@ export function OrchestratedEaseReverseMenu() {
           }
 
           if (isDocked) {
-            fitLoveTarget(immediate ? 0 : 0.45);
+            fitLoveTarget(immediate ? 0 : 0.75);
             return;
           }
 
-          moveToBasePosition(immediate ? 0 : 0.45);
+          moveToBasePosition(immediate ? 0 : 0.75);
         };
 
         const sectionTrigger = ScrollTrigger.create({
@@ -353,7 +353,7 @@ export function OrchestratedEaseReverseMenu() {
     { scope: rootRef },
   );
 
-  const restoreClosedIsland = contextSafe((duration = 0.24) => {
+  const restoreClosedIsland = contextSafe((duration = 0.7) => {
     const island = islandRef.current;
     const islandShape = islandShapeRef.current;
 
@@ -429,7 +429,7 @@ export function OrchestratedEaseReverseMenu() {
 
       if (island) {
         gsap.to(island, {
-          duration: 0.24,
+          duration: 0.65,
           ease: "power2.out",
           x: 0,
           xPercent: -50,
