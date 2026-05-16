@@ -1,17 +1,22 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { App } from "./App";
 
 describe("App", () => {
-  it("renders the regression playground shell", () => {
+  beforeEach(() => {
+    window.history.pushState(null, "", "/");
+  });
+
+  it("renders the landing page", () => {
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: "Simple Linear Regression" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Smile Project home" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Smile Project" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open model picker/ })).toBeInTheDocument();
   });
 
   it("shows grouped machine learning models in the mode menu", () => {
+    window.history.pushState(null, "", "/model-picker");
     render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: /Simple Linear Regression/ }));
@@ -27,7 +32,8 @@ describe("App", () => {
     expect(within(modeMenu).getByRole("option", { name: "Transformer" })).toBeInTheDocument();
   });
 
-  it("updates the active playground title from the mode menu", () => {
+  it("updates the active model picker title from the mode menu", () => {
+    window.history.pushState(null, "", "/model-picker");
     render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: /Simple Linear Regression/ }));

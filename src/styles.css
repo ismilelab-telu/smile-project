@@ -8,8 +8,8 @@
 
 @layer base {
   :root {
-    color: #172019;
-    background: #f7f4ed;
+    color: #111111;
+    background: #f7f7f7;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
@@ -31,5 +31,15 @@
   a {
     color: inherit;
     text-decoration: none;
+  }
+}
+
+@layer components {
+  .intro-title-line {
+    display: block;
+    max-width: 100%;
+    transform-style: preserve-3d;
+    width: fit-content;
+    will-change: transform, opacity;
   }
 }
