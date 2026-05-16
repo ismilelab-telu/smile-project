@@ -1,0 +1,72 @@
+[
+  {
+    "label": "runner: dev",
+    "command": "vp dev --host 127.0.0.1 --port 5317 --strictPort",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never",
+    "shell": "system"
+  },
+  {
+    "label": "runner: check",
+    "command": "vp check src tests index.html vite.config.ts playwright.config.ts package.json tsconfig.json",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "on_success",
+    "shell": "system"
+  },
+  {
+    "label": "runner: test",
+    "command": "vp test run",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "on_success",
+    "shell": "system"
+  },
+  {
+    "label": "runner: test:e2e",
+    "command": "vp exec playwright test",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never",
+    "shell": "system"
+  },
+  {
+    "label": "runner: build",
+    "command": "vp exec tsc --noEmit && vp build",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "on_success",
+    "shell": "system"
+  },
+  {
+    "label": "runner: preview",
+    "command": "vp preview --host 127.0.0.1 --port 4317 --strictPort",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never",
+    "shell": "system"
+  },
+  {
+    "label": "runner: format",
+    "command": "vp fmt --write src tests index.html vite.config.ts playwright.config.ts package.json tsconfig.json",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "on_success",
+    "shell": "system"
+  }
+]

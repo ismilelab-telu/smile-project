@@ -2,11 +2,12 @@ import { useRef } from "react";
 import { IconArrowRight } from "@tabler/icons-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import { DottedSurface } from "@/components/ui/dotted-surface";
 import { CinematicFooter } from "@/components/ui/motion-footer";
 
-gsap.registerPlugin(useGSAP);
+gsap.registerPlugin(useGSAP, ScrollTrigger);
 
 export function LandingPage() {
   const landingRef = useRef<HTMLElement>(null);
@@ -14,16 +15,22 @@ export function LandingPage() {
   useGSAP(
     () => {
       const targets = "[data-landing-reveal]";
+      const contentTarget = "[data-landing-scroll-content]";
+      const fadeTarget = "[data-landing-scroll-fade]";
+      const surfaceTarget = "[data-landing-scroll-surface]";
+      const visibleTargets = `${targets}, ${contentTarget}, ${surfaceTarget}`;
 
       if (typeof window.matchMedia !== "function") {
-        gsap.set(targets, { autoAlpha: 1, clearProps: "all" });
+        gsap.set(visibleTargets, { autoAlpha: 1, clearProps: "all" });
+        gsap.set(fadeTarget, { autoAlpha: 0 });
         return;
       }
 
       const motionPreferences = gsap.matchMedia();
 
       motionPreferences.add("(prefers-reduced-motion: reduce)", () => {
-        gsap.set(targets, { autoAlpha: 1, clearProps: "all" });
+        gsap.set(visibleTargets, { autoAlpha: 1, clearProps: "all" });
+        gsap.set(fadeTarget, { autoAlpha: 0 });
       });
 
       motionPreferences.add("(prefers-reduced-motion: no-preference)", () => {
@@ -40,6 +47,46 @@ export function LandingPage() {
             stagger: 0.1,
             y: 26,
           });
+
+        gsap
+          .timeline({
+            scrollTrigger: {
+              end: "bottom 54%",
+              scrub: 0.75,
+              start: "top -12%",
+              trigger: landingRef.current,
+            },
+          })
+          .fromTo(
+            fadeTarget,
+            {
+              autoAlpha: 0,
+            },
+            {
+              autoAlpha: 1,
+              ease: "none",
+            },
+            0,
+          )
+          .to(
+            surfaceTarget,
+            {
+              autoAlpha: 0.08,
+              ease: "none",
+            },
+            0,
+          )
+          .to(
+            contentTarget,
+            {
+              autoAlpha: 0,
+              ease: "none",
+              filter: "blur(6px)",
+              scale: 0.975,
+              y: -64,
+            },
+            0,
+          );
       });
 
       return () => {
@@ -55,10 +102,11 @@ export function LandingPage() {
         className="relative z-10 min-h-screen overflow-x-hidden bg-background text-foreground"
         ref={landingRef}
       >
-        <DottedSurface />
+        <DottedSurface data-landing-scroll-surface />
 
         <section
           className="relative z-10 mx-auto flex min-h-[100svh] w-[min(1180px,calc(100%_-_32px))] flex-col items-center justify-center pt-28 pb-28 text-center"
+          data-landing-scroll-content
           aria-labelledby="landing-title"
         >
           <h1
@@ -86,6 +134,12 @@ export function LandingPage() {
             </a>
           </div>
         </section>
+
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-[34svh] bg-gradient-to-b from-transparent via-background/80 to-background opacity-0"
+          data-landing-scroll-fade
+        />
       </main>
 
       <CinematicFooter />
