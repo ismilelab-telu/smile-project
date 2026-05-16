@@ -264,8 +264,9 @@ export function LandingPage() {
               >
                 <span
                   aria-hidden="true"
-                  className="absolute inset-0 z-0 rounded-[99px] bg-[linear-gradient(114.41deg,var(--foreground)_20.74%,color-mix(in_oklch,var(--foreground)_58%,var(--background))_65.5%)]"
+                  className="absolute inset-0 z-0 rounded-[99px] bg-foreground"
                 />
+                <span aria-hidden="true" className="hero-explore-shine" />
                 <span
                   className="pointer-events-none relative z-10 inline-flex items-center gap-2"
                   data-hero-explore-label

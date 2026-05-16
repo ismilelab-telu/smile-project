@@ -69,12 +69,55 @@
   }
 }
 
+@keyframes hero-button-shine {
+  0% {
+    opacity: 0.68;
+    transform: translateX(0) skewX(-18deg);
+  }
+
+  100% {
+    opacity: 0.68;
+    transform: translateX(-238%) skewX(-18deg);
+  }
+}
+
 @layer components {
+  .hero-explore-shine {
+    animation: hero-button-shine 4.8s linear infinite;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.05) 14%,
+      rgba(255, 255, 255, 0.2) 30%,
+      rgba(255, 255, 255, 0.58) 46%,
+      rgba(255, 255, 255, 0.58) 54%,
+      rgba(255, 255, 255, 0.2) 70%,
+      rgba(255, 255, 255, 0.05) 86%,
+      transparent 100%
+    );
+    bottom: -35%;
+    filter: blur(7px);
+    pointer-events: none;
+    position: absolute;
+    right: -84%;
+    top: -35%;
+    transform: translateX(0) skewX(-18deg);
+    width: 82%;
+    z-index: 1;
+  }
+
   .intro-title-line {
     display: block;
     max-width: 100%;
     transform-style: preserve-3d;
     width: fit-content;
     will-change: transform, opacity;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-explore-shine {
+    animation: none;
+    opacity: 0;
   }
 }
