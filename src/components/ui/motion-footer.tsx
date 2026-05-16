@@ -96,23 +96,6 @@ const MagneticButton = ({
   );
 };
 
-const marqueeItems = ["Visual model playground", "Animated feedback", "Learning by inspection"];
-
-function MarqueeItem() {
-  return (
-    <div className="flex items-center gap-10 px-6">
-      {marqueeItems.map((item) => (
-        <div className="flex items-center gap-10" key={item}>
-          <span>{item}</span>
-          <span aria-hidden="true" className="text-foreground/45">
-            +
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export function CinematicFooter() {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const giantTextRef = useRef<HTMLDivElement>(null);
@@ -171,7 +154,7 @@ export function CinematicFooter() {
     <>
       <div
         ref={wrapperRef}
-        className="relative h-[100svh] w-full [clip-path:polygon(0%_0,100%_0%,100%_100%,0_100%)]"
+        className="relative h-[100svh] w-full [clip-path:polygon(0%_0,100%_0%,100%_100%,0_100%)] [mask-image:linear-gradient(to_bottom,transparent_0%,black_22%,black_100%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent_0%,black_22%,black_100%)]"
       >
         <footer className="fixed bottom-0 left-0 flex h-[100svh] w-full flex-col justify-between overflow-hidden bg-background font-sans text-foreground antialiased">
           <div
@@ -190,14 +173,6 @@ export function CinematicFooter() {
             )}
           >
             SMILE
-          </div>
-
-          <div className="absolute top-10 left-0 z-10 w-full -rotate-2 scale-110 overflow-hidden border-y border-border bg-background/70 py-3 shadow-2xl backdrop-blur-md">
-            <div className="flex w-max animate-[footer-scroll-marquee_40s_linear_infinite] text-xs font-bold text-muted-foreground uppercase md:text-sm">
-              <MarqueeItem />
-              <MarqueeItem />
-              <MarqueeItem />
-            </div>
           </div>
 
           <div className="relative z-10 mx-auto mt-20 flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-6">

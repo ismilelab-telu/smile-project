@@ -51,9 +51,9 @@ export function LandingPage() {
         gsap
           .timeline({
             scrollTrigger: {
-              end: "bottom 54%",
+              end: "bottom 44%",
               scrub: 0.75,
-              start: "top -12%",
+              start: "bottom 76%",
               trigger: landingRef.current,
             },
           })
@@ -64,14 +64,6 @@ export function LandingPage() {
             },
             {
               autoAlpha: 1,
-              ease: "none",
-            },
-            0,
-          )
-          .to(
-            surfaceTarget,
-            {
-              autoAlpha: 0.08,
               ease: "none",
             },
             0,
@@ -137,7 +129,7 @@ export function LandingPage() {
 
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-[34svh] bg-gradient-to-b from-transparent via-background/80 to-background opacity-0"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-[46svh] bg-gradient-to-b from-transparent via-background/82 to-background opacity-0"
           data-landing-scroll-fade
         />
       </main>
