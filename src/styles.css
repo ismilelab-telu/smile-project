@@ -30,6 +30,8 @@
     --primary: #111111;
     --secondary: #737373;
     --surface: #ffffff;
+    --lightningcss-light: initial;
+    --lightningcss-dark: ;
     color: var(--foreground);
     background: var(--background);
     font-synthesis: none;
@@ -54,6 +56,13 @@
   a {
     color: inherit;
     text-decoration: none;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --lightningcss-light: ;
+    --lightningcss-dark: initial;
   }
 }
 

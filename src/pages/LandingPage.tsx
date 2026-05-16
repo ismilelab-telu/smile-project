@@ -268,7 +268,13 @@ export function LandingPage() {
                   aria-hidden="true"
                   borderRadius={99}
                   height="100%"
-                  style={{ inset: 0, pointerEvents: "none", position: "absolute", zIndex: 1 }}
+                  style={{
+                    inset: 0,
+                    opacity: 0.58,
+                    pointerEvents: "none",
+                    position: "absolute",
+                    zIndex: 1,
+                  }}
                   width="100%"
                 />
                 <span

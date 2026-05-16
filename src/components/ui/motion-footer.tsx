@@ -68,7 +68,7 @@ const FooterGlassButton = ({
         aria-hidden="true"
         borderRadius={999}
         height="100%"
-        style={{ inset: 0, pointerEvents: "none", position: "absolute", zIndex: 0 }}
+        style={{ inset: 0, opacity: 0.58, pointerEvents: "none", position: "absolute", zIndex: 0 }}
         width="100%"
       />
       <span className="pointer-events-none relative z-10 inline-flex items-center justify-center gap-3">
