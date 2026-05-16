@@ -701,18 +701,28 @@ export function OrchestratedEaseReverseMenu() {
 
     if (nextIsOpen) {
       const island = islandRef.current;
+      const playOpenTimeline = () => {
+        timeline.invalidate().eventCallback("onReverseComplete", null).timeScale(1).play();
+      };
 
       if (island) {
-        gsap.to(island, {
-          duration: 0.65,
-          ease: "power2.out",
-          x: 0,
-          xPercent: -50,
-          y: 0,
-        });
+        if (isAwayFromTopRef.current) {
+          gsap.to(island, {
+            duration: 0.46,
+            ease: "power2.out",
+            force3D: false,
+            onComplete: playOpenTimeline,
+            x: 0,
+            xPercent: -50,
+            y: 0,
+          });
+          return;
+        }
+
+        gsap.set(island, { x: 0, xPercent: -50, y: 0 });
       }
 
-      timeline.invalidate().eventCallback("onReverseComplete", null).timeScale(1).play();
+      playOpenTimeline();
       return;
     }
 
