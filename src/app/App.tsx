@@ -20,6 +20,15 @@ export function App() {
   const [path, setPath] = useState(getCurrentPath);
 
   useEffect(() => {
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+
+    window.scrollTo({ top: 0 });
+    const restoreGuard = window.setTimeout(() => {
+      window.scrollTo({ top: 0 });
+    }, 0);
+
     const handlePopState = () => {
       setPath(getCurrentPath());
     };
@@ -47,6 +56,7 @@ export function App() {
     document.addEventListener("click", handleDocumentClick);
 
     return () => {
+      window.clearTimeout(restoreGuard);
       window.removeEventListener("popstate", handlePopState);
       document.removeEventListener("click", handleDocumentClick);
     };
