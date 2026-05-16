@@ -8,7 +8,7 @@ import {
   type ElementType,
   type HTMLAttributes,
 } from "react";
-import { IconArrowRight, IconChevronUp, IconTopologyStar3 } from "@tabler/icons-react";
+import { IconArrowRight, IconBrandGithub, IconGitPullRequest } from "@tabler/icons-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
@@ -36,6 +36,17 @@ const textGlowClassName =
 const glassPillClassName =
   "relative isolate overflow-hidden bg-transparent transition-colors duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)] hover:text-foreground";
 
+const footerHeadingText = "ML should be fun!";
+const footerHeadingWordDelay = 150;
+const footerHeadingStepDuration = 0.35;
+const footerHeadingRevealProgress = 0.8;
+const footerButtonRevealDelay = Math.round(
+  ((footerHeadingText.split(" ").length - 1) * footerHeadingWordDelay +
+    footerHeadingStepDuration * 2 * 1000) *
+    footerHeadingRevealProgress,
+);
+const footerGlassOpacity = 0.58;
+
 type FooterThemeStyle = CSSProperties & Record<`--${string}`, string>;
 
 const footerThemeStyle: FooterThemeStyle = {
@@ -48,27 +59,50 @@ const footerThemeStyle: FooterThemeStyle = {
 type FooterGlassButtonProps = HTMLAttributes<HTMLElement> & {
   as?: ElementType;
   href?: string;
+  revealed?: boolean;
   type?: "button" | "submit" | "reset";
 };
 
 const FooterGlassButton = ({
   as: Component = "button",
+  "aria-hidden": ariaHidden,
   children,
   className,
+  revealed = true,
   style,
+  tabIndex,
   ...props
 }: FooterGlassButtonProps) => {
   return (
     <Component
+      aria-hidden={revealed ? ariaHidden : true}
       className={cn("cursor-pointer", className)}
-      style={{ appearance: "none", border: 0, outline: "none", ...style }}
+      data-footer-glass-button
+      style={{
+        appearance: "none",
+        border: 0,
+        outline: "none",
+        opacity: 0,
+        pointerEvents: revealed ? undefined : "none",
+        transform: "translateY(22px)",
+        visibility: "hidden",
+        ...style,
+      }}
+      tabIndex={revealed ? tabIndex : -1}
       {...props}
     >
       <GlassSurface
         aria-hidden="true"
+        data-footer-glass-surface
         borderRadius={999}
         height="100%"
-        style={{ inset: 0, opacity: 0.58, pointerEvents: "none", position: "absolute", zIndex: 0 }}
+        style={{
+          inset: 0,
+          opacity: footerGlassOpacity,
+          pointerEvents: "none",
+          position: "absolute",
+          zIndex: 0,
+        }}
         width="100%"
       />
       <span className="pointer-events-none relative z-10 inline-flex items-center justify-center gap-3">
@@ -83,22 +117,41 @@ export function CinematicFooter() {
   const giantTextRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLDivElement>(null);
   const linksRef = useRef<HTMLDivElement>(null);
+  const buttonRevealTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const [areFooterButtonsVisible, setAreFooterButtonsVisible] = useState(false);
   const [isHeadingTextVisible, setIsHeadingTextVisible] = useState(false);
   const [headingTextReplayKey, setHeadingTextReplayKey] = useState(0);
 
   useEffect(() => {
     if (!wrapperRef.current || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setIsHeadingTextVisible(true);
+      setAreFooterButtonsVisible(true);
       return;
     }
 
     const ctx = gsap.context(() => {
       ScrollTrigger.create({
         onEnter: () => {
+          if (buttonRevealTimeoutRef.current !== null) {
+            window.clearTimeout(buttonRevealTimeoutRef.current);
+            buttonRevealTimeoutRef.current = null;
+          }
+          setAreFooterButtonsVisible(false);
           setHeadingTextReplayKey((key) => key + 1);
           setIsHeadingTextVisible(true);
+          buttonRevealTimeoutRef.current = window.setTimeout(() => {
+            buttonRevealTimeoutRef.current = null;
+            setAreFooterButtonsVisible(true);
+          }, footerButtonRevealDelay);
         },
-        onLeaveBack: () => setIsHeadingTextVisible(false),
+        onLeaveBack: () => {
+          if (buttonRevealTimeoutRef.current !== null) {
+            window.clearTimeout(buttonRevealTimeoutRef.current);
+            buttonRevealTimeoutRef.current = null;
+          }
+          setAreFooterButtonsVisible(false);
+          setIsHeadingTextVisible(false);
+        },
         start: "top 70%",
         trigger: wrapperRef.current,
       });
@@ -135,12 +188,41 @@ export function CinematicFooter() {
           y: 0,
         },
       );
+    }, wrapperRef);
 
-      gsap.set(linksRef.current, { clearProps: "opacity,transform,visibility" });
+    return () => {
+      if (buttonRevealTimeoutRef.current !== null) {
+        window.clearTimeout(buttonRevealTimeoutRef.current);
+        buttonRevealTimeoutRef.current = null;
+      }
+      ctx.revert();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!wrapperRef.current) {
+      return;
+    }
+
+    const ctx = gsap.context(() => {
+      if (!areFooterButtonsVisible) {
+        gsap.set("[data-footer-glass-button]", { autoAlpha: 0, y: 22 });
+        return;
+      }
+
+      gsap.to("[data-footer-glass-button]", {
+        autoAlpha: 1,
+        clearProps: "transform",
+        duration: 0.7,
+        ease: "power3.out",
+        overwrite: true,
+        stagger: 0.08,
+        y: 0,
+      });
     }, wrapperRef);
 
     return () => ctx.revert();
-  }, []);
+  }, [areFooterButtonsVisible]);
 
   const scrollToTop = () => {
     window.scrollTo({ behavior: "smooth", top: 0 });
@@ -194,14 +276,14 @@ export function CinematicFooter() {
                 className={cn(
                   "justify-center text-center text-[clamp(2.7rem,9vw,6.2rem)] leading-[0.95] font-black tracking-normal",
                 )}
-                delay={150}
+                delay={footerHeadingWordDelay}
                 direction="top"
                 replayKey={headingTextReplayKey}
                 rootMargin="0px 0px -12% 0px"
                 segmentClassName={textGlowClassName}
                 startAnimation={isHeadingTextVisible}
-                stepDuration={0.35}
-                text="ML should be fun!"
+                stepDuration={footerHeadingStepDuration}
+                text={footerHeadingText}
                 threshold={0.2}
               />
             </div>
@@ -214,24 +296,24 @@ export function CinematicFooter() {
                     "inline-flex items-center gap-3 rounded-full px-8 py-4 text-sm font-bold text-foreground md:px-10 md:py-5 md:text-base",
                     glassPillClassName,
                   )}
-                  data-app-link
-                  href="/model-picker"
+                  href="#support"
+                  revealed={areFooterButtonsVisible}
                 >
-                  <IconTopologyStar3 aria-hidden="true" size={20} />
-                  Explore models
+                  <IconBrandGithub aria-hidden="true" size={20} />
+                  Follow us
                 </FooterGlassButton>
 
                 <FooterGlassButton
-                  as="button"
+                  as="a"
                   className={cn(
                     "inline-flex items-center gap-3 rounded-full px-8 py-4 text-sm font-bold text-foreground md:px-10 md:py-5 md:text-base",
                     glassPillClassName,
                   )}
-                  onClick={scrollToTop}
-                  type="button"
+                  href="#about"
+                  revealed={areFooterButtonsVisible}
                 >
-                  <IconChevronUp aria-hidden="true" size={20} />
-                  Back to hero
+                  <IconGitPullRequest aria-hidden="true" size={20} />
+                  Contributing
                 </FooterGlassButton>
               </div>
 
@@ -244,6 +326,7 @@ export function CinematicFooter() {
                   )}
                   data-app-link
                   href="/"
+                  revealed={areFooterButtonsVisible}
                 >
                   Home
                 </FooterGlassButton>
@@ -254,6 +337,7 @@ export function CinematicFooter() {
                     glassPillClassName,
                   )}
                   href="#support"
+                  revealed={areFooterButtonsVisible}
                 >
                   Support
                 </FooterGlassButton>
@@ -264,6 +348,7 @@ export function CinematicFooter() {
                     glassPillClassName,
                   )}
                   href="#about"
+                  revealed={areFooterButtonsVisible}
                 >
                   About us
                 </FooterGlassButton>
@@ -284,6 +369,7 @@ export function CinematicFooter() {
                 glassPillClassName,
               )}
               onClick={scrollToTop}
+              revealed={areFooterButtonsVisible}
               type="button"
             >
               <IconArrowRight aria-hidden="true" className="-rotate-90" size={20} />

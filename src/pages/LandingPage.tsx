@@ -30,6 +30,7 @@ export function LandingPage() {
     () => {
       const contentTarget = "[data-landing-scroll-content]";
       const fadeTarget = "[data-landing-scroll-fade]";
+      const heroExploreFadeTarget = "[data-hero-glass-surface], [data-hero-explore-label]";
       const surfaceTarget = "[data-landing-scroll-surface]";
       const actionTarget = "[data-hero-action]";
       const visibleTargets = `${contentTarget}, ${surfaceTarget}, ${actionTarget}`;
@@ -85,6 +86,14 @@ export function LandingPage() {
               filter: "blur(6px)",
               scale: 0.975,
               y: -64,
+            },
+            0,
+          )
+          .to(
+            heroExploreFadeTarget,
+            {
+              autoAlpha: 0,
+              ease: "none",
             },
             0,
           );
@@ -266,6 +275,7 @@ export function LandingPage() {
               >
                 <GlassSurface
                   aria-hidden="true"
+                  data-hero-glass-surface
                   borderRadius={99}
                   height="100%"
                   style={{

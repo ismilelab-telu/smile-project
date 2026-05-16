@@ -154,7 +154,9 @@ export function BlurText<TElement extends ElementType = "p">({
             className={cn("inline-block will-change-[transform,filter,opacity]", segmentClassName)}
             initial={fromSnapshot}
             key={`${replayKey}-${segment}-${index}`}
-            onAnimationComplete={index === elements.length - 1 ? onAnimationComplete : undefined}
+            onAnimationComplete={
+              index === elements.length - 1 && inView ? onAnimationComplete : undefined
+            }
             transition={spanTransition}
           >
             {segment === " " ? "\u00A0" : segment}
