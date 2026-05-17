@@ -427,6 +427,7 @@ export function LandingPage() {
       const fallWord = root.querySelector<HTMLElement>("[data-final-word='fall']");
       const inWord = root.querySelector<HTMLElement>("[data-final-word='in']");
       const loveTarget = root.querySelector<HTMLElement>("[data-love-scroll-target]");
+      const inlineLove = root.querySelector<HTMLElement>("[data-final-inline-love]");
       const withWord = root.querySelector<HTMLElement>("[data-final-word='with']");
       const itWord = root.querySelector<HTMLElement>("[data-final-word='it']");
       const finalDot = root.querySelector<HTMLElement>("[data-final-dot]");
@@ -440,6 +441,7 @@ export function LandingPage() {
         !fallWord ||
         !inWord ||
         !loveTarget ||
+        !inlineLove ||
         !withWord ||
         !itWord ||
         !finalDot ||
@@ -525,6 +527,12 @@ export function LandingPage() {
         willChange: "opacity, transform",
       });
       gsap.set(loveTarget, { autoAlpha: 1, clearProps: "transform" });
+      gsap.set(inlineLove, {
+        autoAlpha: 0,
+        scale: 1,
+        transformOrigin: "50% 50%",
+        willChange: "opacity, transform",
+      });
       gsap.set(dotMorphSvg, { autoAlpha: 0 });
       gsap.set(dotMorphCircle, { attr: { cx: 0, cy: 0, r: 0 } });
 
@@ -697,10 +705,10 @@ export function LandingPage() {
           },
           2.2,
         )
+        .set(inlineLove, { autoAlpha: 1 }, 2.65)
         .to(
           withWord,
           {
-            autoAlpha: 1,
             duration: 0.3,
             ease: "expo.out",
             scale: 1,
@@ -708,10 +716,10 @@ export function LandingPage() {
           },
           2.7,
         )
+        .set(withWord, { autoAlpha: 1 }, 2.7)
         .to(
           itWord,
           {
-            autoAlpha: 1,
             duration: 0.3,
             ease: "expo.out",
             scale: 1,
@@ -719,6 +727,7 @@ export function LandingPage() {
           },
           2.98,
         )
+        .set(itWord, { autoAlpha: 1 }, 2.98)
         .to(finalDot, { autoAlpha: 1, duration: 0.16, ease: "none" }, 3.22)
         .set(dotMorphSvg, { autoAlpha: 1 }, 3.58)
         .call(syncDotMorphCircleToDot, [], 3.58)
@@ -991,7 +1000,7 @@ export function LandingPage() {
           >
             <h2
               aria-label={playgroundFinalAriaLabel}
-              className="relative z-10 mx-auto flex w-full max-w-screen-2xl flex-col items-center justify-center text-center font-black tracking-normal"
+              className="relative z-[1100] mx-auto flex w-full max-w-screen-2xl flex-col items-center justify-center text-center font-black tracking-normal"
             >
               <span
                 aria-hidden="true"
@@ -1021,13 +1030,25 @@ export function LandingPage() {
                 </span>
                 <span
                   aria-hidden="true"
-                  className="relative inline-flex h-[0.9em] w-[1em] shrink-0 items-center justify-center"
+                  className="relative z-0 inline-flex h-[0.9em] w-[1em] shrink-0 items-center justify-center"
                   data-love-scroll-target
-                />
-                <span className="inline-block" data-final-word="with">
+                >
+                  <svg
+                    aria-hidden="true"
+                    className="absolute inset-0 h-full w-full overflow-visible"
+                    data-final-inline-love
+                    viewBox="0 0 50 50"
+                  >
+                    <path
+                      d="M25 45 C20 40 6 29 6 17 C6 9.8 11.1 5 17.3 5 C20.9 5 23.7 6.8 25 9.5 C26.3 6.8 29.1 5 32.7 5 C38.9 5 44 9.8 44 17 C44 29 30 40 25 45 Z"
+                      fill="oklch(61.224% 0.2313 22.61)"
+                    />
+                  </svg>
+                </span>
+                <span className="relative z-10 inline-block" data-final-word="with">
                   with
                 </span>
-                <span className="inline-block" data-final-word="it">
+                <span className="relative z-10 inline-block" data-final-word="it">
                   it
                 </span>
                 <span

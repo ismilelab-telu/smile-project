@@ -278,7 +278,7 @@ export function OrchestratedEaseReverseMenu() {
             strokeWidth: 0,
           });
           gsap.set(island, {
-            autoAlpha: 1,
+            autoAlpha: clampedProgress >= 0.995 ? 0 : 1,
             force3D: false,
             scale: interpolate(1, islandHeartScale, clampedProgress),
             transformOrigin: "50% 50%",
