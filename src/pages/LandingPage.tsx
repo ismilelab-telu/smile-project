@@ -336,12 +336,12 @@ export function LandingPage() {
         <div className="flex min-h-[100svh] items-center justify-center py-20 sm:py-24 lg:py-28">
           <ScrollFloat
             animationDuration={1}
-            containerClassName="mx-auto w-full max-w-screen-2xl pb-[0.3em] text-center"
+            containerClassName="mx-auto w-full max-w-screen-2xl pb-[0.5em] text-center"
             ease="back.inOut(2)"
             scrollEnd="bottom bottom-=40%"
             scrollStart="center bottom+=50%"
             stagger={0.03}
-            textClassName="!text-4xl !leading-[1.08] !font-black tracking-normal sm:!text-5xl md:!text-7xl lg:!text-8xl xl:!text-9xl"
+            textClassName="!text-4xl !leading-[1.14] !font-black tracking-normal sm:!text-5xl md:!text-7xl lg:!text-8xl xl:!text-9xl"
           >
             {playgroundTeachingCopy}
           </ScrollFloat>
