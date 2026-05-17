@@ -519,14 +519,14 @@ export function LandingPage() {
       });
       gsap.set(withWord, {
         autoAlpha: 0,
-        scale: 5,
+        scale: 6.8,
         transformOrigin: "50% 50%",
         willChange: "opacity, transform",
         yPercent: 8,
       });
       gsap.set(itWord, {
         autoAlpha: 0,
-        scale: 4.8,
+        scale: 6.8,
         transformOrigin: "50% 50%",
         willChange: "opacity, transform",
         yPercent: 8,
