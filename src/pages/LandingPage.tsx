@@ -220,10 +220,16 @@ export function LandingPage() {
 
       const storySection = root.querySelector<HTMLElement>("[data-teaching-story-section]");
       const storyStage = root.querySelector<HTMLElement>("[data-teaching-story-stage]");
+      const dotMorphSvg = storyStage?.querySelector<SVGSVGElement>("[data-teaching-dot-morph-svg]");
+      const dotMorphCircle = storyStage?.querySelector<SVGCircleElement>(
+        "[data-teaching-dot-morph-circle]",
+      );
 
       if (
         !storySection ||
         !storyStage ||
+        !dotMorphSvg ||
+        !dotMorphCircle ||
         typeof window.matchMedia !== "function" ||
         window.matchMedia("(prefers-reduced-motion: reduce)").matches
       ) {
@@ -233,14 +239,16 @@ export function LandingPage() {
       const characterElements = Array.from(
         storyStage.querySelectorAll<HTMLElement>("[data-teaching-story-char]"),
       );
-      const zoomLetter = storyStage.querySelector<HTMLElement>("[data-teaching-story-zoom-letter]");
-      const otherCharacters = characterElements.filter((character) => character !== zoomLetter);
+      const morphDot = storyStage.querySelector<HTMLElement>("[data-teaching-story-dot]");
+      const otherCharacters = characterElements.filter((character) => character !== morphDot);
 
-      if (!zoomLetter || characterElements.length === 0) {
+      if (!morphDot || characterElements.length === 0) {
         return;
       }
 
       gsap.set(storyStage, { backgroundColor: "#fafafa" });
+      gsap.set(dotMorphSvg, { autoAlpha: 0 });
+      gsap.set(dotMorphCircle, { attr: { cx: 0, cy: 0, r: 0 } });
       gsap.set(characterElements, {
         opacity: 0,
         scaleX: 0.7,
@@ -250,39 +258,87 @@ export function LandingPage() {
         willChange: "opacity, transform",
         yPercent: 120,
       });
-      gsap.set(zoomLetter, {
+      gsap.set(morphDot, {
         transformOrigin: "50% 50%",
       });
 
-      const getZoomLetterX = () => {
-        const rect = zoomLetter.getBoundingClientRect();
+      const syncMorphSvgViewBox = () => {
+        const rect = storyStage.getBoundingClientRect();
 
-        return window.innerWidth / 2 - (rect.left + rect.width / 2);
+        dotMorphSvg.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
       };
 
-      const getZoomLetterY = () => {
-        const rect = zoomLetter.getBoundingClientRect();
+      const getDotCenterX = () => {
+        const stageRect = storyStage.getBoundingClientRect();
+        const dotRect = morphDot.getBoundingClientRect();
 
-        return window.innerHeight / 2 - (rect.top + rect.height / 2);
+        return dotRect.left - stageRect.left + dotRect.width / 2;
       };
 
-      const getZoomLetterScale = () => {
-        const rect = zoomLetter.getBoundingClientRect();
-        const letterSize = Math.max(rect.width, rect.height, 1);
-        const viewportSize = Math.max(window.innerWidth, window.innerHeight);
+      const getDotCenterY = () => {
+        const stageRect = storyStage.getBoundingClientRect();
+        const dotRect = morphDot.getBoundingClientRect();
 
-        return (viewportSize / letterSize) * 7;
+        return dotRect.top - stageRect.top + dotRect.height / 2;
+      };
+
+      const getDotRadius = () => {
+        const rect = morphDot.getBoundingClientRect();
+
+        return Math.max(rect.width, rect.height) / 2;
+      };
+
+      const getStageCenterX = () => storyStage.getBoundingClientRect().width / 2;
+      const getStageCenterY = () => storyStage.getBoundingClientRect().height / 2;
+      const getCoverRadius = () => {
+        const rect = storyStage.getBoundingClientRect();
+
+        return Math.hypot(rect.width, rect.height) * 0.58;
+      };
+      const dotMorphState = { progress: 0 };
+      const updateMorphCircle = () => {
+        const progress = dotMorphState.progress;
+        const cx = gsap.utils.interpolate(getDotCenterX(), getStageCenterX(), progress);
+        const cy = gsap.utils.interpolate(getDotCenterY(), getStageCenterY(), progress);
+        const r = gsap.utils.interpolate(getDotRadius(), getCoverRadius(), progress);
+
+        gsap.set(dotMorphCircle, {
+          attr: { cx, cy, r },
+        });
+      };
+      const syncMorphCircleToDot = () => {
+        dotMorphState.progress = 0;
+        gsap.set(dotMorphCircle, {
+          attr: {
+            cx: getDotCenterX(),
+            cy: getDotCenterY(),
+            r: getDotRadius(),
+          },
+        });
+      };
+      const syncMorphLayer = () => {
+        syncMorphSvgViewBox();
+        updateMorphCircle();
       };
       const revealDuration = 0.18;
       const revealStagger = 0.006;
-      const zoomStart = 0.5;
+      const textRevealDuration =
+        revealDuration + Math.max(otherCharacters.length - 1, 0) * revealStagger;
+      const dotRevealDuration = 0.3;
+      const dotRevealStart = Math.max(textRevealDuration - 0.16, 0);
+      const zoomStart = dotRevealStart + dotRevealDuration + 0.04;
+
+      syncMorphSvgViewBox();
+      syncMorphCircleToDot();
 
       const teachingTimeline = gsap.timeline({
         scrollTrigger: {
           end: "bottom bottom",
           invalidateOnRefresh: true,
+          onRefresh: syncMorphLayer,
           onLeaveBack: () => {
             gsap.set(storyStage, { backgroundColor: "#fafafa" });
+            gsap.set(dotMorphSvg, { autoAlpha: 0 });
           },
           scrub: true,
           start: "top bottom",
@@ -292,7 +348,7 @@ export function LandingPage() {
 
       teachingTimeline
         .to(
-          characterElements,
+          otherCharacters,
           {
             duration: revealDuration,
             ease: "back.inOut(2)",
@@ -303,6 +359,18 @@ export function LandingPage() {
             yPercent: 0,
           },
           0,
+        )
+        .to(
+          morphDot,
+          {
+            duration: dotRevealDuration,
+            ease: "back.inOut(2)",
+            opacity: 1,
+            scaleX: 1,
+            scaleY: 1,
+            yPercent: 0,
+          },
+          dotRevealStart,
         )
         .fromTo(
           otherCharacters,
@@ -320,20 +388,35 @@ export function LandingPage() {
           zoomStart,
         )
         .fromTo(
-          zoomLetter,
+          morphDot,
           {
             opacity: 1,
-            scale: 1,
-            x: 0,
-            y: 0,
           },
+          {
+            duration: 0.08,
+            ease: "none",
+            immediateRender: false,
+            opacity: 0,
+          },
+          zoomStart,
+        )
+        .set(
+          dotMorphSvg,
+          {
+            autoAlpha: 1,
+          },
+          zoomStart,
+        )
+        .call(syncMorphCircleToDot, [], zoomStart)
+        .fromTo(
+          dotMorphState,
+          { progress: 0 },
           {
             duration: 0.42,
             ease: "power2.inOut",
             immediateRender: false,
-            scale: getZoomLetterScale,
-            x: getZoomLetterX,
-            y: getZoomLetterY,
+            onUpdate: updateMorphCircle,
+            progress: 1,
           },
           zoomStart + 0.02,
         )
@@ -346,15 +429,7 @@ export function LandingPage() {
           },
           zoomStart + 0.3,
         )
-        .to(
-          zoomLetter,
-          {
-            duration: 0.08,
-            ease: "none",
-            opacity: 0,
-          },
-          zoomStart + 0.45,
-        );
+        .set(dotMorphSvg, { autoAlpha: 1 }, zoomStart + 0.45);
     },
     { scope: playgroundSectionRef },
   );
@@ -493,9 +568,17 @@ export function LandingPage() {
             className="sticky top-0 flex h-[100svh] items-center justify-center overflow-hidden bg-zinc-50 px-6 py-20 sm:py-24 lg:py-28"
             data-teaching-story-stage
           >
+            <svg
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 z-0 h-full w-full opacity-0"
+              data-teaching-dot-morph-svg
+              preserveAspectRatio="none"
+            >
+              <circle cx="0" cy="0" data-teaching-dot-morph-circle fill="#09090b" r="0" />
+            </svg>
             <h2
               aria-label={playgroundTeachingCopy.replace("\n", " ")}
-              className="my-5 mx-auto w-full max-w-screen-2xl pb-[0.5em] text-center"
+              className="relative z-10 my-5 mx-auto w-full max-w-screen-2xl pb-[0.5em] text-center"
             >
               <span
                 aria-hidden="true"
@@ -515,15 +598,33 @@ export function LandingPage() {
                         >
                           {word.split("").map((character, characterIndex) => {
                             const lineCharacterIndex = wordStartIndex + characterIndex;
-                            const isZoomLetter =
+                            const isMorphDot =
                               lineIndex === playgroundTeachingLines.length - 1 &&
-                              lineCharacterIndex === line.lastIndexOf("g");
+                              lineCharacterIndex === line.lastIndexOf(".");
+
+                            if (isMorphDot) {
+                              return (
+                                <span
+                                  className="inline-block h-[0.18em] w-[0.18em] align-[-0.02em] will-change-[transform,opacity]"
+                                  data-teaching-story-char
+                                  data-teaching-story-dot
+                                  key={`${lineIndex}-${wordIndex}-dot-${characterIndex}`}
+                                >
+                                  <svg
+                                    aria-hidden="true"
+                                    className="block h-full w-full overflow-visible"
+                                    viewBox="0 0 100 100"
+                                  >
+                                    <circle cx="50" cy="50" fill="currentColor" r="50" />
+                                  </svg>
+                                </span>
+                              );
+                            }
 
                             return (
                               <span
                                 className="inline-block will-change-[transform,opacity]"
                                 data-teaching-story-char
-                                data-teaching-story-zoom-letter={isZoomLetter ? true : undefined}
                                 key={`${lineIndex}-${wordIndex}-${character}-${characterIndex}`}
                               >
                                 {character}
