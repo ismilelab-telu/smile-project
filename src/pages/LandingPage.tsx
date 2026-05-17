@@ -4,7 +4,6 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-import AnimatedContent from "@/components/ui/animated-content";
 import { DottedSurface } from "@/components/ui/dotted-surface";
 import { GlassSurface } from "@/components/ui/glass-surface";
 import { CinematicFooter } from "@/components/ui/motion-footer";
@@ -23,8 +22,6 @@ const playgroundTeachingCopy = "We don't just teach\nyou Machine Learning.";
 const playgroundTeachingLines = playgroundTeachingCopy.split("\n");
 const playgroundFinalAriaLabel = "We make you fall in love with it.";
 const playgroundFinalLeadWords = ["We", "make", "you"];
-const playgroundFinalLeadWordDuration = 0.72;
-const playgroundFinalLeadWordGap = 0.08;
 
 export function LandingPage() {
   const landingRef = useRef<HTMLElement>(null);
@@ -47,9 +44,6 @@ export function LandingPage() {
   }, []);
   const revealHeroAction = useCallback(() => {
     setCanRevealHeroAction(true);
-  }, []);
-  const completeFinalLeadAnimation = useCallback(() => {
-    window.dispatchEvent(new CustomEvent("smile:final-lead-complete"));
   }, []);
 
   useGSAP(
@@ -441,7 +435,7 @@ export function LandingPage() {
   );
 
   useGSAP(
-    (_, contextSafe) => {
+    () => {
       const root = playgroundSectionRef.current;
 
       if (!root) {
@@ -450,6 +444,9 @@ export function LandingPage() {
 
       const finalSection = root.querySelector<HTMLElement>("[data-final-love-story-section]");
       const finalStage = root.querySelector<HTMLElement>("[data-final-love-story-stage]");
+      const finalLeadWords = Array.from(
+        root.querySelectorAll<HTMLElement>("[data-final-lead-word]"),
+      );
       const fallWord = root.querySelector<HTMLElement>("[data-final-word='fall']");
       const inWord = root.querySelector<HTMLElement>("[data-final-word='in']");
       const loveTarget = root.querySelector<HTMLElement>("[data-love-scroll-target]");
@@ -462,6 +459,7 @@ export function LandingPage() {
       if (
         !finalSection ||
         !finalStage ||
+        finalLeadWords.length !== playgroundFinalLeadWords.length ||
         !fallWord ||
         !inWord ||
         !loveTarget ||
@@ -474,7 +472,21 @@ export function LandingPage() {
         return;
       }
 
-      const finalWords = [fallWord, inWord, withWord, itWord, finalDot];
+      const [weWord, makeWord, youWord] = finalLeadWords as [HTMLElement, HTMLElement, HTMLElement];
+      const finalWords = [weWord, makeWord, youWord, fallWord, inWord, withWord, itWord, finalDot];
+      const loveScrollState = { progress: 0 };
+      const dispatchLoveScrollProgress = (progress = loveScrollState.progress) => {
+        const clampedProgress = gsap.utils.clamp(0, 1, progress);
+
+        window.dispatchEvent(
+          new CustomEvent("smile:love-scroll-progress", {
+            detail: {
+              active: clampedProgress > 0.001,
+              progress: clampedProgress,
+            },
+          }),
+        );
+      };
 
       if (
         typeof window.matchMedia !== "function" ||
@@ -484,22 +496,49 @@ export function LandingPage() {
         gsap.set(finalWords, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(loveTarget, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(dotMorphSvg, { autoAlpha: 0 });
+        dispatchLoveScrollProgress(0);
         return;
       }
 
       const dotMorphState = { progress: 0 };
-      let finalActionTimeline: gsap.core.Timeline | null = null;
-      let isFinalActionRevealed = false;
-      let finalTailTimeline: gsap.core.Timeline | null = null;
-      let isFinalTailRevealed = false;
 
       gsap.set(finalStage, { backgroundColor: "#09090b" });
-      gsap.set([fallWord, inWord, withWord, itWord, finalDot], {
+      gsap.set(finalLeadWords, {
         autoAlpha: 0,
+        y: 136,
         willChange: "opacity, transform",
       });
-      gsap.set(withWord, { scale: 2.35, yPercent: 8 });
-      gsap.set(itWord, { scale: 2.25, yPercent: 8 });
+      gsap.set(fallWord, {
+        autoAlpha: 0,
+        rotation: -7,
+        willChange: "opacity, transform",
+        y: -window.innerHeight * 0.56,
+      });
+      gsap.set(inWord, {
+        autoAlpha: 0,
+        scaleX: 1.35,
+        willChange: "opacity, transform",
+        x: window.innerWidth * 0.84,
+      });
+      gsap.set(withWord, {
+        autoAlpha: 0,
+        scale: 2.35,
+        transformOrigin: "50% 50%",
+        willChange: "opacity, transform",
+        yPercent: 8,
+      });
+      gsap.set(itWord, {
+        autoAlpha: 0,
+        scale: 2.25,
+        transformOrigin: "50% 50%",
+        willChange: "opacity, transform",
+        yPercent: 8,
+      });
+      gsap.set(finalDot, {
+        autoAlpha: 0,
+        transformOrigin: "50% 50%",
+        willChange: "opacity, transform",
+      });
       gsap.set(loveTarget, { autoAlpha: 1, clearProps: "transform" });
       gsap.set(dotMorphSvg, { autoAlpha: 0 });
       gsap.set(dotMorphCircle, { attr: { cx: 0, cy: 0, r: 0 } });
@@ -564,145 +603,95 @@ export function LandingPage() {
 
       syncDotMorphSvgViewBox();
       syncDotMorphCircleToDot();
-
-      const resetFinalActionBase = () => {
-        isFinalActionRevealed = false;
-        finalActionTimeline?.kill();
-        finalActionTimeline = null;
-        gsap.killTweensOf([fallWord, inWord]);
-        gsap.set(fallWord, {
-          autoAlpha: 0,
-          rotation: -7,
-          y: -window.innerHeight * 0.56,
-        });
-        gsap.set(inWord, {
-          autoAlpha: 0,
-          scaleX: 1.35,
-          x: window.innerWidth * 0.84,
-        });
-      };
-
-      const revealFinalActionBase = () => {
-        if (isFinalActionRevealed) {
-          return;
-        }
-
-        isFinalActionRevealed = true;
-        finalActionTimeline?.kill();
-        finalActionTimeline = gsap
-          .timeline()
-          .to(fallWord, {
-            autoAlpha: 1,
-            duration: 0.48,
-            ease: "bounce.out",
-            rotation: 0,
-            y: 0,
-          })
-          .to(
-            inWord,
-            {
-              autoAlpha: 1,
-              duration: 0.32,
-              ease: "expo.out",
-              scaleX: 1,
-              x: 0,
-            },
-            "+=0.08",
-          );
-      };
-
-      const resetFinalTailBase = () => {
-        isFinalTailRevealed = false;
-        finalTailTimeline?.kill();
-        finalTailTimeline = null;
-        gsap.killTweensOf([withWord, itWord, finalDot]);
-        gsap.set(withWord, { autoAlpha: 0, scale: 2.35, yPercent: 8 });
-        gsap.set(itWord, { autoAlpha: 0, scale: 2.25, yPercent: 8 });
-        gsap.set(finalDot, { autoAlpha: 0 });
-      };
-
-      const revealFinalTailBase = () => {
-        if (isFinalTailRevealed) {
-          return;
-        }
-
-        isFinalTailRevealed = true;
-        finalTailTimeline?.kill();
-        finalTailTimeline = gsap
-          .timeline()
-          .to(withWord, {
-            autoAlpha: 1,
-            duration: 0.34,
-            ease: "expo.out",
-            scale: 1,
-            yPercent: 0,
-          })
-          .to(
-            itWord,
-            {
-              autoAlpha: 1,
-              duration: 0.34,
-              ease: "expo.out",
-              scale: 1,
-              yPercent: 0,
-            },
-            ">-0.1",
-          )
-          .to(
-            finalDot,
-            {
-              autoAlpha: 1,
-              duration: 0.18,
-              ease: "none",
-            },
-            ">-0.02",
-          );
-      };
-
-      const resetFinalAction = contextSafe?.(resetFinalActionBase) ?? resetFinalActionBase;
-      const revealFinalAction = contextSafe?.(revealFinalActionBase) ?? revealFinalActionBase;
-      const resetFinalTail = contextSafe?.(resetFinalTailBase) ?? resetFinalTailBase;
-      const revealFinalTail = contextSafe?.(revealFinalTailBase) ?? revealFinalTailBase;
-
-      resetFinalActionBase();
-      resetFinalTailBase();
+      dispatchLoveScrollProgress(0);
 
       const finalTimeline = gsap.timeline({
+        onUpdate: () => dispatchLoveScrollProgress(),
         scrollTrigger: {
           end: "bottom bottom",
           invalidateOnRefresh: true,
-          onLeaveBack: () => {
-            resetFinalAction();
-            resetFinalTail();
+          onLeave: () => dispatchLoveScrollProgress(0),
+          onLeaveBack: () => dispatchLoveScrollProgress(0),
+          onRefresh: () => {
+            syncDotMorphLayer();
+            dispatchLoveScrollProgress();
           },
-          onRefresh: syncDotMorphLayer,
-          scrub: 0.75,
+          scrub: true,
           start: "top 42%",
           trigger: finalSection,
         },
       });
 
       finalTimeline
-        .set(dotMorphSvg, { autoAlpha: 1 }, 5.25)
-        .call(syncDotMorphCircleToDot, [], 5.25)
+        .to(weWord, { autoAlpha: 1, duration: 0.22, ease: "power2.inOut", y: 0 }, 0)
+        .to(makeWord, { autoAlpha: 1, duration: 0.22, ease: "power2.inOut", y: 0 }, 0.26)
+        .to(youWord, { autoAlpha: 1, duration: 0.22, ease: "power2.inOut", y: 0 }, 0.52)
         .to(
-          finalDot,
+          fallWord,
           {
-            autoAlpha: 0,
-            duration: 0.06,
-            ease: "none",
+            autoAlpha: 1,
+            duration: 0.42,
+            ease: "bounce.out",
+            rotation: 0,
+            y: 0,
           },
-          5.25,
+          0.98,
         )
+        .to(
+          inWord,
+          {
+            autoAlpha: 1,
+            duration: 0.28,
+            ease: "expo.out",
+            scaleX: 1,
+            x: 0,
+          },
+          1.45,
+        )
+        .to(
+          loveScrollState,
+          {
+            duration: 0.46,
+            ease: "none",
+            progress: 1,
+          },
+          1.82,
+        )
+        .to(
+          withWord,
+          {
+            autoAlpha: 1,
+            duration: 0.3,
+            ease: "expo.out",
+            scale: 1,
+            yPercent: 0,
+          },
+          2.38,
+        )
+        .to(
+          itWord,
+          {
+            autoAlpha: 1,
+            duration: 0.3,
+            ease: "expo.out",
+            scale: 1,
+            yPercent: 0,
+          },
+          2.66,
+        )
+        .to(finalDot, { autoAlpha: 1, duration: 0.16, ease: "none" }, 2.9)
+        .set(dotMorphSvg, { autoAlpha: 1 }, 3.3)
+        .call(syncDotMorphCircleToDot, [], 3.3)
+        .to(finalDot, { autoAlpha: 0, duration: 0.06, ease: "none" }, 3.3)
         .to(
           dotMorphState,
           {
-            duration: 0.68,
+            duration: 0.64,
             ease: "power2.inOut",
             onUpdate: updateDotMorphCircle,
             progress: 1,
           },
-          5.27,
+          3.32,
         )
         .to(
           finalStage,
@@ -711,20 +700,12 @@ export function LandingPage() {
             duration: 0.18,
             ease: "none",
           },
-          5.67,
+          3.7,
         )
-        .set(dotMorphSvg, { autoAlpha: 1 }, 5.95);
-
-      window.addEventListener("smile:final-lead-complete", revealFinalAction);
-      window.addEventListener("smile:love-dock-complete", revealFinalTail);
-      window.addEventListener("smile:love-dock-reset", resetFinalTail);
+        .set(dotMorphSvg, { autoAlpha: 1 }, 3.96);
 
       return () => {
-        window.removeEventListener("smile:final-lead-complete", revealFinalAction);
-        window.removeEventListener("smile:love-dock-complete", revealFinalTail);
-        window.removeEventListener("smile:love-dock-reset", resetFinalTail);
-        finalActionTimeline?.kill();
-        finalTailTimeline?.kill();
+        dispatchLoveScrollProgress(0);
       };
     },
     { scope: playgroundSectionRef },
@@ -970,31 +951,14 @@ export function LandingPage() {
                 className="flex max-w-full items-center justify-center gap-x-[0.18em] overflow-visible pb-[0.14em] text-[clamp(2.6rem,7vw,7.5rem)] leading-[1.04] whitespace-nowrap"
                 data-final-lead-text
               >
-                {playgroundFinalLeadWords.map((word, index) => (
-                  <AnimatedContent
-                    animateOpacity
-                    className="inline-block"
-                    delay={index * (playgroundFinalLeadWordDuration + playgroundFinalLeadWordGap)}
-                    direction="vertical"
-                    distance={92}
-                    duration={playgroundFinalLeadWordDuration}
-                    ease="power3.out"
-                    initialOpacity={0}
+                {playgroundFinalLeadWords.map((word) => (
+                  <span
+                    className="inline-block will-change-[transform,opacity]"
+                    data-final-lead-word={word.toLowerCase()}
                     key={word}
-                    onComplete={
-                      index === playgroundFinalLeadWords.length - 1
-                        ? completeFinalLeadAnimation
-                        : undefined
-                    }
-                    once={false}
-                    resetOnLeaveBack
-                    scale={1}
-                    threshold={0.2}
                   >
-                    <span className="inline-block" data-final-lead-word={word.toLowerCase()}>
-                      {word}
-                    </span>
-                  </AnimatedContent>
+                    {word}
+                  </span>
                 ))}
               </span>
 
@@ -1010,7 +974,7 @@ export function LandingPage() {
                 </span>
                 <span
                   aria-hidden="true"
-                  className="relative inline-flex h-[0.78em] w-[0.88em] shrink-0 items-center justify-center"
+                  className="relative inline-flex h-[0.9em] w-[1em] shrink-0 items-center justify-center"
                   data-love-scroll-target
                 />
                 <span className="inline-block" data-final-word="with">

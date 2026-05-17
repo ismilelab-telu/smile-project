@@ -2,11 +2,10 @@ import { type KeyboardEvent, type MouseEvent, useEffect, useRef, useState } from
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { MorphSVGPlugin } from "gsap/MorphSVGPlugin";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import smileIcon from "../../../assets/smile.svg";
 
-gsap.registerPlugin(useGSAP, MorphSVGPlugin, ScrollTrigger);
+gsap.registerPlugin(useGSAP, MorphSVGPlugin);
 
 const islandCirclePath =
   "M25 2 C37.7 2 48 12.3 48 25 C48 37.7 37.7 48 25 48 C12.3 48 2 37.7 2 25 C2 12.3 12.3 2 25 2 Z";
@@ -19,16 +18,11 @@ const islandShapeRestFill = islandDefaultFill;
 const islandShapeRestStroke = islandDefaultStroke;
 const islandHeartFill = "oklch(61.224% 0.2313 22.61)";
 const islandHeartStroke = "oklch(61.224% 0.2313 22.61)";
-const islandHeartScale = 2.05;
+const islandHeartScale = 2.35;
 const islandMenuStroke = "oklch(17.7638% 0 0)";
 const islandLoveMenuStroke = "oklch(100% 0 0)";
 const closedIslandSize = 50;
 const loveDockYOffset = 10;
-const loveDockViewportRatio = 0.86;
-const loveDockScrollUpExitViewportRatio = 0.54;
-const loveDockExitViewportRatio = 0.35;
-const loveDockTransitionDuration = 1.14;
-const loveUndockTransitionDuration = 0.64;
 const heroTitleCutoffTop = 96;
 const topRightInset = 16;
 
@@ -133,35 +127,23 @@ export function OrchestratedEaseReverseMenu() {
       const motionPreferences = gsap.matchMedia();
 
       motionPreferences.add("(prefers-reduced-motion: no-preference)", () => {
-        const loveSection = document.querySelector<HTMLElement>("[data-love-scroll-section]");
         const loveTarget = document.querySelector<HTMLElement>("[data-love-scroll-target]");
         const heroTitle = document.querySelector<HTMLElement>("[data-landing-scroll-title]");
 
-        if (!loveSection || !loveTarget) {
-          return undefined;
-        }
-
-        const loveText = loveTarget.closest<HTMLElement>("h2");
-
-        if (!loveText) {
+        if (!loveTarget) {
           return undefined;
         }
 
         const heartMorph = gsap.to(islandShape, {
-          duration: loveDockTransitionDuration * 0.82,
-          ease: "power2.out",
+          duration: 1,
+          ease: "none",
           morphSVG: islandHeartPath,
           paused: true,
         });
 
         const menuBars = [topBar, midBar, bottomBar];
-        const dockedPosition = { x: Number.NaN, y: Number.NaN };
-        const setDockedX = gsap.quickSetter(island, "x", "px");
-        const setDockedY = gsap.quickSetter(island, "y", "px");
-        let dockTransitionTween: gsap.core.Tween | null = null;
-        let loveExitMorphDelay: gsap.core.Tween | null = null;
-        let loveDockCompleteDelay: gsap.core.Tween | null = null;
-        let hasLoveExitMorphStarted = false;
+        let lastLoveProgress = 0;
+        let isLoveScrollActive = false;
 
         const snapToDevicePixel = (value: number) => {
           const pixelRatio = window.devicePixelRatio || 1;
@@ -171,11 +153,6 @@ export function OrchestratedEaseReverseMenu() {
 
         const interpolate = (start: number, end: number, progress: number) =>
           start + (end - start) * progress;
-
-        const getIslandPosition = () => ({
-          x: snapToDevicePixel(Number(gsap.getProperty(island, "x")) || 0),
-          y: snapToDevicePixel(Number(gsap.getProperty(island, "y")) || 0),
-        });
 
         const getLoveTargetPosition = () => {
           const targetBounds = loveTarget.getBoundingClientRect();
@@ -196,122 +173,17 @@ export function OrchestratedEaseReverseMenu() {
           };
         };
 
-        const setDockedPosition = (x: number, y: number) => {
-          if (Math.abs(dockedPosition.x - x) < 0.01 && Math.abs(dockedPosition.y - y) < 0.01) {
-            return;
-          }
+        const getTopRightX = () => window.innerWidth / 2 - topRightInset - closedIslandSize / 2;
+        const getBaseX = () => (isAwayFromTopRef.current ? getTopRightX() : 0);
+        const shouldDockTopRight = () =>
+          heroTitle
+            ? heroTitle.getBoundingClientRect().top <= heroTitleCutoffTop
+            : window.scrollY > 1;
 
-          dockedPosition.x = x;
-          dockedPosition.y = y;
-          setDockedX(x);
-          setDockedY(y);
-        };
-
-        const cancelLoveExitMorphDelay = () => {
-          loveExitMorphDelay?.kill();
-          loveExitMorphDelay = null;
-        };
-
-        const cancelLoveDockCompleteDelay = () => {
-          loveDockCompleteDelay?.kill();
-          loveDockCompleteDelay = null;
-        };
-
-        const notifyLoveDockComplete = () => {
-          cancelLoveDockCompleteDelay();
-          window.dispatchEvent(new CustomEvent("smile:love-dock-complete"));
-        };
-
-        const notifyLoveDockReset = () => {
-          cancelLoveDockCompleteDelay();
-          window.dispatchEvent(new CustomEvent("smile:love-dock-reset"));
-        };
-
-        const scheduleLoveDockComplete = (duration: number) => {
-          cancelLoveDockCompleteDelay();
-
-          if (duration <= 0) {
-            notifyLoveDockComplete();
-            return;
-          }
-
-          loveDockCompleteDelay = gsap.delayedCall(duration + 0.04, () => {
-            loveDockCompleteDelay = null;
-
-            if (isLoveDockedRef.current && !isOpenRef.current) {
-              notifyLoveDockComplete();
-            }
-          });
-        };
-
-        const setSvgShapeVisual = (isHeart: boolean) => {
-          gsap.killTweensOf(islandShape, "fill,stroke,strokeWidth");
-          gsap.set(islandShape, {
-            fill: isHeart ? islandHeartFill : islandShapeRestFill,
-            stroke: isHeart ? islandHeartStroke : islandShapeRestStroke,
-            strokeWidth: isHeart ? 0 : islandDefaultStrokeWidth,
-          });
-        };
-
-        const setVisualLayer = (mode: "surface" | "shape" | "heart", immediate = false) => {
-          const duration = immediate ? 0 : 0.18;
-          const showSurface = mode === "surface";
-
-          gsap.killTweensOf([islandSurface, islandSvg], "autoAlpha");
-          setSvgShapeVisual(mode === "heart");
-          gsap.to(islandSurface, {
-            autoAlpha: showSurface ? 1 : 0,
-            duration,
-            ease: "power2.out",
-          });
-          gsap.to(islandSvg, {
-            autoAlpha: showSurface ? 0 : 1,
-            duration,
-            ease: "power2.out",
-          });
-        };
-
-        const setRestVisualLayer = (immediate = false) => {
-          setVisualLayer(isAwayFromTopRef.current ? "shape" : "surface", immediate);
-        };
-
-        const setLoveVisual = (isActive: boolean, immediate = false) => {
-          const duration = immediate ? 0 : isActive ? loveDockTransitionDuration * 0.82 : 0.42;
-          isLoveMenuDisabledRef.current = isActive;
-          setIsLoveMenuDisabled(isActive);
-
-          gsap.killTweensOf(menuBars, "stroke");
-          setVisualLayer(
-            isActive ? "heart" : isAwayFromTopRef.current ? "shape" : "surface",
-            immediate,
-          );
-          gsap.set(menuBars, {
-            stroke: isActive ? islandLoveMenuStroke : islandMenuStroke,
-          });
-
-          gsap.to(island, {
-            duration,
-            ease: isActive ? "power2.out" : "power2.out",
-            force3D: false,
-            scale: isActive ? islandHeartScale : 1,
-            transformOrigin: "50% 50%",
-          });
-
-          gsap.to(menuBars, {
-            duration,
-            ease: "power2.out",
-            opacity: isActive ? 0 : 1,
-          });
-        };
-
-        const settleWhiteCircleVisual = () => {
+        const setRestVisual = () => {
           const shouldShowShape = isAwayFromTopRef.current;
 
-          isLoveHeldAfterSectionRef.current = false;
-          isLoveMenuDisabledRef.current = false;
-          setIsLoveMenuDisabled(false);
-          gsap.killTweensOf([islandSurface, islandSvg], "autoAlpha");
-          gsap.killTweensOf(menuBars, "stroke,opacity");
+          heartMorph.progress(0).pause();
           gsap.set(islandSurface, {
             autoAlpha: shouldShowShape ? 0 : 1,
             backgroundColor: islandDefaultFill,
@@ -321,202 +193,107 @@ export function OrchestratedEaseReverseMenu() {
           gsap.set(islandSvg, {
             autoAlpha: shouldShowShape ? 1 : 0,
           });
-          setSvgShapeVisual(false);
-          gsap.set(menuBars, { stroke: islandMenuStroke });
-          isLoveExitingRef.current = false;
-          hasLoveExitMorphStarted = false;
-          cancelLoveExitMorphDelay();
-          gsap.to(menuBars, {
-            duration: 0.18,
-            ease: "power2.out",
-            opacity: 1,
+          gsap.set(islandShape, {
+            attr: { d: islandCirclePath },
+            fill: islandShapeRestFill,
+            stroke: islandShapeRestStroke,
+            strokeWidth: islandDefaultStrokeWidth,
           });
+          gsap.set(menuBars, { opacity: 1, stroke: islandMenuStroke });
         };
 
-        const reverseLoveToCircle = (immediate = false) => {
-          if (immediate) {
-            heartMorph.eventCallback("onReverseComplete", null);
-            heartMorph.progress(0).pause();
-            isLoveExitingRef.current = false;
-            hasLoveExitMorphStarted = false;
-            cancelLoveExitMorphDelay();
-            setLoveVisual(false, true);
+        const applyBasePosition = () => {
+          if (isOpenRef.current || isLoveScrollActive) {
             return;
           }
 
-          if (hasLoveExitMorphStarted) {
-            return;
-          }
-
-          hasLoveExitMorphStarted = true;
-          cancelLoveExitMorphDelay();
-          isLoveHeldAfterSectionRef.current = false;
-          isLoveMenuDisabledRef.current = true;
-          setIsLoveMenuDisabled(true);
-          setVisualLayer("shape", true);
-          gsap.set(menuBars, { stroke: islandMenuStroke });
-          gsap.to(island, {
-            duration: 0.34,
-            ease: "power2.out",
+          setRestVisual();
+          gsap.set(island, {
             force3D: false,
             scale: 1,
             transformOrigin: "50% 50%",
-          });
-
-          heartMorph.eventCallback("onReverseComplete", () => {
-            heartMorph.eventCallback("onReverseComplete", null);
-
-            if (!isLoveDockedRef.current && !isOpenRef.current) {
-              settleWhiteCircleVisual();
-            }
-          });
-          gsap.to(menuBars, {
-            duration: 0.22,
-            ease: "power2.out",
-            opacity: 1,
-          });
-          if (heartMorph.progress() <= 0.001) {
-            settleWhiteCircleVisual();
-            return;
-          }
-
-          heartMorph.reverse();
-        };
-
-        const fitLoveTarget = (duration: number) => {
-          const { x, y } = getLoveTargetPosition();
-
-          if (duration <= 0) {
-            dockTransitionTween?.kill();
-            dockTransitionTween = null;
-
-            if (gsap.isTweening(island)) {
-              gsap.killTweensOf(island, "x,y");
-            }
-
-            gsap.set(island, { force3D: false, xPercent: -50 });
-            setDockedPosition(x, y);
-
-            if (isLoveDockedRef.current && !isOpenRef.current) {
-              notifyLoveDockComplete();
-            }
-            return;
-          }
-
-          gsap.killTweensOf(island, "x,y");
-          dockTransitionTween?.kill();
-          gsap.set(island, { force3D: false, xPercent: -50 });
-
-          const startPosition = getIslandPosition();
-          const dockProgress = { value: 0 };
-
-          dockTransitionTween = gsap.to(dockProgress, {
-            duration,
-            ease: "power2.out",
-            onUpdate: () => {
-              const targetPosition = getLoveTargetPosition();
-
-              setDockedPosition(
-                snapToDevicePixel(
-                  interpolate(startPosition.x, targetPosition.x, dockProgress.value),
-                ),
-                snapToDevicePixel(
-                  interpolate(startPosition.y, targetPosition.y, dockProgress.value),
-                ),
-              );
-            },
-            onComplete: () => {
-              dockTransitionTween = null;
-
-              if (isLoveDockedRef.current && !isOpenRef.current) {
-                fitLoveTarget(0);
-              }
-            },
-            onInterrupt: () => {
-              dockTransitionTween = null;
-            },
-            overwrite: "auto",
-            value: 1,
-          });
-        };
-
-        const syncDockedLoveTarget = () => {
-          if (!isLoveDockedRef.current || isOpenRef.current) {
-            return;
-          }
-
-          if (dockTransitionTween) {
-            return;
-          }
-
-          fitLoveTarget(0);
-        };
-
-        const getTopRightX = () => window.innerWidth / 2 - topRightInset - closedIslandSize / 2;
-        const getBaseX = () => (isAwayFromTopRef.current ? getTopRightX() : 0);
-        const shouldDockTopRight = () =>
-          heroTitle
-            ? heroTitle.getBoundingClientRect().top <= heroTitleCutoffTop
-            : window.scrollY > 1;
-
-        const moveToBasePosition = (duration: number, onComplete?: () => void) => {
-          dockedPosition.x = Number.NaN;
-          dockedPosition.y = Number.NaN;
-          dockTransitionTween?.kill();
-          dockTransitionTween = null;
-
-          gsap.to(island, {
-            duration,
-            ease: "power2.out",
-            force3D: false,
-            onComplete,
-            overwrite: "auto",
             x: getBaseX,
             xPercent: -50,
             y: 0,
           });
         };
 
-        const moveLoveToBasePosition = (duration: number) => {
-          dockedPosition.x = Number.NaN;
-          dockedPosition.y = Number.NaN;
-          dockTransitionTween?.kill();
-          dockTransitionTween = null;
-
-          gsap.to(island, {
-            duration,
-            ease: "power2.out",
-            force3D: false,
-            overwrite: "auto",
-            x: getBaseX,
-            xPercent: -50,
-            y: 0,
-          });
-        };
-
-        const setAwayFromTop = (isAwayFromTop: boolean, immediate = false) => {
+        const setAwayFromTop = (isAwayFromTop: boolean) => {
           const didChange = isAwayFromTopRef.current !== isAwayFromTop;
           isAwayFromTopRef.current = isAwayFromTop;
 
-          if (isOpenRef.current || isLoveDockedRef.current || isLoveExitingRef.current) {
+          if (!didChange) {
             return;
           }
 
-          if (isLoveHeldAfterSectionRef.current) {
+          applyBasePosition();
+        };
+
+        const applyLoveScrollProgress = (progress: number, active: boolean) => {
+          const clampedProgress = gsap.utils.clamp(0, 1, progress);
+          const isActive = active || clampedProgress > 0.001;
+
+          lastLoveProgress = clampedProgress;
+          isLoveScrollActive = isActive;
+          isLoveSectionActiveRef.current = isActive;
+          isLoveDockedRef.current = isActive && clampedProgress >= 0.995;
+          isLoveExitingRef.current = false;
+          isLoveHeldAfterSectionRef.current = false;
+          isLoveScrollUpExitLockedRef.current = false;
+          isLoveMenuDisabledRef.current = isActive;
+          setIsLoveMenuDisabled(isActive);
+
+          if (!isActive) {
+            applyBasePosition();
             return;
           }
 
-          if (!immediate && !didChange) {
+          if (isOpenRef.current) {
             return;
           }
 
-          setRestVisualLayer(immediate);
-          moveToBasePosition(immediate ? 0 : 0.55);
+          const shouldBeAway = shouldDockTopRight();
+          isAwayFromTopRef.current = shouldBeAway;
+
+          const targetPosition = getLoveTargetPosition();
+          const baseX = shouldBeAway ? getTopRightX() : 0;
+          const x = snapToDevicePixel(interpolate(baseX, targetPosition.x, clampedProgress));
+          const y = snapToDevicePixel(interpolate(0, targetPosition.y, clampedProgress));
+
+          gsap.killTweensOf(island, "x,y,scale");
+          gsap.killTweensOf([islandSurface, islandSvg], "autoAlpha");
+          gsap.killTweensOf(menuBars, "opacity,stroke");
+          heartMorph.progress(clampedProgress).pause();
+          gsap.set(islandSurface, { autoAlpha: 0 });
+          gsap.set(islandSvg, { autoAlpha: 1 });
+          gsap.set(islandShape, {
+            fill: islandHeartFill,
+            stroke: islandHeartStroke,
+            strokeWidth: 0,
+          });
+          gsap.set(island, {
+            force3D: false,
+            scale: interpolate(1, islandHeartScale, clampedProgress),
+            transformOrigin: "50% 50%",
+            x,
+            xPercent: -50,
+            y,
+          });
+          gsap.set(menuBars, {
+            opacity: 1 - clampedProgress,
+            stroke: clampedProgress > 0.42 ? islandLoveMenuStroke : islandMenuStroke,
+          });
+        };
+
+        const handleLoveScrollProgress = (event: Event) => {
+          const detail = (event as CustomEvent<{ active?: boolean; progress?: number }>).detail;
+
+          applyLoveScrollProgress(detail?.progress ?? 0, detail?.active ?? false);
         };
 
         const handleScroll = () => {
-          if (isLoveHeldAfterSectionRef.current && !isOpenRef.current) {
-            syncDockedLoveTarget();
+          if (isLoveScrollActive) {
+            applyLoveScrollProgress(lastLoveProgress, true);
             return;
           }
 
@@ -528,250 +305,24 @@ export function OrchestratedEaseReverseMenu() {
             return;
           }
 
-          if (isLoveExitingRef.current) {
+          if (isLoveScrollActive) {
+            applyLoveScrollProgress(lastLoveProgress, true);
             return;
           }
 
-          if (isLoveDockedRef.current) {
-            fitLoveTarget(0);
-            return;
-          }
-
-          if (isLoveHeldAfterSectionRef.current) {
-            fitLoveTarget(0);
-            return;
-          }
-
-          setAwayFromTop(shouldDockTopRight(), true);
+          isAwayFromTopRef.current = shouldDockTopRight();
+          applyBasePosition();
         };
 
-        setAwayFromTop(shouldDockTopRight(), true);
+        isAwayFromTopRef.current = shouldDockTopRight();
+        applyBasePosition();
+        window.addEventListener("smile:love-scroll-progress", handleLoveScrollProgress);
         window.addEventListener("scroll", handleScroll, { passive: true });
         window.addEventListener("resize", handleResize);
 
-        const isScrollUpTopExitZone = () =>
-          loveSection.getBoundingClientRect().bottom > window.innerHeight;
-
-        const isScrollDownBottomExitZone = () =>
-          loveSection.getBoundingClientRect().bottom <
-          window.innerHeight * loveDockExitViewportRatio;
-
-        const holdLoveAfterSection = (immediate = false) => {
-          heartMorph.eventCallback("onReverseComplete", null);
-          cancelLoveExitMorphDelay();
-          hasLoveExitMorphStarted = false;
-          isLoveDockedRef.current = true;
-          isLoveExitingRef.current = false;
-          isLoveHeldAfterSectionRef.current = true;
-          isLoveScrollUpExitLockedRef.current = false;
-          setLoveVisual(true, immediate);
-          heartMorph.play();
-          fitLoveTarget(immediate ? 0 : loveDockTransitionDuration);
-          scheduleLoveDockComplete(immediate ? 0 : loveDockTransitionDuration);
-        };
-
-        const setLoveShape = (isActive: boolean, immediate = false) => {
-          isLoveSectionActiveRef.current = isActive;
-
-          if (isOpenRef.current) {
-            return;
-          }
-
-          if (isActive) {
-            return;
-          }
-
-          if (isScrollUpTopExitZone()) {
-            isLoveScrollUpExitLockedRef.current = true;
-          }
-
-          isLoveHeldAfterSectionRef.current = false;
-
-          if (immediate) {
-            if (isScrollDownBottomExitZone()) {
-              holdLoveAfterSection(true);
-              return;
-            }
-
-            heartMorph.progress(0).pause();
-            setLoveVisual(false, true);
-            notifyLoveDockReset();
-            return;
-          }
-
-          if (isLoveExitingRef.current) {
-            return;
-          }
-
-          isLoveDockedRef.current = false;
-          isLoveExitingRef.current = true;
-          hasLoveExitMorphStarted = false;
-          notifyLoveDockReset();
-          moveLoveToBasePosition(loveUndockTransitionDuration);
-          cancelLoveExitMorphDelay();
-          loveExitMorphDelay = gsap.delayedCall(
-            Math.min(0.36, loveUndockTransitionDuration * 0.58),
-            () => {
-              loveExitMorphDelay = null;
-
-              if (!isLoveDockedRef.current && !isOpenRef.current && isLoveExitingRef.current) {
-                reverseLoveToCircle();
-              }
-            },
-          );
-        };
-
-        const setLoveDocked = (isDocked: boolean, immediate = false) => {
-          if (isLoveExitingRef.current) {
-            return;
-          }
-
-          if (isDocked) {
-            isLoveHeldAfterSectionRef.current = false;
-            isLoveScrollUpExitLockedRef.current = false;
-          }
-
-          if (!isDocked) {
-            isLoveHeldAfterSectionRef.current = false;
-          }
-
-          isLoveDockedRef.current = isDocked;
-
-          if (isOpenRef.current) {
-            return;
-          }
-
-          if (isDocked) {
-            heartMorph.eventCallback("onReverseComplete", null);
-            hasLoveExitMorphStarted = false;
-            setLoveVisual(true, immediate);
-            heartMorph.play();
-            fitLoveTarget(immediate ? 0 : loveDockTransitionDuration);
-            scheduleLoveDockComplete(immediate ? 0 : loveDockTransitionDuration);
-            return;
-          }
-
-          isLoveExitingRef.current = true;
-          hasLoveExitMorphStarted = false;
-          notifyLoveDockReset();
-          if (immediate) {
-            moveToBasePosition(0, () => {
-              reverseLoveToCircle(immediate);
-            });
-            return;
-          }
-
-          moveLoveToBasePosition(loveUndockTransitionDuration);
-          cancelLoveExitMorphDelay();
-          loveExitMorphDelay = gsap.delayedCall(
-            Math.min(0.36, loveUndockTransitionDuration * 0.58),
-            () => {
-              loveExitMorphDelay = null;
-
-              if (!isLoveDockedRef.current && !isOpenRef.current && isLoveExitingRef.current) {
-                reverseLoveToCircle();
-              }
-            },
-          );
-        };
-
-        const getLoveDockState = (direction = 1) => {
-          const targetBounds = loveTarget.getBoundingClientRect();
-          const sectionBounds = loveSection.getBoundingClientRect();
-          const isScrollUpTopExit = direction < 0 && sectionBounds.bottom > window.innerHeight;
-          const isScrollDownBottomExit =
-            direction > 0 && sectionBounds.bottom < window.innerHeight * loveDockExitViewportRatio;
-          const dockViewportRatio =
-            isLoveDockedRef.current && direction < 0
-              ? loveDockScrollUpExitViewportRatio
-              : loveDockViewportRatio;
-          const isWithinDockRange =
-            targetBounds.top <= window.innerHeight * dockViewportRatio &&
-            sectionBounds.bottom >= window.innerHeight * loveDockExitViewportRatio;
-
-          return {
-            shouldDock:
-              isWithinDockRange && !(isLoveScrollUpExitLockedRef.current && isScrollUpTopExit),
-            isScrollDownBottomExit,
-            isScrollUpTopExit,
-          };
-        };
-
-        const updateLoveDockFromViewport = (immediate = false, direction = 1) => {
-          if (immediate || direction > 0) {
-            isLoveScrollUpExitLockedRef.current = false;
-          }
-
-          if (isLoveExitingRef.current && !immediate) {
-            return;
-          }
-
-          const {
-            isScrollDownBottomExit,
-            isScrollUpTopExit,
-            shouldDock: nextIsDocked,
-          } = getLoveDockState(direction);
-
-          if (isLoveHeldAfterSectionRef.current) {
-            if (nextIsDocked) {
-              isLoveHeldAfterSectionRef.current = false;
-            }
-
-            syncDockedLoveTarget();
-            return;
-          }
-
-          if (nextIsDocked === isLoveDockedRef.current) {
-            if (nextIsDocked && !immediate) {
-              syncDockedLoveTarget();
-            }
-
-            return;
-          }
-
-          if (isScrollDownBottomExit) {
-            holdLoveAfterSection(immediate);
-            return;
-          }
-
-          if (!nextIsDocked && isLoveDockedRef.current && isScrollUpTopExit) {
-            isLoveScrollUpExitLockedRef.current = true;
-          }
-
-          setLoveDocked(nextIsDocked, immediate);
-        };
-
-        const sectionTrigger = ScrollTrigger.create({
-          end: "bottom 35%",
-          invalidateOnRefresh: true,
-          onEnter: () => setLoveShape(true),
-          onEnterBack: () => setLoveShape(true),
-          onLeave: () => holdLoveAfterSection(),
-          onLeaveBack: () => setLoveShape(false),
-          onRefresh: (self) => setLoveShape(self.isActive, true),
-          start: "top 65%",
-          trigger: loveSection,
-        });
-
-        const dockTrigger = ScrollTrigger.create({
-          end: "bottom top",
-          invalidateOnRefresh: true,
-          onEnter: (self) => updateLoveDockFromViewport(false, self.direction),
-          onEnterBack: (self) => updateLoveDockFromViewport(false, self.direction),
-          onLeave: () => holdLoveAfterSection(),
-          onLeaveBack: () => setLoveDocked(false),
-          onRefresh: () => updateLoveDockFromViewport(true),
-          onUpdate: (self) => updateLoveDockFromViewport(false, self.direction),
-          start: "top bottom",
-          trigger: loveSection,
-        });
-
         return () => {
-          sectionTrigger.kill();
-          dockTrigger.kill();
           heartMorph.kill();
-          cancelLoveExitMorphDelay();
-          cancelLoveDockCompleteDelay();
+          window.removeEventListener("smile:love-scroll-progress", handleLoveScrollProgress);
           gsap.killTweensOf(island);
           window.removeEventListener("scroll", handleScroll);
           window.removeEventListener("resize", handleResize);
