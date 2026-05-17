@@ -338,9 +338,10 @@ export function LandingPage() {
         revealDuration + Math.max(otherCharacters.length - 1, 0) * revealStagger;
       const dotRevealDuration = 0.3;
       const dotRevealStart = Math.max(textRevealDuration - 0.16, 0);
-      const zoomStart = dotRevealStart + dotRevealDuration + 0.04;
+      const zoomStart = dotRevealStart + dotRevealDuration + 0.02;
       const morphCircleGrowStart = zoomStart;
-      const morphCircleGrowDuration = 0.72;
+      const morphCircleGrowDuration = 0.12;
+      const morphCircleCoverHoldDuration = 0.16;
 
       syncMorphSvgViewBox();
       syncMorphCircleToDot();
@@ -399,14 +400,23 @@ export function LandingPage() {
           { progress: 0 },
           {
             duration: morphCircleGrowDuration,
-            ease: "power3.in",
+            ease: "power2.in",
             immediateRender: false,
             onUpdate: updateMorphCircle,
             progress: 1,
           },
           morphCircleGrowStart,
         )
-        .set(dotMorphSvg, { autoAlpha: 1 }, morphCircleGrowStart + morphCircleGrowDuration);
+        .set(dotMorphSvg, { autoAlpha: 1 }, morphCircleGrowStart + morphCircleGrowDuration)
+        .to(
+          dotMorphState,
+          {
+            duration: morphCircleCoverHoldDuration,
+            ease: "none",
+            progress: 1,
+          },
+          morphCircleGrowStart + morphCircleGrowDuration,
+        );
     },
     { scope: playgroundSectionRef },
   );
@@ -590,6 +600,12 @@ export function LandingPage() {
       syncDotMorphCircleToDot();
       dispatchLoveScrollProgress(0, 0);
 
+      const finalDotRevealStart = 3.22;
+      const finalDotZoomStart = 3.46;
+      const finalDotMorphGrowStart = finalDotZoomStart + 0.02;
+      const finalDotMorphGrowDuration = 0.4;
+      const finalDotZoomEnd = finalDotMorphGrowStart + finalDotMorphGrowDuration;
+
       const finalTimeline = gsap.timeline({
         onUpdate: () => dispatchLoveScrollProgress(),
         scrollTrigger: {
@@ -728,24 +744,28 @@ export function LandingPage() {
           2.98,
         )
         .set(itWord, { autoAlpha: 1 }, 2.98)
-        .to(finalDot, { autoAlpha: 1, duration: 0.16, ease: "none" }, 3.22)
-        .set(dotMorphSvg, { autoAlpha: 1 }, 3.58)
-        .call(syncDotMorphCircleToDot, [], 3.58)
-        .to(finalDot, { autoAlpha: 0, duration: 0.06, ease: "none" }, 3.58)
-        .to(loveScrollState, { coverProgress: 1, duration: 0.28, ease: "power1.in" }, 3.58)
+        .to(finalDot, { autoAlpha: 1, duration: 0.16, ease: "none" }, finalDotRevealStart)
+        .set(dotMorphSvg, { autoAlpha: 1 }, finalDotZoomStart)
+        .call(syncDotMorphCircleToDot, [], finalDotZoomStart)
+        .to(finalDot, { autoAlpha: 0, duration: 0.06, ease: "none" }, finalDotZoomStart)
+        .to(
+          loveScrollState,
+          { coverProgress: 1, duration: 0.18, ease: "power1.in" },
+          finalDotZoomStart,
+        )
         .to(
           dotMorphState,
           {
-            duration: 0.64,
+            duration: finalDotMorphGrowDuration,
             ease: "power2.inOut",
             onUpdate: updateDotMorphCircle,
             progress: 1,
           },
-          3.6,
+          finalDotMorphGrowStart,
         )
-        .set(finalStage, { backgroundColor: "#fafafa" }, 4.24)
-        .set(inlineLove, { autoAlpha: 0 }, 4.24)
-        .set(dotMorphSvg, { autoAlpha: 1 }, 4.24);
+        .set(finalStage, { backgroundColor: "#fafafa" }, finalDotZoomEnd)
+        .set(inlineLove, { autoAlpha: 0 }, finalDotZoomEnd)
+        .set(dotMorphSvg, { autoAlpha: 1 }, finalDotZoomEnd);
 
       return () => {
         dispatchLoveScrollProgress(0, 0);
