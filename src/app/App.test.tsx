@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
 
 describe("App", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     window.history.pushState(null, "", "/");
   });
 
@@ -28,6 +29,35 @@ describe("App", () => {
     expect(menuButton).toHaveAttribute("aria-expanded", "true");
     expect(workLink).toBeInTheDocument();
     expect(within(menuDialog).getByRole("link", { name: "Contacts 05" })).toBeInTheDocument();
+  });
+
+  it("hides the navigation island while the footer is visible", async () => {
+    render(<App />);
+
+    const footerHideZone = document.querySelector<HTMLElement>("[data-navigation-menu-hide-zone]");
+
+    expect(footerHideZone).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Open navigation menu" })).toBeInTheDocument();
+
+    vi.spyOn(footerHideZone!, "getBoundingClientRect").mockReturnValue({
+      bottom: window.innerHeight + 320,
+      height: 360,
+      left: 0,
+      right: window.innerWidth,
+      top: window.innerHeight - 40,
+      width: window.innerWidth,
+      x: 0,
+      y: window.innerHeight - 40,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.scroll(window);
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("button", { name: "Open navigation menu" }),
+      ).not.toBeInTheDocument();
+    });
   });
 
   it("renders fuzzy text utility pages", () => {

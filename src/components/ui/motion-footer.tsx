@@ -234,6 +234,7 @@ export function CinematicFooter() {
   return (
     <>
       <div
+        data-navigation-menu-hide-zone
         ref={wrapperRef}
         className="relative h-[100svh] w-full [clip-path:polygon(0%_0,100%_0%,100%_100%,0_100%)] [mask-image:linear-gradient(to_bottom,transparent_0%,black_22%,black_100%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent_0%,black_22%,black_100%)]"
       >

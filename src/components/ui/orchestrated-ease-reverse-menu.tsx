@@ -25,6 +25,8 @@ const closedIslandSize = 50;
 const loveDockYOffset = 1;
 const heroTitleCutoffTop = 96;
 const topRightInset = 16;
+const footerHideZoneSelector = "[data-navigation-menu-hide-zone]";
+const footerHideAnimationDuration = 0.24;
 
 const menuItems = [
   { href: "/404", label: "Work", number: "01" },
@@ -58,9 +60,11 @@ export function OrchestratedEaseReverseMenu() {
   const isLoveSectionActiveRef = useRef(false);
   const isLoveHeldAfterSectionRef = useRef(false);
   const isLoveScrollUpExitLockedRef = useRef(false);
+  const isFooterMenuHiddenRef = useRef(false);
   const exitSpeedRef = useRef(1.5);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoveMenuDisabled, setIsLoveMenuDisabled] = useState(false);
+  const [isFooterMenuHidden, setIsFooterMenuHidden] = useState(false);
   const useReverseEase = true;
 
   isOpenRef.current = isOpen;
@@ -175,24 +179,31 @@ export function OrchestratedEaseReverseMenu() {
         };
 
         const getTopRightX = () => window.innerWidth / 2 - topRightInset - closedIslandSize / 2;
-        const getBaseX = () => (isAwayFromTopRef.current ? getTopRightX() : 0);
-        const shouldDockTopRight = () =>
-          heroTitle
-            ? heroTitle.getBoundingClientRect().top <= heroTitleCutoffTop
-            : window.scrollY > 1;
+        const getDockProgress = () => {
+          if (!heroTitle) {
+            return window.scrollY > 1 ? 1 : 0;
+          }
 
-        const setRestVisual = () => {
-          const shouldShowShape = isAwayFromTopRef.current;
+          const titlePageTop = heroTitle.getBoundingClientRect().top + window.scrollY;
+          const dockEndScroll = Math.max(1, titlePageTop - heroTitleCutoffTop);
+
+          return gsap.utils.clamp(0, 1, window.scrollY / dockEndScroll);
+        };
+        const getBaseX = (dockProgress = getDockProgress()) =>
+          snapToDevicePixel(interpolate(0, getTopRightX(), dockProgress));
+
+        const setRestVisual = (dockProgress = getDockProgress()) => {
+          const shapeAlpha = gsap.utils.clamp(0, 1, dockProgress);
 
           heartMorph.progress(0).pause();
           gsap.set(islandSurface, {
-            autoAlpha: shouldShowShape ? 0 : 1,
+            autoAlpha: 1 - shapeAlpha,
             backgroundColor: islandDefaultFill,
             borderColor: islandDefaultStroke,
             borderWidth: islandDefaultStrokeWidth,
           });
           gsap.set(islandSvg, {
-            autoAlpha: shouldShowShape ? 1 : 0,
+            autoAlpha: shapeAlpha,
           });
           gsap.set(islandShape, {
             attr: { d: islandCirclePath },
@@ -203,33 +214,37 @@ export function OrchestratedEaseReverseMenu() {
           gsap.set(menuBars, { opacity: 1, stroke: islandMenuStroke });
         };
 
-        const applyBasePosition = () => {
+        const applyBasePosition = (duration = 0) => {
           if (isOpenRef.current || isLoveScrollActive) {
             return;
           }
 
-          setRestVisual();
-          gsap.set(island, {
-            autoAlpha: 1,
+          const dockProgress = getDockProgress();
+          isAwayFromTopRef.current = dockProgress > 0.001;
+          setRestVisual(dockProgress);
+
+          const positionVars = {
+            autoAlpha: isFooterMenuHiddenRef.current ? 0 : 1,
             force3D: false,
             scale: 1,
             transformOrigin: "50% 50%",
-            x: getBaseX,
+            x: getBaseX(dockProgress),
             xPercent: -50,
             y: 0,
             zIndex: 1000,
-          });
-        };
+          };
 
-        const setAwayFromTop = (isAwayFromTop: boolean) => {
-          const didChange = isAwayFromTopRef.current !== isAwayFromTop;
-          isAwayFromTopRef.current = isAwayFromTop;
-
-          if (!didChange) {
+          if (duration === 0) {
+            gsap.set(island, positionVars);
             return;
           }
 
-          applyBasePosition();
+          gsap.to(island, {
+            ...positionVars,
+            duration,
+            ease: "power2.out",
+            overwrite: "auto",
+          });
         };
 
         const applyLoveScrollProgress = (progress: number, active: boolean, coverProgress = 0) => {
@@ -258,11 +273,11 @@ export function OrchestratedEaseReverseMenu() {
             return;
           }
 
-          const shouldBeAway = shouldDockTopRight();
-          isAwayFromTopRef.current = shouldBeAway;
+          const dockProgress = getDockProgress();
+          isAwayFromTopRef.current = dockProgress > 0.001;
 
           const targetPosition = getLoveTargetPosition();
-          const baseX = shouldBeAway ? getTopRightX() : 0;
+          const baseX = getBaseX(dockProgress);
           const x = snapToDevicePixel(interpolate(baseX, targetPosition.x, clampedProgress));
           const y = snapToDevicePixel(interpolate(0, targetPosition.y, clampedProgress));
 
@@ -311,7 +326,7 @@ export function OrchestratedEaseReverseMenu() {
             return;
           }
 
-          setAwayFromTop(shouldDockTopRight());
+          applyBasePosition(0.18);
         };
 
         const handleResize = () => {
@@ -324,11 +339,9 @@ export function OrchestratedEaseReverseMenu() {
             return;
           }
 
-          isAwayFromTopRef.current = shouldDockTopRight();
           applyBasePosition();
         };
 
-        isAwayFromTopRef.current = shouldDockTopRight();
         applyBasePosition();
         window.addEventListener("smile:love-scroll-progress", handleLoveScrollProgress);
         window.addEventListener("scroll", handleScroll, { passive: true });
@@ -517,13 +530,38 @@ export function OrchestratedEaseReverseMenu() {
       return;
     }
 
+    const getDockProgress = () => {
+      const heroTitle = document.querySelector<HTMLElement>("[data-landing-scroll-title]");
+
+      if (!heroTitle) {
+        return window.scrollY > 1 ? 1 : 0;
+      }
+
+      const titlePageTop = heroTitle.getBoundingClientRect().top + window.scrollY;
+      const dockEndScroll = Math.max(1, titlePageTop - heroTitleCutoffTop);
+
+      return gsap.utils.clamp(0, 1, window.scrollY / dockEndScroll);
+    };
+    const snapToDevicePixel = (value: number) => {
+      const pixelRatio = window.devicePixelRatio || 1;
+
+      return Math.round(value * pixelRatio) / pixelRatio;
+    };
+    const dockProgress = getDockProgress();
     const getBaseX = () =>
-      isAwayFromTopRef.current ? window.innerWidth / 2 - topRightInset - closedIslandSize / 2 : 0;
+      snapToDevicePixel(
+        gsap.utils.interpolate(
+          0,
+          window.innerWidth / 2 - topRightInset - closedIslandSize / 2,
+          dockProgress,
+        ),
+      );
     const isLoveActive = isLoveDockedRef.current;
     isLoveMenuDisabledRef.current = isLoveActive;
+    isAwayFromTopRef.current = dockProgress > 0.001;
     setIsLoveMenuDisabled(isLoveActive);
 
-    const showShapeLayer = isLoveActive || isAwayFromTopRef.current;
+    const shapeAlpha = isLoveActive ? 1 : dockProgress;
 
     gsap.killTweensOf([islandSurface, islandSvg], "autoAlpha");
     gsap.killTweensOf(islandShape, "fill,stroke,strokeWidth");
@@ -543,12 +581,12 @@ export function OrchestratedEaseReverseMenu() {
     });
 
     gsap.to(islandSurface, {
-      autoAlpha: showShapeLayer ? 0 : 1,
+      autoAlpha: isLoveActive ? 0 : 1 - shapeAlpha,
       duration: Math.min(duration, 0.2),
       ease: "power2.out",
     });
     gsap.to(islandSvg, {
-      autoAlpha: showShapeLayer ? 1 : 0,
+      autoAlpha: shapeAlpha,
       duration: Math.min(duration, 0.2),
       ease: "power2.out",
     });
@@ -624,6 +662,90 @@ export function OrchestratedEaseReverseMenu() {
   });
 
   useEffect(() => {
+    const island = islandRef.current;
+
+    if (!island) {
+      return;
+    }
+
+    let frameId: number | null = null;
+
+    const shouldHideForFooter = () => {
+      const hideZone = document.querySelector<HTMLElement>(footerHideZoneSelector);
+
+      if (!hideZone) {
+        return false;
+      }
+
+      const bounds = hideZone.getBoundingClientRect();
+
+      return bounds.top < window.innerHeight && bounds.bottom > 0;
+    };
+
+    const applyFooterVisibility = () => {
+      frameId = null;
+
+      const nextIsHidden = shouldHideForFooter();
+
+      if (isFooterMenuHiddenRef.current === nextIsHidden) {
+        return;
+      }
+
+      isFooterMenuHiddenRef.current = nextIsHidden;
+      setIsFooterMenuHidden(nextIsHidden);
+
+      if (nextIsHidden) {
+        if (
+          document.activeElement instanceof HTMLElement &&
+          rootRef.current?.contains(document.activeElement)
+        ) {
+          document.activeElement.blur();
+        }
+
+        closeMenu();
+      }
+
+      gsap.killTweensOf(island, "autoAlpha");
+      gsap.set(island, { pointerEvents: nextIsHidden ? "none" : "auto" });
+
+      if (!nextIsHidden && isLoveSectionActiveRef.current) {
+        window.dispatchEvent(new Event("scroll"));
+        return;
+      }
+
+      gsap.to(island, {
+        autoAlpha: nextIsHidden ? 0 : 1,
+        duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? 0
+          : footerHideAnimationDuration,
+        ease: "power2.out",
+        overwrite: true,
+      });
+    };
+
+    const scheduleFooterVisibilityUpdate = () => {
+      if (frameId !== null) {
+        return;
+      }
+
+      frameId = window.requestAnimationFrame(applyFooterVisibility);
+    };
+
+    applyFooterVisibility();
+    window.addEventListener("scroll", scheduleFooterVisibilityUpdate, { passive: true });
+    window.addEventListener("resize", scheduleFooterVisibilityUpdate);
+
+    return () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      window.removeEventListener("scroll", scheduleFooterVisibilityUpdate);
+      window.removeEventListener("resize", scheduleFooterVisibilityUpdate);
+    };
+  }, [closeMenu]);
+
+  useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
       if (!isOpenRef.current || !(event.target instanceof Node)) {
         return;
@@ -649,7 +771,10 @@ export function OrchestratedEaseReverseMenu() {
   const toggleMenu = contextSafe(() => {
     const timeline = timelineRef.current;
 
-    if (!timeline || (isLoveMenuDisabledRef.current && !isOpenRef.current)) {
+    if (
+      !timeline ||
+      ((isLoveMenuDisabledRef.current || isFooterMenuHiddenRef.current) && !isOpenRef.current)
+    ) {
       return;
     }
 
@@ -750,7 +875,12 @@ export function OrchestratedEaseReverseMenu() {
   };
 
   return (
-    <div data-orchestrated-menu onKeyDown={handleKeyDown} ref={rootRef}>
+    <div
+      aria-hidden={isFooterMenuHidden ? true : undefined}
+      data-orchestrated-menu
+      onKeyDown={handleKeyDown}
+      ref={rootRef}
+    >
       <div
         className={`fixed top-2 left-1/2 z-[1000] flex h-[50px] w-[50px] items-center justify-between overflow-visible rounded-[99px] whitespace-nowrap ${isOpen ? "cursor-pointer" : ""}`}
         onClick={handleIslandClick}
@@ -790,7 +920,7 @@ export function OrchestratedEaseReverseMenu() {
         </div>
         <button
           aria-controls="orchestrated-menu-overlay"
-          aria-disabled={isLoveMenuDisabled}
+          aria-disabled={isLoveMenuDisabled || isFooterMenuHidden}
           aria-expanded={isOpen}
           aria-label={
             isLoveMenuDisabled
@@ -799,10 +929,11 @@ export function OrchestratedEaseReverseMenu() {
                 ? "Close navigation menu"
                 : "Open navigation menu"
           }
-          className={`absolute top-1/2 right-2 z-10 flex size-[34px] -translate-y-1/2 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 ${isLoveMenuDisabled ? "cursor-default" : "cursor-pointer"}`}
-          disabled={isLoveMenuDisabled}
+          className={`absolute top-1/2 right-2 z-10 flex size-[34px] -translate-y-1/2 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 ${isLoveMenuDisabled || isFooterMenuHidden ? "cursor-default" : "cursor-pointer"}`}
+          disabled={isLoveMenuDisabled || isFooterMenuHidden}
           onClick={handleMenuButtonClick}
           ref={menuButtonRef}
+          tabIndex={isFooterMenuHidden ? -1 : undefined}
           type="button"
         >
           <span className="flex size-[34px] items-center justify-center">
