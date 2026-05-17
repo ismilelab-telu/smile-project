@@ -406,15 +406,6 @@ export function LandingPage() {
           },
           morphCircleGrowStart,
         )
-        .to(
-          storyStage,
-          {
-            backgroundColor: "#09090b",
-            duration: 0.2,
-            ease: "none",
-          },
-          morphCircleGrowStart + morphCircleGrowDuration * 0.68,
-        )
         .set(dotMorphSvg, { autoAlpha: 1 }, morphCircleGrowStart + morphCircleGrowDuration);
     },
     { scope: playgroundSectionRef },
