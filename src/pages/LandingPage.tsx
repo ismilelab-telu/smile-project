@@ -4,11 +4,11 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
+import AnimatedContent from "@/components/ui/animated-content";
 import { DottedSurface } from "@/components/ui/dotted-surface";
 import { GlassSurface } from "@/components/ui/glass-surface";
 import { CinematicFooter } from "@/components/ui/motion-footer";
 import { OrchestratedEaseReverseMenu } from "@/components/ui/orchestrated-ease-reverse-menu";
-import ScrollFloat from "@/components/ui/scroll-float";
 import ScrollReveal from "@/components/ui/scroll-reveal";
 import { SplitText } from "@/components/ui/split-text";
 
@@ -21,7 +21,10 @@ const playgroundIntroCopy = [
 ].join(" ");
 const playgroundTeachingCopy = "We don't just teach\nyou Machine Learning.";
 const playgroundTeachingLines = playgroundTeachingCopy.split("\n");
-const playgroundFinalCopy = "We make you fall\nin love with it.";
+const playgroundFinalAriaLabel = "We make you fall in love with it.";
+const playgroundFinalLeadWords = ["We", "make", "you"];
+const playgroundFinalLeadWordDuration = 0.72;
+const playgroundFinalLeadWordGap = 0.08;
 
 export function LandingPage() {
   const landingRef = useRef<HTMLElement>(null);
@@ -44,6 +47,9 @@ export function LandingPage() {
   }, []);
   const revealHeroAction = useCallback(() => {
     setCanRevealHeroAction(true);
+  }, []);
+  const completeFinalLeadAnimation = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("smile:final-lead-complete"));
   }, []);
 
   useGSAP(
@@ -434,6 +440,296 @@ export function LandingPage() {
     { scope: playgroundSectionRef },
   );
 
+  useGSAP(
+    (_, contextSafe) => {
+      const root = playgroundSectionRef.current;
+
+      if (!root) {
+        return;
+      }
+
+      const finalSection = root.querySelector<HTMLElement>("[data-final-love-story-section]");
+      const finalStage = root.querySelector<HTMLElement>("[data-final-love-story-stage]");
+      const fallWord = root.querySelector<HTMLElement>("[data-final-word='fall']");
+      const inWord = root.querySelector<HTMLElement>("[data-final-word='in']");
+      const loveTarget = root.querySelector<HTMLElement>("[data-love-scroll-target]");
+      const withWord = root.querySelector<HTMLElement>("[data-final-word='with']");
+      const itWord = root.querySelector<HTMLElement>("[data-final-word='it']");
+      const finalDot = root.querySelector<HTMLElement>("[data-final-dot]");
+      const dotMorphSvg = root.querySelector<SVGSVGElement>("[data-final-dot-morph-svg]");
+      const dotMorphCircle = root.querySelector<SVGCircleElement>("[data-final-dot-morph-circle]");
+
+      if (
+        !finalSection ||
+        !finalStage ||
+        !fallWord ||
+        !inWord ||
+        !loveTarget ||
+        !withWord ||
+        !itWord ||
+        !finalDot ||
+        !dotMorphSvg ||
+        !dotMorphCircle
+      ) {
+        return;
+      }
+
+      const finalWords = [fallWord, inWord, withWord, itWord, finalDot];
+
+      if (
+        typeof window.matchMedia !== "function" ||
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ) {
+        gsap.set(finalStage, { backgroundColor: "#09090b" });
+        gsap.set(finalWords, { autoAlpha: 1, clearProps: "transform" });
+        gsap.set(loveTarget, { autoAlpha: 1, clearProps: "transform" });
+        gsap.set(dotMorphSvg, { autoAlpha: 0 });
+        return;
+      }
+
+      const dotMorphState = { progress: 0 };
+      let finalActionTimeline: gsap.core.Timeline | null = null;
+      let isFinalActionRevealed = false;
+      let finalTailTimeline: gsap.core.Timeline | null = null;
+      let isFinalTailRevealed = false;
+
+      gsap.set(finalStage, { backgroundColor: "#09090b" });
+      gsap.set([fallWord, inWord, withWord, itWord, finalDot], {
+        autoAlpha: 0,
+        willChange: "opacity, transform",
+      });
+      gsap.set(withWord, { scale: 2.35, yPercent: 8 });
+      gsap.set(itWord, { scale: 2.25, yPercent: 8 });
+      gsap.set(loveTarget, { autoAlpha: 1, clearProps: "transform" });
+      gsap.set(dotMorphSvg, { autoAlpha: 0 });
+      gsap.set(dotMorphCircle, { attr: { cx: 0, cy: 0, r: 0 } });
+
+      const syncDotMorphSvgViewBox = () => {
+        const rect = finalStage.getBoundingClientRect();
+
+        dotMorphSvg.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
+      };
+
+      const getDotCenterX = () => {
+        const stageRect = finalStage.getBoundingClientRect();
+        const dotRect = finalDot.getBoundingClientRect();
+
+        return dotRect.left - stageRect.left + dotRect.width / 2;
+      };
+
+      const getDotCenterY = () => {
+        const stageRect = finalStage.getBoundingClientRect();
+        const dotRect = finalDot.getBoundingClientRect();
+
+        return dotRect.top - stageRect.top + dotRect.height / 2;
+      };
+
+      const getDotRadius = () => {
+        const rect = finalDot.getBoundingClientRect();
+
+        return Math.max(rect.width, rect.height) / 2;
+      };
+
+      const getStageCenterX = () => finalStage.getBoundingClientRect().width / 2;
+      const getStageCenterY = () => finalStage.getBoundingClientRect().height / 2;
+      const getCoverRadius = () => {
+        const rect = finalStage.getBoundingClientRect();
+
+        return Math.hypot(rect.width, rect.height) * 0.6;
+      };
+      const updateDotMorphCircle = () => {
+        const progress = dotMorphState.progress;
+        const cx = gsap.utils.interpolate(getDotCenterX(), getStageCenterX(), progress);
+        const cy = gsap.utils.interpolate(getDotCenterY(), getStageCenterY(), progress);
+        const r = gsap.utils.interpolate(getDotRadius(), getCoverRadius(), progress);
+
+        gsap.set(dotMorphCircle, {
+          attr: { cx, cy, r },
+        });
+      };
+      const syncDotMorphCircleToDot = () => {
+        dotMorphState.progress = 0;
+        gsap.set(dotMorphCircle, {
+          attr: {
+            cx: getDotCenterX(),
+            cy: getDotCenterY(),
+            r: getDotRadius(),
+          },
+        });
+      };
+      const syncDotMorphLayer = () => {
+        syncDotMorphSvgViewBox();
+        updateDotMorphCircle();
+      };
+
+      syncDotMorphSvgViewBox();
+      syncDotMorphCircleToDot();
+
+      const resetFinalActionBase = () => {
+        isFinalActionRevealed = false;
+        finalActionTimeline?.kill();
+        finalActionTimeline = null;
+        gsap.killTweensOf([fallWord, inWord]);
+        gsap.set(fallWord, {
+          autoAlpha: 0,
+          rotation: -7,
+          y: -window.innerHeight * 0.56,
+        });
+        gsap.set(inWord, {
+          autoAlpha: 0,
+          scaleX: 1.35,
+          x: window.innerWidth * 0.84,
+        });
+      };
+
+      const revealFinalActionBase = () => {
+        if (isFinalActionRevealed) {
+          return;
+        }
+
+        isFinalActionRevealed = true;
+        finalActionTimeline?.kill();
+        finalActionTimeline = gsap
+          .timeline()
+          .to(fallWord, {
+            autoAlpha: 1,
+            duration: 0.48,
+            ease: "bounce.out",
+            rotation: 0,
+            y: 0,
+          })
+          .to(
+            inWord,
+            {
+              autoAlpha: 1,
+              duration: 0.32,
+              ease: "expo.out",
+              scaleX: 1,
+              x: 0,
+            },
+            "+=0.08",
+          );
+      };
+
+      const resetFinalTailBase = () => {
+        isFinalTailRevealed = false;
+        finalTailTimeline?.kill();
+        finalTailTimeline = null;
+        gsap.killTweensOf([withWord, itWord, finalDot]);
+        gsap.set(withWord, { autoAlpha: 0, scale: 2.35, yPercent: 8 });
+        gsap.set(itWord, { autoAlpha: 0, scale: 2.25, yPercent: 8 });
+        gsap.set(finalDot, { autoAlpha: 0 });
+      };
+
+      const revealFinalTailBase = () => {
+        if (isFinalTailRevealed) {
+          return;
+        }
+
+        isFinalTailRevealed = true;
+        finalTailTimeline?.kill();
+        finalTailTimeline = gsap
+          .timeline()
+          .to(withWord, {
+            autoAlpha: 1,
+            duration: 0.34,
+            ease: "expo.out",
+            scale: 1,
+            yPercent: 0,
+          })
+          .to(
+            itWord,
+            {
+              autoAlpha: 1,
+              duration: 0.34,
+              ease: "expo.out",
+              scale: 1,
+              yPercent: 0,
+            },
+            ">-0.1",
+          )
+          .to(
+            finalDot,
+            {
+              autoAlpha: 1,
+              duration: 0.18,
+              ease: "none",
+            },
+            ">-0.02",
+          );
+      };
+
+      const resetFinalAction = contextSafe?.(resetFinalActionBase) ?? resetFinalActionBase;
+      const revealFinalAction = contextSafe?.(revealFinalActionBase) ?? revealFinalActionBase;
+      const resetFinalTail = contextSafe?.(resetFinalTailBase) ?? resetFinalTailBase;
+      const revealFinalTail = contextSafe?.(revealFinalTailBase) ?? revealFinalTailBase;
+
+      resetFinalActionBase();
+      resetFinalTailBase();
+
+      const finalTimeline = gsap.timeline({
+        scrollTrigger: {
+          end: "bottom bottom",
+          invalidateOnRefresh: true,
+          onLeaveBack: () => {
+            resetFinalAction();
+            resetFinalTail();
+          },
+          onRefresh: syncDotMorphLayer,
+          scrub: 0.75,
+          start: "top 42%",
+          trigger: finalSection,
+        },
+      });
+
+      finalTimeline
+        .set(dotMorphSvg, { autoAlpha: 1 }, 5.25)
+        .call(syncDotMorphCircleToDot, [], 5.25)
+        .to(
+          finalDot,
+          {
+            autoAlpha: 0,
+            duration: 0.06,
+            ease: "none",
+          },
+          5.25,
+        )
+        .to(
+          dotMorphState,
+          {
+            duration: 0.68,
+            ease: "power2.inOut",
+            onUpdate: updateDotMorphCircle,
+            progress: 1,
+          },
+          5.27,
+        )
+        .to(
+          finalStage,
+          {
+            backgroundColor: "#fafafa",
+            duration: 0.18,
+            ease: "none",
+          },
+          5.67,
+        )
+        .set(dotMorphSvg, { autoAlpha: 1 }, 5.95);
+
+      window.addEventListener("smile:final-lead-complete", revealFinalAction);
+      window.addEventListener("smile:love-dock-complete", revealFinalTail);
+      window.addEventListener("smile:love-dock-reset", resetFinalTail);
+
+      return () => {
+        window.removeEventListener("smile:final-lead-complete", revealFinalAction);
+        window.removeEventListener("smile:love-dock-complete", revealFinalTail);
+        window.removeEventListener("smile:love-dock-reset", resetFinalTail);
+        finalActionTimeline?.kill();
+        finalTailTimeline?.kill();
+      };
+    },
+    { scope: playgroundSectionRef },
+  );
+
   return (
     <>
       <OrchestratedEaseReverseMenu />
@@ -644,28 +940,97 @@ export function LandingPage() {
         </div>
 
         <div
-          className="-mx-6 flex min-h-[100svh] w-[calc(100%+3rem)] items-center justify-center bg-zinc-950 px-6 py-20 text-zinc-50 sm:py-24 lg:py-28"
-          data-love-scroll-section
+          className="relative -mx-6 h-[560svh] w-[calc(100%+3rem)] bg-zinc-950"
+          data-final-love-story-section
         >
-          <ScrollFloat
-            animationDuration={1}
-            containerClassName="mx-auto w-full max-w-screen-2xl text-center"
-            ease="back.inOut(2)"
-            scrollEnd="bottom bottom-=40%"
-            scrollStart="center bottom+=50%"
-            stagger={0.03}
-            textClassName="!text-4xl !leading-[1.08] !font-black tracking-normal sm:!text-5xl lg:!text-7xl xl:!text-8xl"
-            trailingAnchor={
-              <span aria-hidden="true" className="relative inline-flex h-[1em] w-0 align-baseline">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute top-[45%] left-0 h-[260svh] w-px"
+            data-love-scroll-section
+          />
+          <div
+            className="sticky top-0 flex h-[100svh] items-center justify-center overflow-hidden bg-zinc-950 px-6 py-20 text-zinc-50 sm:py-24 lg:py-28"
+            data-final-love-story-stage
+          >
+            <svg
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 z-20 h-full w-full opacity-0"
+              data-final-dot-morph-svg
+              preserveAspectRatio="none"
+            >
+              <circle cx="0" cy="0" data-final-dot-morph-circle fill="#fafafa" r="0" />
+            </svg>
+
+            <h2
+              aria-label={playgroundFinalAriaLabel}
+              className="relative z-10 mx-auto flex w-full max-w-screen-2xl flex-col items-center justify-center text-center font-black tracking-normal"
+            >
+              <span
+                aria-hidden="true"
+                className="flex max-w-full items-center justify-center gap-x-[0.18em] overflow-visible pb-[0.14em] text-[clamp(2.6rem,7vw,7.5rem)] leading-[1.04] whitespace-nowrap"
+                data-final-lead-text
+              >
+                {playgroundFinalLeadWords.map((word, index) => (
+                  <AnimatedContent
+                    animateOpacity
+                    className="inline-block"
+                    delay={index * (playgroundFinalLeadWordDuration + playgroundFinalLeadWordGap)}
+                    direction="vertical"
+                    distance={92}
+                    duration={playgroundFinalLeadWordDuration}
+                    ease="power3.out"
+                    initialOpacity={0}
+                    key={word}
+                    onComplete={
+                      index === playgroundFinalLeadWords.length - 1
+                        ? completeFinalLeadAnimation
+                        : undefined
+                    }
+                    once={false}
+                    resetOnLeaveBack
+                    scale={1}
+                    threshold={0.2}
+                  >
+                    <span className="inline-block" data-final-lead-word={word.toLowerCase()}>
+                      {word}
+                    </span>
+                  </AnimatedContent>
+                ))}
+              </span>
+
+              <span
+                aria-hidden="true"
+                className="mt-7 flex max-w-full flex-wrap items-center justify-center gap-x-[0.18em] gap-y-3 text-[clamp(3.1rem,8.2vw,8.7rem)] leading-[0.9] whitespace-nowrap sm:mt-9"
+              >
+                <span className="inline-block" data-final-word="fall">
+                  fall
+                </span>
+                <span className="inline-block" data-final-word="in">
+                  in
+                </span>
                 <span
-                  className="absolute top-1/2 left-4 size-[50px] -translate-y-1/2"
+                  aria-hidden="true"
+                  className="relative inline-flex h-[0.78em] w-[0.88em] shrink-0 items-center justify-center"
                   data-love-scroll-target
                 />
+                <span className="inline-block" data-final-word="with">
+                  with
+                </span>
+                <span className="inline-block" data-final-word="it">
+                  it
+                </span>
+                <span className="inline-block h-[0.18em] w-[0.18em] align-[-0.02em]" data-final-dot>
+                  <svg
+                    aria-hidden="true"
+                    className="block h-full w-full overflow-visible"
+                    viewBox="0 0 100 100"
+                  >
+                    <circle cx="50" cy="50" fill="currentColor" r="50" />
+                  </svg>
+                </span>
               </span>
-            }
-          >
-            {playgroundFinalCopy}
-          </ScrollFloat>
+            </h2>
+          </div>
         </div>
       </section>
 
