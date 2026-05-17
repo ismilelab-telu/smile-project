@@ -18,11 +18,11 @@ const islandShapeRestFill = islandDefaultFill;
 const islandShapeRestStroke = islandDefaultStroke;
 const islandHeartFill = "oklch(61.224% 0.2313 22.61)";
 const islandHeartStroke = "oklch(61.224% 0.2313 22.61)";
-const islandHeartScale = 2.35;
+const islandHeartScale = 2.55;
 const islandMenuStroke = "oklch(17.7638% 0 0)";
 const islandLoveMenuStroke = "oklch(100% 0 0)";
 const closedIslandSize = 50;
-const loveDockYOffset = 10;
+const loveDockYOffset = 1;
 const heroTitleCutoffTop = 96;
 const topRightInset = 16;
 
@@ -142,6 +142,7 @@ export function OrchestratedEaseReverseMenu() {
         });
 
         const menuBars = [topBar, midBar, bottomBar];
+        let lastLoveCoverProgress = 0;
         let lastLoveProgress = 0;
         let isLoveScrollActive = false;
 
@@ -209,12 +210,14 @@ export function OrchestratedEaseReverseMenu() {
 
           setRestVisual();
           gsap.set(island, {
+            autoAlpha: 1,
             force3D: false,
             scale: 1,
             transformOrigin: "50% 50%",
             x: getBaseX,
             xPercent: -50,
             y: 0,
+            zIndex: 1000,
           });
         };
 
@@ -229,14 +232,17 @@ export function OrchestratedEaseReverseMenu() {
           applyBasePosition();
         };
 
-        const applyLoveScrollProgress = (progress: number, active: boolean) => {
+        const applyLoveScrollProgress = (progress: number, active: boolean, coverProgress = 0) => {
           const clampedProgress = gsap.utils.clamp(0, 1, progress);
-          const isActive = active || clampedProgress > 0.001;
+          const clampedCoverProgress = gsap.utils.clamp(0, 1, coverProgress);
+          const isActive = active || clampedProgress > 0.001 || clampedCoverProgress > 0.001;
 
+          lastLoveCoverProgress = clampedCoverProgress;
           lastLoveProgress = clampedProgress;
           isLoveScrollActive = isActive;
           isLoveSectionActiveRef.current = isActive;
-          isLoveDockedRef.current = isActive && clampedProgress >= 0.995;
+          isLoveDockedRef.current =
+            isActive && clampedCoverProgress < 0.995 && clampedProgress >= 0.995;
           isLoveExitingRef.current = false;
           isLoveHeldAfterSectionRef.current = false;
           isLoveScrollUpExitLockedRef.current = false;
@@ -272,12 +278,14 @@ export function OrchestratedEaseReverseMenu() {
             strokeWidth: 0,
           });
           gsap.set(island, {
+            autoAlpha: 1,
             force3D: false,
             scale: interpolate(1, islandHeartScale, clampedProgress),
             transformOrigin: "50% 50%",
             x,
             xPercent: -50,
             y,
+            zIndex: clampedCoverProgress > 0.001 ? 0 : 1000,
           });
           gsap.set(menuBars, {
             opacity: 1 - clampedProgress,
@@ -286,14 +294,20 @@ export function OrchestratedEaseReverseMenu() {
         };
 
         const handleLoveScrollProgress = (event: Event) => {
-          const detail = (event as CustomEvent<{ active?: boolean; progress?: number }>).detail;
+          const detail = (
+            event as CustomEvent<{ active?: boolean; coverProgress?: number; progress?: number }>
+          ).detail;
 
-          applyLoveScrollProgress(detail?.progress ?? 0, detail?.active ?? false);
+          applyLoveScrollProgress(
+            detail?.progress ?? 0,
+            detail?.active ?? false,
+            detail?.coverProgress ?? 0,
+          );
         };
 
         const handleScroll = () => {
           if (isLoveScrollActive) {
-            applyLoveScrollProgress(lastLoveProgress, true);
+            applyLoveScrollProgress(lastLoveProgress, true, lastLoveCoverProgress);
             return;
           }
 
@@ -306,7 +320,7 @@ export function OrchestratedEaseReverseMenu() {
           }
 
           if (isLoveScrollActive) {
-            applyLoveScrollProgress(lastLoveProgress, true);
+            applyLoveScrollProgress(lastLoveProgress, true, lastLoveCoverProgress);
             return;
           }
 

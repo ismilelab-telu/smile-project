@@ -22,6 +22,8 @@ const playgroundTeachingCopy = "We don't just teach\nyou Machine Learning.";
 const playgroundTeachingLines = playgroundTeachingCopy.split("\n");
 const playgroundFinalAriaLabel = "We make you fall in love with it.";
 const playgroundFinalLeadWords = ["We", "make", "you"];
+const playgroundFinalLeadWordDuration = 0.28;
+const playgroundFinalLeadWordStep = 0.36;
 
 export function LandingPage() {
   const landingRef = useRef<HTMLElement>(null);
@@ -474,14 +476,19 @@ export function LandingPage() {
 
       const [weWord, makeWord, youWord] = finalLeadWords as [HTMLElement, HTMLElement, HTMLElement];
       const finalWords = [weWord, makeWord, youWord, fallWord, inWord, withWord, itWord, finalDot];
-      const loveScrollState = { progress: 0 };
-      const dispatchLoveScrollProgress = (progress = loveScrollState.progress) => {
+      const loveScrollState = { coverProgress: 0, progress: 0 };
+      const dispatchLoveScrollProgress = (
+        progress = loveScrollState.progress,
+        coverProgress = loveScrollState.coverProgress,
+      ) => {
         const clampedProgress = gsap.utils.clamp(0, 1, progress);
+        const clampedCoverProgress = gsap.utils.clamp(0, 1, coverProgress);
 
         window.dispatchEvent(
           new CustomEvent("smile:love-scroll-progress", {
             detail: {
-              active: clampedProgress > 0.001,
+              active: clampedProgress > 0.001 || clampedCoverProgress > 0.001,
+              coverProgress: clampedCoverProgress,
               progress: clampedProgress,
             },
           }),
@@ -496,7 +503,7 @@ export function LandingPage() {
         gsap.set(finalWords, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(loveTarget, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(dotMorphSvg, { autoAlpha: 0 });
-        dispatchLoveScrollProgress(0);
+        dispatchLoveScrollProgress(0, 0);
         return;
       }
 
@@ -544,23 +551,19 @@ export function LandingPage() {
       gsap.set(dotMorphCircle, { attr: { cx: 0, cy: 0, r: 0 } });
 
       const syncDotMorphSvgViewBox = () => {
-        const rect = finalStage.getBoundingClientRect();
-
-        dotMorphSvg.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
+        dotMorphSvg.setAttribute("viewBox", `0 0 ${window.innerWidth} ${window.innerHeight}`);
       };
 
       const getDotCenterX = () => {
-        const stageRect = finalStage.getBoundingClientRect();
         const dotRect = finalDot.getBoundingClientRect();
 
-        return dotRect.left - stageRect.left + dotRect.width / 2;
+        return dotRect.left + dotRect.width / 2;
       };
 
       const getDotCenterY = () => {
-        const stageRect = finalStage.getBoundingClientRect();
         const dotRect = finalDot.getBoundingClientRect();
 
-        return dotRect.top - stageRect.top + dotRect.height / 2;
+        return dotRect.top + dotRect.height / 2;
       };
 
       const getDotRadius = () => {
@@ -569,13 +572,9 @@ export function LandingPage() {
         return Math.max(rect.width, rect.height) / 2;
       };
 
-      const getStageCenterX = () => finalStage.getBoundingClientRect().width / 2;
-      const getStageCenterY = () => finalStage.getBoundingClientRect().height / 2;
-      const getCoverRadius = () => {
-        const rect = finalStage.getBoundingClientRect();
-
-        return Math.hypot(rect.width, rect.height) * 0.6;
-      };
+      const getStageCenterX = () => window.innerWidth / 2;
+      const getStageCenterY = () => window.innerHeight / 2;
+      const getCoverRadius = () => Math.hypot(window.innerWidth, window.innerHeight) * 0.6;
       const updateDotMorphCircle = () => {
         const progress = dotMorphState.progress;
         const cx = gsap.utils.interpolate(getDotCenterX(), getStageCenterX(), progress);
@@ -603,15 +602,18 @@ export function LandingPage() {
 
       syncDotMorphSvgViewBox();
       syncDotMorphCircleToDot();
-      dispatchLoveScrollProgress(0);
+      dispatchLoveScrollProgress(0, 0);
 
       const finalTimeline = gsap.timeline({
         onUpdate: () => dispatchLoveScrollProgress(),
         scrollTrigger: {
           end: "bottom bottom",
           invalidateOnRefresh: true,
-          onLeave: () => dispatchLoveScrollProgress(0),
-          onLeaveBack: () => dispatchLoveScrollProgress(0),
+          onLeave: () => {
+            gsap.set(dotMorphSvg, { autoAlpha: 0 });
+            dispatchLoveScrollProgress(0, 0);
+          },
+          onLeaveBack: () => dispatchLoveScrollProgress(0, 0),
           onRefresh: () => {
             syncDotMorphLayer();
             dispatchLoveScrollProgress();
@@ -622,10 +624,20 @@ export function LandingPage() {
         },
       });
 
+      finalLeadWords.forEach((word, index) => {
+        finalTimeline.to(
+          word,
+          {
+            autoAlpha: 1,
+            duration: playgroundFinalLeadWordDuration,
+            ease: "power2.inOut",
+            y: 0,
+          },
+          index * playgroundFinalLeadWordStep,
+        );
+      });
+
       finalTimeline
-        .to(weWord, { autoAlpha: 1, duration: 0.22, ease: "power2.inOut", y: 0 }, 0)
-        .to(makeWord, { autoAlpha: 1, duration: 0.22, ease: "power2.inOut", y: 0 }, 0.26)
-        .to(youWord, { autoAlpha: 1, duration: 0.22, ease: "power2.inOut", y: 0 }, 0.52)
         .to(
           fallWord,
           {
@@ -683,6 +695,7 @@ export function LandingPage() {
         .set(dotMorphSvg, { autoAlpha: 1 }, 3.3)
         .call(syncDotMorphCircleToDot, [], 3.3)
         .to(finalDot, { autoAlpha: 0, duration: 0.06, ease: "none" }, 3.3)
+        .to(loveScrollState, { coverProgress: 1, duration: 0.28, ease: "power1.in" }, 3.3)
         .to(
           dotMorphState,
           {
@@ -705,7 +718,7 @@ export function LandingPage() {
         .set(dotMorphSvg, { autoAlpha: 1 }, 3.96);
 
       return () => {
-        dispatchLoveScrollProgress(0);
+        dispatchLoveScrollProgress(0, 0);
       };
     },
     { scope: playgroundSectionRef },
@@ -716,7 +729,7 @@ export function LandingPage() {
       <OrchestratedEaseReverseMenu />
 
       <main
-        className="relative z-10 min-h-screen overflow-x-hidden bg-background text-foreground"
+        className="relative min-h-screen overflow-x-hidden bg-background text-foreground"
         ref={landingRef}
       >
         <DottedSurface data-landing-scroll-surface />
@@ -935,7 +948,7 @@ export function LandingPage() {
           >
             <svg
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 z-20 h-full w-full opacity-0"
+              className="pointer-events-none fixed inset-0 z-[1200] h-[100svh] w-screen opacity-0"
               data-final-dot-morph-svg
               preserveAspectRatio="none"
             >
@@ -983,7 +996,10 @@ export function LandingPage() {
                 <span className="inline-block" data-final-word="it">
                   it
                 </span>
-                <span className="inline-block h-[0.18em] w-[0.18em] align-[-0.02em]" data-final-dot>
+                <span
+                  className="mb-[0.1em] inline-block h-[0.18em] w-[0.18em] self-end"
+                  data-final-dot
+                >
                   <svg
                     aria-hidden="true"
                     className="block h-full w-full overflow-visible"
