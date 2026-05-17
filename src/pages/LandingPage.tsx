@@ -22,8 +22,8 @@ const playgroundTeachingCopy = "We don't just teach\nyou Machine Learning.";
 const playgroundTeachingLines = playgroundTeachingCopy.split("\n");
 const playgroundFinalAriaLabel = "We make you fall in love with it.";
 const playgroundFinalLeadWords = ["We", "make", "you"];
-const playgroundFinalLeadWordDuration = 0.28;
-const playgroundFinalLeadWordStep = 0.36;
+const playgroundFinalLeadWordDuration = 0.2;
+const playgroundFinalLeadWordStep = 0.25;
 
 export function LandingPage() {
   const landingRef = useRef<HTMLElement>(null);
@@ -244,9 +244,12 @@ export function LandingPage() {
         storyStage.querySelectorAll<HTMLElement>("[data-teaching-story-char]"),
       );
       const morphDot = storyStage.querySelector<HTMLElement>("[data-teaching-story-dot]");
+      const morphDotAnchor = storyStage.querySelector<HTMLElement>(
+        "[data-teaching-story-dot-anchor]",
+      );
       const otherCharacters = characterElements.filter((character) => character !== morphDot);
 
-      if (!morphDot || characterElements.length === 0) {
+      if (!morphDot || !morphDotAnchor || characterElements.length === 0) {
         return;
       }
 
@@ -265,6 +268,10 @@ export function LandingPage() {
       gsap.set(morphDot, {
         transformOrigin: "50% 50%",
       });
+      gsap.set(morphDotAnchor, {
+        opacity: 0,
+        transformOrigin: "50% 50%",
+      });
 
       const syncMorphSvgViewBox = () => {
         const rect = storyStage.getBoundingClientRect();
@@ -274,20 +281,20 @@ export function LandingPage() {
 
       const getDotCenterX = () => {
         const stageRect = storyStage.getBoundingClientRect();
-        const dotRect = morphDot.getBoundingClientRect();
+        const dotRect = morphDotAnchor.getBoundingClientRect();
 
         return dotRect.left - stageRect.left + dotRect.width / 2;
       };
 
       const getDotCenterY = () => {
         const stageRect = storyStage.getBoundingClientRect();
-        const dotRect = morphDot.getBoundingClientRect();
+        const dotRect = morphDotAnchor.getBoundingClientRect();
 
         return dotRect.top - stageRect.top + dotRect.height / 2;
       };
 
       const getDotRadius = () => {
-        const rect = morphDot.getBoundingClientRect();
+        const rect = morphDotAnchor.getBoundingClientRect();
 
         return Math.max(rect.width, rect.height) / 2;
       };
@@ -331,6 +338,8 @@ export function LandingPage() {
       const dotRevealDuration = 0.3;
       const dotRevealStart = Math.max(textRevealDuration - 0.16, 0);
       const zoomStart = dotRevealStart + dotRevealDuration + 0.04;
+      const morphCircleGrowStart = zoomStart;
+      const morphCircleGrowDuration = 0.72;
 
       syncMorphSvgViewBox();
       syncMorphCircleToDot();
@@ -345,7 +354,7 @@ export function LandingPage() {
             gsap.set(dotMorphSvg, { autoAlpha: 0 });
           },
           scrub: true,
-          start: "top bottom",
+          start: "top top",
           trigger: storySection,
         },
       });
@@ -376,34 +385,6 @@ export function LandingPage() {
           },
           dotRevealStart,
         )
-        .fromTo(
-          otherCharacters,
-          {
-            opacity: 1,
-            yPercent: 0,
-          },
-          {
-            duration: 0.18,
-            ease: "power2.out",
-            immediateRender: false,
-            opacity: 0,
-            yPercent: -18,
-          },
-          zoomStart,
-        )
-        .fromTo(
-          morphDot,
-          {
-            opacity: 1,
-          },
-          {
-            duration: 0.08,
-            ease: "none",
-            immediateRender: false,
-            opacity: 0,
-          },
-          zoomStart,
-        )
         .set(
           dotMorphSvg,
           {
@@ -416,13 +397,13 @@ export function LandingPage() {
           dotMorphState,
           { progress: 0 },
           {
-            duration: 0.42,
-            ease: "power2.inOut",
+            duration: morphCircleGrowDuration,
+            ease: "power3.in",
             immediateRender: false,
             onUpdate: updateMorphCircle,
             progress: 1,
           },
-          zoomStart + 0.02,
+          morphCircleGrowStart,
         )
         .to(
           storyStage,
@@ -431,9 +412,9 @@ export function LandingPage() {
             duration: 0.2,
             ease: "none",
           },
-          zoomStart + 0.3,
+          morphCircleGrowStart + morphCircleGrowDuration * 0.68,
         )
-        .set(dotMorphSvg, { autoAlpha: 1 }, zoomStart + 0.45);
+        .set(dotMorphSvg, { autoAlpha: 1 }, morphCircleGrowStart + morphCircleGrowDuration);
     },
     { scope: playgroundSectionRef },
   );
@@ -519,9 +500,10 @@ export function LandingPage() {
       });
       gsap.set(fallWord, {
         autoAlpha: 0,
-        rotation: -7,
+        rotation: -13,
+        transformOrigin: "50% 100%",
         willChange: "opacity, transform",
-        y: -window.innerHeight * 0.56,
+        y: -window.innerHeight * 0.76,
       });
       gsap.set(inWord, {
         autoAlpha: 0,
@@ -531,14 +513,14 @@ export function LandingPage() {
       });
       gsap.set(withWord, {
         autoAlpha: 0,
-        scale: 3.25,
+        scale: 5,
         transformOrigin: "50% 50%",
         willChange: "opacity, transform",
         yPercent: 8,
       });
       gsap.set(itWord, {
         autoAlpha: 0,
-        scale: 3.15,
+        scale: 4.8,
         transformOrigin: "50% 50%",
         willChange: "opacity, transform",
         yPercent: 8,
@@ -644,12 +626,70 @@ export function LandingPage() {
           fallWord,
           {
             autoAlpha: 1,
-            duration: 0.42,
+            duration: 0.5,
             ease: "bounce.out",
             rotation: 0,
             y: 0,
           },
-          0.98,
+          0.9,
+        )
+        .to(
+          fallWord,
+          {
+            duration: 0.07,
+            ease: "power2.out",
+            scaleX: 1.18,
+            scaleY: 0.76,
+          },
+          1.34,
+        )
+        .to(
+          fallWord,
+          {
+            duration: 0.16,
+            ease: "power2.out",
+            rotation: -2.5,
+            scaleX: 0.94,
+            scaleY: 1.14,
+            y: -58,
+          },
+          1.41,
+        )
+        .to(
+          fallWord,
+          {
+            duration: 0.13,
+            ease: "power2.in",
+            rotation: 1,
+            scaleX: 1.1,
+            scaleY: 0.84,
+            y: 0,
+          },
+          1.57,
+        )
+        .to(
+          fallWord,
+          {
+            duration: 0.11,
+            ease: "power2.out",
+            rotation: -1,
+            scaleX: 0.98,
+            scaleY: 1.06,
+            y: -22,
+          },
+          1.7,
+        )
+        .to(
+          fallWord,
+          {
+            duration: 0.2,
+            ease: "elastic.out(1, 0.3)",
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+            y: 0,
+          },
+          1.81,
         )
         .to(
           inWord,
@@ -660,7 +700,7 @@ export function LandingPage() {
             scaleX: 1,
             x: 0,
           },
-          1.45,
+          1.86,
         )
         .to(
           loveScrollState,
@@ -669,7 +709,7 @@ export function LandingPage() {
             ease: "none",
             progress: 1,
           },
-          1.82,
+          2.2,
         )
         .to(
           withWord,
@@ -680,7 +720,7 @@ export function LandingPage() {
             scale: 1,
             yPercent: 0,
           },
-          2.38,
+          2.7,
         )
         .to(
           itWord,
@@ -691,13 +731,13 @@ export function LandingPage() {
             scale: 1,
             yPercent: 0,
           },
-          2.66,
+          2.98,
         )
-        .to(finalDot, { autoAlpha: 1, duration: 0.16, ease: "none" }, 2.9)
-        .set(dotMorphSvg, { autoAlpha: 1 }, 3.3)
-        .call(syncDotMorphCircleToDot, [], 3.3)
-        .to(finalDot, { autoAlpha: 0, duration: 0.06, ease: "none" }, 3.3)
-        .to(loveScrollState, { coverProgress: 1, duration: 0.28, ease: "power1.in" }, 3.3)
+        .to(finalDot, { autoAlpha: 1, duration: 0.16, ease: "none" }, 3.22)
+        .set(dotMorphSvg, { autoAlpha: 1 }, 3.58)
+        .call(syncDotMorphCircleToDot, [], 3.58)
+        .to(finalDot, { autoAlpha: 0, duration: 0.06, ease: "none" }, 3.58)
+        .to(loveScrollState, { coverProgress: 1, duration: 0.28, ease: "power1.in" }, 3.58)
         .to(
           dotMorphState,
           {
@@ -706,7 +746,7 @@ export function LandingPage() {
             onUpdate: updateDotMorphCircle,
             progress: 1,
           },
-          3.32,
+          3.6,
         )
         .to(
           finalStage,
@@ -715,9 +755,9 @@ export function LandingPage() {
             duration: 0.18,
             ease: "none",
           },
-          3.7,
+          3.98,
         )
-        .set(dotMorphSvg, { autoAlpha: 1 }, 3.96);
+        .set(dotMorphSvg, { autoAlpha: 1 }, 4.24);
 
       return () => {
         dispatchLoveScrollProgress(0, 0);
@@ -869,7 +909,7 @@ export function LandingPage() {
         </div>
 
         <div
-          className="-mx-6 h-[260svh] w-[calc(100%+3rem)] bg-zinc-50"
+          className="-mx-6 h-[320svh] w-[calc(100%+3rem)] bg-zinc-50"
           data-teaching-story-section
         >
           <div
@@ -878,7 +918,7 @@ export function LandingPage() {
           >
             <svg
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 z-0 h-full w-full opacity-0"
+              className="pointer-events-none absolute inset-0 z-20 h-full w-full opacity-0"
               data-teaching-dot-morph-svg
               preserveAspectRatio="none"
             >
@@ -913,18 +953,25 @@ export function LandingPage() {
                             if (isMorphDot) {
                               return (
                                 <span
-                                  className="inline-block h-[0.18em] w-[0.18em] align-[-0.02em] will-change-[transform,opacity]"
+                                  className="relative inline-block will-change-[transform,opacity]"
                                   data-teaching-story-char
                                   data-teaching-story-dot
                                   key={`${lineIndex}-${wordIndex}-dot-${characterIndex}`}
                                 >
-                                  <svg
+                                  <span>{character}</span>
+                                  <span
                                     aria-hidden="true"
-                                    className="block h-full w-full overflow-visible"
-                                    viewBox="0 0 100 100"
+                                    className="pointer-events-none absolute bottom-[0.2em] left-1/2 block h-[0.16em] w-[0.16em] -translate-x-1/2 opacity-0"
+                                    data-teaching-story-dot-anchor
                                   >
-                                    <circle cx="50" cy="50" fill="currentColor" r="50" />
-                                  </svg>
+                                    <svg
+                                      aria-hidden="true"
+                                      className="block h-full w-full overflow-visible"
+                                      viewBox="0 0 100 100"
+                                    >
+                                      <circle cx="50" cy="50" fill="currentColor" r="50" />
+                                    </svg>
+                                  </span>
                                 </span>
                               );
                             }
