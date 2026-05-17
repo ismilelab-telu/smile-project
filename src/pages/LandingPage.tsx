@@ -28,6 +28,8 @@ const playgroundFinalLeadWordStep = 0.36;
 export function LandingPage() {
   const landingRef = useRef<HTMLElement>(null);
   const playgroundSectionRef = useRef<HTMLElement>(null);
+  const finalDotMorphSvgRef = useRef<SVGSVGElement>(null);
+  const finalDotMorphCircleRef = useRef<SVGCircleElement>(null);
   const heroActionRef = useRef<HTMLDivElement>(null);
   const exploreZoneRef = useRef<HTMLDivElement>(null);
   const exploreButtonRef = useRef<HTMLAnchorElement>(null);
@@ -455,8 +457,8 @@ export function LandingPage() {
       const withWord = root.querySelector<HTMLElement>("[data-final-word='with']");
       const itWord = root.querySelector<HTMLElement>("[data-final-word='it']");
       const finalDot = root.querySelector<HTMLElement>("[data-final-dot]");
-      const dotMorphSvg = root.querySelector<SVGSVGElement>("[data-final-dot-morph-svg]");
-      const dotMorphCircle = root.querySelector<SVGCircleElement>("[data-final-dot-morph-circle]");
+      const dotMorphSvg = finalDotMorphSvgRef.current;
+      const dotMorphCircle = finalDotMorphCircleRef.current;
 
       if (
         !finalSection ||
@@ -727,6 +729,22 @@ export function LandingPage() {
   return (
     <>
       <OrchestratedEaseReverseMenu />
+      <svg
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-[2000] h-[100svh] w-screen opacity-0"
+        data-final-dot-morph-svg
+        preserveAspectRatio="none"
+        ref={finalDotMorphSvgRef}
+      >
+        <circle
+          cx="0"
+          cy="0"
+          data-final-dot-morph-circle
+          fill="#fafafa"
+          r="0"
+          ref={finalDotMorphCircleRef}
+        />
+      </svg>
 
       <main
         className="relative min-h-screen overflow-x-hidden bg-background text-foreground"
@@ -946,15 +964,6 @@ export function LandingPage() {
             className="sticky top-0 flex h-[100svh] items-center justify-center overflow-hidden bg-zinc-950 px-6 py-20 text-zinc-50 sm:py-24 lg:py-28"
             data-final-love-story-stage
           >
-            <svg
-              aria-hidden="true"
-              className="pointer-events-none fixed inset-0 z-[1200] h-[100svh] w-screen opacity-0"
-              data-final-dot-morph-svg
-              preserveAspectRatio="none"
-            >
-              <circle cx="0" cy="0" data-final-dot-morph-circle fill="#fafafa" r="0" />
-            </svg>
-
             <h2
               aria-label={playgroundFinalAriaLabel}
               className="relative z-10 mx-auto flex w-full max-w-screen-2xl flex-col items-center justify-center text-center font-black tracking-normal"

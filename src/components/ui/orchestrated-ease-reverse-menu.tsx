@@ -285,7 +285,7 @@ export function OrchestratedEaseReverseMenu() {
             x,
             xPercent: -50,
             y,
-            zIndex: clampedCoverProgress > 0.001 ? 0 : 1000,
+            zIndex: 1000,
           });
           gsap.set(menuBars, {
             opacity: 1 - clampedProgress,
