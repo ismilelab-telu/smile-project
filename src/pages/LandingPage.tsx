@@ -22,8 +22,9 @@ const playgroundTeachingCopy = "We don't just teach\nyou Machine Learning.";
 const playgroundTeachingLines = playgroundTeachingCopy.split("\n");
 const playgroundFinalAriaLabel = "We make you fall in love with it.";
 const playgroundFinalLeadWords = ["We", "make", "you"];
-const playgroundFinalLeadWordDuration = 0.2;
-const playgroundFinalLeadWordStep = 0.25;
+const playgroundFinalLeadWordMoveDuration = 0.3;
+const playgroundFinalLeadWordStarts = [0, 0.34, 0.59] as const;
+const playgroundFinalLeadWordStartY = 620;
 
 export function LandingPage() {
   const landingRef = useRef<HTMLElement>(null);
@@ -493,10 +494,12 @@ export function LandingPage() {
       const dotMorphState = { progress: 0 };
 
       gsap.set(finalStage, { backgroundColor: "#09090b" });
-      gsap.set(finalLeadWords, {
-        autoAlpha: 0,
-        y: 136,
-        willChange: "opacity, transform",
+      finalLeadWords.forEach((word) => {
+        gsap.set(word, {
+          autoAlpha: 0,
+          y: playgroundFinalLeadWordStartY,
+          willChange: "opacity, transform",
+        });
       });
       gsap.set(fallWord, {
         autoAlpha: 0,
@@ -603,21 +606,23 @@ export function LandingPage() {
             dispatchLoveScrollProgress();
           },
           scrub: true,
-          start: "top 42%",
+          start: "top top",
           trigger: finalSection,
         },
       });
 
       finalLeadWords.forEach((word, index) => {
+        const start = playgroundFinalLeadWordStarts[index] ?? index * 0.25;
+
         finalTimeline.to(
           word,
           {
             autoAlpha: 1,
-            duration: playgroundFinalLeadWordDuration,
+            duration: playgroundFinalLeadWordMoveDuration,
             ease: "power2.inOut",
             y: 0,
           },
-          index * playgroundFinalLeadWordStep,
+          start,
         );
       });
 
@@ -626,8 +631,8 @@ export function LandingPage() {
           fallWord,
           {
             autoAlpha: 1,
-            duration: 0.5,
-            ease: "bounce.out",
+            duration: 0.34,
+            ease: "power3.in",
             rotation: 0,
             y: 0,
           },
@@ -636,60 +641,50 @@ export function LandingPage() {
         .to(
           fallWord,
           {
-            duration: 0.07,
+            duration: 0.18,
             ease: "power2.out",
-            scaleX: 1.18,
-            scaleY: 0.76,
+            rotation: -2,
+            scaleX: 0.94,
+            scaleY: 1.12,
+            y: -72,
           },
-          1.34,
+          1.24,
         )
         .to(
           fallWord,
           {
             duration: 0.16,
-            ease: "power2.out",
-            rotation: -2.5,
-            scaleX: 0.94,
-            scaleY: 1.14,
-            y: -58,
-          },
-          1.41,
-        )
-        .to(
-          fallWord,
-          {
-            duration: 0.13,
             ease: "power2.in",
-            rotation: 1,
-            scaleX: 1.1,
-            scaleY: 0.84,
+            rotation: 0.8,
+            scaleX: 1.08,
+            scaleY: 0.88,
             y: 0,
           },
-          1.57,
+          1.42,
         )
         .to(
           fallWord,
           {
-            duration: 0.11,
+            duration: 0.08,
             ease: "power2.out",
-            rotation: -1,
-            scaleX: 0.98,
-            scaleY: 1.06,
-            y: -22,
+            rotation: 0,
+            scaleX: 1.16,
+            scaleY: 0.8,
+            y: 0,
           },
-          1.7,
+          1.58,
         )
         .to(
           fallWord,
           {
-            duration: 0.2,
-            ease: "elastic.out(1, 0.3)",
+            duration: 0.18,
+            ease: "elastic.out(1, 0.42)",
             rotation: 0,
             scaleX: 1,
             scaleY: 1,
             y: 0,
           },
-          1.81,
+          1.66,
         )
         .to(
           inWord,
