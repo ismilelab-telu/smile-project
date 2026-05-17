@@ -19,7 +19,7 @@ const playgroundIntroCopy = [
   'We\u2019ve stripped away the heavy coding of Colab and opened up the "black box" of Teachable Machine to give you the perfect sweet spot for learning.',
   "Fully animated and relentlessly beginner-friendly.",
 ].join(" ");
-const playgroundTeachingCopy = "We don't just teach\nyou Machine Learning.";
+const playgroundTeachingCopy = "We don't just teach\nyou Machine Learning";
 const playgroundFinalCopy = "We make you fall\nin love with it.";
 
 export function LandingPage() {
@@ -336,12 +336,12 @@ export function LandingPage() {
         <div className="flex min-h-[100svh] items-center justify-center py-20 sm:py-24 lg:py-28">
           <ScrollFloat
             animationDuration={1}
-            containerClassName="mx-auto w-full max-w-screen-2xl text-center"
+            containerClassName="mx-auto w-full max-w-screen-2xl pb-[0.16em] text-center"
             ease="back.inOut(2)"
             scrollEnd="bottom bottom-=40%"
             scrollStart="center bottom+=50%"
             stagger={0.03}
-            textClassName="!text-4xl !leading-[1.08] !font-black tracking-normal sm:!text-5xl lg:!text-7xl xl:!text-8xl"
+            textClassName="!text-4xl !leading-[1.08] !font-black tracking-normal sm:!text-5xl md:!text-7xl lg:!text-8xl xl:!text-9xl"
           >
             {playgroundTeachingCopy}
           </ScrollFloat>
