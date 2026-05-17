@@ -744,6 +744,7 @@ export function LandingPage() {
           3.6,
         )
         .set(finalStage, { backgroundColor: "#fafafa" }, 4.24)
+        .set(inlineLove, { autoAlpha: 0 }, 4.24)
         .set(dotMorphSvg, { autoAlpha: 1 }, 4.24);
 
       return () => {
