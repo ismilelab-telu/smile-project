@@ -734,15 +734,7 @@ export function LandingPage() {
           },
           3.6,
         )
-        .to(
-          finalStage,
-          {
-            backgroundColor: "#fafafa",
-            duration: 0.18,
-            ease: "none",
-          },
-          3.98,
-        )
+        .set(finalStage, { backgroundColor: "#fafafa" }, 4.24)
         .set(dotMorphSvg, { autoAlpha: 1 }, 4.24);
 
       return () => {
