@@ -22,9 +22,9 @@ const playgroundTeachingCopy = "We don't just teach\nyou Machine Learning.";
 const playgroundTeachingLines = playgroundTeachingCopy.split("\n");
 const playgroundFinalAriaLabel = "We make you fall in love with it.";
 const playgroundFinalLeadWords = ["We", "make", "you"];
-const playgroundFinalLeadWordMoveDuration = 0.3;
-const playgroundFinalLeadWordStarts = [0, 0.34, 0.59] as const;
-const playgroundFinalLeadWordStartY = 620;
+const playgroundFinalLeadWordMoveDuration = 0.24;
+const playgroundFinalLeadWordStarts = [0, 0.24, 0.42] as const;
+const playgroundFinalLeadWordStartY = 420;
 
 export function LandingPage() {
   const landingRef = useRef<HTMLElement>(null);
@@ -341,7 +341,7 @@ export function LandingPage() {
       const zoomStart = dotRevealStart + dotRevealDuration + 0.02;
       const morphCircleGrowStart = zoomStart;
       const morphCircleGrowDuration = 0.12;
-      const morphCircleCoverHoldDuration = 0.16;
+      const morphCircleCoverHoldDuration = 0.04;
 
       syncMorphSvgViewBox();
       syncMorphCircleToDot();
