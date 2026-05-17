@@ -41,6 +41,7 @@ const footerHeadingText = "ML should be fun!";
 const footerCurvedLoopText = "Predicting the future isn't magic, it's artificial intelligence.";
 const footerHeadingWordDelay = 150;
 const footerHeadingStepDuration = 0.35;
+const footerHeadingTextRevealStart = "top 25%";
 const footerHeadingRevealProgress = 0.8;
 const footerButtonRevealDelay = Math.round(
   ((footerHeadingText.split(" ").length - 1) * footerHeadingWordDelay +
@@ -154,7 +155,7 @@ export function CinematicFooter() {
           setAreFooterButtonsVisible(false);
           setIsHeadingTextVisible(false);
         },
-        start: "top 70%",
+        start: footerHeadingTextRevealStart,
         trigger: wrapperRef.current,
       });
 
