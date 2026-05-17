@@ -59,7 +59,7 @@ export function ScrollFloat({
         typeof window.matchMedia === "function" &&
         window.matchMedia("(prefers-reduced-motion: reduce)").matches
       ) {
-        gsap.set(element.querySelectorAll(".inline-block"), {
+        gsap.set(element.querySelectorAll(".word"), {
           opacity: 1,
           scaleX: 1,
           scaleY: 1,
@@ -69,7 +69,7 @@ export function ScrollFloat({
       }
 
       const scroller = scrollContainerRef?.current ?? window;
-      const charElements = element.querySelectorAll(".inline-block");
+      const charElements = element.querySelectorAll(".word");
 
       gsap.fromTo(
         charElements,

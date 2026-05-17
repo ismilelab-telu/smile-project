@@ -19,11 +19,13 @@ const playgroundIntroCopy = [
   'We\u2019ve stripped away the heavy coding of Colab and opened up the "black box" of Teachable Machine to give you the perfect sweet spot for learning.',
   "Fully animated and relentlessly beginner-friendly.",
 ].join(" ");
-const playgroundTeachingCopy = "We don't just teach\nyou Machine Learning";
+const playgroundTeachingCopy = "We don't just teach\nyou Machine Learning.";
+const playgroundTeachingLines = playgroundTeachingCopy.split("\n");
 const playgroundFinalCopy = "We make you fall\nin love with it.";
 
 export function LandingPage() {
   const landingRef = useRef<HTMLElement>(null);
+  const playgroundSectionRef = useRef<HTMLElement>(null);
   const heroActionRef = useRef<HTMLDivElement>(null);
   const exploreZoneRef = useRef<HTMLDivElement>(null);
   const exploreButtonRef = useRef<HTMLAnchorElement>(null);
@@ -208,6 +210,155 @@ export function LandingPage() {
     { dependencies: [canRevealHeroAction], scope: landingRef },
   );
 
+  useGSAP(
+    () => {
+      const root = playgroundSectionRef.current;
+
+      if (!root) {
+        return;
+      }
+
+      const storySection = root.querySelector<HTMLElement>("[data-teaching-story-section]");
+      const storyStage = root.querySelector<HTMLElement>("[data-teaching-story-stage]");
+
+      if (
+        !storySection ||
+        !storyStage ||
+        typeof window.matchMedia !== "function" ||
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ) {
+        return;
+      }
+
+      const characterElements = Array.from(
+        storyStage.querySelectorAll<HTMLElement>("[data-teaching-story-char]"),
+      );
+      const zoomLetter = storyStage.querySelector<HTMLElement>("[data-teaching-story-zoom-letter]");
+      const otherCharacters = characterElements.filter((character) => character !== zoomLetter);
+
+      if (!zoomLetter || characterElements.length === 0) {
+        return;
+      }
+
+      gsap.set(storyStage, { backgroundColor: "#fafafa" });
+      gsap.set(characterElements, {
+        opacity: 0,
+        scaleX: 0.7,
+        scaleY: 2.3,
+        transformOrigin: "50% 0%",
+        visibility: "visible",
+        willChange: "opacity, transform",
+        yPercent: 120,
+      });
+      gsap.set(zoomLetter, {
+        transformOrigin: "50% 50%",
+      });
+
+      const getZoomLetterX = () => {
+        const rect = zoomLetter.getBoundingClientRect();
+
+        return window.innerWidth / 2 - (rect.left + rect.width / 2);
+      };
+
+      const getZoomLetterY = () => {
+        const rect = zoomLetter.getBoundingClientRect();
+
+        return window.innerHeight / 2 - (rect.top + rect.height / 2);
+      };
+
+      const getZoomLetterScale = () => {
+        const rect = zoomLetter.getBoundingClientRect();
+        const letterSize = Math.max(rect.width, rect.height, 1);
+        const viewportSize = Math.max(window.innerWidth, window.innerHeight);
+
+        return (viewportSize / letterSize) * 7;
+      };
+      const revealDuration = 0.18;
+      const revealStagger = 0.006;
+      const zoomStart = 0.5;
+
+      const teachingTimeline = gsap.timeline({
+        scrollTrigger: {
+          end: "bottom bottom",
+          invalidateOnRefresh: true,
+          onLeaveBack: () => {
+            gsap.set(storyStage, { backgroundColor: "#fafafa" });
+          },
+          scrub: true,
+          start: "top bottom",
+          trigger: storySection,
+        },
+      });
+
+      teachingTimeline
+        .to(
+          characterElements,
+          {
+            duration: revealDuration,
+            ease: "back.inOut(2)",
+            opacity: 1,
+            scaleX: 1,
+            scaleY: 1,
+            stagger: revealStagger,
+            yPercent: 0,
+          },
+          0,
+        )
+        .fromTo(
+          otherCharacters,
+          {
+            opacity: 1,
+            yPercent: 0,
+          },
+          {
+            duration: 0.18,
+            ease: "power2.out",
+            immediateRender: false,
+            opacity: 0,
+            yPercent: -18,
+          },
+          zoomStart,
+        )
+        .fromTo(
+          zoomLetter,
+          {
+            opacity: 1,
+            scale: 1,
+            x: 0,
+            y: 0,
+          },
+          {
+            duration: 0.42,
+            ease: "power2.inOut",
+            immediateRender: false,
+            scale: getZoomLetterScale,
+            x: getZoomLetterX,
+            y: getZoomLetterY,
+          },
+          zoomStart + 0.02,
+        )
+        .to(
+          storyStage,
+          {
+            backgroundColor: "#09090b",
+            duration: 0.2,
+            ease: "none",
+          },
+          zoomStart + 0.3,
+        )
+        .to(
+          zoomLetter,
+          {
+            duration: 0.08,
+            ease: "none",
+            opacity: 0,
+          },
+          zoomStart + 0.45,
+        );
+    },
+    { scope: playgroundSectionRef },
+  );
+
   return (
     <>
       <OrchestratedEaseReverseMenu />
@@ -318,6 +469,7 @@ export function LandingPage() {
       <section
         className="relative z-10 bg-zinc-50 px-6 text-zinc-950"
         aria-label="Interactive ML Playground introduction"
+        ref={playgroundSectionRef}
       >
         <div className="flex min-h-[100svh] items-center justify-center py-20 sm:py-24 lg:py-28">
           <ScrollReveal
@@ -333,22 +485,65 @@ export function LandingPage() {
           </ScrollReveal>
         </div>
 
-        <div className="flex min-h-[100svh] items-center justify-center py-20 sm:py-24 lg:py-28">
-          <ScrollFloat
-            animationDuration={1}
-            containerClassName="mx-auto w-full max-w-screen-2xl pb-[0.5em] text-center"
-            ease="back.inOut(2)"
-            scrollEnd="bottom bottom-=40%"
-            scrollStart="center bottom+=50%"
-            stagger={0.03}
-            textClassName="!text-4xl !leading-[1.14] !font-black tracking-normal sm:!text-5xl md:!text-7xl lg:!text-8xl xl:!text-9xl"
+        <div
+          className="-mx-6 h-[260svh] w-[calc(100%+3rem)] bg-zinc-50"
+          data-teaching-story-section
+        >
+          <div
+            className="sticky top-0 flex h-[100svh] items-center justify-center overflow-hidden bg-zinc-50 px-6 py-20 sm:py-24 lg:py-28"
+            data-teaching-story-stage
           >
-            {playgroundTeachingCopy}
-          </ScrollFloat>
+            <h2
+              aria-label={playgroundTeachingCopy.replace("\n", " ")}
+              className="my-5 mx-auto w-full max-w-screen-2xl pb-[0.5em] text-center"
+            >
+              <span
+                aria-hidden="true"
+                className="inline-block text-4xl leading-[1.14] font-black tracking-normal sm:text-5xl md:text-7xl lg:text-8xl xl:text-9xl"
+              >
+                {playgroundTeachingLines.map((line, lineIndex) => (
+                  <span key={line} className="contents">
+                    {line.split(" ").map((word, wordIndex, words) => {
+                      const wordStartIndex = words
+                        .slice(0, wordIndex)
+                        .reduce((total, previousWord) => total + previousWord.length + 1, 0);
+
+                      return (
+                        <span
+                          className="inline-block whitespace-nowrap"
+                          key={`${lineIndex}-${word}`}
+                        >
+                          {word.split("").map((character, characterIndex) => {
+                            const lineCharacterIndex = wordStartIndex + characterIndex;
+                            const isZoomLetter =
+                              lineIndex === playgroundTeachingLines.length - 1 &&
+                              lineCharacterIndex === line.lastIndexOf("g");
+
+                            return (
+                              <span
+                                className="inline-block will-change-[transform,opacity]"
+                                data-teaching-story-char
+                                data-teaching-story-zoom-letter={isZoomLetter ? true : undefined}
+                                key={`${lineIndex}-${wordIndex}-${character}-${characterIndex}`}
+                              >
+                                {character}
+                              </span>
+                            );
+                          })}
+                          {wordIndex < words.length - 1 ? "\u00A0" : null}
+                        </span>
+                      );
+                    })}
+                    {lineIndex < playgroundTeachingLines.length - 1 ? <br /> : null}
+                  </span>
+                ))}
+              </span>
+            </h2>
+          </div>
         </div>
 
         <div
-          className="flex min-h-[100svh] items-center justify-center py-20 sm:py-24 lg:py-28"
+          className="-mx-6 flex min-h-[100svh] w-[calc(100%+3rem)] items-center justify-center bg-zinc-950 px-6 py-20 text-zinc-50 sm:py-24 lg:py-28"
           data-love-scroll-section
         >
           <ScrollFloat
