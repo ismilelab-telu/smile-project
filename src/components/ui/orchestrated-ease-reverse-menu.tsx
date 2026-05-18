@@ -154,6 +154,7 @@ export function OrchestratedEaseReverseMenu() {
 
         const menuBars = [topBar, midBar, bottomBar];
         const loveColorEase = gsap.parseEase("sine.inOut");
+        let lastLoveBounceOffsetY = 0;
         let lastLoveCoverProgress = 0;
         let lastLoveProgress = 0;
         let isLoveScrollActive = false;
@@ -255,11 +256,22 @@ export function OrchestratedEaseReverseMenu() {
           });
         };
 
-        const applyLoveScrollProgress = (progress: number, active: boolean, coverProgress = 0) => {
+        const applyLoveScrollProgress = (
+          progress: number,
+          active: boolean,
+          coverProgress = 0,
+          bounceOffsetY = 0,
+        ) => {
           const clampedProgress = gsap.utils.clamp(0, 1, progress);
           const clampedCoverProgress = gsap.utils.clamp(0, 1, coverProgress);
-          const isActive = active || clampedProgress > 0.001 || clampedCoverProgress > 0.001;
+          const safeBounceOffsetY = Number.isFinite(bounceOffsetY) ? bounceOffsetY : 0;
+          const isActive =
+            active ||
+            clampedProgress > 0.001 ||
+            clampedCoverProgress > 0.001 ||
+            Math.abs(safeBounceOffsetY) > 0.001;
 
+          lastLoveBounceOffsetY = safeBounceOffsetY;
           lastLoveCoverProgress = clampedCoverProgress;
           lastLoveProgress = clampedProgress;
           isLoveScrollActive = isActive;
@@ -287,7 +299,9 @@ export function OrchestratedEaseReverseMenu() {
           const targetPosition = getLoveTargetPosition();
           const baseX = getBaseX(dockProgress);
           const x = snapToDevicePixel(interpolate(baseX, targetPosition.x, clampedProgress));
-          const y = snapToDevicePixel(interpolate(0, targetPosition.y, clampedProgress));
+          const y = snapToDevicePixel(
+            interpolate(0, targetPosition.y, clampedProgress) + safeBounceOffsetY,
+          );
           const colorProgress = loveColorEase(clampedProgress);
           const shapeFill = mixOklchColors(islandShapeRestFill, islandHeartFill, colorProgress);
           const shapeStroke = mixOklchColors(
@@ -326,19 +340,30 @@ export function OrchestratedEaseReverseMenu() {
 
         const handleLoveScrollProgress = (event: Event) => {
           const detail = (
-            event as CustomEvent<{ active?: boolean; coverProgress?: number; progress?: number }>
+            event as CustomEvent<{
+              active?: boolean;
+              bounceOffsetY?: number;
+              coverProgress?: number;
+              progress?: number;
+            }>
           ).detail;
 
           applyLoveScrollProgress(
             detail?.progress ?? 0,
             detail?.active ?? false,
             detail?.coverProgress ?? 0,
+            detail?.bounceOffsetY ?? 0,
           );
         };
 
         const handleScroll = () => {
           if (isLoveScrollActive) {
-            applyLoveScrollProgress(lastLoveProgress, true, lastLoveCoverProgress);
+            applyLoveScrollProgress(
+              lastLoveProgress,
+              true,
+              lastLoveCoverProgress,
+              lastLoveBounceOffsetY,
+            );
             return;
           }
 
@@ -351,7 +376,12 @@ export function OrchestratedEaseReverseMenu() {
           }
 
           if (isLoveScrollActive) {
-            applyLoveScrollProgress(lastLoveProgress, true, lastLoveCoverProgress);
+            applyLoveScrollProgress(
+              lastLoveProgress,
+              true,
+              lastLoveCoverProgress,
+              lastLoveBounceOffsetY,
+            );
             return;
           }
 

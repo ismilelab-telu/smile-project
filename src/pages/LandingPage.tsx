@@ -25,7 +25,17 @@ const playgroundFinalLeadWords = ["We", "make", "you"];
 const playgroundFinalLeadWordMoveDuration = 0.24;
 const playgroundFinalLeadWordStarts = [0, 0.24, 0.42] as const;
 const playgroundFinalLeadWordStartY = 420;
+const finalLoveDockStart = 2.2;
 const finalLoveDockMoveDuration = 0.24;
+const finalLoveBounceRiseDuration = 0.28;
+const finalLoveBounceFallDuration = 0.28;
+const finalLoveBounceYOffset = -128;
+const finalLoveBounceStart = finalLoveDockStart + finalLoveDockMoveDuration;
+const finalWithWordStart =
+  finalLoveBounceStart + finalLoveBounceRiseDuration + finalLoveBounceFallDuration + 0.02;
+const finalItWordStart = finalWithWordStart + 0.28;
+const finalDotRevealStart = finalItWordStart + 0.24;
+const finalDotZoomStart = finalDotRevealStart + 0.24;
 
 export function LandingPage() {
   const landingRef = useRef<HTMLElement>(null);
@@ -670,6 +680,7 @@ export function LandingPage() {
       const inWord = root.querySelector<HTMLElement>("[data-final-word='in']");
       const loveTarget = root.querySelector<HTMLElement>("[data-love-scroll-target]");
       const inlineLove = root.querySelector<HTMLElement>("[data-final-inline-love]");
+      const loveBounceDot = root.querySelector<HTMLElement>("[data-love-bounce-dot]");
       const withWord = root.querySelector<HTMLElement>("[data-final-word='with']");
       const itWord = root.querySelector<HTMLElement>("[data-final-word='it']");
       const finalDot = root.querySelector<HTMLElement>("[data-final-dot]");
@@ -684,6 +695,7 @@ export function LandingPage() {
         !inWord ||
         !loveTarget ||
         !inlineLove ||
+        !loveBounceDot ||
         !withWord ||
         !itWord ||
         !finalDot ||
@@ -696,17 +708,24 @@ export function LandingPage() {
       const [weWord, makeWord, youWord] = finalLeadWords as [HTMLElement, HTMLElement, HTMLElement];
       const finalWords = [weWord, makeWord, youWord, fallWord, inWord, withWord, itWord, finalDot];
       const loveScrollState = { coverProgress: 0, progress: 0 };
+      const loveBounceState = { y: 0 };
       const dispatchLoveScrollProgress = (
         progress = loveScrollState.progress,
         coverProgress = loveScrollState.coverProgress,
+        bounceOffsetY = loveBounceState.y,
       ) => {
         const clampedProgress = gsap.utils.clamp(0, 1, progress);
         const clampedCoverProgress = gsap.utils.clamp(0, 1, coverProgress);
+        const safeBounceOffsetY = Number.isFinite(bounceOffsetY) ? bounceOffsetY : 0;
 
         window.dispatchEvent(
           new CustomEvent("smile:love-scroll-progress", {
             detail: {
-              active: clampedProgress > 0.001 || clampedCoverProgress > 0.001,
+              active:
+                clampedProgress > 0.001 ||
+                clampedCoverProgress > 0.001 ||
+                Math.abs(safeBounceOffsetY) > 0.001,
+              bounceOffsetY: safeBounceOffsetY,
               coverProgress: clampedCoverProgress,
               progress: clampedProgress,
             },
@@ -722,6 +741,7 @@ export function LandingPage() {
         gsap.set(finalWords, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(loveTarget, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(inlineLove, { autoAlpha: 0 });
+        gsap.set(loveBounceDot, { autoAlpha: 0, clearProps: "transform" });
         gsap.set(dotMorphSvg, { autoAlpha: 0 });
         dispatchLoveScrollProgress(0, 0);
         return;
@@ -775,6 +795,13 @@ export function LandingPage() {
         scale: 1,
         transformOrigin: "50% 50%",
         willChange: "opacity, transform",
+      });
+      gsap.set(loveBounceDot, {
+        autoAlpha: 0,
+        scale: 0.82,
+        transformOrigin: "50% 50%",
+        willChange: "opacity, transform",
+        y: 0,
       });
       gsap.set(dotMorphSvg, { autoAlpha: 0 });
       gsap.set(dotMorphCircle, { attr: { cx: 0, cy: 0, r: 0 } });
@@ -833,8 +860,6 @@ export function LandingPage() {
       syncDotMorphCircleToDot();
       dispatchLoveScrollProgress(0, 0);
 
-      const finalDotRevealStart = 3.22;
-      const finalDotZoomStart = 3.46;
       const finalDotMorphGrowStart = finalDotZoomStart + 0.02;
       const finalDotMorphGrowDuration = 0.4;
       const finalDotZoomEnd = finalDotMorphGrowStart + finalDotMorphGrowDuration;
@@ -952,7 +977,57 @@ export function LandingPage() {
             ease: "none",
             progress: 1,
           },
-          2.2,
+          finalLoveDockStart,
+        )
+        .to(
+          loveBounceState,
+          {
+            duration: finalLoveBounceRiseDuration,
+            ease: "power2.out",
+            onUpdate: () => dispatchLoveScrollProgress(),
+            y: finalLoveBounceYOffset,
+          },
+          finalLoveBounceStart,
+        )
+        .to(
+          loveBounceDot,
+          {
+            autoAlpha: 1,
+            duration: 0.04,
+            ease: "none",
+            scale: 1,
+          },
+          finalLoveBounceStart,
+        )
+        .to(
+          loveBounceDot,
+          {
+            duration: finalLoveBounceRiseDuration,
+            ease: "power2.out",
+            y: finalLoveBounceYOffset,
+          },
+          finalLoveBounceStart,
+        )
+        .to(
+          loveBounceState,
+          {
+            duration: finalLoveBounceFallDuration,
+            ease: "power3.in",
+            onUpdate: () => dispatchLoveScrollProgress(),
+            y: 0,
+          },
+          finalLoveBounceStart + finalLoveBounceRiseDuration,
+        )
+        .to(
+          loveBounceDot,
+          {
+            autoAlpha: 0,
+            duration: finalLoveBounceFallDuration,
+            ease: "power2.in",
+            scale: 0.72,
+            y: 0,
+          },
+          finalLoveBounceStart + finalLoveBounceRiseDuration,
         )
         .to(
           withWord,
@@ -962,9 +1037,9 @@ export function LandingPage() {
             scale: 1,
             yPercent: 0,
           },
-          2.7,
+          finalWithWordStart,
         )
-        .set(withWord, { autoAlpha: 1 }, 2.7)
+        .set(withWord, { autoAlpha: 1 }, finalWithWordStart)
         .to(
           itWord,
           {
@@ -973,9 +1048,9 @@ export function LandingPage() {
             scale: 1,
             yPercent: 0,
           },
-          2.98,
+          finalItWordStart,
         )
-        .set(itWord, { autoAlpha: 1 }, 2.98)
+        .set(itWord, { autoAlpha: 1 }, finalItWordStart)
         .to(finalDot, { autoAlpha: 1, duration: 0.16, ease: "none" }, finalDotRevealStart)
         .set(dotMorphSvg, { autoAlpha: 1 }, finalDotZoomStart)
         .call(syncDotMorphCircleToDot, [], finalDotZoomStart)
@@ -1357,6 +1432,19 @@ export function LandingPage() {
                       fill="oklch(61.224% 0.2313 22.61)"
                     />
                   </svg>
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-[calc(100%+0.08em)] left-[calc(50%-0.08em)] block h-[0.18em] w-[0.18em] -translate-x-1/2 opacity-0"
+                    data-love-bounce-dot
+                  >
+                    <svg
+                      aria-hidden="true"
+                      className="block h-full w-full overflow-visible"
+                      viewBox="0 0 100 100"
+                    >
+                      <circle cx="50" cy="50" fill="oklch(61.224% 0.2313 22.61)" r="50" />
+                    </svg>
+                  </span>
                 </span>
                 <span className="relative z-10 inline-block" data-final-word="with">
                   with
