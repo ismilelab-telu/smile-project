@@ -1706,12 +1706,12 @@ export function LandingPage() {
         </div>
 
         <div
-          className="relative z-20 -mx-6 flex h-[100svh] w-[calc(100%+3rem)] items-stretch justify-center overflow-hidden rounded-t-2xl bg-zinc-50 pt-10 text-zinc-50"
+          className="relative z-20 -mx-6 flex h-[100svh] w-[calc(100%+3rem)] items-center justify-center overflow-hidden rounded-t-2xl bg-zinc-800 px-16 py-16 text-zinc-50"
           data-playground-friction-stage
         >
           <article
             aria-label={playgroundFrictionAriaLabel}
-            className="relative grid h-[calc(100svh-2.5rem)] w-full grid-cols-[0.9fr_1.1fr] items-center gap-12 overflow-hidden rounded-t-2xl bg-zinc-800 px-16 py-16"
+            className="relative grid h-full w-full grid-cols-[0.9fr_1.1fr] items-center gap-12 overflow-hidden"
             data-playground-friction-card
           >
             <div
@@ -1920,7 +1920,7 @@ export function LandingPage() {
             >
               <span
                 aria-hidden="true"
-                className="inline-block text-4xl leading-[1.14] font-black tracking-normal sm:text-5xl md:text-7xl lg:text-8xl xl:text-9xl"
+                className="inline-block text-4xl leading-[1.14] font-extrabold tracking-normal sm:text-5xl md:text-7xl lg:text-8xl xl:text-9xl"
               >
                 {playgroundTeachingLines.map((line, lineIndex) => (
                   <span key={line} className="contents">
@@ -2003,11 +2003,11 @@ export function LandingPage() {
           >
             <h2
               aria-label={playgroundFinalAriaLabel}
-              className="relative z-[1100] mx-auto flex w-full max-w-screen-2xl flex-col items-center justify-center text-center font-black tracking-normal"
+              className="relative z-[1100] mx-auto flex w-full max-w-screen-2xl flex-col items-center justify-center text-center font-extrabold tracking-normal"
             >
               <span
                 aria-hidden="true"
-                className="flex max-w-full items-center justify-center gap-x-[0.18em] overflow-visible pb-[0.14em] text-[clamp(2.6rem,7vw,7.5rem)] leading-[1.04] whitespace-nowrap"
+                className="flex max-w-full items-center justify-center gap-x-[0.18em] overflow-visible pb-[0.14em] text-4xl leading-[1.04] whitespace-nowrap sm:text-5xl md:text-7xl lg:text-8xl xl:text-9xl"
                 data-final-lead-text
               >
                 {playgroundFinalLeadWords.map((word) => (
@@ -2023,7 +2023,7 @@ export function LandingPage() {
 
               <span
                 aria-hidden="true"
-                className="mt-7 flex max-w-full flex-wrap items-center justify-center gap-x-[0.18em] gap-y-3 text-[clamp(3.1rem,8.2vw,8.7rem)] leading-[0.9] whitespace-nowrap sm:mt-9"
+                className="mt-7 flex max-w-full flex-wrap items-center justify-center gap-x-[0.18em] gap-y-3 text-4xl leading-[0.9] whitespace-nowrap sm:mt-9 sm:text-5xl md:text-7xl lg:text-8xl xl:text-9xl"
               >
                 <span className="inline-block" data-final-word="fall">
                   fall
