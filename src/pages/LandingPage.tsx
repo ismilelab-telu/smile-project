@@ -515,7 +515,7 @@ export function LandingPage() {
         return;
       }
 
-      const frictionSection = root.querySelector<HTMLElement>("[data-playground-friction-panel]");
+      const frictionSection = root.querySelector<HTMLElement>("[data-playground-friction-stage]");
       const frictionCard = root.querySelector<HTMLElement>("[data-playground-friction-card]");
       const setupCopy = root.querySelector<HTMLElement>("[data-playground-friction-copy='setup']");
       const heavyCopy = root.querySelector<HTMLElement>("[data-playground-friction-copy='heavy']");
@@ -1549,7 +1549,7 @@ export function LandingPage() {
         >
           <article
             aria-labelledby="playground-intro-title"
-            className="relative h-[calc(100svh-2.5rem)] w-full overflow-hidden border-t border-zinc-50 bg-zinc-100"
+            className="relative h-[calc(100svh-2.5rem)] w-full overflow-hidden rounded-t-2xl border-t border-zinc-50 bg-zinc-100"
             data-playground-intro-card
           >
             <h2
@@ -1706,208 +1706,196 @@ export function LandingPage() {
         </div>
 
         <div
-          className="relative z-20 -mx-6 h-[100svh] w-[calc(100%+3rem)] overflow-hidden rounded-t-md bg-zinc-800 text-zinc-50"
-          data-playground-friction-panel
+          className="relative z-20 -mx-6 flex h-[100svh] w-[calc(100%+3rem)] items-stretch justify-center overflow-hidden rounded-t-2xl bg-zinc-50 pt-10 text-zinc-50"
+          data-playground-friction-stage
         >
-          <div
-            className="relative flex h-full items-center justify-center overflow-hidden bg-zinc-800 px-16 py-16"
-            data-playground-friction-stage
+          <article
+            aria-label={playgroundFrictionAriaLabel}
+            className="relative grid h-[calc(100svh-2.5rem)] w-full grid-cols-[0.9fr_1.1fr] items-center gap-12 overflow-hidden rounded-t-2xl bg-zinc-800 px-16 py-16"
+            data-playground-friction-card
           >
-            <article
-              aria-label={playgroundFrictionAriaLabel}
-              className="relative grid h-full w-full grid-cols-[0.9fr_1.1fr] items-center gap-12 overflow-hidden"
-              data-playground-friction-card
-            >
-              <div
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,oklch(1_0_0_/_0.055)_1px,transparent_1px),linear-gradient(to_bottom,oklch(1_0_0_/_0.055)_1px,transparent_1px)] bg-[size:56px_56px] opacity-35"
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_72%_50%,oklch(1_0_0_/_0.1)_0%,transparent_44%),linear-gradient(to_bottom,oklch(0.274_0.006_286.033)_0%,oklch(0.21_0.006_285.885)_100%)]"
+            />
+
+            <h2 className="relative z-10 max-w-2xl text-[clamp(4.6rem,7.4vw,9.2rem)] leading-[0.88] font-black tracking-normal">
+              <span
+                className="block will-change-[transform,opacity]"
+                data-playground-friction-copy="setup"
+              >
+                We stripped away
+              </span>
+              <span
+                className="mt-5 block text-zinc-200 will-change-[transform,opacity]"
+                data-playground-friction-copy="heavy"
+              >
+                heavy coding.
+              </span>
+              <span
+                className="mt-16 block text-[0.56em] leading-[0.94] text-zinc-400 will-change-[transform,opacity]"
+                data-playground-friction-copy="opened"
+              >
+                We opened up
+              </span>
+              <span
+                className="mt-4 block text-[0.72em] leading-[0.9] will-change-[transform,opacity]"
+                data-playground-friction-copy="box"
+              >
+                the black box.
+              </span>
+              <span
+                className="absolute top-[42%] left-0 block max-w-[9ch] text-[0.76em] leading-[0.88] will-change-[transform,opacity]"
+                data-playground-friction-copy="sweet"
+              >
+                the sweet spot for learning.
+              </span>
+            </h2>
+
+            <div className="relative z-10 flex items-center justify-center">
+              <svg
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,oklch(1_0_0_/_0.055)_1px,transparent_1px),linear-gradient(to_bottom,oklch(1_0_0_/_0.055)_1px,transparent_1px)] bg-[size:56px_56px] opacity-35"
-              />
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_72%_50%,oklch(1_0_0_/_0.1)_0%,transparent_44%),linear-gradient(to_bottom,oklch(0.274_0.006_286.033)_0%,oklch(0.21_0.006_285.885)_100%)]"
-              />
-
-              <h2 className="relative z-10 max-w-2xl text-[clamp(4.6rem,7.4vw,9.2rem)] leading-[0.88] font-black tracking-normal">
-                <span
-                  className="block will-change-[transform,opacity]"
-                  data-playground-friction-copy="setup"
-                >
-                  We stripped away
-                </span>
-                <span
-                  className="mt-5 block text-zinc-200 will-change-[transform,opacity]"
-                  data-playground-friction-copy="heavy"
-                >
-                  heavy coding.
-                </span>
-                <span
-                  className="mt-16 block text-[0.56em] leading-[0.94] text-zinc-400 will-change-[transform,opacity]"
-                  data-playground-friction-copy="opened"
-                >
-                  We opened up
-                </span>
-                <span
-                  className="mt-4 block text-[0.72em] leading-[0.9] will-change-[transform,opacity]"
-                  data-playground-friction-copy="box"
-                >
-                  the black box.
-                </span>
-                <span
-                  className="absolute top-[42%] left-0 block max-w-[9ch] text-[0.76em] leading-[0.88] will-change-[transform,opacity]"
-                  data-playground-friction-copy="sweet"
-                >
-                  the sweet spot for learning.
-                </span>
-              </h2>
-
-              <div className="relative z-10 flex items-center justify-center">
-                <svg
-                  aria-hidden="true"
-                  className="h-[min(680px,76svh)] w-full max-w-[880px] overflow-visible"
-                  viewBox="0 0 860 640"
-                >
-                  <g data-playground-friction-code-window>
-                    <rect
-                      fill="oklch(0.21 0.006 285.885)"
-                      height="378"
-                      rx="18"
-                      stroke="oklch(1 0 0 / 0.18)"
-                      width="470"
-                      x="70"
-                      y="116"
-                    />
-                    <rect
-                      fill="oklch(1 0 0 / 0.08)"
-                      height="46"
-                      rx="18"
-                      width="470"
-                      x="70"
-                      y="116"
-                    />
-                    <circle cx="104" cy="139" fill="oklch(1 0 0 / 0.62)" r="6" />
-                    <circle cx="126" cy="139" fill="oklch(1 0 0 / 0.38)" r="6" />
-                    <circle cx="148" cy="139" fill="oklch(1 0 0 / 0.24)" r="6" />
-                    {[
-                      [112, 196, 322],
-                      [112, 228, 260],
-                      [112, 260, 346],
-                      [112, 292, 218],
-                      [112, 324, 300],
-                      [112, 356, 246],
-                      [112, 388, 336],
-                      [112, 420, 188],
-                    ].map(([x, y, width]) => (
-                      <rect
-                        data-playground-friction-code-line
-                        fill="oklch(1 0 0 / 0.62)"
-                        height="12"
-                        key={`${x}-${y}-${width}`}
-                        rx="6"
-                        width={width}
-                        x={x}
-                        y={y}
-                      />
-                    ))}
-                  </g>
-
-                  <g data-playground-friction-black-box>
-                    <rect
-                      fill="oklch(0.09 0 0)"
-                      height="238"
-                      rx="22"
-                      stroke="oklch(1 0 0 / 0.2)"
-                      width="314"
-                      x="288"
-                      y="194"
-                    />
-                    <rect
-                      data-playground-friction-box-panel
-                      fill="oklch(0.02 0 0)"
-                      height="238"
-                      rx="22"
-                      width="157"
-                      x="288"
-                      y="194"
-                    />
-                    <rect
-                      data-playground-friction-box-panel
-                      fill="oklch(0.02 0 0)"
-                      height="238"
-                      rx="22"
-                      width="157"
-                      x="445"
-                      y="194"
-                    />
-                    <g data-playground-friction-box-interior>
-                      <path
-                        d="M346 315 H416 M474 315 H544 M445 262 V368"
-                        fill="none"
-                        stroke="oklch(1 0 0 / 0.7)"
-                        strokeLinecap="round"
-                        strokeWidth="8"
-                      />
-                      <circle cx="346" cy="315" fill="oklch(1 0 0 / 0.82)" r="12" />
-                      <circle cx="445" cy="262" fill="oklch(1 0 0 / 0.82)" r="12" />
-                      <circle cx="445" cy="368" fill="oklch(1 0 0 / 0.82)" r="12" />
-                      <circle cx="544" cy="315" fill="oklch(1 0 0 / 0.82)" r="12" />
-                    </g>
-                  </g>
-
-                  <g data-playground-friction-axis>
-                    <line
-                      stroke="oklch(1 0 0 / 0.28)"
-                      strokeLinecap="round"
-                      strokeWidth="3"
-                      x1="212"
-                      x2="686"
-                      y1="520"
-                      y2="520"
-                    />
-                  </g>
-                  <g data-playground-friction-axis>
-                    <line
-                      stroke="oklch(1 0 0 / 0.28)"
-                      strokeLinecap="round"
-                      strokeWidth="3"
-                      x1="449"
-                      x2="449"
-                      y1="282"
-                      y2="596"
-                    />
-                  </g>
-                  <circle
-                    cx="449"
-                    cy="520"
-                    data-playground-friction-sweet-ring
-                    fill="none"
-                    r="116"
+                className="h-[min(680px,76svh)] w-full max-w-[880px] overflow-visible"
+                viewBox="0 0 860 640"
+              >
+                <g data-playground-friction-code-window>
+                  <rect
+                    fill="oklch(0.21 0.006 285.885)"
+                    height="378"
+                    rx="18"
                     stroke="oklch(1 0 0 / 0.18)"
-                    strokeWidth="2"
+                    width="470"
+                    x="70"
+                    y="116"
                   />
+                  <rect fill="oklch(1 0 0 / 0.08)" height="46" rx="18" width="470" x="70" y="116" />
+                  <circle cx="104" cy="139" fill="oklch(1 0 0 / 0.62)" r="6" />
+                  <circle cx="126" cy="139" fill="oklch(1 0 0 / 0.38)" r="6" />
+                  <circle cx="148" cy="139" fill="oklch(1 0 0 / 0.24)" r="6" />
+                  {[
+                    [112, 196, 322],
+                    [112, 228, 260],
+                    [112, 260, 346],
+                    [112, 292, 218],
+                    [112, 324, 300],
+                    [112, 356, 246],
+                    [112, 388, 336],
+                    [112, 420, 188],
+                  ].map(([x, y, width]) => (
+                    <rect
+                      data-playground-friction-code-line
+                      fill="oklch(1 0 0 / 0.62)"
+                      height="12"
+                      key={`${x}-${y}-${width}`}
+                      rx="6"
+                      width={width}
+                      x={x}
+                      y={y}
+                    />
+                  ))}
+                </g>
+
+                <g data-playground-friction-black-box>
+                  <rect
+                    fill="oklch(0.09 0 0)"
+                    height="238"
+                    rx="22"
+                    stroke="oklch(1 0 0 / 0.2)"
+                    width="314"
+                    x="288"
+                    y="194"
+                  />
+                  <rect
+                    data-playground-friction-box-panel
+                    fill="oklch(0.02 0 0)"
+                    height="238"
+                    rx="22"
+                    width="157"
+                    x="288"
+                    y="194"
+                  />
+                  <rect
+                    data-playground-friction-box-panel
+                    fill="oklch(0.02 0 0)"
+                    height="238"
+                    rx="22"
+                    width="157"
+                    x="445"
+                    y="194"
+                  />
+                  <g data-playground-friction-box-interior>
+                    <path
+                      d="M346 315 H416 M474 315 H544 M445 262 V368"
+                      fill="none"
+                      stroke="oklch(1 0 0 / 0.7)"
+                      strokeLinecap="round"
+                      strokeWidth="8"
+                    />
+                    <circle cx="346" cy="315" fill="oklch(1 0 0 / 0.82)" r="12" />
+                    <circle cx="445" cy="262" fill="oklch(1 0 0 / 0.82)" r="12" />
+                    <circle cx="445" cy="368" fill="oklch(1 0 0 / 0.82)" r="12" />
+                    <circle cx="544" cy="315" fill="oklch(1 0 0 / 0.82)" r="12" />
+                  </g>
+                </g>
+
+                <g data-playground-friction-axis>
+                  <line
+                    stroke="oklch(1 0 0 / 0.28)"
+                    strokeLinecap="round"
+                    strokeWidth="3"
+                    x1="212"
+                    x2="686"
+                    y1="520"
+                    y2="520"
+                  />
+                </g>
+                <g data-playground-friction-axis>
+                  <line
+                    stroke="oklch(1 0 0 / 0.28)"
+                    strokeLinecap="round"
+                    strokeWidth="3"
+                    x1="449"
+                    x2="449"
+                    y1="282"
+                    y2="596"
+                  />
+                </g>
+                <circle
+                  cx="449"
+                  cy="520"
+                  data-playground-friction-sweet-ring
+                  fill="none"
+                  r="116"
+                  stroke="oklch(1 0 0 / 0.18)"
+                  strokeWidth="2"
+                />
+                <circle
+                  cx="449"
+                  cy="520"
+                  data-playground-friction-sweet-ring
+                  fill="none"
+                  r="74"
+                  stroke="oklch(1 0 0 / 0.3)"
+                  strokeWidth="2"
+                />
+                <g data-playground-friction-sweet-spot>
+                  <circle cx="449" cy="520" fill="oklch(1 0 0)" r="16" />
                   <circle
                     cx="449"
                     cy="520"
-                    data-playground-friction-sweet-ring
                     fill="none"
-                    r="74"
-                    stroke="oklch(1 0 0 / 0.3)"
-                    strokeWidth="2"
+                    r="28"
+                    stroke="oklch(1 0 0)"
+                    strokeWidth="3"
                   />
-                  <g data-playground-friction-sweet-spot>
-                    <circle cx="449" cy="520" fill="oklch(1 0 0)" r="16" />
-                    <circle
-                      cx="449"
-                      cy="520"
-                      fill="none"
-                      r="28"
-                      stroke="oklch(1 0 0)"
-                      strokeWidth="3"
-                    />
-                  </g>
-                </svg>
-              </div>
-            </article>
-          </div>
+                </g>
+              </svg>
+            </div>
+          </article>
         </div>
 
         <div
