@@ -1074,7 +1074,7 @@ export function LandingPage() {
         .to(
           fallWord,
           {
-            duration: 0.18,
+            duration: 0.12,
             ease: "power2.out",
             rotation: -2,
             scaleX: 0.94,
@@ -1086,49 +1086,49 @@ export function LandingPage() {
         .to(
           fallWord,
           {
-            duration: 0.16,
+            duration: 0.12,
             ease: "power2.in",
             rotation: 0.8,
             scaleX: 1.08,
             scaleY: 0.88,
             y: 0,
           },
-          1.42,
+          1.36,
         )
         .to(
           fallWord,
           {
-            duration: 0.08,
+            duration: 0.06,
             ease: "power2.out",
             rotation: 0,
             scaleX: 1.16,
             scaleY: 0.8,
             y: 0,
           },
-          1.58,
+          1.48,
         )
         .to(
           fallWord,
           {
-            duration: 0.18,
+            duration: 0.14,
             ease: "elastic.out(1, 0.42)",
             rotation: 0,
             scaleX: 1,
             scaleY: 1,
             y: 0,
           },
-          1.66,
+          1.54,
         )
         .to(
           inWord,
           {
             autoAlpha: 1,
-            duration: 0.28,
+            duration: 0.18,
             ease: "expo.out",
             scaleX: 1,
             x: 0,
           },
-          1.86,
+          1.72,
         )
         .to(
           loveScrollState,
