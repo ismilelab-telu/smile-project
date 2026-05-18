@@ -14,7 +14,7 @@ gsap.registerPlugin(useGSAP, ScrollTrigger);
 
 const playgroundIntroEyebrow = "Introducing";
 const playgroundIntroTitle = "Interactive ML Playground";
-const playgroundIntroSubtitle = "where complex algorithms turn into visual, hands-on play.";
+const playgroundIntroSubtitle = "Turn complex ML algorithms into visual, hands-on learning.";
 const playgroundFrictionAriaLabel =
   "We stripped away heavy coding. We opened up the black box. And found the sweet spot for learning.";
 const playgroundTeachingCopy = "We don't just teach\nyou Machine Learning.";
@@ -263,7 +263,7 @@ export function LandingPage() {
         gsap.set(introProduct, {
           autoAlpha: 1,
           transformOrigin: "50% 50%",
-          y: 30,
+          y: -10,
           yPercent: -50,
         });
         gsap.set([introSubtitle, introVisual], {
@@ -302,7 +302,7 @@ export function LandingPage() {
         gsap.set(introProduct, {
           autoAlpha: 0,
           transformOrigin: "50% 50%",
-          y: 172,
+          y: 230,
           yPercent: -50,
         });
         gsap.set(introSubtitle, {
@@ -410,7 +410,7 @@ export function LandingPage() {
               autoAlpha: 1,
               duration: 0.36,
               ease: "power3.out",
-              y: 30,
+              y: -10,
             },
             0.8,
           )
@@ -1543,7 +1543,7 @@ export function LandingPage() {
         ref={playgroundSectionRef}
       >
         <div
-          className="relative z-10 -mx-6 flex h-[100svh] w-[calc(100%+3rem)] items-stretch justify-center overflow-hidden bg-zinc-50 pt-10"
+          className="relative z-10 -mx-6 flex h-[100svh] w-[calc(100%+3rem)] items-stretch justify-center overflow-hidden rounded-t-md bg-zinc-50 pt-10"
           data-playground-intro-panel
         >
           <article
@@ -1573,7 +1573,7 @@ export function LandingPage() {
             </h2>
 
             <p
-              className="absolute inset-x-12 top-[64%] z-10 mx-auto max-w-4xl text-center text-[clamp(1rem,1.45vw,1.25rem)] leading-[1.5] font-medium text-zinc-600 opacity-0 will-change-[transform,opacity]"
+              className="absolute inset-x-12 top-[44%] z-10 mx-auto max-w-4xl text-center text-[clamp(1rem,1.45vw,1.25rem)] leading-[1.5] font-normal text-zinc-600 opacity-0 will-change-[transform,opacity]"
               data-playground-intro-subtitle
             >
               {playgroundIntroSubtitle}
@@ -1705,7 +1705,7 @@ export function LandingPage() {
         </div>
 
         <div
-          className="relative z-20 -mx-6 h-[100svh] w-[calc(100%+3rem)] overflow-hidden bg-zinc-800 text-zinc-50"
+          className="relative z-20 -mx-6 h-[100svh] w-[calc(100%+3rem)] overflow-hidden rounded-t-md bg-zinc-800 text-zinc-50"
           data-playground-friction-panel
         >
           <div
