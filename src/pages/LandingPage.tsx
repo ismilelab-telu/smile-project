@@ -1434,7 +1434,7 @@ export function LandingPage() {
                   </svg>
                   <span
                     aria-hidden="true"
-                    className="pointer-events-none absolute top-[calc(100%+0.08em)] left-[calc(50%-0.08em)] block h-[0.18em] w-[0.18em] -translate-x-1/2 opacity-0"
+                    className="pointer-events-none absolute top-[calc(100%+0.08em)] left-[calc(50%-0.05em)] block h-[0.18em] w-[0.18em] -translate-x-1/2 opacity-0"
                     data-love-bounce-dot
                   >
                     <svg
