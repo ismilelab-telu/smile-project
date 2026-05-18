@@ -11,7 +11,7 @@ import { GlassSurface } from "@/components/ui/glass-surface";
 import { CinematicFooter } from "@/components/ui/motion-footer";
 import { OrchestratedEaseReverseMenu } from "@/components/ui/orchestrated-ease-reverse-menu";
 import { SplitText } from "@/components/ui/split-text";
-import playgroundHandDotsImage from "../../assets/playground-hand-dots.png";
+import playgroundHandDotsVector from "../../assets/playground-hand-dots-transparent.svg";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger, GSAPSplitText);
 
@@ -1336,15 +1336,15 @@ export function LandingPage() {
 
               <figure
                 aria-label="Interactive ML Playground preview"
-                className="absolute -bottom-[4%] left-1/2 z-10 aspect-video h-[min(46svh,520px)] -translate-x-1/2 overflow-hidden rounded-2xl bg-zinc-600 opacity-0 will-change-[transform,opacity]"
+                className="absolute -bottom-[4%] left-1/2 z-10 aspect-video h-[min(46svh,520px)] -translate-x-1/2 overflow-visible opacity-0 will-change-[transform,opacity]"
                 data-playground-intro-visual
               >
                 <img
                   alt=""
                   aria-hidden="true"
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain"
                   draggable={false}
-                  src={playgroundHandDotsImage}
+                  src={playgroundHandDotsVector}
                 />
               </figure>
             </article>
