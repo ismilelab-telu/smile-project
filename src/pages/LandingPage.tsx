@@ -446,7 +446,7 @@ export function LandingPage() {
           .to(
             introSection,
             {
-              duration: 0.24,
+              duration: 0.9,
               ease: "none",
               scale: 0.7,
             },
@@ -797,7 +797,7 @@ export function LandingPage() {
           .to(
             frictionSection,
             {
-              duration: 0.24,
+              duration: 0.9,
               ease: "none",
               scale: 0.7,
             },
