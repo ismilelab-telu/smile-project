@@ -2,9 +2,11 @@ import { useCallback, useRef, useState } from "react";
 import { IconArrowRight } from "@tabler/icons-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
+import { DrawSVGPlugin } from "gsap/DrawSVGPlugin";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText as GSAPSplitText } from "gsap/SplitText";
 
+import { PlaygroundIntroAxes } from "@/components/PlaygroundIntroAxes";
 import { PlaygroundIntroDots } from "@/components/PlaygroundIntroDots";
 import { DottedSurface } from "@/components/ui/dotted-surface";
 import { BlurText } from "@/components/ui/blur-text";
@@ -13,7 +15,7 @@ import { CinematicFooter } from "@/components/ui/motion-footer";
 import { OrchestratedEaseReverseMenu } from "@/components/ui/orchestrated-ease-reverse-menu";
 import { SplitText } from "@/components/ui/split-text";
 
-gsap.registerPlugin(useGSAP, ScrollTrigger, GSAPSplitText);
+gsap.registerPlugin(useGSAP, DrawSVGPlugin, ScrollTrigger, GSAPSplitText);
 
 const playgroundIntroEyebrow = "Introducing";
 const playgroundIntroTitle = "Interactive ML Playground";
@@ -242,10 +244,21 @@ export function LandingPage() {
       const introMeet = root.querySelector<HTMLElement>("[data-playground-intro-meet]");
       const introProduct = root.querySelector<HTMLElement>("[data-playground-intro-product]");
       const introSubtitle = root.querySelector<HTMLElement>("[data-playground-intro-subtitle]");
+      const introChart = root.querySelector<HTMLElement>("[data-playground-intro-chart]");
       const introDots = root.querySelector<HTMLElement>("[data-playground-intro-dots]");
       const introDotElements = Array.from(
         introDots?.querySelectorAll<SVGPathElement>("[data-playground-intro-dot]") ?? [],
       );
+      const introAxisXLine = root.querySelector<SVGPathElement>("[data-playground-axis-x-line]");
+      const introAxisXArrow = root.querySelector<SVGPathElement>("[data-playground-axis-x-arrow]");
+      const introAxisYLine = root.querySelector<SVGPathElement>("[data-playground-axis-y-line]");
+      const introAxisYArrow = root.querySelector<SVGPathElement>("[data-playground-axis-y-arrow]");
+      const introAxisElements = [
+        introAxisXLine,
+        introAxisXArrow,
+        introAxisYLine,
+        introAxisYArrow,
+      ].filter((axisElement): axisElement is SVGPathElement => axisElement !== null);
 
       if (
         !introSection ||
@@ -253,7 +266,12 @@ export function LandingPage() {
         !introMeet ||
         !introProduct ||
         !introSubtitle ||
+        !introChart ||
         !introDots ||
+        !introAxisXLine ||
+        !introAxisXArrow ||
+        !introAxisYLine ||
+        !introAxisYArrow ||
         introDotElements.length === 0
       ) {
         return;
@@ -293,6 +311,10 @@ export function LandingPage() {
           autoAlpha: 1,
           clearProps: "transform",
         });
+        gsap.set(introChart, {
+          autoAlpha: 1,
+          clearProps: "transform",
+        });
         gsap.set(introDots, {
           autoAlpha: 1,
           clearProps: "transform",
@@ -300,6 +322,10 @@ export function LandingPage() {
         gsap.set(introDotElements, {
           autoAlpha: 1,
           scale: 1,
+        });
+        gsap.set(introAxisElements, {
+          autoAlpha: 1,
+          drawSVG: "0% 100%",
         });
       });
 
@@ -333,6 +359,9 @@ export function LandingPage() {
           autoAlpha: 0,
           y: 28,
         });
+        gsap.set(introChart, {
+          autoAlpha: 1,
+        });
         gsap.set(introDots, {
           autoAlpha: 1,
         });
@@ -342,8 +371,12 @@ export function LandingPage() {
           transformBox: "fill-box",
           transformOrigin: "50% 50%",
         });
+        gsap.set(introAxisElements, {
+          autoAlpha: 1,
+          drawSVG: "0% 0%",
+        });
 
-        const introRevealScrollUnits = 1.45;
+        const introRevealScrollUnits = 2.65;
         const introExitScrollUnits = 1;
         const introExitStart = introRevealScrollUnits;
         const syncIntroPanelSpacing = () => {
@@ -449,6 +482,42 @@ export function LandingPage() {
               },
             },
             1.12,
+          )
+          .to(
+            introAxisXLine,
+            {
+              drawSVG: "0% 100%",
+              duration: 0.28,
+              ease: "power2.out",
+            },
+            1.9,
+          )
+          .to(
+            introAxisXArrow,
+            {
+              drawSVG: "0% 100%",
+              duration: 0.14,
+              ease: "power2.out",
+            },
+            2.14,
+          )
+          .to(
+            introAxisYLine,
+            {
+              drawSVG: "0% 100%",
+              duration: 0.28,
+              ease: "power2.out",
+            },
+            2.26,
+          )
+          .to(
+            introAxisYArrow,
+            {
+              drawSVG: "0% 100%",
+              duration: 0.14,
+              ease: "power2.out",
+            },
+            2.5,
           )
           .to(
             introSection,
@@ -1354,10 +1423,14 @@ export function LandingPage() {
 
               <figure
                 aria-hidden="true"
-                className="pointer-events-none absolute left-1/2 top-[62%] z-10 aspect-[170/95] w-[min(28vw,680px)] -translate-x-1/2 text-[#05C68E] opacity-0 will-change-[opacity]"
-                data-playground-intro-dots
+                className="pointer-events-none absolute left-1/2 top-[62%] z-10 aspect-[170/95] w-[min(28vw,680px)] -translate-x-1/2 opacity-0 will-change-[opacity]"
+                data-playground-intro-chart
               >
-                <PlaygroundIntroDots className="h-full w-full overflow-visible" />
+                <PlaygroundIntroAxes className="absolute inset-0 h-full w-full overflow-visible text-zinc-950" />
+                <PlaygroundIntroDots
+                  className="relative z-10 h-full w-full overflow-visible text-[#05C68E]"
+                  data-playground-intro-dots
+                />
               </figure>
             </article>
           </div>
