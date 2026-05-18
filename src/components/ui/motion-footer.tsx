@@ -288,13 +288,13 @@ export function CinematicFooter() {
           <div className="relative z-10 mx-auto mt-20 flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-6">
             <div ref={headingRef} className="mb-9">
               <BlurText
-                animateBy="words"
+                animateBy="sentence"
                 as="h2"
                 className={cn(
                   "justify-center text-center text-[clamp(2.7rem,9vw,6.2rem)] leading-[0.95] font-black tracking-normal",
                 )}
                 delay={footerHeadingWordDelay}
-                direction="top"
+                direction="bottom"
                 replayKey={headingTextReplayKey}
                 rootMargin="0px 0px -12% 0px"
                 segmentClassName={textGlowClassName}

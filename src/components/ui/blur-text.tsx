@@ -11,9 +11,10 @@ import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 type AnimationSnapshot = Partial<Record<"filter" | "opacity" | "y", number | string>>;
+type BlurTextAnimationUnit = "words" | "letters" | "sentence";
 
 type BlurTextProps<TElement extends ElementType = "p"> = {
-  animateBy?: "words" | "letters";
+  animateBy?: BlurTextAnimationUnit;
   animationFrom?: AnimationSnapshot;
   animationTo?: AnimationSnapshot[];
   as?: TElement;
@@ -46,6 +47,14 @@ const buildKeyframes = (from: AnimationSnapshot, steps: AnimationSnapshot[]) => 
   return keyframes;
 };
 
+const splitTextByAnimationUnit = (text: string, animateBy: BlurTextAnimationUnit) => {
+  if (animateBy === "sentence") {
+    return [text];
+  }
+
+  return animateBy === "words" ? text.split(" ") : text.split("");
+};
+
 export function BlurText<TElement extends ElementType = "p">({
   animateBy = "words",
   animationFrom,
@@ -66,10 +75,7 @@ export function BlurText<TElement extends ElementType = "p">({
   ...props
 }: BlurTextProps<TElement>) {
   const Component = as ?? "p";
-  const elements = useMemo(
-    () => (animateBy === "words" ? text.split(" ") : text.split("")),
-    [animateBy, text],
-  );
+  const elements = useMemo(() => splitTextByAnimationUnit(text, animateBy), [animateBy, text]);
   const [inView, setInView] = useState(false);
   const ref = useRef<HTMLElement | null>(null);
 

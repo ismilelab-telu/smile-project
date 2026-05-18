@@ -5,10 +5,12 @@ import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import { DottedSurface } from "@/components/ui/dotted-surface";
+import { BlurText } from "@/components/ui/blur-text";
 import { GlassSurface } from "@/components/ui/glass-surface";
 import { CinematicFooter } from "@/components/ui/motion-footer";
 import { OrchestratedEaseReverseMenu } from "@/components/ui/orchestrated-ease-reverse-menu";
 import { SplitText } from "@/components/ui/split-text";
+import playgroundHandDotsImage from "../../assets/playground-hand-dots.png";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
@@ -35,6 +37,7 @@ export function LandingPage() {
   const exploreLabelRef = useRef<HTMLSpanElement>(null);
   const [canStartDescriptionAnimation, setCanStartDescriptionAnimation] = useState(false);
   const [canRevealHeroAction, setCanRevealHeroAction] = useState(false);
+  const [canRevealIntroProductText, setCanRevealIntroProductText] = useState(false);
   const startDescriptionAnimation = useCallback(() => {
     setCanStartDescriptionAnimation(true);
   }, []);
@@ -181,8 +184,10 @@ export function LandingPage() {
   useGSAP(
     () => {
       const heroAction = heroActionRef.current;
+      const exploreButton = exploreButtonRef.current;
+      const exploreLabel = exploreLabelRef.current;
 
-      if (!heroAction) {
+      if (!heroAction || !exploreButton || !exploreLabel) {
         return;
       }
 
@@ -191,21 +196,96 @@ export function LandingPage() {
         window.matchMedia("(prefers-reduced-motion: reduce)").matches
       ) {
         gsap.set(heroAction, { autoAlpha: 1, clearProps: "transform" });
+        gsap.set([exploreButton, exploreLabel], {
+          autoAlpha: 1,
+          clearProps: "filter,transform",
+        });
         return;
       }
 
       if (!canRevealHeroAction) {
-        gsap.set(heroAction, { autoAlpha: 0, y: 26 });
+        gsap.set(heroAction, { autoAlpha: 0, y: 56 });
+        gsap.set(exploreButton, {
+          filter: "blur(8px)",
+          scaleX: 0.72,
+          scaleY: 1.34,
+          transformOrigin: "50% 100%",
+        });
+        gsap.set(exploreLabel, { autoAlpha: 0, y: 10 });
         return;
       }
 
-      gsap.to(heroAction, {
-        autoAlpha: 1,
-        clearProps: "transform,opacity,visibility",
-        duration: 0.42,
-        ease: "power3.out",
-        y: 0,
+      const revealTimeline = gsap.timeline({
+        defaults: {
+          overwrite: true,
+        },
+        onComplete: () => {
+          gsap.set(heroAction, { clearProps: "transform,opacity,visibility" });
+          gsap.set(exploreButton, { clearProps: "filter,scaleX,scaleY" });
+          gsap.set(exploreLabel, { clearProps: "transform,opacity,visibility" });
+        },
       });
+
+      revealTimeline
+        .to(
+          heroAction,
+          {
+            autoAlpha: 1,
+            duration: 0.2,
+            ease: "power2.out",
+          },
+          0,
+        )
+        .to(
+          heroAction,
+          {
+            duration: 0.68,
+            ease: "elastic.out(1, 0.58)",
+            y: 0,
+          },
+          0,
+        )
+        .to(
+          exploreButton,
+          {
+            duration: 0.18,
+            ease: "power2.out",
+            filter: "blur(0px)",
+            scaleX: 1.18,
+            scaleY: 0.72,
+          },
+          0.04,
+        )
+        .to(
+          exploreButton,
+          {
+            duration: 0.22,
+            ease: "power3.out",
+            scaleX: 0.9,
+            scaleY: 1.13,
+          },
+          0.22,
+        )
+        .to(
+          exploreButton,
+          {
+            duration: 0.46,
+            ease: "elastic.out(1, 0.42)",
+            scaleX: 1,
+            scaleY: 1,
+          },
+          0.38,
+        )
+        .to(
+          exploreLabel,
+          {
+            autoAlpha: 1,
+            duration: 0.26,
+            ease: "power3.out",
+            y: 0,
+          },
+          0.16,
+        );
     },
     { dependencies: [canRevealHeroAction], scope: landingRef },
   );
@@ -224,16 +304,6 @@ export function LandingPage() {
       const introProduct = root.querySelector<HTMLElement>("[data-playground-intro-product]");
       const introSubtitle = root.querySelector<HTMLElement>("[data-playground-intro-subtitle]");
       const introVisual = root.querySelector<HTMLElement>("[data-playground-intro-visual]");
-      const plotLine = root.querySelector<SVGPathElement>("[data-playground-intro-plot-line]");
-      const visualGroups = Array.from(
-        root.querySelectorAll<SVGElement>("[data-playground-intro-visual-group]"),
-      );
-      const plotPoints = Array.from(
-        root.querySelectorAll<SVGElement>("[data-playground-intro-point]"),
-      );
-      const controls = Array.from(
-        root.querySelectorAll<SVGElement>("[data-playground-intro-control]"),
-      );
 
       if (
         !introSection ||
@@ -241,16 +311,27 @@ export function LandingPage() {
         !introMeet ||
         !introProduct ||
         !introSubtitle ||
-        !introVisual ||
-        !plotLine
+        !introVisual
       ) {
         return;
       }
 
-      const plotLineLength = 720;
       const motionPreferences = gsap.matchMedia();
+      const syncIntroProductTextAnimation = (() => {
+        let isActive = false;
+
+        return (nextIsActive: boolean) => {
+          if (isActive === nextIsActive) {
+            return;
+          }
+
+          isActive = nextIsActive;
+          setCanRevealIntroProductText(nextIsActive);
+        };
+      })();
 
       motionPreferences.add("(prefers-reduced-motion: reduce)", () => {
+        syncIntroProductTextAnimation(true);
         gsap.set(introSection, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(introCard, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(introMeet, {
@@ -269,17 +350,10 @@ export function LandingPage() {
           autoAlpha: 1,
           clearProps: "transform",
         });
-        gsap.set(plotLine, {
-          strokeDasharray: plotLineLength,
-          strokeDashoffset: 0,
-        });
-        gsap.set([...visualGroups, ...plotPoints, ...controls], {
-          autoAlpha: 1,
-          clearProps: "transform",
-        });
       });
 
       motionPreferences.add("(prefers-reduced-motion: no-preference)", () => {
+        syncIntroProductTextAnimation(false);
         gsap.set(introSection, {
           autoAlpha: 1,
           scale: 1,
@@ -314,25 +388,6 @@ export function LandingPage() {
           transformOrigin: "50% 50%",
           y: 48,
         });
-        gsap.set(plotLine, {
-          strokeDasharray: plotLineLength,
-          strokeDashoffset: plotLineLength,
-        });
-        gsap.set(visualGroups, {
-          autoAlpha: 0,
-          transformOrigin: "50% 50%",
-          y: 18,
-        });
-        gsap.set(plotPoints, {
-          autoAlpha: 0,
-          scale: 0,
-          transformOrigin: "50% 50%",
-        });
-        gsap.set(controls, {
-          autoAlpha: 0,
-          scaleX: 0.72,
-          transformOrigin: "0% 50%",
-        });
 
         const introRevealScrollUnits = 1.45;
         const introExitScrollUnits = 1;
@@ -343,11 +398,15 @@ export function LandingPage() {
 
         syncIntroPanelSpacing();
 
-        const introTimeline = gsap.timeline({
+        let introTimeline: gsap.core.Timeline;
+
+        introTimeline = gsap.timeline({
           scrollTrigger: {
             end: () => `+=${window.innerHeight * (introRevealScrollUnits + introExitScrollUnits)}`,
             invalidateOnRefresh: true,
+            onLeaveBack: () => syncIntroProductTextAnimation(false),
             onRefreshInit: syncIntroPanelSpacing,
+            onUpdate: () => syncIntroProductTextAnimation(introTimeline.time() >= 0.8),
             pin: true,
             pinSpacing: false,
             scrub: true,
@@ -435,48 +494,6 @@ export function LandingPage() {
             1.14,
           )
           .to(
-            visualGroups,
-            {
-              autoAlpha: 1,
-              duration: 0.18,
-              ease: "power2.out",
-              stagger: 0.035,
-              y: 0,
-            },
-            1.2,
-          )
-          .to(
-            plotLine,
-            {
-              duration: 0.22,
-              ease: "none",
-              strokeDashoffset: 0,
-            },
-            1.25,
-          )
-          .to(
-            plotPoints,
-            {
-              autoAlpha: 1,
-              duration: 0.18,
-              ease: "back.out(2.2)",
-              scale: 1,
-              stagger: 0.025,
-            },
-            1.3,
-          )
-          .to(
-            controls,
-            {
-              autoAlpha: 1,
-              duration: 0.16,
-              ease: "power2.out",
-              scaleX: 1,
-              stagger: 0.025,
-            },
-            1.35,
-          )
-          .to(
             introSection,
             {
               duration: 0.9,
@@ -497,6 +514,7 @@ export function LandingPage() {
 
         return () => {
           introSection.style.marginBottom = "";
+          syncIntroProductTextAnimation(false);
         };
       });
 
@@ -1099,8 +1117,8 @@ export function LandingPage() {
             <SplitText
               className="max-w-full whitespace-nowrap text-[clamp(2.8rem,10vw,8.6rem)] leading-[0.9] tracking-normal text-foreground font-semibold"
               data-landing-scroll-title
-              delay={55}
-              duration={0.72}
+              delay={50}
+              duration={1.3}
               ease="power3.out"
               from={{ opacity: 0, y: 40 }}
               id="landing-title"
@@ -1222,7 +1240,17 @@ export function LandingPage() {
                   className="absolute inset-x-0 top-1/2 block text-[clamp(3.4rem,6.8vw,7rem)] leading-[0.88] font-medium tracking-normal text-zinc-950 opacity-0 will-change-[transform,opacity]"
                   data-playground-intro-product
                 >
-                  {playgroundIntroTitle}
+                  <BlurText
+                    animateBy="words"
+                    as="span"
+                    className="justify-center"
+                    delay={150}
+                    direction="bottom"
+                    segmentClassName="inline-block"
+                    startAnimation={canRevealIntroProductText}
+                    stepDuration={0.35}
+                    text={playgroundIntroTitle}
+                  />
                 </span>
               </h2>
 
@@ -1235,130 +1263,16 @@ export function LandingPage() {
 
               <figure
                 aria-label="Interactive ML Playground preview"
-                className="absolute inset-x-12 bottom-8 z-10 mx-auto h-[180px] max-w-4xl overflow-hidden rounded-lg border border-zinc-100 bg-white opacity-0 shadow-[0_18px_44px_oklch(0.145_0_0_/_0.08)] will-change-[transform,opacity]"
+                className="absolute -bottom-[4%] left-1/2 z-10 aspect-[4/3] h-[min(46svh,520px)] -translate-x-1/2 overflow-hidden rounded-2xl bg-zinc-600 opacity-0 will-change-[transform,opacity]"
                 data-playground-intro-visual
               >
-                <svg
+                <img
+                  alt=""
                   aria-hidden="true"
-                  className="h-full w-full"
-                  preserveAspectRatio="none"
-                  viewBox="0 0 920 220"
-                >
-                  <rect fill="oklch(1 0 0)" height="220" width="920" />
-                  <g data-playground-intro-visual-group>
-                    <rect
-                      fill="oklch(0.985 0 0)"
-                      height="220"
-                      stroke="oklch(0.88 0 0)"
-                      width="210"
-                    />
-                    <rect fill="oklch(0.145 0 0)" height="16" rx="3" width="108" x="32" y="34" />
-                    <rect fill="oklch(0.72 0 0)" height="8" rx="4" width="132" x="32" y="70" />
-                    <rect fill="oklch(0.84 0 0)" height="8" rx="4" width="96" x="32" y="92" />
-                  </g>
-
-                  <g data-playground-intro-visual-group>
-                    <rect
-                      fill="oklch(0.985 0 0)"
-                      height="150"
-                      rx="8"
-                      stroke="oklch(0.86 0 0)"
-                      width="410"
-                      x="248"
-                      y="34"
-                    />
-                    <line
-                      stroke="oklch(0.82 0 0)"
-                      strokeDasharray="4 8"
-                      x1="288"
-                      x2="626"
-                      y1="154"
-                      y2="154"
-                    />
-                    <line
-                      stroke="oklch(0.82 0 0)"
-                      strokeDasharray="4 8"
-                      x1="288"
-                      x2="626"
-                      y1="110"
-                      y2="110"
-                    />
-                    <line
-                      stroke="oklch(0.82 0 0)"
-                      strokeDasharray="4 8"
-                      x1="288"
-                      x2="626"
-                      y1="66"
-                      y2="66"
-                    />
-                    <path
-                      d="M292 158 C338 132 358 142 402 112 C452 78 490 92 532 72 C568 55 594 50 626 46"
-                      fill="none"
-                      stroke="oklch(0.145 0 0)"
-                      strokeLinecap="round"
-                      strokeWidth="6"
-                      data-playground-intro-plot-line
-                    />
-                    {[
-                      [304, 150],
-                      [354, 134],
-                      [404, 112],
-                      [456, 90],
-                      [512, 80],
-                      [576, 58],
-                      [622, 48],
-                    ].map(([cx, cy]) => (
-                      <circle
-                        cx={cx}
-                        cy={cy}
-                        data-playground-intro-point
-                        fill="oklch(0.145 0 0)"
-                        key={`${cx}-${cy}`}
-                        r="7"
-                      />
-                    ))}
-                  </g>
-
-                  <g data-playground-intro-visual-group>
-                    <rect
-                      fill="oklch(0.985 0 0)"
-                      height="150"
-                      rx="8"
-                      stroke="oklch(0.86 0 0)"
-                      width="190"
-                      x="696"
-                      y="34"
-                    />
-                    <rect fill="oklch(0.145 0 0)" height="12" rx="3" width="86" x="722" y="60" />
-                    <rect
-                      data-playground-intro-control
-                      fill="oklch(0.145 0 0)"
-                      height="10"
-                      rx="5"
-                      width="118"
-                      x="722"
-                      y="94"
-                    />
-                    <rect
-                      data-playground-intro-control
-                      fill="oklch(0.42 0 0)"
-                      height="10"
-                      rx="5"
-                      width="92"
-                      x="722"
-                      y="122"
-                    />
-                    <rect
-                      data-playground-intro-control
-                      fill="oklch(0.72 0 0)"
-                      height="10"
-                      rx="5"
-                      width="134"
-                      x="722"
-                      y="150"
-                    />
-                  </g>
-                </svg>
+                  className="h-full w-full object-cover"
+                  draggable={false}
+                  src={playgroundHandDotsImage}
+                />
               </figure>
             </article>
           </div>
