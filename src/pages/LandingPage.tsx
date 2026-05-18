@@ -1202,7 +1202,7 @@ export function LandingPage() {
           >
             <article
               aria-labelledby="playground-intro-title"
-              className="relative h-full w-full overflow-hidden rounded-t-2xl border-t border-zinc-50 bg-zinc-100"
+              className="relative h-full w-full overflow-hidden rounded-t-2xl border-t border-zinc-50 bg-zinc-200"
               data-playground-intro-card
             >
               <h2
@@ -1365,7 +1365,7 @@ export function LandingPage() {
 
           <div
             aria-hidden="true"
-            className="relative z-20 h-[calc(100svh-4rem)] w-full overflow-hidden rounded-t-2xl bg-zinc-950"
+            className="relative z-20 h-[calc(100svh-4rem)] w-full overflow-hidden rounded-t-2xl bg-zinc-400"
             data-playground-black-slide
           />
         </div>
