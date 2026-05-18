@@ -22,6 +22,8 @@ const islandHeartScale = 2.55;
 const islandMenuStroke = "oklch(17.7638% 0 0)";
 const islandLoveMenuStroke = "oklch(100% 0 0)";
 const closedIslandSize = 50;
+const islandLoveBounceZIndex = 1500;
+const islandLoveScrollZIndex = 1300;
 const loveDockYOffset = 1;
 const heroTitleCutoffTop = 96;
 const topRightInset = 16;
@@ -310,6 +312,9 @@ export function OrchestratedEaseReverseMenu() {
             colorProgress,
           );
           const menuStroke = mixOklchColors(islandMenuStroke, islandLoveMenuStroke, colorProgress);
+          const isBounceLiftActive = Math.abs(safeBounceOffsetY) > 0.001;
+          const isLoveTravelActive = clampedProgress > 0.001 && clampedProgress < 0.995;
+          const shouldLiftLove = isLoveTravelActive || isBounceLiftActive;
 
           gsap.killTweensOf(island, "x,y,scale");
           gsap.killTweensOf([islandSurface, islandSvg], "autoAlpha");
@@ -330,7 +335,7 @@ export function OrchestratedEaseReverseMenu() {
             x,
             xPercent: -50,
             y,
-            zIndex: 1300,
+            zIndex: shouldLiftLove ? islandLoveBounceZIndex : islandLoveScrollZIndex,
           });
           gsap.set(menuBars, {
             opacity: 1 - clampedProgress,
