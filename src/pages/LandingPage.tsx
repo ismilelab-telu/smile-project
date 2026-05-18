@@ -33,6 +33,7 @@ const finalLoveDockMoveDuration = 0.24;
 const finalLoveBounceRiseDuration = 0.28;
 const finalLoveBounceFallDuration = 0.28;
 const finalLoveBounceYOffset = -128;
+const finalZoomedWordScale = 14;
 const finalLoveBounceStart = finalLoveDockStart + finalLoveDockMoveDuration;
 const finalWithWordStart =
   finalLoveBounceStart + finalLoveBounceRiseDuration + finalLoveBounceFallDuration + 0.02;
@@ -742,7 +743,7 @@ export function LandingPage() {
         window.matchMedia("(prefers-reduced-motion: reduce)").matches
       ) {
         gsap.set(finalSection, { backgroundColor: "#09090b" });
-        gsap.set(finalWords, { autoAlpha: 1, clearProps: "transform" });
+        gsap.set(finalWords, { autoAlpha: 1, clearProps: "filter,transform" });
         gsap.set(loveTarget, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(inlineLove, { autoAlpha: 0 });
         gsap.set(loveBounceDot, { autoAlpha: 0, clearProps: "transform" });
@@ -776,16 +777,18 @@ export function LandingPage() {
       });
       gsap.set(withWord, {
         autoAlpha: 0,
-        scale: 6.8,
+        filter: "blur(24px)",
+        scale: finalZoomedWordScale,
         transformOrigin: "50% 50%",
-        willChange: "opacity, transform",
+        willChange: "filter, opacity, transform",
         yPercent: 8,
       });
       gsap.set(itWord, {
         autoAlpha: 0,
-        scale: 6.8,
+        filter: "blur(24px)",
+        scale: finalZoomedWordScale,
         transformOrigin: "50% 50%",
-        willChange: "opacity, transform",
+        willChange: "filter, opacity, transform",
         yPercent: 8,
       });
       gsap.set(finalDot, {
@@ -1038,6 +1041,7 @@ export function LandingPage() {
           {
             duration: 0.3,
             ease: "expo.out",
+            filter: "blur(0px)",
             scale: 1,
             yPercent: 0,
           },
@@ -1049,6 +1053,7 @@ export function LandingPage() {
           {
             duration: 0.3,
             ease: "expo.out",
+            filter: "blur(0px)",
             scale: 1,
             yPercent: 0,
           },
