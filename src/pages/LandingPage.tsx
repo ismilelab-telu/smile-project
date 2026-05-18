@@ -1129,7 +1129,7 @@ export function LandingPage() {
         typeof window.matchMedia !== "function" ||
         window.matchMedia("(prefers-reduced-motion: reduce)").matches
       ) {
-        gsap.set(finalStage, { backgroundColor: "#09090b" });
+        gsap.set(finalSection, { backgroundColor: "#09090b" });
         gsap.set(finalWords, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(loveTarget, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(inlineLove, { autoAlpha: 0 });
@@ -1140,7 +1140,7 @@ export function LandingPage() {
 
       const dotMorphState = { progress: 0 };
 
-      gsap.set(finalStage, { backgroundColor: "#09090b" });
+      gsap.set(finalSection, { backgroundColor: "#09090b" });
       finalLeadWords.forEach((word) => {
         gsap.set(word, {
           autoAlpha: 0,
@@ -1406,7 +1406,7 @@ export function LandingPage() {
           },
           finalDotMorphGrowStart,
         )
-        .set(finalStage, { backgroundColor: "#fafafa" }, finalDotZoomEnd)
+        .set(finalSection, { backgroundColor: "#fafafa" }, finalDotZoomEnd)
         .set(inlineLove, { autoAlpha: 0 }, finalDotZoomEnd)
         .set(dotMorphSvg, { autoAlpha: 1 }, finalDotZoomEnd);
 
@@ -1539,7 +1539,7 @@ export function LandingPage() {
       </main>
 
       <section
-        className="relative z-10 bg-zinc-50 px-6 text-zinc-950"
+        className="relative bg-zinc-50 px-6 text-zinc-950"
         aria-label="Interactive ML Playground introduction"
         ref={playgroundSectionRef}
       >
@@ -1989,7 +1989,7 @@ export function LandingPage() {
         </div>
 
         <div
-          className="relative z-40 -mx-6 h-[560svh] w-[calc(100%+3rem)] bg-zinc-950"
+          className="relative -mx-6 h-[560svh] w-[calc(100%+3rem)] bg-zinc-950"
           data-final-love-story-section
         >
           <div
@@ -1998,12 +1998,12 @@ export function LandingPage() {
             data-love-scroll-section
           />
           <div
-            className="sticky top-0 flex h-[100svh] items-center justify-center overflow-hidden bg-zinc-950 px-6 py-20 text-zinc-50 sm:py-24 lg:py-28"
+            className="pointer-events-none sticky top-0 z-[1400] flex h-[100svh] items-center justify-center overflow-hidden px-6 py-20 text-zinc-50 sm:py-24 lg:py-28"
             data-final-love-story-stage
           >
             <h2
               aria-label={playgroundFinalAriaLabel}
-              className="relative z-[1100] mx-auto flex w-full max-w-screen-2xl flex-col items-center justify-center text-center font-extrabold tracking-normal"
+              className="relative z-[1400] mx-auto flex w-full max-w-screen-2xl flex-col items-center justify-center text-center font-extrabold tracking-normal"
             >
               <span
                 aria-hidden="true"
