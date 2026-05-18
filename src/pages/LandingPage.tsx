@@ -1451,7 +1451,7 @@ export function LandingPage() {
             >
               <h2
                 aria-label={`${playgroundIntroEyebrow} ${playgroundIntroTitle}. ${playgroundIntroSubtitle}`}
-                className="absolute inset-x-10 top-[calc(38%-140px)] z-10 h-[280px] text-center"
+                className="absolute inset-x-10 top-[calc(31%-140px)] z-10 h-[280px] text-center"
                 id="playground-intro-title"
               >
                 <span
@@ -1481,7 +1481,7 @@ export function LandingPage() {
               </h2>
 
               <p
-                className="absolute inset-x-12 top-[46%] z-10 mx-auto max-w-4xl text-center text-[clamp(1.1rem,1.65vw,1.45rem)] leading-[1.5] font-normal text-zinc-600 opacity-0 will-change-[transform,opacity]"
+                className="absolute inset-x-12 top-[39%] z-10 mx-auto max-w-4xl text-center text-[clamp(1.1rem,1.65vw,1.45rem)] leading-[1.5] font-normal text-zinc-600 opacity-0 will-change-[transform,opacity]"
                 data-playground-intro-subtitle
               >
                 {playgroundIntroSubtitle}
@@ -1489,7 +1489,7 @@ export function LandingPage() {
 
               <figure
                 aria-hidden="true"
-                className="pointer-events-none absolute left-1/2 top-[62%] z-10 aspect-[170/95] w-[min(28vw,680px)] -translate-x-1/2 opacity-0 will-change-[opacity]"
+                className="pointer-events-none absolute left-1/2 top-[55%] z-10 aspect-[170/95] w-[min(28vw,680px)] -translate-x-1/2 opacity-0 will-change-[opacity]"
                 data-playground-intro-chart
               >
                 <PlaygroundIntroAxes className="absolute inset-0 z-0 h-full w-full overflow-visible text-zinc-700" />
