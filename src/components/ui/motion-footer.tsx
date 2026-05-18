@@ -26,7 +26,7 @@ const footerAuroraClassName =
   "bg-[radial-gradient(circle_at_50%_50%,color-mix(in_oklch,var(--foreground)_18%,transparent)_0%,color-mix(in_oklch,var(--muted-foreground)_14%,transparent)_42%,transparent_70%)]";
 
 const footerFogClassName =
-  "bg-[radial-gradient(ellipse_at_center,transparent_0%,transparent_48%,oklch(0.985_0_0_/_72%)_100%),linear-gradient(to_bottom,oklch(0.985_0_0_/_88%)_0%,transparent_18%,transparent_76%,oklch(0.985_0_0_/_92%)_100%)]";
+  "bg-[radial-gradient(ellipse_at_center,transparent_0%,transparent_48%,oklch(0.985_0_0_/_72%)_100%),linear-gradient(to_bottom,oklch(0.985_0_0_/_88%)_0%,transparent_11%,transparent_76%,oklch(0.985_0_0_/_92%)_100%)]";
 
 const giantTextClassName =
   "bg-[linear-gradient(180deg,color-mix(in_oklch,var(--foreground)_12%,transparent)_0%,transparent_62%)] bg-clip-text text-[clamp(8rem,24vw,24rem)] leading-[0.75] font-black tracking-normal text-transparent [-webkit-text-stroke:1px_color-mix(in_oklch,var(--foreground)_7%,transparent)]";
@@ -236,7 +236,7 @@ export function CinematicFooter() {
       <div
         data-navigation-menu-hide-zone
         ref={wrapperRef}
-        className="relative h-[100svh] w-full [clip-path:polygon(0%_0,100%_0%,100%_100%,0_100%)] [mask-image:linear-gradient(to_bottom,transparent_0%,black_22%,black_100%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent_0%,black_22%,black_100%)]"
+        className="relative h-[100svh] w-full [clip-path:polygon(0%_0,100%_0%,100%_100%,0_100%)] [mask-image:linear-gradient(to_bottom,transparent_0%,black_14%,black_100%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent_0%,black_14%,black_100%)]"
       >
         <footer
           className="fixed bottom-0 left-0 flex h-[100svh] w-full flex-col justify-between overflow-hidden bg-background font-sans text-foreground antialiased"
@@ -386,7 +386,7 @@ export function CinematicFooter() {
 
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 z-20 h-[18svh] bg-gradient-to-b from-background via-background/95 to-transparent"
+          className="pointer-events-none absolute inset-x-0 -top-[5svh] z-20 h-[16svh] bg-gradient-to-b from-background via-background/95 to-transparent"
         />
       </div>
     </>
