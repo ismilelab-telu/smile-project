@@ -22,7 +22,7 @@ gsap.registerPlugin(useGSAP, DrawSVGPlugin, ScrollTrigger, GSAPSplitText);
 const playgroundIntroEyebrow = "Introducing";
 const playgroundIntroTitle = "Interactive ML Playground";
 const playgroundIntroSubtitle =
-  "Turn complex Machine Learning algorithms into visual, hands-on learning.";
+  "A visual-first playground for exploring how machine learning models think.";
 const playgroundTeachingCopy = "We don't just teach\nyou Machine Learning.";
 const playgroundTeachingLines = playgroundTeachingCopy.split("\n");
 const playgroundFinalAriaLabel = "We make you fall in love with it.";
@@ -1369,7 +1369,7 @@ export function LandingPage() {
               splitType="words,lines"
               startAnimation={canStartDescriptionAnimation}
               tag="p"
-              text="Explore ML models through visual feedback, fully-animated, and built to make learning ML feel fun."
+              text="Make sense of machine learning by interacting with models instead of just reading about them."
               textAlign="center"
               to={{ opacity: 1, yPercent: 0 }}
               triggerOnScroll={false}

@@ -23,7 +23,7 @@ const dotStaticTransforms: Record<number, string> = {
 
 export function PlaygroundIntroDots(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg fill="none" viewBox="0 0 170 95" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg fill="none" viewBox="0 6 170 95" xmlns="http://www.w3.org/2000/svg" {...props}>
       <g fill="currentColor">
         {dotPaths.map((dotPath, index) => (
           <g key={`${index}-${dotPath}`} transform={dotStaticTransforms[index]}>
