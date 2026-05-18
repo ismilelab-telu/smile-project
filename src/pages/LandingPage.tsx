@@ -293,9 +293,10 @@ export function LandingPage() {
           y: 0,
         });
         gsap.set(introMeet, {
+          autoAlpha: 0,
           scale: 1,
           transformOrigin: "50% 50%",
-          y: 0,
+          y: -720,
           yPercent: -50,
         });
         gsap.set(introProduct, {
@@ -334,7 +335,7 @@ export function LandingPage() {
           transformOrigin: "0% 50%",
         });
 
-        const introRevealScrollUnits = 1;
+        const introRevealScrollUnits = 1.45;
         const introExitScrollUnits = 1;
         const introExitStart = introRevealScrollUnits;
         const syncIntroPanelSpacing = () => {
@@ -360,12 +361,48 @@ export function LandingPage() {
           .to(
             introMeet,
             {
+              autoAlpha: 1,
+              duration: 0.04,
+              ease: "none",
+            },
+            0,
+          )
+          .to(
+            introMeet,
+            {
+              duration: 0.32,
+              ease: "power4.in",
+              y: 0,
+            },
+            0,
+          )
+          .to(
+            introMeet,
+            {
+              duration: 0.16,
+              ease: "power2.out",
+              y: -86,
+            },
+            0.32,
+          )
+          .to(
+            introMeet,
+            {
+              duration: 0.16,
+              ease: "power2.in",
+              y: 0,
+            },
+            0.48,
+          )
+          .to(
+            introMeet,
+            {
               duration: 0.34,
               ease: "power2.inOut",
               scale: 0.44,
               y: -116,
             },
-            0.04,
+            0.72,
           )
           .to(
             introProduct,
@@ -375,7 +412,7 @@ export function LandingPage() {
               ease: "power3.out",
               y: 30,
             },
-            0.1,
+            0.8,
           )
           .to(
             introSubtitle,
@@ -385,7 +422,7 @@ export function LandingPage() {
               ease: "power2.out",
               y: 0,
             },
-            0.42,
+            1.08,
           )
           .to(
             introVisual,
@@ -396,7 +433,7 @@ export function LandingPage() {
               scale: 1,
               y: 0,
             },
-            0.5,
+            1.14,
           )
           .to(
             visualGroups,
@@ -407,7 +444,7 @@ export function LandingPage() {
               stagger: 0.035,
               y: 0,
             },
-            0.56,
+            1.2,
           )
           .to(
             plotLine,
@@ -416,7 +453,7 @@ export function LandingPage() {
               ease: "none",
               strokeDashoffset: 0,
             },
-            0.62,
+            1.25,
           )
           .to(
             plotPoints,
@@ -427,7 +464,7 @@ export function LandingPage() {
               scale: 1,
               stagger: 0.025,
             },
-            0.68,
+            1.3,
           )
           .to(
             controls,
@@ -438,7 +475,7 @@ export function LandingPage() {
               scaleX: 1,
               stagger: 0.025,
             },
-            0.72,
+            1.35,
           )
           .to(
             introSection,
@@ -1516,19 +1553,19 @@ export function LandingPage() {
           >
             <h2
               aria-label={`${playgroundIntroEyebrow} ${playgroundIntroTitle}. ${playgroundIntroSubtitle}`}
-              className="absolute inset-x-10 top-[calc(50%-140px)] z-10 h-[280px] text-center"
+              className="absolute inset-x-10 top-[calc(38%-140px)] z-10 h-[280px] text-center"
               id="playground-intro-title"
             >
               <span
                 aria-hidden="true"
-                className="absolute inset-x-0 top-1/2 block text-[clamp(5rem,11vw,11.5rem)] leading-[0.82] font-black tracking-normal text-zinc-950 will-change-transform"
+                className="absolute inset-x-0 top-1/2 block text-[clamp(5rem,11vw,11.5rem)] leading-[0.82] font-normal tracking-normal text-zinc-950 will-change-transform"
                 data-playground-intro-meet
               >
                 {playgroundIntroEyebrow}
               </span>
               <span
                 aria-hidden="true"
-                className="absolute inset-x-0 top-1/2 block text-[clamp(3.4rem,6.8vw,7rem)] leading-[0.88] font-black tracking-normal text-zinc-950 opacity-0 will-change-[transform,opacity]"
+                className="absolute inset-x-0 top-1/2 block text-[clamp(3.4rem,6.8vw,7rem)] leading-[0.88] font-medium tracking-normal text-zinc-950 opacity-0 will-change-[transform,opacity]"
                 data-playground-intro-product
               >
                 {playgroundIntroTitle}
