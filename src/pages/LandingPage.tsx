@@ -184,10 +184,8 @@ export function LandingPage() {
   useGSAP(
     () => {
       const heroAction = heroActionRef.current;
-      const exploreButton = exploreButtonRef.current;
-      const exploreLabel = exploreLabelRef.current;
 
-      if (!heroAction || !exploreButton || !exploreLabel) {
+      if (!heroAction) {
         return;
       }
 
@@ -196,96 +194,21 @@ export function LandingPage() {
         window.matchMedia("(prefers-reduced-motion: reduce)").matches
       ) {
         gsap.set(heroAction, { autoAlpha: 1, clearProps: "transform" });
-        gsap.set([exploreButton, exploreLabel], {
-          autoAlpha: 1,
-          clearProps: "filter,transform",
-        });
         return;
       }
 
       if (!canRevealHeroAction) {
-        gsap.set(heroAction, { autoAlpha: 0, y: 56 });
-        gsap.set(exploreButton, {
-          filter: "blur(8px)",
-          scaleX: 0.72,
-          scaleY: 1.34,
-          transformOrigin: "50% 100%",
-        });
-        gsap.set(exploreLabel, { autoAlpha: 0, y: 10 });
+        gsap.set(heroAction, { autoAlpha: 0, y: 26 });
         return;
       }
 
-      const revealTimeline = gsap.timeline({
-        defaults: {
-          overwrite: true,
-        },
-        onComplete: () => {
-          gsap.set(heroAction, { clearProps: "transform,opacity,visibility" });
-          gsap.set(exploreButton, { clearProps: "filter,scaleX,scaleY" });
-          gsap.set(exploreLabel, { clearProps: "transform,opacity,visibility" });
-        },
+      gsap.to(heroAction, {
+        autoAlpha: 1,
+        clearProps: "transform,opacity,visibility",
+        duration: 0.42,
+        ease: "power3.out",
+        y: 0,
       });
-
-      revealTimeline
-        .to(
-          heroAction,
-          {
-            autoAlpha: 1,
-            duration: 0.2,
-            ease: "power2.out",
-          },
-          0,
-        )
-        .to(
-          heroAction,
-          {
-            duration: 0.68,
-            ease: "elastic.out(1, 0.58)",
-            y: 0,
-          },
-          0,
-        )
-        .to(
-          exploreButton,
-          {
-            duration: 0.18,
-            ease: "power2.out",
-            filter: "blur(0px)",
-            scaleX: 1.18,
-            scaleY: 0.72,
-          },
-          0.04,
-        )
-        .to(
-          exploreButton,
-          {
-            duration: 0.22,
-            ease: "power3.out",
-            scaleX: 0.9,
-            scaleY: 1.13,
-          },
-          0.22,
-        )
-        .to(
-          exploreButton,
-          {
-            duration: 0.46,
-            ease: "elastic.out(1, 0.42)",
-            scaleX: 1,
-            scaleY: 1,
-          },
-          0.38,
-        )
-        .to(
-          exploreLabel,
-          {
-            autoAlpha: 1,
-            duration: 0.26,
-            ease: "power3.out",
-            y: 0,
-          },
-          0.16,
-        );
     },
     { dependencies: [canRevealHeroAction], scope: landingRef },
   );
@@ -1263,7 +1186,7 @@ export function LandingPage() {
 
               <figure
                 aria-label="Interactive ML Playground preview"
-                className="absolute -bottom-[4%] left-1/2 z-10 aspect-[4/3] h-[min(46svh,520px)] -translate-x-1/2 overflow-hidden rounded-2xl bg-zinc-600 opacity-0 will-change-[transform,opacity]"
+                className="absolute -bottom-[4%] left-1/2 z-10 aspect-video h-[min(46svh,520px)] -translate-x-1/2 overflow-hidden rounded-2xl bg-zinc-600 opacity-0 will-change-[transform,opacity]"
                 data-playground-intro-visual
               >
                 <img

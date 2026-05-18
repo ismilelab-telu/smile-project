@@ -41,7 +41,8 @@ const footerHeadingText = "ML should be fun!";
 const footerCurvedLoopText = "Predicting the future isn't magic, it's artificial intelligence.";
 const footerHeadingWordDelay = 150;
 const footerHeadingStepDuration = 0.35;
-const footerHeadingTextRevealStart = "top 25%";
+const footerRevealTopThreshold = 1;
+const footerCoveredResetBuffer = 24;
 const footerHeadingRevealProgress = 0.8;
 const footerButtonRevealDelay = Math.round(
   ((footerHeadingText.split(" ").length - 1) * footerHeadingWordDelay +
@@ -121,6 +122,7 @@ export function CinematicFooter() {
   const headingRef = useRef<HTMLDivElement>(null);
   const linksRef = useRef<HTMLDivElement>(null);
   const buttonRevealTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const isFooterContentRevealedRef = useRef(false);
   const [areFooterButtonsVisible, setAreFooterButtonsVisible] = useState(false);
   const [isHeadingTextVisible, setIsHeadingTextVisible] = useState(false);
   const [headingTextReplayKey, setHeadingTextReplayKey] = useState(0);
@@ -132,32 +134,76 @@ export function CinematicFooter() {
       return;
     }
 
+    let revealCheckFrame: number | null = null;
+
     const ctx = gsap.context(() => {
+      const isFooterFullyCovered = () =>
+        (wrapperRef.current?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY) <=
+        footerRevealTopThreshold;
+
+      const clearButtonRevealTimeout = () => {
+        if (buttonRevealTimeoutRef.current !== null) {
+          window.clearTimeout(buttonRevealTimeoutRef.current);
+          buttonRevealTimeoutRef.current = null;
+        }
+      };
+
+      const getFooterContentCoveredStart = () => {
+        const fallbackResetPoint = window.innerHeight * 0.72;
+        const contentBottom =
+          linksRef.current?.getBoundingClientRect().bottom ??
+          headingRef.current?.getBoundingClientRect().bottom ??
+          fallbackResetPoint;
+        const resetPoint = Math.min(
+          window.innerHeight - 1,
+          Math.max(0, contentBottom + footerCoveredResetBuffer),
+        );
+
+        return `top ${Math.round(resetPoint)}px`;
+      };
+
+      const revealFooterContent = () => {
+        if (isFooterContentRevealedRef.current) {
+          return;
+        }
+
+        isFooterContentRevealedRef.current = true;
+        clearButtonRevealTimeout();
+        setAreFooterButtonsVisible(false);
+        setHeadingTextReplayKey((key) => key + 1);
+        setIsHeadingTextVisible(true);
+        buttonRevealTimeoutRef.current = window.setTimeout(() => {
+          buttonRevealTimeoutRef.current = null;
+          setAreFooterButtonsVisible(true);
+        }, footerButtonRevealDelay);
+      };
+
+      const revealFooterContentWhenCovered = () => {
+        if (isFooterFullyCovered()) {
+          revealFooterContent();
+        }
+      };
+
       ScrollTrigger.create({
-        onEnter: () => {
-          if (buttonRevealTimeoutRef.current !== null) {
-            window.clearTimeout(buttonRevealTimeoutRef.current);
-            buttonRevealTimeoutRef.current = null;
-          }
-          setAreFooterButtonsVisible(false);
-          setHeadingTextReplayKey((key) => key + 1);
-          setIsHeadingTextVisible(true);
-          buttonRevealTimeoutRef.current = window.setTimeout(() => {
-            buttonRevealTimeoutRef.current = null;
-            setAreFooterButtonsVisible(true);
-          }, footerButtonRevealDelay);
-        },
         onLeaveBack: () => {
-          if (buttonRevealTimeoutRef.current !== null) {
-            window.clearTimeout(buttonRevealTimeoutRef.current);
-            buttonRevealTimeoutRef.current = null;
-          }
+          clearButtonRevealTimeout();
+          isFooterContentRevealedRef.current = false;
           setAreFooterButtonsVisible(false);
           setIsHeadingTextVisible(false);
         },
-        start: footerHeadingTextRevealStart,
+        start: getFooterContentCoveredStart,
         trigger: wrapperRef.current,
       });
+
+      ScrollTrigger.create({
+        end: "bottom top",
+        onRefresh: revealFooterContentWhenCovered,
+        onUpdate: revealFooterContentWhenCovered,
+        start: "top bottom",
+        trigger: wrapperRef.current,
+      });
+
+      revealCheckFrame = window.requestAnimationFrame(revealFooterContentWhenCovered);
 
       gsap.fromTo(
         giantTextRef.current,
@@ -175,25 +221,12 @@ export function CinematicFooter() {
           y: "0vh",
         },
       );
-
-      gsap.fromTo(
-        headingRef.current,
-        { opacity: 0, y: 50 },
-        {
-          ease: "power3.out",
-          opacity: 1,
-          scrollTrigger: {
-            end: "bottom bottom",
-            scrub: 1,
-            start: "top 45%",
-            trigger: wrapperRef.current,
-          },
-          y: 0,
-        },
-      );
     }, wrapperRef);
 
     return () => {
+      if (revealCheckFrame !== null) {
+        window.cancelAnimationFrame(revealCheckFrame);
+      }
       if (buttonRevealTimeoutRef.current !== null) {
         window.clearTimeout(buttonRevealTimeoutRef.current);
         buttonRevealTimeoutRef.current = null;
@@ -209,7 +242,14 @@ export function CinematicFooter() {
 
     const ctx = gsap.context(() => {
       if (!areFooterButtonsVisible) {
-        gsap.set("[data-footer-glass-button]", { autoAlpha: 0, y: 22 });
+        gsap.to("[data-footer-glass-button]", {
+          autoAlpha: 0,
+          duration: 0.28,
+          ease: "power2.in",
+          overwrite: true,
+          stagger: 0.035,
+          y: 22,
+        });
         return;
       }
 
