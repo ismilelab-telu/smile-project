@@ -8,6 +8,8 @@ import { SplitText as GSAPSplitText } from "gsap/SplitText";
 
 import { PlaygroundIntroAxes } from "@/components/PlaygroundIntroAxes";
 import { PlaygroundIntroDots } from "@/components/PlaygroundIntroDots";
+import { PlaygroundIntroHands } from "@/components/PlaygroundIntroHands";
+import { PlaygroundIntroRegressionLine } from "@/components/PlaygroundIntroRegressionLine";
 import { DottedSurface } from "@/components/ui/dotted-surface";
 import { BlurText } from "@/components/ui/blur-text";
 import { GlassSurface } from "@/components/ui/glass-surface";
@@ -253,6 +255,13 @@ export function LandingPage() {
       const introAxisXArrow = root.querySelector<SVGPathElement>("[data-playground-axis-x-arrow]");
       const introAxisYLine = root.querySelector<SVGPathElement>("[data-playground-axis-y-line]");
       const introAxisYArrow = root.querySelector<SVGPathElement>("[data-playground-axis-y-arrow]");
+      const introRegressionLine = root.querySelector<SVGPathElement>(
+        "[data-playground-regression-line]",
+      );
+      const introHandElements = Array.from(
+        root.querySelectorAll<SVGGElement>("[data-playground-intro-hand]"),
+      );
+      const introRightHand = root.querySelector<SVGGElement>("[data-playground-intro-right-hand]");
       const introAxisElements = [
         introAxisXLine,
         introAxisXArrow,
@@ -272,6 +281,9 @@ export function LandingPage() {
         !introAxisXArrow ||
         !introAxisYLine ||
         !introAxisYArrow ||
+        !introRegressionLine ||
+        !introRightHand ||
+        introHandElements.length === 0 ||
         introDotElements.length === 0
       ) {
         return;
@@ -327,6 +339,14 @@ export function LandingPage() {
           autoAlpha: 1,
           drawSVG: "0% 100%",
         });
+        gsap.set(introRegressionLine, {
+          autoAlpha: 1,
+          drawSVG: "0% 100%",
+        });
+        gsap.set(introHandElements, {
+          autoAlpha: 1,
+          clearProps: "transform",
+        });
       });
 
       motionPreferences.add("(prefers-reduced-motion: no-preference)", () => {
@@ -375,8 +395,22 @@ export function LandingPage() {
           autoAlpha: 1,
           drawSVG: "0% 0%",
         });
+        gsap.set(introRegressionLine, {
+          autoAlpha: 1,
+          drawSVG: "0% 0%",
+        });
+        gsap.set(introHandElements, {
+          autoAlpha: 0,
+          scale: 0.92,
+          transformBox: "fill-box",
+          transformOrigin: "50% 50%",
+        });
+        gsap.set(introRightHand, {
+          x: -10,
+          y: 6,
+        });
 
-        const introRevealScrollUnits = 2.65;
+        const introRevealScrollUnits = 3.6;
         const introExitScrollUnits = 1;
         const introExitStart = introRevealScrollUnits;
         const syncIntroPanelSpacing = () => {
@@ -518,6 +552,36 @@ export function LandingPage() {
               ease: "power2.out",
             },
             2.5,
+          )
+          .to(
+            introHandElements,
+            {
+              autoAlpha: 1,
+              duration: 0.28,
+              ease: "power2.out",
+              scale: 1,
+              stagger: 0.08,
+            },
+            2.66,
+          )
+          .to(
+            introRegressionLine,
+            {
+              drawSVG: "0% 100%",
+              duration: 0.62,
+              ease: "power2.out",
+            },
+            2.94,
+          )
+          .to(
+            introRightHand,
+            {
+              duration: 0.62,
+              ease: "power2.out",
+              x: 0,
+              y: 0,
+            },
+            2.94,
           )
           .to(
             introSection,
@@ -1426,11 +1490,13 @@ export function LandingPage() {
                 className="pointer-events-none absolute left-1/2 top-[62%] z-10 aspect-[170/95] w-[min(28vw,680px)] -translate-x-1/2 opacity-0 will-change-[opacity]"
                 data-playground-intro-chart
               >
-                <PlaygroundIntroAxes className="absolute inset-0 h-full w-full overflow-visible text-zinc-950" />
+                <PlaygroundIntroAxes className="absolute inset-0 z-0 h-full w-full overflow-visible text-zinc-700" />
+                <PlaygroundIntroRegressionLine className="absolute inset-0 z-20 h-full w-full overflow-visible text-[#2575F2]" />
                 <PlaygroundIntroDots
                   className="relative z-10 h-full w-full overflow-visible text-[#05C68E]"
                   data-playground-intro-dots
                 />
+                <PlaygroundIntroHands className="absolute inset-0 z-40 h-full w-full overflow-visible text-zinc-950" />
               </figure>
             </article>
           </div>

@@ -16,12 +16,19 @@ const dotPaths = [
   "m6.4 85.8c-2.5 0-4.4 2-4.4 4.7 0 2 1.8 4.6 4.6 4.6 2.4 0.1 4.2-1.8 4.1-2.1 1.7-2.4-0.1-7.2-4.3-7.2z",
 ] as const;
 
+const dotStaticTransforms: Record<number, string> = {
+  0: "translate(163.55 4.55) scale(0.68) translate(-163.55 -4.55)",
+  12: "translate(6.35 90.45) scale(0.68) translate(-6.35 -90.45)",
+};
+
 export function PlaygroundIntroDots(props: SVGProps<SVGSVGElement>) {
   return (
     <svg fill="none" viewBox="0 0 170 95" xmlns="http://www.w3.org/2000/svg" {...props}>
       <g fill="currentColor">
         {dotPaths.map((dotPath, index) => (
-          <path data-playground-intro-dot d={dotPath} key={`${index}-${dotPath}`} />
+          <g key={`${index}-${dotPath}`} transform={dotStaticTransforms[index]}>
+            <path data-playground-intro-dot d={dotPath} />
+          </g>
         ))}
       </g>
     </svg>
