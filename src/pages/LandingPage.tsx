@@ -12,7 +12,7 @@ import { SplitText } from "@/components/ui/split-text";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
-const playgroundIntroEyebrow = "Meet";
+const playgroundIntroEyebrow = "Introducing";
 const playgroundIntroTitle = "Interactive ML Playground";
 const playgroundIntroSubtitle = "where complex algorithms turn into visual, hands-on play.";
 const playgroundFrictionAriaLabel =
@@ -36,15 +36,8 @@ export function LandingPage() {
   const exploreLabelRef = useRef<HTMLSpanElement>(null);
   const [canStartDescriptionAnimation, setCanStartDescriptionAnimation] = useState(false);
   const [canRevealHeroAction, setCanRevealHeroAction] = useState(false);
-  const [descriptionReplayKey, setDescriptionReplayKey] = useState(0);
   const startDescriptionAnimation = useCallback(() => {
-    setCanRevealHeroAction(false);
-    setDescriptionReplayKey((key) => key + 1);
     setCanStartDescriptionAnimation(true);
-  }, []);
-  const resetHeroIntro = useCallback(() => {
-    setCanRevealHeroAction(false);
-    setCanStartDescriptionAnimation(false);
   }, []);
   const revealHeroAction = useCallback(() => {
     setCanRevealHeroAction(true);
@@ -54,9 +47,8 @@ export function LandingPage() {
     () => {
       const fadeTarget = "[data-landing-scroll-fade]";
       const surfaceTarget = "[data-landing-scroll-surface]";
-      const titleTarget = "[data-landing-scroll-title]";
-      const actionTarget = "[data-hero-action]";
-      const visibleTargets = `${titleTarget}, ${surfaceTarget}, ${actionTarget}`;
+      const contentTarget = "[data-landing-scroll-content]";
+      const visibleTargets = `${contentTarget}, ${surfaceTarget}`;
 
       if (typeof window.matchMedia !== "function") {
         gsap.set(visibleTargets, { autoAlpha: 1, clearProps: "all" });
@@ -100,13 +92,18 @@ export function LandingPage() {
               ease: "none",
             },
             0,
+          )
+          .fromTo(
+            visibleTargets,
+            {
+              autoAlpha: 1,
+            },
+            {
+              autoAlpha: 0,
+              ease: "none",
+            },
+            0,
           );
-
-        ScrollTrigger.create({
-          onLeave: resetHeroIntro,
-          start: "bottom 44%",
-          trigger: landingRef.current,
-        });
 
         if (!exploreZone || !exploreButton || !exploreLabel) {
           return undefined;
@@ -179,7 +176,7 @@ export function LandingPage() {
         motionPreferences.revert();
       };
     },
-    { dependencies: [resetHeroIntro], scope: landingRef },
+    { scope: landingRef },
   );
 
   useGSAP(
@@ -1411,6 +1408,7 @@ export function LandingPage() {
         <section
           className="relative z-10 mx-auto flex min-h-[100svh] w-[min(1180px,calc(100%_-_32px))] flex-col items-center justify-center pt-28 pb-28 text-center"
           aria-labelledby="landing-title"
+          data-landing-scroll-content
         >
           <div className="flex flex-col items-center">
             <SplitText
@@ -1422,15 +1420,13 @@ export function LandingPage() {
               from={{ opacity: 0, y: 40 }}
               id="landing-title"
               onLetterAnimationHalfway={startDescriptionAnimation}
-              replayOnEnter
-              rootMargin="-100px"
               splitType="chars"
               style={{ overflow: "visible", whiteSpace: "nowrap" }}
               tag="h1"
               text="Smile Project"
               textAlign="center"
-              threshold={0.1}
               to={{ opacity: 1, y: 0 }}
+              triggerOnScroll={false}
             />
             <SplitText
               animateTarget="lines"
@@ -1439,7 +1435,6 @@ export function LandingPage() {
               duration={0.6}
               ease="expo.out"
               from={{ opacity: 0, yPercent: 100 }}
-              key={descriptionReplayKey}
               mask="lines"
               onLetterAnimationHalfway={revealHeroAction}
               splitType="words,lines"
@@ -1506,7 +1501,7 @@ export function LandingPage() {
       </main>
 
       <section
-        className="relative z-10 bg-zinc-100 px-6 text-zinc-950"
+        className="relative z-10 bg-zinc-50 px-6 text-zinc-950"
         aria-label="Interactive ML Playground introduction"
         ref={playgroundSectionRef}
       >
@@ -1519,11 +1514,6 @@ export function LandingPage() {
             className="relative h-[calc(100svh-2.5rem)] w-full overflow-hidden border-t border-zinc-50 bg-zinc-100"
             data-playground-intro-card
           >
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,oklch(0.145_0_0_/_0.055)_1px,transparent_1px),linear-gradient(to_bottom,oklch(0.145_0_0_/_0.055)_1px,transparent_1px)] bg-[size:52px_52px] opacity-45"
-            />
-
             <h2
               aria-label={`${playgroundIntroEyebrow} ${playgroundIntroTitle}. ${playgroundIntroSubtitle}`}
               className="absolute inset-x-10 top-[calc(50%-140px)] z-10 h-[280px] text-center"
