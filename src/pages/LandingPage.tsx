@@ -25,6 +25,7 @@ const playgroundFinalLeadWords = ["We", "make", "you"];
 const playgroundFinalLeadWordMoveDuration = 0.24;
 const playgroundFinalLeadWordStarts = [0, 0.24, 0.42] as const;
 const playgroundFinalLeadWordStartY = 420;
+const finalLoveDockMoveDuration = 0.24;
 
 export function LandingPage() {
   const landingRef = useRef<HTMLElement>(null);
@@ -947,7 +948,7 @@ export function LandingPage() {
         .to(
           loveScrollState,
           {
-            duration: 0.46,
+            duration: finalLoveDockMoveDuration,
             ease: "none",
             progress: 1,
           },

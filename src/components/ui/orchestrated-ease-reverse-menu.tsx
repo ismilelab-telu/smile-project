@@ -28,6 +28,13 @@ const topRightInset = 16;
 const footerHideZoneSelector = "[data-navigation-menu-hide-zone]";
 const footerHideAnimationDuration = 0.24;
 
+const mixOklchColors = (from: string, to: string, progress: number) => {
+  const clampedProgress = Math.min(Math.max(progress, 0), 1);
+  const fromWeight = Number(((1 - clampedProgress) * 100).toFixed(3));
+
+  return `color-mix(in oklch, ${from} ${fromWeight}%, ${to})`;
+};
+
 const menuItems = [
   { href: "/404", label: "Work", number: "01" },
   { href: "/404", label: "Milestone", number: "02" },
@@ -146,6 +153,7 @@ export function OrchestratedEaseReverseMenu() {
         });
 
         const menuBars = [topBar, midBar, bottomBar];
+        const loveColorEase = gsap.parseEase("sine.inOut");
         let lastLoveCoverProgress = 0;
         let lastLoveProgress = 0;
         let isLoveScrollActive = false;
@@ -280,6 +288,14 @@ export function OrchestratedEaseReverseMenu() {
           const baseX = getBaseX(dockProgress);
           const x = snapToDevicePixel(interpolate(baseX, targetPosition.x, clampedProgress));
           const y = snapToDevicePixel(interpolate(0, targetPosition.y, clampedProgress));
+          const colorProgress = loveColorEase(clampedProgress);
+          const shapeFill = mixOklchColors(islandShapeRestFill, islandHeartFill, colorProgress);
+          const shapeStroke = mixOklchColors(
+            islandShapeRestStroke,
+            islandHeartStroke,
+            colorProgress,
+          );
+          const menuStroke = mixOklchColors(islandMenuStroke, islandLoveMenuStroke, colorProgress);
 
           gsap.killTweensOf(island, "x,y,scale");
           gsap.killTweensOf([islandSurface, islandSvg], "autoAlpha");
@@ -288,9 +304,9 @@ export function OrchestratedEaseReverseMenu() {
           gsap.set(islandSurface, { autoAlpha: 0 });
           gsap.set(islandSvg, { autoAlpha: 1 });
           gsap.set(islandShape, {
-            fill: islandHeartFill,
-            stroke: islandHeartStroke,
-            strokeWidth: 0,
+            fill: shapeFill,
+            stroke: shapeStroke,
+            strokeWidth: interpolate(islandDefaultStrokeWidth, 0, colorProgress),
           });
           gsap.set(island, {
             autoAlpha: isFooterMenuHiddenRef.current ? 0 : 1,
@@ -304,7 +320,7 @@ export function OrchestratedEaseReverseMenu() {
           });
           gsap.set(menuBars, {
             opacity: 1 - clampedProgress,
-            stroke: clampedProgress > 0.42 ? islandLoveMenuStroke : islandMenuStroke,
+            stroke: menuStroke,
           });
         };
 

@@ -304,10 +304,10 @@ export function CinematicFooter() {
           />
           <div className={cn("pointer-events-none absolute inset-0 z-0", footerFogClassName)} />
 
-          <div className="pointer-events-none absolute inset-x-0 -top-16 z-10 opacity-55">
+          <div className="pointer-events-none absolute inset-x-0 -top-6 z-10 opacity-55">
             <CurvedLoop
               className="fill-zinc-500"
-              curveAmount={360}
+              curveAmount={160}
               direction="left"
               interactive={false}
               marqueeText={footerCurvedLoopText}
