@@ -1132,6 +1132,7 @@ export function LandingPage() {
         gsap.set(finalStage, { backgroundColor: "#09090b" });
         gsap.set(finalWords, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(loveTarget, { autoAlpha: 1, clearProps: "transform" });
+        gsap.set(inlineLove, { autoAlpha: 0 });
         gsap.set(dotMorphSvg, { autoAlpha: 0 });
         dispatchLoveScrollProgress(0, 0);
         return;
@@ -1364,7 +1365,6 @@ export function LandingPage() {
           },
           2.2,
         )
-        .set(inlineLove, { autoAlpha: 1 }, 2.65)
         .to(
           withWord,
           {
@@ -2038,7 +2038,7 @@ export function LandingPage() {
                 >
                   <svg
                     aria-hidden="true"
-                    className="absolute inset-0 h-full w-full overflow-visible"
+                    className="absolute inset-0 h-full w-full overflow-visible opacity-0"
                     data-final-inline-love
                     viewBox="0 0 50 50"
                   >

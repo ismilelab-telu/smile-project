@@ -293,14 +293,14 @@ export function OrchestratedEaseReverseMenu() {
             strokeWidth: 0,
           });
           gsap.set(island, {
-            autoAlpha: clampedProgress >= 0.995 ? 0 : 1,
+            autoAlpha: isFooterMenuHiddenRef.current ? 0 : 1,
             force3D: false,
             scale: interpolate(1, islandHeartScale, clampedProgress),
             transformOrigin: "50% 50%",
             x,
             xPercent: -50,
             y,
-            zIndex: 1000,
+            zIndex: 1300,
           });
           gsap.set(menuBars, {
             opacity: 1 - clampedProgress,
@@ -624,6 +624,7 @@ export function OrchestratedEaseReverseMenu() {
             islandTop -
             islandHeight / 2 +
             loveDockYOffset,
+          zIndex: 1300,
         });
         return;
       }
