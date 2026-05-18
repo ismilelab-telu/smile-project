@@ -5,13 +5,13 @@ import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText as GSAPSplitText } from "gsap/SplitText";
 
+import { PlaygroundIntroDots } from "@/components/PlaygroundIntroDots";
 import { DottedSurface } from "@/components/ui/dotted-surface";
 import { BlurText } from "@/components/ui/blur-text";
 import { GlassSurface } from "@/components/ui/glass-surface";
 import { CinematicFooter } from "@/components/ui/motion-footer";
 import { OrchestratedEaseReverseMenu } from "@/components/ui/orchestrated-ease-reverse-menu";
 import { SplitText } from "@/components/ui/split-text";
-import playgroundHandDotsVector from "../../assets/playground-hand-dots-transparent.svg";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger, GSAPSplitText);
 
@@ -242,7 +242,10 @@ export function LandingPage() {
       const introMeet = root.querySelector<HTMLElement>("[data-playground-intro-meet]");
       const introProduct = root.querySelector<HTMLElement>("[data-playground-intro-product]");
       const introSubtitle = root.querySelector<HTMLElement>("[data-playground-intro-subtitle]");
-      const introVisual = root.querySelector<HTMLElement>("[data-playground-intro-visual]");
+      const introDots = root.querySelector<HTMLElement>("[data-playground-intro-dots]");
+      const introDotElements = Array.from(
+        introDots?.querySelectorAll<SVGPathElement>("[data-playground-intro-dot]") ?? [],
+      );
 
       if (
         !introSection ||
@@ -250,7 +253,8 @@ export function LandingPage() {
         !introMeet ||
         !introProduct ||
         !introSubtitle ||
-        !introVisual
+        !introDots ||
+        introDotElements.length === 0
       ) {
         return;
       }
@@ -285,9 +289,17 @@ export function LandingPage() {
           y: -10,
           yPercent: -50,
         });
-        gsap.set([introSubtitle, introVisual], {
+        gsap.set(introSubtitle, {
           autoAlpha: 1,
           clearProps: "transform",
+        });
+        gsap.set(introDots, {
+          autoAlpha: 1,
+          clearProps: "transform",
+        });
+        gsap.set(introDotElements, {
+          autoAlpha: 1,
+          scale: 1,
         });
       });
 
@@ -321,11 +333,14 @@ export function LandingPage() {
           autoAlpha: 0,
           y: 28,
         });
-        gsap.set(introVisual, {
+        gsap.set(introDots, {
+          autoAlpha: 1,
+        });
+        gsap.set(introDotElements, {
           autoAlpha: 0,
-          scale: 0.96,
+          scale: 0.55,
+          transformBox: "fill-box",
           transformOrigin: "50% 50%",
-          y: 48,
         });
 
         const introRevealScrollUnits = 1.45;
@@ -422,15 +437,18 @@ export function LandingPage() {
             1.08,
           )
           .to(
-            introVisual,
+            introDotElements,
             {
               autoAlpha: 1,
-              duration: 0.24,
-              ease: "power2.out",
+              duration: 0.32,
+              ease: "back.out(1.6)",
               scale: 1,
-              y: 0,
+              stagger: {
+                amount: 0.42,
+                from: "center",
+              },
             },
-            1.14,
+            1.12,
           )
           .to(
             introSection,
@@ -1335,17 +1353,11 @@ export function LandingPage() {
               </p>
 
               <figure
-                aria-label="Interactive ML Playground preview"
-                className="absolute -bottom-[4%] left-1/2 z-10 aspect-video h-[min(46svh,520px)] -translate-x-1/2 overflow-visible opacity-0 will-change-[transform,opacity]"
-                data-playground-intro-visual
+                aria-hidden="true"
+                className="pointer-events-none absolute left-1/2 top-[62%] z-10 aspect-[170/95] w-[min(28vw,680px)] -translate-x-1/2 text-[#05C68E] opacity-0 will-change-[opacity]"
+                data-playground-intro-dots
               >
-                <img
-                  alt=""
-                  aria-hidden="true"
-                  className="h-full w-full object-contain"
-                  draggable={false}
-                  src={playgroundHandDotsVector}
-                />
+                <PlaygroundIntroDots className="h-full w-full overflow-visible" />
               </figure>
             </article>
           </div>
