@@ -122,6 +122,16 @@
     width: fit-content;
     will-change: transform, opacity;
   }
+
+  .horizontal-quote-word {
+    display: inline-flex !important;
+    white-space: nowrap;
+  }
+
+  .horizontal-quote-char {
+    display: inline-block !important;
+    will-change: transform;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -3,6 +3,7 @@ import { IconArrowRight } from "@tabler/icons-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { SplitText as GSAPSplitText } from "gsap/SplitText";
 
 import { DottedSurface } from "@/components/ui/dotted-surface";
 import { BlurText } from "@/components/ui/blur-text";
@@ -12,7 +13,7 @@ import { OrchestratedEaseReverseMenu } from "@/components/ui/orchestrated-ease-r
 import { SplitText } from "@/components/ui/split-text";
 import playgroundHandDotsImage from "../../assets/playground-hand-dots.png";
 
-gsap.registerPlugin(useGSAP, ScrollTrigger);
+gsap.registerPlugin(useGSAP, ScrollTrigger, GSAPSplitText);
 
 const playgroundIntroEyebrow = "Introducing";
 const playgroundIntroTitle = "Interactive ML Playground";
@@ -22,6 +23,8 @@ const playgroundTeachingCopy = "We don't just teach\nyou Machine Learning.";
 const playgroundTeachingLines = playgroundTeachingCopy.split("\n");
 const playgroundFinalAriaLabel = "We make you fall in love with it.";
 const playgroundFinalLeadWords = ["We", "make", "you"];
+const representationQuote =
+  "The key to artificial intelligence has always been the representation. —Jeff Hawkins";
 const playgroundFinalLeadWordMoveDuration = 0.24;
 const playgroundFinalLeadWordStarts = [0, 0.24, 0.42] as const;
 const playgroundFinalLeadWordStartY = 420;
@@ -40,6 +43,7 @@ const finalDotZoomStart = finalDotRevealStart + 0.24;
 export function LandingPage() {
   const landingRef = useRef<HTMLElement>(null);
   const playgroundSectionRef = useRef<HTMLElement>(null);
+  const horizontalQuoteSectionRef = useRef<HTMLElement>(null);
   const finalDotMorphSvgRef = useRef<SVGSVGElement>(null);
   const finalDotMorphCircleRef = useRef<SVGCircleElement>(null);
   const heroActionRef = useRef<HTMLDivElement>(null);
@@ -1081,6 +1085,71 @@ export function LandingPage() {
     { scope: playgroundSectionRef },
   );
 
+  useGSAP(
+    () => {
+      const section = horizontalQuoteSectionRef.current;
+      const headline = section?.querySelector<HTMLElement>("[data-horizontal-quote-text]");
+
+      if (!section || !headline) {
+        return;
+      }
+
+      if (
+        typeof window.matchMedia !== "function" ||
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ) {
+        gsap.set(headline, {
+          autoAlpha: 1,
+          clearProps: "transform",
+          paddingLeft: 0,
+          whiteSpace: "normal",
+          width: "auto",
+        });
+        return;
+      }
+
+      const quoteSplit = GSAPSplitText.create(headline, {
+        aria: "auto",
+        charsClass: "horizontal-quote-char",
+        tag: "span",
+        type: "chars, words",
+        wordsClass: "horizontal-quote-word",
+      });
+
+      const scrollTween = gsap.to(headline, {
+        ease: "none",
+        scrollTrigger: {
+          end: "+=5000px",
+          invalidateOnRefresh: true,
+          pin: true,
+          scrub: true,
+          trigger: section,
+        },
+        x: () => -(headline.scrollWidth + window.innerWidth * 0.24),
+      });
+
+      quoteSplit.chars.forEach((character) => {
+        gsap.from(character, {
+          ease: "back.out(1.2)",
+          rotation: "random(-20, 20)",
+          scrollTrigger: {
+            containerAnimation: scrollTween,
+            end: "left 30%",
+            scrub: 1,
+            start: "left 100%",
+            trigger: character,
+          },
+          yPercent: "random(-200, 200)",
+        });
+      });
+
+      return () => {
+        quoteSplit.revert();
+      };
+    },
+    { scope: horizontalQuoteSectionRef },
+  );
+
   return (
     <>
       <OrchestratedEaseReverseMenu />
@@ -1468,6 +1537,23 @@ export function LandingPage() {
             </h2>
           </div>
         </div>
+
+        <section
+          aria-labelledby="horizontal-quote-title"
+          className="relative -mx-6 flex h-[100svh] w-[calc(100%+3rem)] items-center overflow-hidden bg-zinc-50 text-zinc-950"
+          data-horizontal-quote-section
+          ref={horizontalQuoteSectionRef}
+        >
+          <div className="container mx-auto">
+            <h3
+              className="flex w-max gap-[4vw] pl-[100vw] text-[clamp(2rem,10vw,12rem)] leading-[1.1] font-semibold tracking-normal whitespace-nowrap motion-reduce:w-auto motion-reduce:flex-wrap motion-reduce:pl-0 motion-reduce:whitespace-normal"
+              data-horizontal-quote-text
+              id="horizontal-quote-title"
+            >
+              {representationQuote}
+            </h3>
+          </div>
+        </section>
       </section>
 
       <CinematicFooter />
