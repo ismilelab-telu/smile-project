@@ -337,10 +337,20 @@ export function LandingPage() {
           transformOrigin: "0% 50%",
         });
 
+        const introRevealScrollUnits = 1;
+        const introExitScrollUnits = 1;
+        const introExitStart = introRevealScrollUnits;
+        const syncIntroPanelSpacing = () => {
+          introSection.style.marginBottom = `${window.innerHeight * introRevealScrollUnits}px`;
+        };
+
+        syncIntroPanelSpacing();
+
         const introTimeline = gsap.timeline({
           scrollTrigger: {
-            end: "bottom top",
+            end: () => `+=${window.innerHeight * (introRevealScrollUnits + introExitScrollUnits)}`,
             invalidateOnRefresh: true,
+            onRefreshInit: syncIntroPanelSpacing,
             pin: true,
             pinSpacing: false,
             scrub: true,
@@ -440,17 +450,21 @@ export function LandingPage() {
               ease: "none",
               scale: 0.7,
             },
-            0.76,
+            introExitStart,
           )
           .to(
             introSection,
             {
-              duration: 0.04,
+              duration: 0.1,
               ease: "none",
               opacity: 0,
             },
-            1,
+            introExitStart + 0.9,
           );
+
+        return () => {
+          introSection.style.marginBottom = "";
+        };
       });
 
       return () => motionPreferences.revert();
@@ -590,10 +604,21 @@ export function LandingPage() {
           transformOrigin: "50% 50%",
         });
 
+        const frictionRevealScrollUnits = 1.1;
+        const frictionExitScrollUnits = 1;
+        const frictionExitStart = frictionRevealScrollUnits;
+        const syncFrictionPanelSpacing = () => {
+          frictionSection.style.marginBottom = `${window.innerHeight * frictionRevealScrollUnits}px`;
+        };
+
+        syncFrictionPanelSpacing();
+
         const frictionTimeline = gsap.timeline({
           scrollTrigger: {
-            end: "bottom top",
+            end: () =>
+              `+=${window.innerHeight * (frictionRevealScrollUnits + frictionExitScrollUnits)}`,
             invalidateOnRefresh: true,
+            onRefreshInit: syncFrictionPanelSpacing,
             pin: true,
             pinSpacing: false,
             scrub: true,
@@ -776,17 +801,21 @@ export function LandingPage() {
               ease: "none",
               scale: 0.7,
             },
-            0.78,
+            frictionExitStart,
           )
           .to(
             frictionSection,
             {
-              duration: 0.04,
+              duration: 0.1,
               ease: "none",
               opacity: 0,
             },
-            1.02,
+            frictionExitStart + 0.9,
           );
+
+        return () => {
+          frictionSection.style.marginBottom = "";
+        };
       });
 
       return () => motionPreferences.revert();
