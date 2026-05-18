@@ -406,8 +406,9 @@ export function LandingPage() {
           transformOrigin: "50% 50%",
         });
         gsap.set(introRightHand, {
-          x: -10,
-          y: 6,
+          rotation: 0,
+          x: -115,
+          y: 73,
         });
 
         const introRevealScrollUnits = 3.6;
@@ -578,8 +579,9 @@ export function LandingPage() {
             {
               duration: 0.62,
               ease: "power2.out",
-              x: 0,
-              y: 0,
+              rotation: 5,
+              x: 65,
+              y: -5,
             },
             2.94,
           )

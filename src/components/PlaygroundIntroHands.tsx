@@ -10,7 +10,7 @@ export function PlaygroundIntroHands(props: SVGProps<SVGSVGElement>) {
     <svg fill="none" viewBox="0 0 170 95" xmlns="http://www.w3.org/2000/svg" {...props}>
       <g fill="currentColor">
         <g data-playground-intro-hand data-playground-intro-left-hand>
-          <g transform="translate(-40 85) scale(0.56)">
+          <g transform="translate(-40 85) rotate(-8) scale(0.56)">
             <path d={leftHandPath} />
           </g>
         </g>
