@@ -14,7 +14,8 @@ gsap.registerPlugin(useGSAP, ScrollTrigger);
 
 const playgroundIntroEyebrow = "Introducing";
 const playgroundIntroTitle = "Interactive ML Playground";
-const playgroundIntroSubtitle = "Turn complex ML algorithms into visual, hands-on learning.";
+const playgroundIntroSubtitle =
+  "Turn complex Machine Learning algorithms into visual, hands-on learning.";
 const playgroundFrictionAriaLabel =
   "We stripped away heavy coding. We opened up the black box. And found the sweet spot for learning.";
 const playgroundTeachingCopy = "We don't just teach\nyou Machine Learning.";
@@ -1573,7 +1574,7 @@ export function LandingPage() {
             </h2>
 
             <p
-              className="absolute inset-x-12 top-[44%] z-10 mx-auto max-w-4xl text-center text-[clamp(1rem,1.45vw,1.25rem)] leading-[1.5] font-normal text-zinc-600 opacity-0 will-change-[transform,opacity]"
+              className="absolute inset-x-12 top-[46%] z-10 mx-auto max-w-4xl text-center text-[clamp(1.1rem,1.65vw,1.45rem)] leading-[1.5] font-normal text-zinc-600 opacity-0 will-change-[transform,opacity]"
               data-playground-intro-subtitle
             >
               {playgroundIntroSubtitle}
