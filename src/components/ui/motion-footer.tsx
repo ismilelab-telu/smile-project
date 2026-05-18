@@ -264,7 +264,7 @@ export function CinematicFooter() {
           />
           <div className={cn("pointer-events-none absolute inset-0 z-0", footerFogClassName)} />
 
-          <div className="pointer-events-none absolute inset-x-0 -top-20 z-10 opacity-55">
+          <div className="pointer-events-none absolute inset-x-0 -top-16 z-10 opacity-55">
             <CurvedLoop
               className="fill-zinc-500"
               curveAmount={360}
@@ -383,6 +383,11 @@ export function CinematicFooter() {
             </div>
           </div>
         </footer>
+
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 z-20 h-[18svh] bg-gradient-to-b from-background via-background/95 to-transparent"
+        />
       </div>
     </>
   );
