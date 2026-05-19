@@ -1299,7 +1299,6 @@ export function LandingPage() {
 
       const quoteScrollDistance = 5000;
       const quoteEmojiScrollDistance = 2600;
-      let hasPlayedEmoji = false;
 
       const resetAnimatedEmojiSource = () => {
         emojiAnimatedSource.removeAttribute("srcset");
@@ -1343,6 +1342,10 @@ export function LandingPage() {
         trigger: section,
       });
 
+      const getQuotePinStart = () => quotePinTrigger.start;
+      const getQuoteEmojiStart = () => getQuotePinStart() + quoteScrollDistance;
+      const getQuoteEmojiEnd = () => getQuoteEmojiStart() + quoteEmojiScrollDistance;
+
       const emojiTimeline = gsap
         .timeline({
           paused: true,
@@ -1381,17 +1384,11 @@ export function LandingPage() {
         .call(resetAnimatedEmojiSource);
 
       const playEmoji = () => {
-        if (hasPlayedEmoji) {
-          return;
-        }
-
-        hasPlayedEmoji = true;
         resetEmoji();
         emojiTimeline.restart();
       };
 
       const stopEmoji = () => {
-        hasPlayedEmoji = false;
         emojiTimeline.pause(0);
         resetEmoji();
       };
@@ -1401,23 +1398,22 @@ export function LandingPage() {
         scrollTrigger: {
           end: () => `+=${quoteScrollDistance}`,
           invalidateOnRefresh: true,
-          onEnterBack: stopEmoji,
-          onLeave: playEmoji,
-          onLeaveBack: stopEmoji,
-          onUpdate: (self) => {
-            if (self.progress >= 0.995 && self.direction >= 0) {
-              playEmoji();
-            }
-
-            if (self.progress < 0.98 && self.direction < 0) {
-              stopEmoji();
-            }
-          },
           scrub: true,
           start: "top top",
           trigger: section,
         },
         x: () => -(headline.scrollWidth + window.innerWidth * 0.24),
+      });
+
+      const emojiWindowTrigger = ScrollTrigger.create({
+        end: getQuoteEmojiEnd,
+        invalidateOnRefresh: true,
+        onEnter: playEmoji,
+        onEnterBack: playEmoji,
+        onLeave: stopEmoji,
+        onLeaveBack: stopEmoji,
+        start: getQuoteEmojiStart,
+        trigger: section,
       });
 
       quoteSplit.chars.forEach((character) => {
@@ -1436,6 +1432,7 @@ export function LandingPage() {
       });
 
       return () => {
+        emojiWindowTrigger.kill();
         scrollTween.scrollTrigger?.kill();
         scrollTween.kill();
         emojiTimeline.kill();
