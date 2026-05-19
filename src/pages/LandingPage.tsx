@@ -297,6 +297,7 @@ export function LandingPage() {
         gsap.set(introSection, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(introCard, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(introMeet, {
+          clearProps: "filter",
           scale: 0.44,
           transformOrigin: "50% 50%",
           x: 0,
@@ -403,6 +404,7 @@ export function LandingPage() {
         });
         gsap.set(introMeet, {
           autoAlpha: 0,
+          filter: "blur(18px)",
           scale: 1,
           transformOrigin: "50% 50%",
           x: getIntroMeetStartX,
@@ -504,10 +506,20 @@ export function LandingPage() {
             },
             0,
           )
+          .to(
+            introMeet,
+            {
+              duration: 0.24,
+              ease: "power2.out",
+              filter: "blur(0px)",
+            },
+            0,
+          )
           .to(introMeet, { x: 0 }, 0.42)
           .to(
             introMeet,
             {
+              clearProps: "filter",
               duration: 0.34,
               ease: "power2.inOut",
               scale: 0.44,
