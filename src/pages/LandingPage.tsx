@@ -1459,7 +1459,7 @@ export function LandingPage() {
           .to(
             conclusionSlide,
             {
-              duration: 0.42,
+              duration: 0.08,
               ease: "none",
             },
             conclusionWordScatterStart + 1.22,
@@ -1616,7 +1616,7 @@ export function LandingPage() {
             gsap.set(dotMorphSvg, { autoAlpha: 0 });
           },
           scrub: true,
-          start: "top top",
+          start: "top bottom",
           trigger: storySection,
         },
       });
@@ -2487,7 +2487,7 @@ export function LandingPage() {
 
           <section
             aria-label="ML can look simple from the outside. But the logic stays inside a black box. So we unpack every step."
-            className="relative z-20 h-[720svh] w-full bg-transparent text-zinc-950"
+            className="relative z-20 h-[660svh] w-full bg-transparent text-zinc-950"
             data-blackbox-story-section
           >
             <div
