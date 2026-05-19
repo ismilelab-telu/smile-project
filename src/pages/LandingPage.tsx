@@ -16,6 +16,7 @@ import { GlassSurface } from "@/components/ui/glass-surface";
 import { CinematicFooter } from "@/components/ui/motion-footer";
 import { OrchestratedEaseReverseMenu } from "@/components/ui/orchestrated-ease-reverse-menu";
 import { SplitText } from "@/components/ui/split-text";
+import quoteWinkEmojiStaticSrc from "../../assets/quote-wink-smile.png";
 
 gsap.registerPlugin(useGSAP, DrawSVGPlugin, ScrollTrigger, GSAPSplitText);
 
@@ -32,7 +33,6 @@ const representationQuote =
 const playgroundFinalLeadWordMoveDuration = 0.24;
 const playgroundFinalLeadWordStarts = [0, 0.24, 0.42] as const;
 const playgroundFinalLeadWordStartY = 420;
-const quoteWinkEmojiStaticSrc = "https://fonts.gstatic.com/s/e/notoemoji/latest/1f609/512.png";
 const quoteWinkEmojiWebpSrc = "https://fonts.gstatic.com/s/e/notoemoji/latest/1f609/512.webp";
 const quoteWinkEmojiGifSrc = "https://fonts.gstatic.com/s/e/notoemoji/latest/1f609/512.gif";
 const quoteWinkEmojiPlaybackDuration = 2.25;
