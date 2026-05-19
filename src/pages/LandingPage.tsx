@@ -812,9 +812,9 @@ export function LandingPage() {
         return;
       }
 
-      const getVisualBaseWidth = () => Math.min(window.innerWidth * 0.86, 780);
-      const getVisualBaseHeight = () => Math.min(window.innerHeight * 0.52, 430);
-      const getBlackBoxSize = () => Math.min(getVisualBaseWidth(), getVisualBaseHeight()) * 0.36;
+      const getVisualBaseWidth = () => Math.min(window.innerWidth * 0.9, 900);
+      const getVisualBaseHeight = () => Math.min(window.innerHeight * 0.58, 500);
+      const getBlackBoxSize = () => Math.min(getVisualBaseWidth(), getVisualBaseHeight()) * 0.46;
       const getBoardWidth = () => getVisualBaseWidth() * 0.92;
       const getBoardHeight = () => getVisualBaseHeight() * 0.92;
       const motionPreferences = gsap.matchMedia();
@@ -996,7 +996,7 @@ export function LandingPage() {
               ease: "power2.in",
               y: -24,
             },
-            "unpack",
+            "unpack+=0.58",
           )
           .to(
             unpackHeadline,
@@ -1005,7 +1005,7 @@ export function LandingPage() {
               duration: 0.3,
               y: 0,
             },
-            "unpack+=0.08",
+            "unpack+=0.66",
           )
           .to(
             storyVisual,
@@ -2140,7 +2140,8 @@ export function LandingPage() {
                   className="absolute inset-x-0 text-[clamp(2.35rem,5.8vw,7rem)] leading-[0.94] font-semibold tracking-normal text-zinc-50 opacity-0"
                   data-blackbox-headline="hidden"
                 >
-                  So we open the <span className="text-zinc-950">black box.</span>
+                  <span className="block whitespace-nowrap">So we open the</span>
+                  <span className="block whitespace-nowrap text-zinc-950">black box.</span>
                 </h2>
                 <h2
                   aria-hidden="true"
@@ -2152,7 +2153,7 @@ export function LandingPage() {
               </div>
 
               <div
-                className="absolute top-[57%] left-1/2 z-20 h-[min(52svh,430px)] w-[min(86vw,780px)] overflow-hidden border bg-zinc-900 text-zinc-50"
+                className="absolute top-[61%] left-1/2 z-20 h-[min(58svh,500px)] w-[min(90vw,900px)] overflow-hidden border bg-zinc-900 text-zinc-50"
                 data-blackbox-visual
               >
                 <div className="absolute inset-0 flex flex-col" data-blackbox-editor-shell>
