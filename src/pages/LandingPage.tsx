@@ -545,7 +545,7 @@ export function LandingPage() {
 
         const introRevealScrollUnits = 4.85;
         const introExitScrollUnits = 1;
-        const introExitStart = introRevealScrollUnits;
+        const introExitStart = introRevealScrollUnits + 0.18;
         const syncIntroPanelSpacing = () => {
           introSection.style.marginBottom = `${window.innerHeight * introRevealScrollUnits}px`;
         };
@@ -736,20 +736,20 @@ export function LandingPage() {
           .to(
             introSection,
             {
-              duration: 0.9,
-              ease: "none",
-              scale: 0.7,
+              duration: 0.58,
+              ease: "power3.inOut",
+              scale: 0.86,
             },
             introExitStart,
           )
           .to(
             introSection,
             {
-              duration: 0.1,
-              ease: "none",
+              duration: 0.22,
+              ease: "power2.in",
               opacity: 0,
             },
-            introExitStart + 0.9,
+            introExitStart + 0.36,
           );
 
         return () => {
@@ -932,7 +932,7 @@ export function LandingPage() {
           yPercent: 0,
           willChange: "transform",
         });
-        gsap.set([openCard, unpackCard, conclusionSlide], { yPercent: 100 });
+        gsap.set([simpleCard, openCard, unpackCard, conclusionSlide], { yPercent: 100 });
         gsap.set(storyVisual, {
           autoAlpha: 1,
           backgroundColor: "#111113",
@@ -946,7 +946,7 @@ export function LandingPage() {
           willChange:
             "background-color, border-color, border-radius, height, opacity, transform, width",
           xPercent: -50,
-          y: 0,
+          y: () => window.innerHeight * 0.7,
           yPercent: -50,
         });
         gsap.set(editorShell, {
@@ -1038,6 +1038,35 @@ export function LandingPage() {
             trigger: storySection,
           },
         });
+        const firstSlideEntryTimeline = gsap.timeline({
+          scrollTrigger: {
+            end: "top top+=64",
+            invalidateOnRefresh: true,
+            scrub: true,
+            start: "top 58%",
+            trigger: storySection,
+          },
+        });
+
+        firstSlideEntryTimeline
+          .to(
+            simpleCard,
+            {
+              duration: 0.78,
+              ease: "power3.inOut",
+              yPercent: 0,
+            },
+            0,
+          )
+          .to(
+            storyVisual,
+            {
+              duration: 0.78,
+              ease: "power3.inOut",
+              y: 0,
+            },
+            0,
+          );
 
         storyTimeline
           .addLabel("call", 0)
