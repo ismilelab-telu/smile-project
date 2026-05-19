@@ -314,6 +314,7 @@ export function LandingPage() {
         gsap.set(introMeet, {
           scale: 0.44,
           transformOrigin: "50% 50%",
+          x: 0,
           y: -116,
           yPercent: -50,
         });
@@ -355,6 +356,40 @@ export function LandingPage() {
 
       motionPreferences.add("(prefers-reduced-motion: no-preference)", () => {
         syncIntroProductTextAnimation(false);
+        const getIntroMeetTextNode = () =>
+          Array.from(introMeet.childNodes).find(
+            (node): node is Text =>
+              node.nodeType === Node.TEXT_NODE &&
+              node.textContent?.includes(playgroundIntroEyebrow) === true,
+          );
+        const measureIntroMeetCutX = () => {
+          const textNode = getIntroMeetTextNode();
+          const cutCharacterIndex = playgroundIntroEyebrow.indexOf("c");
+
+          if (!textNode || cutCharacterIndex < 0) {
+            return -window.innerWidth * 0.14;
+          }
+
+          const currentX = Number(gsap.getProperty(introMeet, "x")) || 0;
+          const currentScale = Number(gsap.getProperty(introMeet, "scale")) || 1;
+          const range = document.createRange();
+
+          gsap.set(introMeet, { scale: 1, x: 0 });
+          range.setStart(textNode, cutCharacterIndex);
+          range.setEnd(textNode, cutCharacterIndex + 1);
+
+          const characterBounds = range.getBoundingClientRect();
+
+          gsap.set(introMeet, { scale: currentScale, x: currentX });
+
+          if (characterBounds.width <= 0) {
+            return -window.innerWidth * 0.14;
+          }
+
+          return window.innerWidth / 2 - (characterBounds.left + characterBounds.width / 2);
+        };
+        const getIntroMeetStartX = () => measureIntroMeetCutX() + window.innerWidth * 0.86;
+
         gsap.set(introSection, {
           autoAlpha: 1,
           scale: 1,
@@ -370,7 +405,8 @@ export function LandingPage() {
           autoAlpha: 0,
           scale: 1,
           transformOrigin: "50% 50%",
-          y: -720,
+          x: getIntroMeetStartX,
+          y: 0,
           yPercent: -50,
         });
         gsap.set(introProduct, {
@@ -415,7 +451,7 @@ export function LandingPage() {
           y: 73,
         });
 
-        const introRevealScrollUnits = 3.6;
+        const introRevealScrollUnits = 4.05;
         const introExitScrollUnits = 1;
         const introExitStart = introRevealScrollUnits;
         const syncIntroPanelSpacing = () => {
@@ -454,36 +490,20 @@ export function LandingPage() {
           .to(
             introMeet,
             {
-              duration: 0.32,
-              ease: "power4.in",
-              y: 0,
+              duration: 0.42,
+              ease: "power3.out",
+              x: measureIntroMeetCutX,
             },
             0,
           )
-          .to(
-            introMeet,
-            {
-              duration: 0.16,
-              ease: "power2.out",
-              y: -86,
-            },
-            0.32,
-          )
-          .to(
-            introMeet,
-            {
-              duration: 0.16,
-              ease: "power2.in",
-              y: 0,
-            },
-            0.48,
-          )
+          .to(introMeet, { x: 0 }, 0.42)
           .to(
             introMeet,
             {
               duration: 0.34,
               ease: "power2.inOut",
               scale: 0.44,
+              x: 0,
               y: -116,
             },
             0.72,
@@ -576,7 +596,7 @@ export function LandingPage() {
               duration: 0.62,
               ease: "power2.out",
             },
-            2.94,
+            3.1,
           )
           .to(
             introRightHand,
@@ -587,7 +607,7 @@ export function LandingPage() {
               x: 65,
               y: -5,
             },
-            2.94,
+            3.1,
           )
           .to(
             introSection,
@@ -1606,7 +1626,7 @@ export function LandingPage() {
                     animateBy="words"
                     as="span"
                     className="justify-center"
-                    delay={150}
+                    delay={100}
                     direction="bottom"
                     segmentClassName="inline-block"
                     startAnimation={canRevealIntroProductText}
