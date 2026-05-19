@@ -792,6 +792,49 @@ export function LandingPage() {
       const diagramStrokes = Array.from(
         root.querySelectorAll<SVGPathElement>("[data-blackbox-diagram-stroke]"),
       );
+      const diagramArrowheads = Array.from(
+        root.querySelectorAll<SVGPathElement>("[data-blackbox-diagram-arrowhead]"),
+      );
+      const diagramLineStrokes = diagramStrokes.filter(
+        (stroke) => !stroke.hasAttribute("data-blackbox-diagram-arrowhead"),
+      );
+      const getDiagramNode = (name: string) =>
+        root.querySelector<SVGGElement>(`[data-blackbox-diagram-node="${name}"]`);
+      const getDiagramLineStrokes = (name: string) =>
+        Array.from(
+          root.querySelectorAll<SVGPathElement>(
+            `[data-blackbox-diagram-stroke="${name}"]:not([data-blackbox-diagram-arrowhead])`,
+          ),
+        );
+      const getDiagramArrowheads = (name: string) =>
+        Array.from(
+          root.querySelectorAll<SVGPathElement>(
+            `[data-blackbox-diagram-stroke="${name}"][data-blackbox-diagram-arrowhead]`,
+          ),
+        );
+      const inputNode = getDiagramNode("input");
+      const modelNode = getDiagramNode("model");
+      const trainNode = getDiagramNode("train");
+      const predNode = getDiagramNode("pred");
+      const findErrorNode = getDiagramNode("find-error");
+      const minimizeErrorNode = getDiagramNode("minimize-error");
+      const getParamsNode = getDiagramNode("get-params");
+      const resultNode = getDiagramNode("result");
+      const predictNode = getDiagramNode("predict");
+      const inputToModelLines = getDiagramLineStrokes("input-to-model");
+      const modelToTrainLines = getDiagramLineStrokes("model-to-train");
+      const predToFindLines = getDiagramLineStrokes("pred-to-find");
+      const findToMinimizeLines = getDiagramLineStrokes("find-to-minimize");
+      const minimizeToParamsLines = getDiagramLineStrokes("minimize-to-params");
+      const trainToResultLines = getDiagramLineStrokes("train-to-result");
+      const resultToPredictLines = getDiagramLineStrokes("result-to-predict");
+      const inputToModelArrowheads = getDiagramArrowheads("input-to-model");
+      const modelToTrainArrowheads = getDiagramArrowheads("model-to-train");
+      const predToFindArrowheads = getDiagramArrowheads("pred-to-find");
+      const findToMinimizeArrowheads = getDiagramArrowheads("find-to-minimize");
+      const minimizeToParamsArrowheads = getDiagramArrowheads("minimize-to-params");
+      const trainToResultArrowheads = getDiagramArrowheads("train-to-result");
+      const resultToPredictArrowheads = getDiagramArrowheads("result-to-predict");
 
       if (
         !storySection ||
@@ -805,9 +848,34 @@ export function LandingPage() {
         !diagramContent ||
         !conclusionSlide ||
         !conclusionTitle ||
+        !inputNode ||
+        !modelNode ||
+        !trainNode ||
+        !predNode ||
+        !findErrorNode ||
+        !minimizeErrorNode ||
+        !getParamsNode ||
+        !resultNode ||
+        !predictNode ||
         codeCharacters.length === 0 ||
         diagramNodes.length === 0 ||
-        diagramStrokes.length === 0
+        diagramStrokes.length === 0 ||
+        diagramLineStrokes.length === 0 ||
+        diagramArrowheads.length === 0 ||
+        inputToModelLines.length === 0 ||
+        modelToTrainLines.length === 0 ||
+        predToFindLines.length === 0 ||
+        findToMinimizeLines.length === 0 ||
+        minimizeToParamsLines.length === 0 ||
+        trainToResultLines.length === 0 ||
+        resultToPredictLines.length === 0 ||
+        inputToModelArrowheads.length === 0 ||
+        modelToTrainArrowheads.length === 0 ||
+        predToFindArrowheads.length === 0 ||
+        findToMinimizeArrowheads.length === 0 ||
+        minimizeToParamsArrowheads.length === 0 ||
+        trainToResultArrowheads.length === 0 ||
+        resultToPredictArrowheads.length === 0
       ) {
         return;
       }
@@ -840,7 +908,8 @@ export function LandingPage() {
         gsap.set(boxContent, { autoAlpha: 0 });
         gsap.set(diagramContent, { autoAlpha: 1 });
         gsap.set(diagramNodes, { autoAlpha: 1, scale: 1 });
-        gsap.set(diagramStrokes, { autoAlpha: 1, drawSVG: "0% 100%" });
+        gsap.set(diagramLineStrokes, { autoAlpha: 1, drawSVG: "0% 100%" });
+        gsap.set(diagramArrowheads, { autoAlpha: 1, drawSVG: "0% 100%" });
         gsap.set(conclusionTitle, { autoAlpha: 1, clearProps: "filter,transform" });
       });
 
@@ -896,9 +965,13 @@ export function LandingPage() {
           x: 0,
           y: 0,
         });
-        gsap.set(diagramStrokes, {
+        gsap.set(diagramLineStrokes, {
           autoAlpha: 1,
           drawSVG: "0% 0%",
+        });
+        gsap.set(diagramArrowheads, {
+          autoAlpha: 0,
+          drawSVG: "0% 100%",
         });
         gsap.set(conclusionTitle, {
           autoAlpha: 0,
@@ -1050,10 +1123,10 @@ export function LandingPage() {
             boardMorphStart + 0.26,
           )
           .to(
-            diagramNodes,
+            inputNode,
             {
               autoAlpha: 1,
-              duration: 0.24,
+              duration: 0.12,
               ease: "none",
               scale: 1,
               x: 0,
@@ -1062,16 +1135,236 @@ export function LandingPage() {
             boardMorphStart + 0.4,
           )
           .to(
-            diagramStrokes,
+            modelNode,
+            {
+              autoAlpha: 1,
+              duration: 0.12,
+              ease: "none",
+              scale: 1,
+              x: 0,
+              y: 0,
+            },
+            boardMorphStart + 0.54,
+          )
+          .to(
+            inputToModelLines,
             {
               drawSVG: "0% 100%",
-              duration: 0.48,
+              duration: 0.16,
               ease: "power2.out",
-              stagger: 0.05,
+              stagger: 0.03,
             },
-            boardMorphStart + 0.62,
+            boardMorphStart + 0.68,
           )
-          .set(storyVisual, { autoAlpha: 1 }, boardMorphStart + 1.8);
+          .to(
+            inputToModelArrowheads,
+            {
+              autoAlpha: 1,
+              duration: 0.01,
+              ease: "none",
+              stagger: 0.03,
+            },
+            boardMorphStart + 0.84,
+          )
+          .to(
+            trainNode,
+            {
+              autoAlpha: 1,
+              duration: 0.12,
+              ease: "none",
+              scale: 1,
+              x: 0,
+              y: 0,
+            },
+            boardMorphStart + 0.9,
+          )
+          .to(
+            modelToTrainLines,
+            {
+              drawSVG: "0% 100%",
+              duration: 0.16,
+              ease: "power2.out",
+              stagger: 0.03,
+            },
+            boardMorphStart + 1.04,
+          )
+          .to(
+            modelToTrainArrowheads,
+            {
+              autoAlpha: 1,
+              duration: 0.01,
+              ease: "none",
+            },
+            boardMorphStart + 1.2,
+          )
+          .to(
+            predNode,
+            {
+              autoAlpha: 1,
+              duration: 0.12,
+              ease: "none",
+              scale: 1,
+              x: 0,
+              y: 0,
+            },
+            boardMorphStart + 1.22,
+          )
+          .to(
+            findErrorNode,
+            {
+              autoAlpha: 1,
+              duration: 0.12,
+              ease: "none",
+              scale: 1,
+              x: 0,
+              y: 0,
+            },
+            boardMorphStart + 1.36,
+          )
+          .to(
+            predToFindLines,
+            {
+              drawSVG: "0% 100%",
+              duration: 0.16,
+              ease: "power2.out",
+              stagger: 0.03,
+            },
+            boardMorphStart + 1.5,
+          )
+          .to(
+            predToFindArrowheads,
+            {
+              autoAlpha: 1,
+              duration: 0.01,
+              ease: "none",
+            },
+            boardMorphStart + 1.66,
+          )
+          .to(
+            minimizeErrorNode,
+            {
+              autoAlpha: 1,
+              duration: 0.12,
+              ease: "none",
+              scale: 1,
+              x: 0,
+              y: 0,
+            },
+            boardMorphStart + 1.68,
+          )
+          .to(
+            findToMinimizeLines,
+            {
+              drawSVG: "0% 100%",
+              duration: 0.16,
+              ease: "power2.out",
+              stagger: 0.03,
+            },
+            boardMorphStart + 1.82,
+          )
+          .to(
+            findToMinimizeArrowheads,
+            {
+              autoAlpha: 1,
+              duration: 0.01,
+              ease: "none",
+            },
+            boardMorphStart + 1.98,
+          )
+          .to(
+            getParamsNode,
+            {
+              autoAlpha: 1,
+              duration: 0.12,
+              ease: "none",
+              scale: 1,
+              x: 0,
+              y: 0,
+            },
+            boardMorphStart + 2,
+          )
+          .to(
+            minimizeToParamsLines,
+            {
+              drawSVG: "0% 100%",
+              duration: 0.16,
+              ease: "power2.out",
+              stagger: 0.03,
+            },
+            boardMorphStart + 2.14,
+          )
+          .to(
+            minimizeToParamsArrowheads,
+            {
+              autoAlpha: 1,
+              duration: 0.01,
+              ease: "none",
+            },
+            boardMorphStart + 2.3,
+          )
+          .to(
+            resultNode,
+            {
+              autoAlpha: 1,
+              duration: 0.12,
+              ease: "none",
+              scale: 1,
+              x: 0,
+              y: 0,
+            },
+            boardMorphStart + 2.32,
+          )
+          .to(
+            trainToResultLines,
+            {
+              drawSVG: "0% 100%",
+              duration: 0.16,
+              ease: "power2.out",
+              stagger: 0.03,
+            },
+            boardMorphStart + 2.46,
+          )
+          .to(
+            trainToResultArrowheads,
+            {
+              autoAlpha: 1,
+              duration: 0.01,
+              ease: "none",
+            },
+            boardMorphStart + 2.62,
+          )
+          .to(
+            predictNode,
+            {
+              autoAlpha: 1,
+              duration: 0.12,
+              ease: "none",
+              scale: 1,
+              x: 0,
+              y: 0,
+            },
+            boardMorphStart + 2.64,
+          )
+          .to(
+            resultToPredictLines,
+            {
+              drawSVG: "0% 100%",
+              duration: 0.16,
+              ease: "power2.out",
+              stagger: 0.03,
+            },
+            boardMorphStart + 2.78,
+          )
+          .to(
+            resultToPredictArrowheads,
+            {
+              autoAlpha: 1,
+              duration: 0.01,
+              ease: "none",
+            },
+            boardMorphStart + 2.94,
+          )
+          .set(storyVisual, { autoAlpha: 1 }, boardMorphStart + 3.04);
 
         gsap
           .timeline({
@@ -2478,7 +2771,7 @@ function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
   return (
     <svg fill="none" viewBox="0 0 870 300" xmlns="http://www.w3.org/2000/svg" {...props}>
       <g fontFamily="Lexend Variable, ui-sans-serif, system-ui, sans-serif" letterSpacing="0">
-        <g data-blackbox-diagram-node>
+        <g data-blackbox-diagram-node="input">
           <text fill="#09090b" fontSize="18" fontWeight="500" x="34" y="73">
             Input
           </text>
@@ -2512,14 +2805,15 @@ function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
 
         <path
           d="M74 112 L116 146"
-          data-blackbox-diagram-stroke
+          data-blackbox-diagram-stroke="input-to-model"
           stroke="#09090b"
           strokeLinecap="round"
           strokeWidth="2.4"
         />
         <path
           d="M105 143 L116 146 L112 136"
-          data-blackbox-diagram-stroke
+          data-blackbox-diagram-arrowhead=""
+          data-blackbox-diagram-stroke="input-to-model"
           stroke="#09090b"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -2527,21 +2821,22 @@ function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
         />
         <path
           d="M74 190 L116 168"
-          data-blackbox-diagram-stroke
+          data-blackbox-diagram-stroke="input-to-model"
           stroke="#09090b"
           strokeLinecap="round"
           strokeWidth="2.4"
         />
         <path
           d="M109 177 L116 168 L105 168"
-          data-blackbox-diagram-stroke
+          data-blackbox-diagram-arrowhead=""
+          data-blackbox-diagram-stroke="input-to-model"
           stroke="#09090b"
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth="2.4"
         />
 
-        <g data-blackbox-diagram-node>
+        <g data-blackbox-diagram-node="model">
           <text fill="#09090b" fontSize="18" fontWeight="500" textAnchor="middle" x="184" y="106">
             Model
           </text>
@@ -2557,21 +2852,22 @@ function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
 
         <path
           d="M254 158 H296"
-          data-blackbox-diagram-stroke
+          data-blackbox-diagram-stroke="model-to-train"
           stroke="#09090b"
           strokeLinecap="round"
           strokeWidth="2.4"
         />
         <path
           d="M286 151 L298 158 L286 165"
-          data-blackbox-diagram-stroke
+          data-blackbox-diagram-arrowhead=""
+          data-blackbox-diagram-stroke="model-to-train"
           stroke="#09090b"
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth="2.4"
         />
 
-        <g data-blackbox-diagram-node>
+        <g data-blackbox-diagram-node="train">
           <text fill="#09090b" fontSize="18" fontWeight="500" textAnchor="middle" x="405" y="30">
             Train
           </text>
@@ -2579,7 +2875,7 @@ function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
           <rect height="258" rx="28" stroke="#09090b" strokeWidth="2" width="196" x="307" y="42" />
         </g>
 
-        <g data-blackbox-diagram-node>
+        <g data-blackbox-diagram-node="pred">
           <rect
             fill="transparent"
             height="34"
@@ -2596,21 +2892,22 @@ function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
         </g>
         <path
           d="M405 99 V119"
-          data-blackbox-diagram-stroke
+          data-blackbox-diagram-stroke="pred-to-find"
           stroke="#09090b"
           strokeLinecap="round"
           strokeWidth="2.2"
         />
         <path
           d="M399 112 L405 121 L411 112"
-          data-blackbox-diagram-stroke
+          data-blackbox-diagram-arrowhead=""
+          data-blackbox-diagram-stroke="pred-to-find"
           stroke="#09090b"
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth="2.2"
         />
 
-        <g data-blackbox-diagram-node>
+        <g data-blackbox-diagram-node="find-error">
           <rect
             fill="transparent"
             height="34"
@@ -2627,21 +2924,22 @@ function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
         </g>
         <path
           d="M405 157 V177"
-          data-blackbox-diagram-stroke
+          data-blackbox-diagram-stroke="find-to-minimize"
           stroke="#09090b"
           strokeLinecap="round"
           strokeWidth="2.2"
         />
         <path
           d="M399 170 L405 179 L411 170"
-          data-blackbox-diagram-stroke
+          data-blackbox-diagram-arrowhead=""
+          data-blackbox-diagram-stroke="find-to-minimize"
           stroke="#09090b"
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth="2.2"
         />
 
-        <g data-blackbox-diagram-node>
+        <g data-blackbox-diagram-node="minimize-error">
           <rect
             fill="transparent"
             height="34"
@@ -2658,21 +2956,22 @@ function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
         </g>
         <path
           d="M405 215 V235"
-          data-blackbox-diagram-stroke
+          data-blackbox-diagram-stroke="minimize-to-params"
           stroke="#09090b"
           strokeLinecap="round"
           strokeWidth="2.2"
         />
         <path
           d="M399 228 L405 237 L411 228"
-          data-blackbox-diagram-stroke
+          data-blackbox-diagram-arrowhead=""
+          data-blackbox-diagram-stroke="minimize-to-params"
           stroke="#09090b"
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth="2.2"
         />
 
-        <g data-blackbox-diagram-node>
+        <g data-blackbox-diagram-node="get-params">
           <rect
             fill="transparent"
             height="34"
@@ -2690,21 +2989,22 @@ function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
 
         <path
           d="M508 158 H548"
-          data-blackbox-diagram-stroke
+          data-blackbox-diagram-stroke="train-to-result"
           stroke="#09090b"
           strokeLinecap="round"
           strokeWidth="2.4"
         />
         <path
           d="M538 151 L550 158 L538 165"
-          data-blackbox-diagram-stroke
+          data-blackbox-diagram-arrowhead=""
+          data-blackbox-diagram-stroke="train-to-result"
           stroke="#09090b"
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth="2.4"
         />
 
-        <g data-blackbox-diagram-node>
+        <g data-blackbox-diagram-node="result">
           <text fill="#09090b" fontSize="18" fontWeight="500" textAnchor="middle" x="618" y="106">
             Result
           </text>
@@ -2720,21 +3020,22 @@ function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
 
         <path
           d="M692 158 H724"
-          data-blackbox-diagram-stroke
+          data-blackbox-diagram-stroke="result-to-predict"
           stroke="#09090b"
           strokeLinecap="round"
           strokeWidth="2.4"
         />
         <path
           d="M714 151 L726 158 L714 165"
-          data-blackbox-diagram-stroke
+          data-blackbox-diagram-arrowhead=""
+          data-blackbox-diagram-stroke="result-to-predict"
           stroke="#09090b"
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth="2.4"
         />
 
-        <g data-blackbox-diagram-node>
+        <g data-blackbox-diagram-node="predict">
           <text fill="#09090b" fontSize="18" fontWeight="500" textAnchor="middle" x="766" y="106">
             Predict
           </text>
