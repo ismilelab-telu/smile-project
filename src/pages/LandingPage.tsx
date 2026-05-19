@@ -914,6 +914,15 @@ export function LandingPage() {
       });
 
       motionPreferences.add("(prefers-reduced-motion: no-preference)", () => {
+        const conclusionTitleSplit = GSAPSplitText.create(conclusionTitle, {
+          aria: "auto",
+          tag: "span",
+          type: "words",
+          wordsClass: "understand-title-word",
+        });
+        const conclusionTitleWords =
+          conclusionTitleSplit.words.length > 0 ? conclusionTitleSplit.words : [conclusionTitle];
+
         gsap.set(storySection, { clearProps: "backgroundColor" });
         gsap.set(storyStage, { clearProps: "backgroundColor" });
         gsap.set([simpleCard, openCard, unpackCard, conclusionSlide], {
@@ -974,6 +983,10 @@ export function LandingPage() {
           drawSVG: "0% 100%",
         });
         gsap.set(conclusionTitle, {
+          autoAlpha: 1,
+          clearProps: "filter,transform",
+        });
+        gsap.set(conclusionTitleWords, {
           autoAlpha: 0,
           filter: "blur(18px)",
           y: 36,
@@ -1395,16 +1408,21 @@ export function LandingPage() {
             "understand",
           )
           .to(
-            conclusionTitle,
+            conclusionTitleWords,
             {
               autoAlpha: 1,
-              duration: 0.58,
+              duration: 0.64,
               ease: "power2.out",
               filter: "blur(0px)",
+              stagger: 0.11,
               y: 0,
             },
             "understand+=0.34",
           );
+
+        return () => {
+          conclusionTitleSplit.revert();
+        };
       });
 
       return () => motionPreferences.revert();
