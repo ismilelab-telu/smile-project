@@ -32,6 +32,10 @@ const representationQuote =
 const playgroundFinalLeadWordMoveDuration = 0.24;
 const playgroundFinalLeadWordStarts = [0, 0.24, 0.42] as const;
 const playgroundFinalLeadWordStartY = 420;
+const quoteWinkEmojiStaticSrc = "https://fonts.gstatic.com/s/e/notoemoji/latest/1f609/512.png";
+const quoteWinkEmojiWebpSrc = "https://fonts.gstatic.com/s/e/notoemoji/latest/1f609/512.webp";
+const quoteWinkEmojiGifSrc = "https://fonts.gstatic.com/s/e/notoemoji/latest/1f609/512.gif";
+const quoteWinkEmojiPlaybackDuration = 2.25;
 const finalLoveDockStart = 2.2;
 const finalLoveDockMoveDuration = 0.24;
 const finalLoveBounceRiseDuration = 0.18;
@@ -1247,8 +1251,29 @@ export function LandingPage() {
     () => {
       const section = horizontalQuoteSectionRef.current;
       const headline = section?.querySelector<HTMLElement>("[data-horizontal-quote-text]");
+      const emoji = section?.querySelector<HTMLElement>("[data-horizontal-quote-emoji]");
+      const emojiStaticLayer = section?.querySelector<HTMLElement>(
+        "[data-horizontal-quote-emoji-static]",
+      );
+      const emojiAnimatedLayer = section?.querySelector<HTMLElement>(
+        "[data-horizontal-quote-emoji-animated]",
+      );
+      const emojiAnimatedSource = section?.querySelector<HTMLSourceElement>(
+        "[data-horizontal-quote-emoji-source]",
+      );
+      const emojiAnimatedImage = section?.querySelector<HTMLImageElement>(
+        "[data-horizontal-quote-emoji-image]",
+      );
 
-      if (!section || !headline) {
+      if (
+        !section ||
+        !headline ||
+        !emoji ||
+        !emojiStaticLayer ||
+        !emojiAnimatedLayer ||
+        !emojiAnimatedSource ||
+        !emojiAnimatedImage
+      ) {
         return;
       }
 
@@ -1263,8 +1288,43 @@ export function LandingPage() {
           whiteSpace: "normal",
           width: "auto",
         });
+        gsap.set(emoji, {
+          autoAlpha: 1,
+          clearProps: "filter,transform",
+        });
+        gsap.set(emojiStaticLayer, { autoAlpha: 1 });
+        gsap.set(emojiAnimatedLayer, { autoAlpha: 0 });
         return;
       }
+
+      const quoteScrollDistance = 5000;
+      const quoteEmojiScrollDistance = 2600;
+      let hasPlayedEmoji = false;
+
+      const resetAnimatedEmojiSource = () => {
+        emojiAnimatedSource.removeAttribute("srcset");
+        emojiAnimatedImage.removeAttribute("src");
+      };
+      const restartAnimatedEmoji = () => {
+        resetAnimatedEmojiSource();
+
+        void emojiAnimatedImage.offsetWidth;
+        emojiAnimatedSource.setAttribute("srcset", quoteWinkEmojiWebpSrc);
+        emojiAnimatedImage.setAttribute("src", quoteWinkEmojiGifSrc);
+      };
+      const resetEmoji = () => {
+        resetAnimatedEmojiSource();
+        gsap.set(emoji, {
+          autoAlpha: 0,
+          filter: "blur(26px)",
+          scale: 2.35,
+          transformOrigin: "50% 50%",
+        });
+        gsap.set(emojiStaticLayer, { autoAlpha: 1 });
+        gsap.set(emojiAnimatedLayer, { autoAlpha: 0 });
+      };
+
+      resetEmoji();
 
       const quoteSplit = GSAPSplitText.create(headline, {
         aria: "auto",
@@ -1274,13 +1334,87 @@ export function LandingPage() {
         wordsClass: "horizontal-quote-word",
       });
 
+      const quotePinTrigger = ScrollTrigger.create({
+        anticipatePin: 0.4,
+        end: () => `+=${quoteScrollDistance + quoteEmojiScrollDistance}`,
+        invalidateOnRefresh: true,
+        pin: true,
+        start: "top top",
+        trigger: section,
+      });
+
+      const emojiTimeline = gsap
+        .timeline({
+          paused: true,
+          onInterrupt: resetAnimatedEmojiSource,
+        })
+        .call(resetAnimatedEmojiSource, [], 0)
+        .set(emojiStaticLayer, { autoAlpha: 1 }, 0)
+        .set(emojiAnimatedLayer, { autoAlpha: 0 }, 0)
+        .fromTo(
+          emoji,
+          {
+            autoAlpha: 0,
+            filter: "blur(26px)",
+            scale: 2.35,
+          },
+          {
+            autoAlpha: 1,
+            duration: 0.62,
+            ease: "power3.out",
+            filter: "blur(0px)",
+            scale: 1,
+          },
+          0,
+        )
+        .call(restartAnimatedEmoji, [], 0.62)
+        .set(emojiAnimatedLayer, { autoAlpha: 1 }, 0.62)
+        .set(emojiStaticLayer, { autoAlpha: 0 }, 0.62)
+        .to(emoji, { duration: quoteWinkEmojiPlaybackDuration, ease: "none" }, 0.62)
+        .to(emoji, {
+          autoAlpha: 0,
+          duration: 0.46,
+          ease: "power3.in",
+          filter: "blur(22px)",
+          scale: 0.34,
+        })
+        .call(resetAnimatedEmojiSource);
+
+      const playEmoji = () => {
+        if (hasPlayedEmoji) {
+          return;
+        }
+
+        hasPlayedEmoji = true;
+        resetEmoji();
+        emojiTimeline.restart();
+      };
+
+      const stopEmoji = () => {
+        hasPlayedEmoji = false;
+        emojiTimeline.pause(0);
+        resetEmoji();
+      };
+
       const scrollTween = gsap.to(headline, {
         ease: "none",
         scrollTrigger: {
-          end: "+=5000px",
+          end: () => `+=${quoteScrollDistance}`,
           invalidateOnRefresh: true,
-          pin: true,
+          onEnterBack: stopEmoji,
+          onLeave: playEmoji,
+          onLeaveBack: stopEmoji,
+          onUpdate: (self) => {
+            if (self.progress >= 0.995 && self.direction >= 0) {
+              playEmoji();
+            }
+
+            if (self.progress < 0.98 && self.direction < 0) {
+              stopEmoji();
+            }
+          },
           scrub: true,
+          start: "top top",
           trigger: section,
         },
         x: () => -(headline.scrollWidth + window.innerWidth * 0.24),
@@ -1302,6 +1436,11 @@ export function LandingPage() {
       });
 
       return () => {
+        scrollTween.scrollTrigger?.kill();
+        scrollTween.kill();
+        emojiTimeline.kill();
+        quotePinTrigger.kill();
+        resetAnimatedEmojiSource();
         quoteSplit.revert();
       };
     },
@@ -1710,6 +1849,40 @@ export function LandingPage() {
             >
               {representationQuote}
             </h3>
+          </div>
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+            <div
+              className="relative size-[clamp(5.25rem,12vw,10rem)] opacity-0 will-change-[filter,transform,opacity]"
+              data-horizontal-quote-emoji
+            >
+              <picture
+                className="absolute inset-0 block size-full"
+                data-horizontal-quote-emoji-static
+              >
+                <img
+                  alt="😉"
+                  className="block size-full"
+                  draggable={false}
+                  height="512"
+                  src={quoteWinkEmojiStaticSrc}
+                  width="512"
+                />
+              </picture>
+              <picture
+                className="absolute inset-0 block size-full opacity-0"
+                data-horizontal-quote-emoji-animated
+              >
+                <source data-horizontal-quote-emoji-source type="image/webp" />
+                <img
+                  alt="😉"
+                  className="block size-full"
+                  data-horizontal-quote-emoji-image
+                  draggable={false}
+                  height="512"
+                  width="512"
+                />
+              </picture>
+            </div>
           </div>
         </section>
       </section>
