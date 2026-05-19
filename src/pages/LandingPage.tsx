@@ -463,7 +463,7 @@ export function LandingPage() {
           y: 73,
         });
 
-        const introRevealScrollUnits = 4.05;
+        const introRevealScrollUnits = 4.85;
         const introExitScrollUnits = 1;
         const introExitStart = introRevealScrollUnits;
         const syncIntroPanelSpacing = () => {
@@ -584,7 +584,7 @@ export function LandingPage() {
                 from: "center",
               },
             },
-            1.48,
+            1.9,
           )
           .to(
             introAxisXLine,
@@ -593,7 +593,7 @@ export function LandingPage() {
               duration: 0.28,
               ease: "power2.out",
             },
-            1.9,
+            2.72,
           )
           .to(
             introAxisXArrow,
@@ -602,7 +602,7 @@ export function LandingPage() {
               duration: 0.14,
               ease: "power2.out",
             },
-            2.14,
+            2.96,
           )
           .to(
             introAxisYLine,
@@ -611,7 +611,7 @@ export function LandingPage() {
               duration: 0.28,
               ease: "power2.out",
             },
-            2.26,
+            3.08,
           )
           .to(
             introAxisYArrow,
@@ -620,7 +620,7 @@ export function LandingPage() {
               duration: 0.14,
               ease: "power2.out",
             },
-            2.5,
+            3.32,
           )
           .to(
             introHandElements,
@@ -631,7 +631,7 @@ export function LandingPage() {
               scale: 1,
               stagger: 0.08,
             },
-            2.66,
+            3.48,
           )
           .to(
             introRegressionLine,
@@ -640,7 +640,7 @@ export function LandingPage() {
               duration: 0.62,
               ease: "power2.out",
             },
-            3.1,
+            3.9,
           )
           .to(
             introRightHand,
@@ -651,7 +651,7 @@ export function LandingPage() {
               x: 65,
               y: -5,
             },
-            3.1,
+            3.9,
           )
           .to(
             introSection,
