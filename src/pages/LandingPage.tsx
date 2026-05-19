@@ -890,8 +890,8 @@ export function LandingPage() {
       motionPreferences.add("(prefers-reduced-motion: reduce)", () => {
         gsap.set(storySection, { clearProps: "backgroundColor" });
         gsap.set(storyStage, { clearProps: "backgroundColor" });
-        gsap.set([simpleCard, openCard], { autoAlpha: 0 });
-        gsap.set(unpackCard, { autoAlpha: 1, clearProps: "transform" });
+        gsap.set([simpleCard, openCard, unpackCard], { autoAlpha: 0 });
+        gsap.set(conclusionSlide, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(storyVisual, {
           autoAlpha: 1,
           backgroundColor: "#fafafa",
@@ -916,14 +916,14 @@ export function LandingPage() {
       motionPreferences.add("(prefers-reduced-motion: no-preference)", () => {
         gsap.set(storySection, { clearProps: "backgroundColor" });
         gsap.set(storyStage, { clearProps: "backgroundColor" });
-        gsap.set([simpleCard, openCard, unpackCard], {
+        gsap.set([simpleCard, openCard, unpackCard, conclusionSlide], {
           autoAlpha: 1,
           scale: 1,
           transformOrigin: "50% 50%",
           yPercent: 0,
           willChange: "transform",
         });
-        gsap.set([openCard, unpackCard], { yPercent: 100 });
+        gsap.set([openCard, unpackCard, conclusionSlide], { yPercent: 100 });
         gsap.set(storyVisual, {
           autoAlpha: 1,
           backgroundColor: "#111113",
@@ -988,6 +988,7 @@ export function LandingPage() {
         const blackBoxMorphStart = openCardStart + 0.08;
         const unpackCardStart = openCardStart + 1.42;
         const boardMorphStart = unpackCardStart + 0.39;
+        const conclusionCardStart = boardMorphStart + 3.28;
 
         const storyTimeline = gsap.timeline({
           defaults: { ease: "power2.out" },
@@ -1364,24 +1365,46 @@ export function LandingPage() {
             },
             boardMorphStart + 2.94,
           )
-          .set(storyVisual, { autoAlpha: 1 }, boardMorphStart + 3.04);
-
-        gsap
-          .timeline({
-            scrollTrigger: {
-              end: "center center",
-              scrub: true,
-              start: "top 78%",
-              trigger: conclusionSlide,
+          .set(storyVisual, { autoAlpha: 1 }, boardMorphStart + 3.04)
+          .addLabel("understand", conclusionCardStart)
+          .to(
+            unpackCard,
+            {
+              duration: 0.78,
+              ease: "power3.inOut",
+              scale: 0.86,
             },
-          })
-          .to(conclusionTitle, {
-            autoAlpha: 1,
-            duration: 1,
-            ease: "power2.out",
-            filter: "blur(0px)",
-            y: 0,
-          });
+            "understand",
+          )
+          .to(
+            storyVisual,
+            {
+              duration: 0.78,
+              ease: "power3.inOut",
+              scale: 0.86,
+            },
+            "understand",
+          )
+          .to(
+            conclusionSlide,
+            {
+              duration: 0.78,
+              ease: "power3.inOut",
+              yPercent: 0,
+            },
+            "understand",
+          )
+          .to(
+            conclusionTitle,
+            {
+              autoAlpha: 1,
+              duration: 0.58,
+              ease: "power2.out",
+              filter: "blur(0px)",
+              y: 0,
+            },
+            "understand+=0.34",
+          );
       });
 
       return () => motionPreferences.revert();
@@ -2401,7 +2424,7 @@ export function LandingPage() {
 
           <section
             aria-label="ML can look simple from the outside. But the logic stays inside a black box. So we unpack every step."
-            className="relative z-20 h-[620svh] w-full bg-transparent text-zinc-950"
+            className="relative z-20 h-[720svh] w-full bg-transparent text-zinc-950"
             data-blackbox-story-section
           >
             <div
@@ -2504,23 +2527,23 @@ export function LandingPage() {
                   <BlackBoxProcessDiagram className="h-full w-full overflow-visible" />
                 </div>
               </div>
-            </div>
-          </section>
 
-          <section
-            aria-labelledby="understand-process-title"
-            className="relative z-20 flex h-[calc(100svh-4rem)] w-full items-center justify-center overflow-hidden bg-zinc-50 px-6 text-zinc-950"
-            data-understand-slide
-          >
-            <h2
-              className="max-w-7xl text-center text-[clamp(2.65rem,8.4vw,8.8rem)] leading-[0.92] font-semibold tracking-normal opacity-0"
-              data-understand-title
-              id="understand-process-title"
-            >
-              Understand the process,
-              <br />
-              not just the output.
-            </h2>
+              <section
+                aria-labelledby="understand-process-title"
+                className="absolute inset-0 z-[60] flex items-center justify-center overflow-hidden rounded-t-2xl bg-zinc-50 px-6 text-zinc-950"
+                data-understand-slide
+              >
+                <h2
+                  className="max-w-7xl text-center text-[clamp(2.65rem,8.4vw,8.8rem)] leading-[0.92] font-semibold tracking-normal opacity-0"
+                  data-understand-title
+                  id="understand-process-title"
+                >
+                  Understand the process,
+                  <br />
+                  not just the output.
+                </h2>
+              </section>
+            </div>
           </section>
         </div>
 
