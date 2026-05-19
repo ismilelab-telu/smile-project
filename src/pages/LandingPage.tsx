@@ -11,7 +11,6 @@ import { PlaygroundIntroDots } from "@/components/PlaygroundIntroDots";
 import { PlaygroundIntroHands } from "@/components/PlaygroundIntroHands";
 import { PlaygroundIntroRegressionLine } from "@/components/PlaygroundIntroRegressionLine";
 import { DottedSurface } from "@/components/ui/dotted-surface";
-import { BlurText } from "@/components/ui/blur-text";
 import { GlassSurface } from "@/components/ui/glass-surface";
 import { CinematicFooter } from "@/components/ui/motion-footer";
 import { OrchestratedEaseReverseMenu } from "@/components/ui/orchestrated-ease-reverse-menu";
@@ -61,7 +60,6 @@ export function LandingPage() {
   const exploreLabelRef = useRef<HTMLSpanElement>(null);
   const [canStartDescriptionAnimation, setCanStartDescriptionAnimation] = useState(false);
   const [canRevealHeroAction, setCanRevealHeroAction] = useState(false);
-  const [canRevealIntroProductText, setCanRevealIntroProductText] = useState(false);
   const startDescriptionAnimation = useCallback(() => {
     setCanStartDescriptionAnimation(true);
   }, []);
@@ -294,21 +292,8 @@ export function LandingPage() {
       }
 
       const motionPreferences = gsap.matchMedia();
-      const syncIntroProductTextAnimation = (() => {
-        let isActive = false;
-
-        return (nextIsActive: boolean) => {
-          if (isActive === nextIsActive) {
-            return;
-          }
-
-          isActive = nextIsActive;
-          setCanRevealIntroProductText(nextIsActive);
-        };
-      })();
 
       motionPreferences.add("(prefers-reduced-motion: reduce)", () => {
-        syncIntroProductTextAnimation(true);
         gsap.set(introSection, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(introCard, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(introMeet, {
@@ -355,7 +340,6 @@ export function LandingPage() {
       });
 
       motionPreferences.add("(prefers-reduced-motion: no-preference)", () => {
-        syncIntroProductTextAnimation(false);
         const getIntroMeetTextNode = () =>
           Array.from(introMeet.childNodes).find(
             (node): node is Text =>
@@ -389,6 +373,22 @@ export function LandingPage() {
           return window.innerWidth / 2 - (characterBounds.left + characterBounds.width / 2);
         };
         const getIntroMeetStartX = () => measureIntroMeetCutX() + window.innerWidth * 0.86;
+        const introProductSplit = GSAPSplitText.create(introProduct, {
+          aria: "hidden",
+          tag: "span",
+          type: "words",
+          wordsClass: "intro-product-word",
+        });
+        const introProductWords =
+          introProductSplit.words.length > 0 ? introProductSplit.words : [introProduct];
+        const introSubtitleSplit = GSAPSplitText.create(introSubtitle, {
+          aria: "hidden",
+          tag: "span",
+          type: "words",
+          wordsClass: "intro-subtitle-word",
+        });
+        const introSubtitleWords =
+          introSubtitleSplit.words.length > 0 ? introSubtitleSplit.words : [introSubtitle];
 
         gsap.set(introSection, {
           autoAlpha: 1,
@@ -415,9 +415,19 @@ export function LandingPage() {
           y: 230,
           yPercent: -50,
         });
+        gsap.set(introProductWords, {
+          autoAlpha: 0,
+          filter: "blur(14px)",
+          yPercent: 70,
+        });
         gsap.set(introSubtitle, {
           autoAlpha: 0,
           y: 28,
+        });
+        gsap.set(introSubtitleWords, {
+          autoAlpha: 0,
+          filter: "blur(8px)",
+          yPercent: 80,
         });
         gsap.set(introChart, {
           autoAlpha: 1,
@@ -466,9 +476,7 @@ export function LandingPage() {
           scrollTrigger: {
             end: () => `+=${window.innerHeight * (introRevealScrollUnits + introExitScrollUnits)}`,
             invalidateOnRefresh: true,
-            onLeaveBack: () => syncIntroProductTextAnimation(false),
             onRefreshInit: syncIntroPanelSpacing,
-            onUpdate: () => syncIntroProductTextAnimation(introTimeline.time() >= 0.8),
             pin: true,
             pinSpacing: false,
             scrub: true,
@@ -512,21 +520,45 @@ export function LandingPage() {
             introProduct,
             {
               autoAlpha: 1,
-              duration: 0.36,
+              duration: 0.24,
               ease: "power3.out",
               y: -10,
             },
             0.8,
           )
           .to(
+            introProductWords,
+            {
+              autoAlpha: 1,
+              duration: 0.56,
+              ease: "power2.out",
+              filter: "blur(0px)",
+              stagger: 0.08,
+              yPercent: 0,
+            },
+            0.86,
+          )
+          .to(
             introSubtitle,
             {
               autoAlpha: 1,
-              duration: 0.2,
+              duration: 0.16,
               ease: "power2.out",
               y: 0,
             },
             1.38,
+          )
+          .to(
+            introSubtitleWords,
+            {
+              autoAlpha: 1,
+              duration: 0.34,
+              ease: "power2.out",
+              filter: "blur(0px)",
+              stagger: 0.015,
+              yPercent: 0,
+            },
+            1.4,
           )
           .to(
             introDotElements,
@@ -630,7 +662,8 @@ export function LandingPage() {
 
         return () => {
           introSection.style.marginBottom = "";
-          syncIntroProductTextAnimation(false);
+          introSubtitleSplit.revert();
+          introProductSplit.revert();
         };
       });
 
@@ -1622,17 +1655,7 @@ export function LandingPage() {
                   className="absolute inset-x-0 top-1/2 block text-[clamp(3.4rem,6.8vw,7rem)] leading-[0.88] font-medium tracking-normal text-zinc-950 opacity-0 will-change-[transform,opacity]"
                   data-playground-intro-product
                 >
-                  <BlurText
-                    animateBy="words"
-                    as="span"
-                    className="justify-center"
-                    delay={100}
-                    direction="bottom"
-                    segmentClassName="inline-block"
-                    startAnimation={canRevealIntroProductText}
-                    stepDuration={0.35}
-                    text={playgroundIntroTitle}
-                  />
+                  {playgroundIntroTitle}
                 </span>
               </h2>
 
