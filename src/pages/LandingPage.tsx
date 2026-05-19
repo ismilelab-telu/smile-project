@@ -773,7 +773,10 @@ export function LandingPage() {
       }
 
       const storySection = root.querySelector<HTMLElement>("[data-blackbox-story-section]");
-      const storyStage = root.querySelector<HTMLElement>("[data-blackbox-floating-stage]");
+      const storyStage = root.querySelector<HTMLElement>("[data-blackbox-story-stage]");
+      const simpleCard = root.querySelector<HTMLElement>("[data-blackbox-card='simple']");
+      const openCard = root.querySelector<HTMLElement>("[data-blackbox-card='open']");
+      const unpackCard = root.querySelector<HTMLElement>("[data-blackbox-card='unpack']");
       const storyVisual = root.querySelector<HTMLElement>("[data-blackbox-visual]");
       const editorShell = root.querySelector<HTMLElement>("[data-blackbox-editor-shell]");
       const boxContent = root.querySelector<HTMLElement>("[data-blackbox-box-content]");
@@ -793,6 +796,9 @@ export function LandingPage() {
       if (
         !storySection ||
         !storyStage ||
+        !simpleCard ||
+        !openCard ||
+        !unpackCard ||
         !storyVisual ||
         !editorShell ||
         !boxContent ||
@@ -814,8 +820,10 @@ export function LandingPage() {
       const motionPreferences = gsap.matchMedia();
 
       motionPreferences.add("(prefers-reduced-motion: reduce)", () => {
-        gsap.set(storySection, { backgroundColor: "#71717a" });
+        gsap.set(storySection, { clearProps: "backgroundColor" });
         gsap.set(storyStage, { clearProps: "backgroundColor" });
+        gsap.set([simpleCard, openCard], { autoAlpha: 0 });
+        gsap.set(unpackCard, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(storyVisual, {
           autoAlpha: 1,
           backgroundColor: "#fafafa",
@@ -837,8 +845,16 @@ export function LandingPage() {
       });
 
       motionPreferences.add("(prefers-reduced-motion: no-preference)", () => {
-        gsap.set(storySection, { backgroundColor: "#71717a" });
+        gsap.set(storySection, { clearProps: "backgroundColor" });
         gsap.set(storyStage, { clearProps: "backgroundColor" });
+        gsap.set([simpleCard, openCard, unpackCard], {
+          autoAlpha: 1,
+          scale: 1,
+          transformOrigin: "50% 50%",
+          yPercent: 0,
+          willChange: "transform",
+        });
+        gsap.set([openCard, unpackCard], { yPercent: 100 });
         gsap.set(storyVisual, {
           autoAlpha: 1,
           backgroundColor: "#111113",
@@ -891,6 +907,15 @@ export function LandingPage() {
           willChange: "filter, opacity, transform",
         });
 
+        const codeRevealStart = 0.16;
+        const codeRevealStagger = 0.006;
+        const codeRevealDuration =
+          0.01 + Math.max(codeCharacters.length - 1, 0) * codeRevealStagger;
+        const openCardStart = codeRevealStart + codeRevealDuration + 0.46;
+        const blackBoxMorphStart = openCardStart + 0.38;
+        const unpackCardStart = blackBoxMorphStart + 1.68;
+        const boardMorphStart = unpackCardStart + 0.44;
+
         const storyTimeline = gsap.timeline({
           defaults: { ease: "power2.out" },
           scrollTrigger: {
@@ -910,11 +935,29 @@ export function LandingPage() {
               autoAlpha: 1,
               duration: 0.01,
               ease: "none",
-              stagger: 0.008,
+              stagger: codeRevealStagger,
             },
-            "call+=0.16",
+            codeRevealStart,
           )
-          .addLabel("open", 1.32)
+          .addLabel("open", openCardStart)
+          .to(
+            simpleCard,
+            {
+              duration: 0.78,
+              ease: "power3.inOut",
+              scale: 0.82,
+            },
+            "open",
+          )
+          .to(
+            openCard,
+            {
+              duration: 0.78,
+              ease: "power3.inOut",
+              yPercent: 0,
+            },
+            "open",
+          )
           .to(
             storyVisual,
             {
@@ -928,7 +971,7 @@ export function LandingPage() {
               scale: 1,
               width: getBlackBoxSize,
             },
-            "open",
+            blackBoxMorphStart,
           )
           .to(
             editorShell,
@@ -939,7 +982,7 @@ export function LandingPage() {
               filter: "blur(18px)",
               scale: 0.78,
             },
-            "open+=0.06",
+            blackBoxMorphStart + 0.06,
           )
           .to(
             boxContent,
@@ -949,9 +992,27 @@ export function LandingPage() {
               ease: "power2.out",
               scale: 1,
             },
-            "open+=0.42",
+            blackBoxMorphStart + 0.42,
           )
-          .addLabel("unpack", 2.58)
+          .addLabel("unpack", unpackCardStart)
+          .to(
+            openCard,
+            {
+              duration: 0.78,
+              ease: "power3.inOut",
+              scale: 0.86,
+            },
+            "unpack",
+          )
+          .to(
+            unpackCard,
+            {
+              duration: 0.78,
+              ease: "power3.inOut",
+              yPercent: 0,
+            },
+            "unpack",
+          )
           .to(
             storyVisual,
             {
@@ -965,7 +1026,7 @@ export function LandingPage() {
               scale: 1,
               width: getBoardWidth,
             },
-            "unpack",
+            boardMorphStart,
           )
           .to(
             boxContent,
@@ -976,7 +1037,7 @@ export function LandingPage() {
               filter: "blur(10px)",
               scale: 0.86,
             },
-            "unpack",
+            boardMorphStart,
           )
           .to(
             diagramContent,
@@ -985,7 +1046,7 @@ export function LandingPage() {
               duration: 0.26,
               ease: "none",
             },
-            "unpack+=0.26",
+            boardMorphStart + 0.26,
           )
           .to(
             diagramNodes,
@@ -996,7 +1057,7 @@ export function LandingPage() {
               scale: 1,
               stagger: 0.06,
             },
-            "unpack+=0.4",
+            boardMorphStart + 0.4,
           )
           .to(
             diagramStrokes,
@@ -1006,7 +1067,7 @@ export function LandingPage() {
               ease: "power2.out",
               stagger: 0.05,
             },
-            "unpack+=0.62",
+            boardMorphStart + 0.62,
           )
           .to(
             storyVisual,
@@ -1016,7 +1077,7 @@ export function LandingPage() {
               ease: "power2.in",
               y: -30,
             },
-            "unpack+=1.8",
+            boardMorphStart + 1.8,
           );
 
         gsap
@@ -2054,14 +2115,17 @@ export function LandingPage() {
 
           <section
             aria-label="ML can look simple from the outside. So we open the black box. We unpack every step."
-            className="relative z-20 h-[440svh] w-full rounded-t-2xl bg-zinc-500 text-zinc-950"
+            className="relative z-20 h-[620svh] w-full bg-transparent text-zinc-950"
             data-blackbox-story-section
           >
-            <div className="absolute inset-x-0 top-0 z-10" data-blackbox-copy-track>
+            <div
+              className="sticky top-16 h-[calc(100svh-4rem)] overflow-hidden rounded-t-2xl bg-transparent"
+              data-blackbox-story-stage
+            >
               <section
                 aria-hidden="true"
-                className="flex h-[calc(100svh-4rem)] items-start justify-center rounded-t-2xl px-4 pt-[9svh] text-center"
-                data-blackbox-copy-slide="simple"
+                className="absolute inset-0 z-10 flex items-start justify-center rounded-t-2xl bg-zinc-500 px-4 pt-[9svh] text-center"
+                data-blackbox-card="simple"
               >
                 <h2
                   className="text-[clamp(2.6rem,5.9vw,7rem)] leading-[0.92] font-semibold tracking-normal text-zinc-50"
@@ -2074,8 +2138,8 @@ export function LandingPage() {
 
               <section
                 aria-hidden="true"
-                className="flex h-[calc(100svh-4rem)] items-start justify-center px-4 pt-[9svh] text-center"
-                data-blackbox-copy-slide="open"
+                className="absolute inset-0 z-20 flex items-start justify-center rounded-t-2xl bg-sky-500 px-4 pt-[9svh] text-center"
+                data-blackbox-card="open"
               >
                 <h2
                   className="text-[clamp(2.35rem,5.8vw,7rem)] leading-[0.94] font-semibold tracking-normal text-zinc-50"
@@ -2088,8 +2152,8 @@ export function LandingPage() {
 
               <section
                 aria-hidden="true"
-                className="flex h-[calc(100svh-4rem)] items-start justify-center px-4 pt-[9svh] text-center"
-                data-blackbox-copy-slide="unpack"
+                className="absolute inset-0 z-30 flex items-start justify-center rounded-t-2xl bg-emerald-500 px-4 pt-[9svh] text-center"
+                data-blackbox-card="unpack"
               >
                 <h2
                   className="text-[clamp(2.5rem,6.1vw,7.2rem)] leading-[0.94] font-semibold tracking-normal text-zinc-50"
@@ -2098,14 +2162,8 @@ export function LandingPage() {
                   We unpack every step.
                 </h2>
               </section>
-            </div>
-
-            <div
-              className="pointer-events-none sticky top-16 z-40 h-[calc(100svh-4rem)] overflow-visible px-6"
-              data-blackbox-floating-stage
-            >
               <div
-                className="absolute top-[61%] left-1/2 z-20 h-[min(58svh,500px)] w-[min(90vw,900px)] overflow-hidden border bg-zinc-900 text-zinc-50"
+                className="pointer-events-none absolute top-[61%] left-1/2 z-50 h-[min(58svh,500px)] w-[min(90vw,900px)] overflow-hidden border bg-zinc-900 text-zinc-50"
                 data-blackbox-visual
               >
                 <div className="absolute inset-0 flex flex-col" data-blackbox-editor-shell>
