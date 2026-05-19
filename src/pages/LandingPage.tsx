@@ -773,10 +773,7 @@ export function LandingPage() {
       }
 
       const storySection = root.querySelector<HTMLElement>("[data-blackbox-story-section]");
-      const storyStage = root.querySelector<HTMLElement>("[data-blackbox-story-stage]");
-      const callHeadline = root.querySelector<HTMLElement>("[data-blackbox-headline='call']");
-      const hiddenHeadline = root.querySelector<HTMLElement>("[data-blackbox-headline='hidden']");
-      const unpackHeadline = root.querySelector<HTMLElement>("[data-blackbox-headline='unpack']");
+      const storyStage = root.querySelector<HTMLElement>("[data-blackbox-floating-stage]");
       const storyVisual = root.querySelector<HTMLElement>("[data-blackbox-visual]");
       const editorShell = root.querySelector<HTMLElement>("[data-blackbox-editor-shell]");
       const boxContent = root.querySelector<HTMLElement>("[data-blackbox-box-content]");
@@ -796,9 +793,6 @@ export function LandingPage() {
       if (
         !storySection ||
         !storyStage ||
-        !callHeadline ||
-        !hiddenHeadline ||
-        !unpackHeadline ||
         !storyVisual ||
         !editorShell ||
         !boxContent ||
@@ -820,10 +814,8 @@ export function LandingPage() {
       const motionPreferences = gsap.matchMedia();
 
       motionPreferences.add("(prefers-reduced-motion: reduce)", () => {
-        gsap.set(storySection, { clearProps: "backgroundColor" });
-        gsap.set(storyStage, { backgroundColor: "#71717a" });
-        gsap.set([callHeadline, hiddenHeadline], { autoAlpha: 0 });
-        gsap.set(unpackHeadline, { autoAlpha: 1, color: "#09090b", y: 0 });
+        gsap.set(storySection, { backgroundColor: "#71717a" });
+        gsap.set(storyStage, { clearProps: "backgroundColor" });
         gsap.set(storyVisual, {
           autoAlpha: 1,
           backgroundColor: "#fafafa",
@@ -845,17 +837,8 @@ export function LandingPage() {
       });
 
       motionPreferences.add("(prefers-reduced-motion: no-preference)", () => {
-        const headlines = [callHeadline, hiddenHeadline, unpackHeadline];
-
-        gsap.set(storySection, { clearProps: "backgroundColor" });
-        gsap.set(storyStage, { backgroundColor: "#71717a" });
-        gsap.set(headlines, {
-          autoAlpha: 0,
-          color: "#fafafa",
-          y: 28,
-          willChange: "opacity, transform",
-        });
-        gsap.set(callHeadline, { autoAlpha: 1, y: 0 });
+        gsap.set(storySection, { backgroundColor: "#71717a" });
+        gsap.set(storyStage, { clearProps: "backgroundColor" });
         gsap.set(storyVisual, {
           autoAlpha: 1,
           backgroundColor: "#111113",
@@ -931,26 +914,7 @@ export function LandingPage() {
             },
             "call+=0.16",
           )
-          .addLabel("hidden", 2.32)
-          .to(
-            callHeadline,
-            {
-              autoAlpha: 0,
-              duration: 0.24,
-              ease: "power2.in",
-              y: -24,
-            },
-            "hidden",
-          )
-          .to(
-            hiddenHeadline,
-            {
-              autoAlpha: 1,
-              duration: 0.3,
-              y: 0,
-            },
-            "hidden+=0.08",
-          )
+          .addLabel("open", 1.32)
           .to(
             storyVisual,
             {
@@ -964,7 +928,7 @@ export function LandingPage() {
               scale: 1,
               width: getBlackBoxSize,
             },
-            "hidden+=0.04",
+            "open",
           )
           .to(
             editorShell,
@@ -975,7 +939,7 @@ export function LandingPage() {
               filter: "blur(18px)",
               scale: 0.78,
             },
-            "hidden+=0.1",
+            "open+=0.06",
           )
           .to(
             boxContent,
@@ -985,28 +949,9 @@ export function LandingPage() {
               ease: "power2.out",
               scale: 1,
             },
-            "hidden+=0.46",
+            "open+=0.42",
           )
-          .addLabel("unpack", 3.48)
-          .to(
-            hiddenHeadline,
-            {
-              autoAlpha: 0,
-              duration: 0.22,
-              ease: "power2.in",
-              y: -24,
-            },
-            "unpack+=0.58",
-          )
-          .to(
-            unpackHeadline,
-            {
-              autoAlpha: 1,
-              duration: 0.3,
-              y: 0,
-            },
-            "unpack+=0.66",
-          )
+          .addLabel("unpack", 2.58)
           .to(
             storyVisual,
             {
@@ -1062,16 +1007,6 @@ export function LandingPage() {
               stagger: 0.05,
             },
             "unpack+=0.62",
-          )
-          .to(
-            unpackHeadline,
-            {
-              autoAlpha: 0,
-              duration: 0.28,
-              ease: "power2.in",
-              y: -24,
-            },
-            "unpack+=1.7",
           )
           .to(
             storyVisual,
@@ -2119,39 +2054,56 @@ export function LandingPage() {
 
           <section
             aria-label="ML can look simple from the outside. So we open the black box. We unpack every step."
-            className="relative z-20 h-[440svh] w-full bg-transparent text-zinc-950"
+            className="relative z-20 h-[440svh] w-full rounded-t-2xl bg-zinc-500 text-zinc-950"
             data-blackbox-story-section
           >
-            <div
-              className="sticky top-16 h-[calc(100svh-4rem)] overflow-hidden rounded-t-2xl bg-zinc-500 px-6"
-              data-blackbox-story-stage
-            >
-              <div className="pointer-events-none absolute inset-x-4 top-[12%] z-30 mx-auto h-[2em] max-w-[1500px] text-center sm:top-[11%]">
+            <div className="absolute inset-x-0 top-0 z-10" data-blackbox-copy-track>
+              <section
+                aria-hidden="true"
+                className="flex h-[calc(100svh-4rem)] items-start justify-center rounded-t-2xl px-4 pt-[9svh] text-center"
+                data-blackbox-copy-slide="simple"
+              >
                 <h2
-                  aria-hidden="true"
-                  className="absolute inset-x-0 text-[clamp(2.6rem,5.9vw,7rem)] leading-[0.92] font-semibold tracking-normal text-zinc-50"
+                  className="text-[clamp(2.6rem,5.9vw,7rem)] leading-[0.92] font-semibold tracking-normal text-zinc-50"
                   data-blackbox-headline="call"
                 >
                   <span className="block whitespace-nowrap">ML can look simple</span>
                   <span className="block whitespace-nowrap">from the outside.</span>
                 </h2>
+              </section>
+
+              <section
+                aria-hidden="true"
+                className="flex h-[calc(100svh-4rem)] items-start justify-center px-4 pt-[9svh] text-center"
+                data-blackbox-copy-slide="open"
+              >
                 <h2
-                  aria-hidden="true"
-                  className="absolute inset-x-0 text-[clamp(2.35rem,5.8vw,7rem)] leading-[0.94] font-semibold tracking-normal text-zinc-50 opacity-0"
+                  className="text-[clamp(2.35rem,5.8vw,7rem)] leading-[0.94] font-semibold tracking-normal text-zinc-50"
                   data-blackbox-headline="hidden"
                 >
                   <span className="block whitespace-nowrap">So we open the</span>
                   <span className="block whitespace-nowrap text-zinc-950">black box.</span>
                 </h2>
+              </section>
+
+              <section
+                aria-hidden="true"
+                className="flex h-[calc(100svh-4rem)] items-start justify-center px-4 pt-[9svh] text-center"
+                data-blackbox-copy-slide="unpack"
+              >
                 <h2
-                  aria-hidden="true"
-                  className="absolute inset-x-0 text-[clamp(2.5rem,6.1vw,7.2rem)] leading-[0.94] font-semibold tracking-normal text-zinc-50 opacity-0"
+                  className="text-[clamp(2.5rem,6.1vw,7.2rem)] leading-[0.94] font-semibold tracking-normal text-zinc-50"
                   data-blackbox-headline="unpack"
                 >
                   We unpack every step.
                 </h2>
-              </div>
+              </section>
+            </div>
 
+            <div
+              className="pointer-events-none sticky top-16 z-40 h-[calc(100svh-4rem)] overflow-visible px-6"
+              data-blackbox-floating-stage
+            >
               <div
                 className="absolute top-[61%] left-1/2 z-20 h-[min(58svh,500px)] w-[min(90vw,900px)] overflow-hidden border bg-zinc-900 text-zinc-50"
                 data-blackbox-visual
