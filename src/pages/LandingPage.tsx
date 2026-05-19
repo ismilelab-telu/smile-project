@@ -815,8 +815,8 @@ export function LandingPage() {
       const getVisualBaseWidth = () => Math.min(window.innerWidth * 0.9, 900);
       const getVisualBaseHeight = () => Math.min(window.innerHeight * 0.58, 500);
       const getBlackBoxSize = () => Math.min(getVisualBaseWidth(), getVisualBaseHeight()) * 0.46;
-      const getBoardWidth = () => getVisualBaseWidth() * 0.92;
-      const getBoardHeight = () => getVisualBaseHeight() * 0.92;
+      const getBoardWidth = () => Math.min(window.innerWidth * 0.95, 1320);
+      const getBoardHeight = () => Math.min(window.innerHeight * 0.56, 580);
       const motionPreferences = gsap.matchMedia();
 
       motionPreferences.add("(prefers-reduced-motion: reduce)", () => {
@@ -828,12 +828,12 @@ export function LandingPage() {
           autoAlpha: 1,
           backgroundColor: "#09090b",
           borderColor: "rgba(250, 250, 250, 0.14)",
-          borderRadius: 28,
+          borderRadius: "28px 28px 0 0",
           height: getBoardHeight,
           scale: 1,
           width: getBoardWidth,
           xPercent: -50,
-          y: 0,
+          y: 144,
           yPercent: -50,
         });
         gsap.set(editorShell, { autoAlpha: 0 });
@@ -1018,13 +1018,14 @@ export function LandingPage() {
             {
               backgroundColor: "#09090b",
               borderColor: "rgba(250, 250, 250, 0.14)",
-              borderRadius: 28,
+              borderRadius: "28px 28px 0 0",
               boxShadow: "0 34px 110px rgba(0, 0, 0, 0.42)",
               duration: 0.42,
               ease: "power3.inOut",
               height: getBoardHeight,
               scale: 1,
               width: getBoardWidth,
+              y: 144,
             },
             boardMorphStart,
           )
@@ -2212,7 +2213,7 @@ export function LandingPage() {
 
                 <div
                   aria-hidden="true"
-                  className="absolute inset-0 flex items-center justify-center p-3 opacity-0 sm:p-6"
+                  className="absolute inset-0 flex items-center justify-center p-2 opacity-0 sm:p-4"
                   data-blackbox-diagram-content
                 >
                   <BlackBoxProcessDiagram className="h-full w-full overflow-visible" />
@@ -2483,7 +2484,7 @@ export function LandingPage() {
 
 function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg fill="none" viewBox="0 0 820 300" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg fill="none" viewBox="0 0 870 300" xmlns="http://www.w3.org/2000/svg" {...props}>
       <g
         fontFamily="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
         letterSpacing="0"
@@ -2521,21 +2522,29 @@ function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
         </g>
 
         <path
-          d="M74 112 C92 122 104 137 121 148"
+          d="M74 112 L116 146"
           data-blackbox-diagram-stroke
           stroke="#f4f4f5"
           strokeLinecap="round"
           strokeWidth="2.4"
         />
         <path
-          d="M74 190 C94 181 106 171 121 162"
+          d="M105 143 L116 146 L112 136"
+          data-blackbox-diagram-stroke
+          stroke="#f4f4f5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2.4"
+        />
+        <path
+          d="M74 190 L116 168"
           data-blackbox-diagram-stroke
           stroke="#f4f4f5"
           strokeLinecap="round"
           strokeWidth="2.4"
         />
         <path
-          d="M112 144 L123 152 L110 158"
+          d="M109 177 L116 168 L105 168"
           data-blackbox-diagram-stroke
           stroke="#f4f4f5"
           strokeLinecap="round"
@@ -2577,8 +2586,8 @@ function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
           <text fill="#f4f4f5" fontSize="18" fontWeight="700" textAnchor="middle" x="405" y="30">
             Train
           </text>
-          <rect fill="transparent" height="228" rx="28" width="196" x="307" y="42" />
-          <rect height="228" rx="28" stroke="#f4f4f5" strokeWidth="2" width="196" x="307" y="42" />
+          <rect fill="transparent" height="258" rx="28" width="196" x="307" y="42" />
+          <rect height="258" rx="28" stroke="#f4f4f5" strokeWidth="2" width="196" x="307" y="42" />
         </g>
 
         <g data-blackbox-diagram-node>
