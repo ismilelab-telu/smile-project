@@ -826,8 +826,8 @@ export function LandingPage() {
         gsap.set(unpackCard, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(storyVisual, {
           autoAlpha: 1,
-          backgroundColor: "#fafafa",
-          borderColor: "rgba(9, 9, 11, 0.12)",
+          backgroundColor: "#09090b",
+          borderColor: "rgba(250, 250, 250, 0.14)",
           borderRadius: 28,
           height: getBoardHeight,
           scale: 1,
@@ -912,9 +912,9 @@ export function LandingPage() {
         const codeRevealDuration =
           0.01 + Math.max(codeCharacters.length - 1, 0) * codeRevealStagger;
         const openCardStart = codeRevealStart + codeRevealDuration + 0.46;
-        const blackBoxMorphStart = openCardStart + 0.38;
-        const unpackCardStart = blackBoxMorphStart + 1.68;
-        const boardMorphStart = unpackCardStart + 0.44;
+        const blackBoxMorphStart = openCardStart + 0.08;
+        const unpackCardStart = openCardStart + 1.42;
+        const boardMorphStart = unpackCardStart;
 
         const storyTimeline = gsap.timeline({
           defaults: { ease: "power2.out" },
@@ -1016,11 +1016,11 @@ export function LandingPage() {
           .to(
             storyVisual,
             {
-              backgroundColor: "#fafafa",
-              borderColor: "rgba(9, 9, 11, 0.12)",
+              backgroundColor: "#09090b",
+              borderColor: "rgba(250, 250, 250, 0.14)",
               borderRadius: 28,
-              boxShadow: "0 34px 110px rgba(9, 9, 11, 0.28)",
-              duration: 0.78,
+              boxShadow: "0 34px 110px rgba(0, 0, 0, 0.42)",
+              duration: 0.42,
               ease: "power3.inOut",
               height: getBoardHeight,
               scale: 1,
@@ -2114,7 +2114,7 @@ export function LandingPage() {
           </div>
 
           <section
-            aria-label="ML can look simple from the outside. So we open the black box. We unpack every step."
+            aria-label="ML can look simple from the outside. But the logic stays inside a black box. So we unpack every step."
             className="relative z-20 h-[620svh] w-full bg-transparent text-zinc-950"
             data-blackbox-story-section
           >
@@ -2145,8 +2145,10 @@ export function LandingPage() {
                   className="text-[clamp(2.35rem,5.8vw,7rem)] leading-[0.94] font-semibold tracking-normal text-zinc-50"
                   data-blackbox-headline="hidden"
                 >
-                  <span className="block whitespace-nowrap">So we open the</span>
-                  <span className="block whitespace-nowrap text-zinc-950">black box.</span>
+                  <span className="block whitespace-nowrap">But the logic stays</span>
+                  <span className="block whitespace-nowrap">
+                    inside a <span className="text-zinc-950">black box.</span>
+                  </span>
                 </h2>
               </section>
 
@@ -2156,10 +2158,11 @@ export function LandingPage() {
                 data-blackbox-card="unpack"
               >
                 <h2
-                  className="text-[clamp(2.5rem,6.1vw,7.2rem)] leading-[0.94] font-semibold tracking-normal text-zinc-50"
+                  className="text-[clamp(2.5rem,6.1vw,7.2rem)] leading-[0.94] font-semibold tracking-normal text-zinc-950"
                   data-blackbox-headline="unpack"
                 >
-                  We unpack every step.
+                  <span className="block whitespace-nowrap">So we unpack</span>
+                  <span className="block whitespace-nowrap">every step.</span>
                 </h2>
               </section>
               <div
@@ -2481,53 +2484,38 @@ export function LandingPage() {
 function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
   return (
     <svg fill="none" viewBox="0 0 820 300" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <defs>
-        <pattern height="8" id="diagram-model-hatch" patternUnits="userSpaceOnUse" width="8">
-          <path d="M-2 8 L8 -2 M2 10 L10 2" stroke="#60a5fa" strokeWidth="1.2" />
-        </pattern>
-        <pattern height="8" id="diagram-train-hatch" patternUnits="userSpaceOnUse" width="8">
-          <path d="M-2 8 L8 -2 M2 10 L10 2" stroke="#86efac" strokeWidth="1.2" />
-        </pattern>
-        <pattern height="8" id="diagram-result-hatch" patternUnits="userSpaceOnUse" width="8">
-          <path d="M-2 8 L8 -2 M2 10 L10 2" stroke="#c4b5fd" strokeWidth="1.2" />
-        </pattern>
-        <pattern height="8" id="diagram-predict-hatch" patternUnits="userSpaceOnUse" width="8">
-          <path d="M-2 8 L8 -2 M2 10 L10 2" stroke="#fde047" strokeWidth="1.2" />
-        </pattern>
-      </defs>
-
       <g
         fontFamily="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
         letterSpacing="0"
       >
         <g data-blackbox-diagram-node>
-          <text fill="#27272a" fontSize="18" fontWeight="700" x="34" y="73">
+          <text fill="#f4f4f5" fontSize="18" fontWeight="700" x="34" y="73">
             Input
           </text>
           <rect
-            fill="#fff"
+            fill="#09090b"
             height="42"
             rx="10"
-            stroke="#18181b"
+            stroke="#f4f4f5"
             strokeWidth="2"
             width="46"
             x="26"
             y="91"
           />
-          <text fill="#18181b" fontSize="20" fontWeight="700" textAnchor="middle" x="49" y="118">
+          <text fill="#f4f4f5" fontSize="20" fontWeight="700" textAnchor="middle" x="49" y="118">
             x
           </text>
           <rect
-            fill="#fff"
+            fill="#09090b"
             height="42"
             rx="10"
-            stroke="#18181b"
+            stroke="#f4f4f5"
             strokeWidth="2"
             width="46"
             x="26"
             y="169"
           />
-          <text fill="#18181b" fontSize="20" fontWeight="700" textAnchor="middle" x="49" y="196">
+          <text fill="#f4f4f5" fontSize="20" fontWeight="700" textAnchor="middle" x="49" y="196">
             y
           </text>
         </g>
@@ -2535,45 +2523,36 @@ function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
         <path
           d="M74 112 C92 122 104 137 121 148"
           data-blackbox-diagram-stroke
-          stroke="#27272a"
+          stroke="#f4f4f5"
           strokeLinecap="round"
           strokeWidth="2.4"
         />
         <path
           d="M74 190 C94 181 106 171 121 162"
           data-blackbox-diagram-stroke
-          stroke="#27272a"
+          stroke="#f4f4f5"
           strokeLinecap="round"
           strokeWidth="2.4"
         />
         <path
           d="M112 144 L123 152 L110 158"
           data-blackbox-diagram-stroke
-          stroke="#27272a"
+          stroke="#f4f4f5"
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth="2.4"
         />
 
         <g data-blackbox-diagram-node>
-          <text fill="#27272a" fontSize="18" fontWeight="700" textAnchor="middle" x="184" y="106">
+          <text fill="#f4f4f5" fontSize="18" fontWeight="700" textAnchor="middle" x="184" y="106">
             Model
           </text>
-          <rect fill="#dbeafe" height="58" rx="12" width="132" x="118" y="128" />
-          <rect
-            fill="url(#diagram-model-hatch)"
-            height="58"
-            opacity="0.82"
-            rx="12"
-            width="132"
-            x="118"
-            y="128"
-          />
-          <rect height="58" rx="12" stroke="#18181b" strokeWidth="2" width="132" x="118" y="128" />
-          <text fill="#18181b" fontSize="17" fontWeight="700" textAnchor="middle" x="184" y="151">
+          <rect fill="transparent" height="58" rx="12" width="132" x="118" y="128" />
+          <rect height="58" rx="12" stroke="#f4f4f5" strokeWidth="2" width="132" x="118" y="128" />
+          <text fill="#f4f4f5" fontSize="17" fontWeight="700" textAnchor="middle" x="184" y="151">
             Linear
           </text>
-          <text fill="#18181b" fontSize="17" fontWeight="700" textAnchor="middle" x="184" y="172">
+          <text fill="#f4f4f5" fontSize="17" fontWeight="700" textAnchor="middle" x="184" y="172">
             Regression
           </text>
         </g>
@@ -2581,62 +2560,53 @@ function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
         <path
           d="M254 158 H296"
           data-blackbox-diagram-stroke
-          stroke="#27272a"
+          stroke="#f4f4f5"
           strokeLinecap="round"
           strokeWidth="2.4"
         />
         <path
           d="M286 151 L298 158 L286 165"
           data-blackbox-diagram-stroke
-          stroke="#27272a"
+          stroke="#f4f4f5"
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth="2.4"
         />
 
         <g data-blackbox-diagram-node>
-          <text fill="#27272a" fontSize="18" fontWeight="700" textAnchor="middle" x="405" y="30">
+          <text fill="#f4f4f5" fontSize="18" fontWeight="700" textAnchor="middle" x="405" y="30">
             Train
           </text>
-          <rect fill="#dcfce7" height="228" rx="28" width="196" x="307" y="42" />
-          <rect
-            fill="url(#diagram-train-hatch)"
-            height="228"
-            opacity="0.9"
-            rx="28"
-            width="196"
-            x="307"
-            y="42"
-          />
-          <rect height="228" rx="28" stroke="#18181b" strokeWidth="2" width="196" x="307" y="42" />
+          <rect fill="transparent" height="228" rx="28" width="196" x="307" y="42" />
+          <rect height="228" rx="28" stroke="#f4f4f5" strokeWidth="2" width="196" x="307" y="42" />
         </g>
 
         <g data-blackbox-diagram-node>
           <rect
-            fill="#fff"
+            fill="#09090b"
             height="34"
             rx="9"
-            stroke="#18181b"
+            stroke="#f4f4f5"
             strokeWidth="2"
             width="86"
             x="362"
             y="63"
           />
-          <text fill="#18181b" fontSize="16" fontWeight="700" textAnchor="middle" x="405" y="85">
+          <text fill="#f4f4f5" fontSize="16" fontWeight="700" textAnchor="middle" x="405" y="85">
             pred
           </text>
         </g>
         <path
           d="M405 99 V119"
           data-blackbox-diagram-stroke
-          stroke="#18181b"
+          stroke="#f4f4f5"
           strokeLinecap="round"
           strokeWidth="2.2"
         />
         <path
           d="M399 112 L405 121 L411 112"
           data-blackbox-diagram-stroke
-          stroke="#18181b"
+          stroke="#f4f4f5"
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth="2.2"
@@ -2644,30 +2614,30 @@ function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
 
         <g data-blackbox-diagram-node>
           <rect
-            fill="#fff"
+            fill="#09090b"
             height="34"
             rx="9"
-            stroke="#18181b"
+            stroke="#f4f4f5"
             strokeWidth="2"
             width="126"
             x="342"
             y="121"
           />
-          <text fill="#18181b" fontSize="16" fontWeight="700" textAnchor="middle" x="405" y="143">
+          <text fill="#f4f4f5" fontSize="16" fontWeight="700" textAnchor="middle" x="405" y="143">
             find error
           </text>
         </g>
         <path
           d="M405 157 V177"
           data-blackbox-diagram-stroke
-          stroke="#18181b"
+          stroke="#f4f4f5"
           strokeLinecap="round"
           strokeWidth="2.2"
         />
         <path
           d="M399 170 L405 179 L411 170"
           data-blackbox-diagram-stroke
-          stroke="#18181b"
+          stroke="#f4f4f5"
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth="2.2"
@@ -2675,30 +2645,30 @@ function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
 
         <g data-blackbox-diagram-node>
           <rect
-            fill="#fff"
+            fill="#09090b"
             height="34"
             rx="9"
-            stroke="#18181b"
+            stroke="#f4f4f5"
             strokeWidth="2"
             width="154"
             x="328"
             y="179"
           />
-          <text fill="#18181b" fontSize="16" fontWeight="700" textAnchor="middle" x="405" y="201">
+          <text fill="#f4f4f5" fontSize="16" fontWeight="700" textAnchor="middle" x="405" y="201">
             minimize error
           </text>
         </g>
         <path
           d="M405 215 V235"
           data-blackbox-diagram-stroke
-          stroke="#18181b"
+          stroke="#f4f4f5"
           strokeLinecap="round"
           strokeWidth="2.2"
         />
         <path
           d="M399 228 L405 237 L411 228"
           data-blackbox-diagram-stroke
-          stroke="#18181b"
+          stroke="#f4f4f5"
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth="2.2"
@@ -2706,16 +2676,16 @@ function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
 
         <g data-blackbox-diagram-node>
           <rect
-            fill="#fff"
+            fill="#09090b"
             height="34"
             rx="9"
-            stroke="#18181b"
+            stroke="#f4f4f5"
             strokeWidth="2"
             width="108"
             x="351"
             y="237"
           />
-          <text fill="#18181b" fontSize="16" fontWeight="700" textAnchor="middle" x="405" y="259">
+          <text fill="#f4f4f5" fontSize="16" fontWeight="700" textAnchor="middle" x="405" y="259">
             get params
           </text>
         </g>
@@ -2723,38 +2693,29 @@ function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
         <path
           d="M508 158 H548"
           data-blackbox-diagram-stroke
-          stroke="#27272a"
+          stroke="#f4f4f5"
           strokeLinecap="round"
           strokeWidth="2.4"
         />
         <path
           d="M538 151 L550 158 L538 165"
           data-blackbox-diagram-stroke
-          stroke="#27272a"
+          stroke="#f4f4f5"
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth="2.4"
         />
 
         <g data-blackbox-diagram-node>
-          <text fill="#27272a" fontSize="18" fontWeight="700" textAnchor="middle" x="618" y="106">
+          <text fill="#f4f4f5" fontSize="18" fontWeight="700" textAnchor="middle" x="618" y="106">
             Result
           </text>
-          <rect fill="#ede9fe" height="58" rx="12" width="136" x="552" y="128" />
-          <rect
-            fill="url(#diagram-result-hatch)"
-            height="58"
-            opacity="0.82"
-            rx="12"
-            width="136"
-            x="552"
-            y="128"
-          />
-          <rect height="58" rx="12" stroke="#18181b" strokeWidth="2" width="136" x="552" y="128" />
-          <text fill="#18181b" fontSize="15" fontWeight="700" textAnchor="middle" x="620" y="151">
+          <rect fill="transparent" height="58" rx="12" width="136" x="552" y="128" />
+          <rect height="58" rx="12" stroke="#f4f4f5" strokeWidth="2" width="136" x="552" y="128" />
+          <text fill="#f4f4f5" fontSize="15" fontWeight="700" textAnchor="middle" x="620" y="151">
             coef_(w)
           </text>
-          <text fill="#18181b" fontSize="15" fontWeight="700" textAnchor="middle" x="620" y="172">
+          <text fill="#f4f4f5" fontSize="15" fontWeight="700" textAnchor="middle" x="620" y="172">
             intercept_(b)
           </text>
         </g>
@@ -2762,35 +2723,26 @@ function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
         <path
           d="M692 158 H724"
           data-blackbox-diagram-stroke
-          stroke="#27272a"
+          stroke="#f4f4f5"
           strokeLinecap="round"
           strokeWidth="2.4"
         />
         <path
           d="M714 151 L726 158 L714 165"
           data-blackbox-diagram-stroke
-          stroke="#27272a"
+          stroke="#f4f4f5"
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth="2.4"
         />
 
         <g data-blackbox-diagram-node>
-          <text fill="#27272a" fontSize="18" fontWeight="700" textAnchor="middle" x="766" y="106">
+          <text fill="#f4f4f5" fontSize="18" fontWeight="700" textAnchor="middle" x="766" y="106">
             Predict
           </text>
-          <rect fill="#fef9c3" height="58" rx="12" width="94" x="728" y="128" />
-          <rect
-            fill="url(#diagram-predict-hatch)"
-            height="58"
-            opacity="0.82"
-            rx="12"
-            width="94"
-            x="728"
-            y="128"
-          />
-          <rect height="58" rx="12" stroke="#18181b" strokeWidth="2" width="94" x="728" y="128" />
-          <text fill="#18181b" fontSize="16" fontWeight="700" textAnchor="middle" x="775" y="164">
+          <rect fill="transparent" height="58" rx="12" width="94" x="728" y="128" />
+          <rect height="58" rx="12" stroke="#f4f4f5" strokeWidth="2" width="94" x="728" y="128" />
+          <text fill="#f4f4f5" fontSize="16" fontWeight="700" textAnchor="middle" x="775" y="164">
             Y_pred
           </text>
         </g>
