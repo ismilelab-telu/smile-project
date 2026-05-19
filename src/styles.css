@@ -132,6 +132,13 @@
     display: inline-block !important;
     will-change: transform;
   }
+
+  .understand-title-word {
+    display: inline-block !important;
+    transform-style: preserve-3d;
+    white-space: nowrap;
+    will-change: transform, opacity, filter;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

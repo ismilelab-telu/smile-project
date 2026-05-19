@@ -1002,6 +1002,31 @@ export function LandingPage() {
         const unpackCardStart = openCardStart + 1.42;
         const boardMorphStart = unpackCardStart + 0.39;
         const conclusionCardStart = boardMorphStart + 3.28;
+        const conclusionWordRevealStart = conclusionCardStart + 0.34;
+        const conclusionWordRevealDuration = 0.64;
+        const conclusionWordRevealStagger = 0.11;
+        const conclusionWordScatterStart =
+          conclusionWordRevealStart +
+          conclusionWordRevealDuration +
+          Math.max(conclusionTitleWords.length - 1, 0) * conclusionWordRevealStagger +
+          0.08;
+        const scatterWordsAway = (index: number) => {
+          const directionPattern = [-1, 1, 0, 1, -1, 0] as const;
+          const direction = directionPattern[index % directionPattern.length];
+
+          if (direction === 0) {
+            return gsap.utils.random(-window.innerWidth * 0.18, window.innerWidth * 0.18);
+          }
+
+          return direction * gsap.utils.random(window.innerWidth * 0.7, window.innerWidth * 1.12);
+        };
+        const scatterWordsUp = (_index: number, target: Element) => {
+          const bounds = target.getBoundingClientRect();
+
+          return -(
+            bounds.bottom + gsap.utils.random(window.innerHeight * 0.28, window.innerHeight * 0.54)
+          );
+        };
 
         const storyTimeline = gsap.timeline({
           defaults: { ease: "power2.out" },
@@ -1411,13 +1436,33 @@ export function LandingPage() {
             conclusionTitleWords,
             {
               autoAlpha: 1,
-              duration: 0.64,
+              duration: conclusionWordRevealDuration,
               ease: "power2.out",
               filter: "blur(0px)",
-              stagger: 0.11,
+              stagger: conclusionWordRevealStagger,
               y: 0,
             },
-            "understand+=0.34",
+            conclusionWordRevealStart,
+          )
+          .to(
+            conclusionTitleWords,
+            {
+              duration: 1.22,
+              ease: "power3.inOut",
+              rotation: () => gsap.utils.random(-32, 32),
+              scale: () => gsap.utils.random(0.78, 1.18),
+              x: scatterWordsAway,
+              y: scatterWordsUp,
+            },
+            conclusionWordScatterStart,
+          )
+          .to(
+            conclusionSlide,
+            {
+              duration: 0.42,
+              ease: "none",
+            },
+            conclusionWordScatterStart + 1.22,
           );
 
         return () => {
