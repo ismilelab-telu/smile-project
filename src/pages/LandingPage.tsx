@@ -36,7 +36,7 @@ const playgroundFinalLeadWordStartY = 420;
 const quoteWinkEmojiWebpSrc = "https://fonts.gstatic.com/s/e/notoemoji/latest/1f609/512.webp";
 const quoteWinkEmojiGifSrc = "https://fonts.gstatic.com/s/e/notoemoji/latest/1f609/512.gif";
 const quoteWinkEmojiPlaybackDuration = 2.25;
-const finalLoveDockStart = 2.2;
+const finalLoveDockStart = 1.78;
 const finalLoveDockMoveDuration = 0.24;
 const finalLoveBounceRiseDuration = 0.18;
 const finalLoveBounceFallDuration = 0.14;
@@ -506,7 +506,7 @@ export function LandingPage() {
               ease: "power2.out",
               y: 0,
             },
-            1.08,
+            1.38,
           )
           .to(
             introDotElements,
@@ -520,7 +520,7 @@ export function LandingPage() {
                 from: "center",
               },
             },
-            1.12,
+            1.48,
           )
           .to(
             introAxisXLine,
@@ -1068,12 +1068,12 @@ export function LandingPage() {
           fallWord,
           {
             autoAlpha: 1,
-            duration: 0.34,
+            duration: 0.3,
             ease: "power3.in",
             rotation: 0,
             y: 0,
           },
-          0.9,
+          0.7,
         )
         .to(
           fallWord,
@@ -1085,7 +1085,7 @@ export function LandingPage() {
             scaleY: 1.12,
             y: -72,
           },
-          1.24,
+          1,
         )
         .to(
           fallWord,
@@ -1097,7 +1097,7 @@ export function LandingPage() {
             scaleY: 0.88,
             y: 0,
           },
-          1.36,
+          1.12,
         )
         .to(
           fallWord,
@@ -1109,7 +1109,7 @@ export function LandingPage() {
             scaleY: 0.8,
             y: 0,
           },
-          1.48,
+          1.24,
         )
         .to(
           fallWord,
@@ -1121,7 +1121,7 @@ export function LandingPage() {
             scaleY: 1,
             y: 0,
           },
-          1.54,
+          1.3,
         )
         .to(
           inWord,
@@ -1132,7 +1132,7 @@ export function LandingPage() {
             scaleX: 1,
             x: 0,
           },
-          1.72,
+          1.52,
         )
         .to(
           loveScrollState,
