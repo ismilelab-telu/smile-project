@@ -1127,7 +1127,7 @@ export function LandingPage() {
             inputNode,
             {
               autoAlpha: 1,
-              duration: 0.12,
+              duration: 0.24,
               ease: "none",
               scale: 1,
               x: 0,
@@ -1139,7 +1139,7 @@ export function LandingPage() {
             modelNode,
             {
               autoAlpha: 1,
-              duration: 0.12,
+              duration: 0.24,
               ease: "none",
               scale: 1,
               x: 0,
@@ -1171,7 +1171,7 @@ export function LandingPage() {
             trainNode,
             {
               autoAlpha: 1,
-              duration: 0.12,
+              duration: 0.24,
               ease: "none",
               scale: 1,
               x: 0,
@@ -1202,7 +1202,7 @@ export function LandingPage() {
             predNode,
             {
               autoAlpha: 1,
-              duration: 0.12,
+              duration: 0.24,
               ease: "none",
               scale: 1,
               x: 0,
@@ -1214,7 +1214,7 @@ export function LandingPage() {
             findErrorNode,
             {
               autoAlpha: 1,
-              duration: 0.12,
+              duration: 0.24,
               ease: "none",
               scale: 1,
               x: 0,
@@ -1245,7 +1245,7 @@ export function LandingPage() {
             minimizeErrorNode,
             {
               autoAlpha: 1,
-              duration: 0.12,
+              duration: 0.24,
               ease: "none",
               scale: 1,
               x: 0,
@@ -1276,7 +1276,7 @@ export function LandingPage() {
             getParamsNode,
             {
               autoAlpha: 1,
-              duration: 0.12,
+              duration: 0.24,
               ease: "none",
               scale: 1,
               x: 0,
@@ -1307,7 +1307,7 @@ export function LandingPage() {
             resultNode,
             {
               autoAlpha: 1,
-              duration: 0.12,
+              duration: 0.24,
               ease: "none",
               scale: 1,
               x: 0,
@@ -1338,7 +1338,7 @@ export function LandingPage() {
             predictNode,
             {
               autoAlpha: 1,
-              duration: 0.12,
+              duration: 0.24,
               ease: "none",
               scale: 1,
               x: 0,
