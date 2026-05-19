@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { type SVGProps, useCallback, useRef, useState } from "react";
 import { IconArrowRight } from "@tabler/icons-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -22,7 +22,87 @@ gsap.registerPlugin(useGSAP, DrawSVGPlugin, ScrollTrigger, GSAPSplitText);
 const playgroundIntroEyebrow = "Introducing";
 const playgroundIntroTitle = "Interactive ML Playground";
 const playgroundIntroSubtitle =
-  "A visual-first playground for exploring how machine learning models think.";
+  "A visual-first playground for exploring how machine learning models learn.";
+const blackBoxStoryCodeSegments = [
+  [
+    { className: "text-fuchsia-300", text: "from" },
+    { text: " " },
+    { className: "text-sky-300", text: "sklearn.model_selection" },
+    { text: " " },
+    { className: "text-fuchsia-300", text: "import" },
+    { text: " " },
+    { className: "text-emerald-300", text: "train_test_split" },
+  ],
+  [
+    { className: "text-fuchsia-300", text: "from" },
+    { text: " " },
+    { className: "text-sky-300", text: "sklearn.linear_model" },
+    { text: " " },
+    { className: "text-fuchsia-300", text: "import" },
+    { text: " " },
+    { className: "text-emerald-300", text: "LinearRegression" },
+  ],
+  [],
+  [
+    { className: "text-zinc-100", text: "X_train" },
+    { className: "text-zinc-500", text: ", " },
+    { className: "text-zinc-100", text: "X_test" },
+    { className: "text-zinc-500", text: ", " },
+    { className: "text-zinc-100", text: "y_train" },
+    { className: "text-zinc-500", text: ", " },
+    { className: "text-zinc-100", text: "y_test" },
+    { text: " " },
+    { className: "text-fuchsia-300", text: "=" },
+    { text: " " },
+    { className: "text-emerald-300", text: "train_test_split" },
+    { className: "text-zinc-500", text: "(" },
+    { className: "text-zinc-100", text: "X" },
+    { className: "text-zinc-500", text: ", " },
+    { className: "text-zinc-100", text: "y" },
+    { className: "text-zinc-500", text: ")" },
+  ],
+  [],
+  [
+    { className: "text-zinc-100", text: "model" },
+    { text: " " },
+    { className: "text-fuchsia-300", text: "=" },
+    { text: " " },
+    { className: "text-emerald-300", text: "LinearRegression" },
+    { className: "text-zinc-500", text: "()" },
+  ],
+  [
+    { className: "text-zinc-100", text: "model" },
+    { className: "text-zinc-500", text: "." },
+    { className: "text-amber-300", text: "fit" },
+    { className: "text-zinc-500", text: "(" },
+    { className: "text-zinc-100", text: "X_train" },
+    { className: "text-zinc-500", text: ", " },
+    { className: "text-zinc-100", text: "y_train" },
+    { className: "text-zinc-500", text: ")" },
+  ],
+  [],
+  [
+    { className: "text-zinc-100", text: "model" },
+    { className: "text-zinc-500", text: "." },
+    { className: "text-amber-300", text: "coef_" },
+  ],
+  [
+    { className: "text-zinc-100", text: "model" },
+    { className: "text-zinc-500", text: "." },
+    { className: "text-amber-300", text: "intercept_" },
+  ],
+  [
+    { className: "text-zinc-100", text: "model" },
+    { className: "text-zinc-500", text: "." },
+    { className: "text-amber-300", text: "predict" },
+    { className: "text-zinc-500", text: "(" },
+    { className: "text-zinc-100", text: "X_test" },
+    { className: "text-zinc-500", text: ")" },
+  ],
+] as const;
+const blackBoxStoryCodeLines = blackBoxStoryCodeSegments.map((line) =>
+  line.map((segment) => segment.text).join(""),
+);
 const playgroundTeachingCopy = "We don't just teach\nyou Machine Learning.";
 const playgroundTeachingLines = playgroundTeachingCopy.split("\n");
 const playgroundFinalAriaLabel = "We make you fall in love with it.";
@@ -677,6 +757,349 @@ export function LandingPage() {
           introSubtitleSplit.revert();
           introProductSplit.revert();
         };
+      });
+
+      return () => motionPreferences.revert();
+    },
+    { scope: playgroundSectionRef },
+  );
+
+  useGSAP(
+    () => {
+      const root = playgroundSectionRef.current;
+
+      if (!root) {
+        return;
+      }
+
+      const storySection = root.querySelector<HTMLElement>("[data-blackbox-story-section]");
+      const storyStage = root.querySelector<HTMLElement>("[data-blackbox-story-stage]");
+      const callHeadline = root.querySelector<HTMLElement>("[data-blackbox-headline='call']");
+      const hiddenHeadline = root.querySelector<HTMLElement>("[data-blackbox-headline='hidden']");
+      const unpackHeadline = root.querySelector<HTMLElement>("[data-blackbox-headline='unpack']");
+      const storyVisual = root.querySelector<HTMLElement>("[data-blackbox-visual]");
+      const editorShell = root.querySelector<HTMLElement>("[data-blackbox-editor-shell]");
+      const boxContent = root.querySelector<HTMLElement>("[data-blackbox-box-content]");
+      const diagramContent = root.querySelector<HTMLElement>("[data-blackbox-diagram-content]");
+      const conclusionSlide = root.querySelector<HTMLElement>("[data-understand-slide]");
+      const conclusionTitle = root.querySelector<HTMLElement>("[data-understand-title]");
+      const codeCharacters = Array.from(
+        root.querySelectorAll<HTMLElement>("[data-blackbox-code-char]"),
+      );
+      const diagramNodes = Array.from(
+        root.querySelectorAll<SVGGElement>("[data-blackbox-diagram-node]"),
+      );
+      const diagramStrokes = Array.from(
+        root.querySelectorAll<SVGPathElement>("[data-blackbox-diagram-stroke]"),
+      );
+
+      if (
+        !storySection ||
+        !storyStage ||
+        !callHeadline ||
+        !hiddenHeadline ||
+        !unpackHeadline ||
+        !storyVisual ||
+        !editorShell ||
+        !boxContent ||
+        !diagramContent ||
+        !conclusionSlide ||
+        !conclusionTitle ||
+        codeCharacters.length === 0 ||
+        diagramNodes.length === 0 ||
+        diagramStrokes.length === 0
+      ) {
+        return;
+      }
+
+      const getVisualBaseWidth = () => Math.min(window.innerWidth * 0.86, 780);
+      const getVisualBaseHeight = () => Math.min(window.innerHeight * 0.52, 430);
+      const getBlackBoxSize = () => Math.min(getVisualBaseWidth(), getVisualBaseHeight()) * 0.36;
+      const getBoardWidth = () => getVisualBaseWidth() * 0.92;
+      const getBoardHeight = () => getVisualBaseHeight() * 0.92;
+      const motionPreferences = gsap.matchMedia();
+
+      motionPreferences.add("(prefers-reduced-motion: reduce)", () => {
+        gsap.set(storySection, { clearProps: "backgroundColor" });
+        gsap.set(storyStage, { backgroundColor: "#71717a" });
+        gsap.set([callHeadline, hiddenHeadline], { autoAlpha: 0 });
+        gsap.set(unpackHeadline, { autoAlpha: 1, color: "#09090b", y: 0 });
+        gsap.set(storyVisual, {
+          autoAlpha: 1,
+          backgroundColor: "#fafafa",
+          borderColor: "rgba(9, 9, 11, 0.12)",
+          borderRadius: 28,
+          height: getBoardHeight,
+          scale: 1,
+          width: getBoardWidth,
+          xPercent: -50,
+          y: 0,
+          yPercent: -50,
+        });
+        gsap.set(editorShell, { autoAlpha: 0 });
+        gsap.set(boxContent, { autoAlpha: 0 });
+        gsap.set(diagramContent, { autoAlpha: 1 });
+        gsap.set(diagramNodes, { autoAlpha: 1, scale: 1 });
+        gsap.set(diagramStrokes, { drawSVG: "0% 100%" });
+        gsap.set(conclusionTitle, { autoAlpha: 1, clearProps: "filter,transform" });
+      });
+
+      motionPreferences.add("(prefers-reduced-motion: no-preference)", () => {
+        const headlines = [callHeadline, hiddenHeadline, unpackHeadline];
+
+        gsap.set(storySection, { clearProps: "backgroundColor" });
+        gsap.set(storyStage, { backgroundColor: "#71717a" });
+        gsap.set(headlines, {
+          autoAlpha: 0,
+          color: "#fafafa",
+          y: 28,
+          willChange: "opacity, transform",
+        });
+        gsap.set(callHeadline, { autoAlpha: 1, y: 0 });
+        gsap.set(storyVisual, {
+          autoAlpha: 1,
+          backgroundColor: "#111113",
+          borderColor: "rgba(250, 250, 250, 0.16)",
+          borderRadius: 22,
+          boxShadow: "0 34px 90px rgba(0, 0, 0, 0.42)",
+          height: getVisualBaseHeight,
+          scale: 1,
+          transformOrigin: "50% 50%",
+          width: getVisualBaseWidth,
+          willChange:
+            "background-color, border-color, border-radius, height, opacity, transform, width",
+          xPercent: -50,
+          y: 0,
+          yPercent: -50,
+        });
+        gsap.set(editorShell, {
+          autoAlpha: 1,
+          filter: "blur(0px)",
+          scale: 1,
+          transformOrigin: "50% 50%",
+          willChange: "filter, opacity, transform",
+        });
+        gsap.set(codeCharacters, { autoAlpha: 0 });
+        gsap.set(boxContent, {
+          autoAlpha: 0,
+          filter: "blur(0px)",
+          scale: 1,
+          transformOrigin: "50% 50%",
+          willChange: "filter, opacity, transform",
+        });
+        gsap.set(diagramContent, {
+          autoAlpha: 0,
+          willChange: "opacity",
+        });
+        gsap.set(diagramNodes, {
+          autoAlpha: 0,
+          scale: 0.92,
+          transformBox: "fill-box",
+          transformOrigin: "50% 50%",
+        });
+        gsap.set(diagramStrokes, {
+          autoAlpha: 1,
+          drawSVG: "0% 0%",
+        });
+        gsap.set(conclusionTitle, {
+          autoAlpha: 0,
+          filter: "blur(18px)",
+          y: 36,
+          willChange: "filter, opacity, transform",
+        });
+
+        const storyTimeline = gsap.timeline({
+          defaults: { ease: "power2.out" },
+          scrollTrigger: {
+            end: "bottom bottom",
+            invalidateOnRefresh: true,
+            scrub: true,
+            start: "top top+=64",
+            trigger: storySection,
+          },
+        });
+
+        storyTimeline
+          .addLabel("call", 0)
+          .to(
+            codeCharacters,
+            {
+              autoAlpha: 1,
+              duration: 0.01,
+              ease: "none",
+              stagger: 0.008,
+            },
+            "call+=0.16",
+          )
+          .addLabel("hidden", 2.32)
+          .to(
+            callHeadline,
+            {
+              autoAlpha: 0,
+              duration: 0.24,
+              ease: "power2.in",
+              y: -24,
+            },
+            "hidden",
+          )
+          .to(
+            hiddenHeadline,
+            {
+              autoAlpha: 1,
+              duration: 0.3,
+              y: 0,
+            },
+            "hidden+=0.08",
+          )
+          .to(
+            storyVisual,
+            {
+              backgroundColor: "#050505",
+              borderColor: "rgba(250, 250, 250, 0.2)",
+              borderRadius: 36,
+              boxShadow: "0 30px 120px rgba(0, 0, 0, 0.68)",
+              duration: 0.82,
+              ease: "power3.inOut",
+              height: getBlackBoxSize,
+              scale: 1,
+              width: getBlackBoxSize,
+            },
+            "hidden+=0.04",
+          )
+          .to(
+            editorShell,
+            {
+              autoAlpha: 0,
+              duration: 0.46,
+              ease: "power3.in",
+              filter: "blur(18px)",
+              scale: 0.78,
+            },
+            "hidden+=0.1",
+          )
+          .to(
+            boxContent,
+            {
+              autoAlpha: 1,
+              duration: 0.28,
+              ease: "power2.out",
+              scale: 1,
+            },
+            "hidden+=0.46",
+          )
+          .addLabel("unpack", 3.48)
+          .to(
+            hiddenHeadline,
+            {
+              autoAlpha: 0,
+              duration: 0.22,
+              ease: "power2.in",
+              y: -24,
+            },
+            "unpack",
+          )
+          .to(
+            unpackHeadline,
+            {
+              autoAlpha: 1,
+              duration: 0.3,
+              y: 0,
+            },
+            "unpack+=0.08",
+          )
+          .to(
+            storyVisual,
+            {
+              backgroundColor: "#fafafa",
+              borderColor: "rgba(9, 9, 11, 0.12)",
+              borderRadius: 28,
+              boxShadow: "0 34px 110px rgba(9, 9, 11, 0.28)",
+              duration: 0.78,
+              ease: "power3.inOut",
+              height: getBoardHeight,
+              scale: 1,
+              width: getBoardWidth,
+            },
+            "unpack",
+          )
+          .to(
+            boxContent,
+            {
+              autoAlpha: 0,
+              duration: 0.3,
+              ease: "power2.in",
+              filter: "blur(10px)",
+              scale: 0.86,
+            },
+            "unpack",
+          )
+          .to(
+            diagramContent,
+            {
+              autoAlpha: 1,
+              duration: 0.26,
+              ease: "none",
+            },
+            "unpack+=0.26",
+          )
+          .to(
+            diagramNodes,
+            {
+              autoAlpha: 1,
+              duration: 0.38,
+              ease: "back.out(1.35)",
+              scale: 1,
+              stagger: 0.06,
+            },
+            "unpack+=0.4",
+          )
+          .to(
+            diagramStrokes,
+            {
+              drawSVG: "0% 100%",
+              duration: 0.48,
+              ease: "power2.out",
+              stagger: 0.05,
+            },
+            "unpack+=0.62",
+          )
+          .to(
+            unpackHeadline,
+            {
+              autoAlpha: 0,
+              duration: 0.28,
+              ease: "power2.in",
+              y: -24,
+            },
+            "unpack+=1.7",
+          )
+          .to(
+            storyVisual,
+            {
+              autoAlpha: 0,
+              duration: 0.34,
+              ease: "power2.in",
+              y: -30,
+            },
+            "unpack+=1.8",
+          );
+
+        gsap
+          .timeline({
+            scrollTrigger: {
+              end: "center center",
+              scrub: true,
+              start: "top 78%",
+              trigger: conclusionSlide,
+            },
+          })
+          .to(conclusionTitle, {
+            autoAlpha: 1,
+            duration: 1,
+            ease: "power2.out",
+            filter: "blur(0px)",
+            y: 0,
+          });
       });
 
       return () => motionPreferences.revert();
@@ -1694,11 +2117,111 @@ export function LandingPage() {
             </article>
           </div>
 
-          <div
-            aria-hidden="true"
-            className="relative z-20 h-[calc(100svh-4rem)] w-full overflow-hidden rounded-t-2xl bg-zinc-400"
-            data-playground-black-slide
-          />
+          <section
+            aria-label="ML can look simple from the outside. So we open the black box. We unpack every step."
+            className="relative z-20 h-[440svh] w-full bg-transparent text-zinc-950"
+            data-blackbox-story-section
+          >
+            <div
+              className="sticky top-16 h-[calc(100svh-4rem)] overflow-hidden rounded-t-2xl bg-zinc-500 px-6"
+              data-blackbox-story-stage
+            >
+              <div className="pointer-events-none absolute inset-x-4 top-[12%] z-30 mx-auto h-[2em] max-w-[1500px] text-center sm:top-[11%]">
+                <h2
+                  aria-hidden="true"
+                  className="absolute inset-x-0 text-[clamp(2.6rem,5.9vw,7rem)] leading-[0.92] font-semibold tracking-normal text-zinc-50"
+                  data-blackbox-headline="call"
+                >
+                  <span className="block whitespace-nowrap">ML can look simple</span>
+                  <span className="block whitespace-nowrap">from the outside.</span>
+                </h2>
+                <h2
+                  aria-hidden="true"
+                  className="absolute inset-x-0 text-[clamp(2.35rem,5.8vw,7rem)] leading-[0.94] font-semibold tracking-normal text-zinc-50 opacity-0"
+                  data-blackbox-headline="hidden"
+                >
+                  So we open the <span className="text-zinc-950">black box.</span>
+                </h2>
+                <h2
+                  aria-hidden="true"
+                  className="absolute inset-x-0 text-[clamp(2.5rem,6.1vw,7.2rem)] leading-[0.94] font-semibold tracking-normal text-zinc-50 opacity-0"
+                  data-blackbox-headline="unpack"
+                >
+                  We unpack every step.
+                </h2>
+              </div>
+
+              <div
+                className="absolute top-[57%] left-1/2 z-20 h-[min(52svh,430px)] w-[min(86vw,780px)] overflow-hidden border bg-zinc-900 text-zinc-50"
+                data-blackbox-visual
+              >
+                <div className="absolute inset-0 flex flex-col" data-blackbox-editor-shell>
+                  <div className="flex h-11 shrink-0 items-center gap-2 border-b border-zinc-700/70 bg-zinc-950/72 px-4">
+                    <span className="size-3 rounded-full bg-red-400" />
+                    <span className="size-3 rounded-full bg-yellow-300" />
+                    <span className="size-3 rounded-full bg-emerald-400" />
+                    <span className="ml-3 text-xs font-medium tracking-normal text-zinc-400">
+                      model.py
+                    </span>
+                  </div>
+                  <pre
+                    aria-label={blackBoxStoryCodeLines.join("\n")}
+                    className="min-h-0 flex-1 overflow-hidden p-5 font-mono text-[clamp(0.72rem,1.4vw,1rem)] leading-[1.58] whitespace-pre text-zinc-100 sm:p-7"
+                  >
+                    {blackBoxStoryCodeSegments.map((line, lineIndex) => (
+                      <code
+                        aria-hidden="true"
+                        className="block min-h-[1.58em]"
+                        key={`blackbox-code-line-${lineIndex}`}
+                      >
+                        {line.map((segment, segmentIndex) =>
+                          segment.text.split("").map((character, characterIndex) => (
+                            <span
+                              className={segment.className}
+                              data-blackbox-code-char
+                              key={`blackbox-code-char-${lineIndex}-${segmentIndex}-${characterIndex}`}
+                            >
+                              {character}
+                            </span>
+                          )),
+                        )}
+                      </code>
+                    ))}
+                  </pre>
+                </div>
+
+                <div
+                  className="absolute inset-0 flex items-center justify-center opacity-0"
+                  aria-hidden="true"
+                  data-blackbox-box-content
+                />
+
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 flex items-center justify-center p-3 opacity-0 sm:p-6"
+                  data-blackbox-diagram-content
+                >
+                  <BlackBoxProcessDiagram className="h-full w-full overflow-visible" />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section
+            aria-labelledby="understand-process-title"
+            className="relative z-20 flex h-[calc(100svh-4rem)] w-full items-center justify-center overflow-hidden bg-zinc-50 px-6 text-zinc-950"
+            data-understand-slide
+          >
+            <h2
+              className="max-w-7xl text-center text-[clamp(2.65rem,8.4vw,8.8rem)] leading-[0.92] font-semibold tracking-normal opacity-0"
+              data-understand-title
+              id="understand-process-title"
+            >
+              Understand the process,
+              <br />
+              not just the output.
+            </h2>
+          </section>
         </div>
 
         <div
@@ -1941,5 +2464,326 @@ export function LandingPage() {
 
       <CinematicFooter />
     </>
+  );
+}
+
+function BlackBoxProcessDiagram(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 820 300" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <defs>
+        <pattern height="8" id="diagram-model-hatch" patternUnits="userSpaceOnUse" width="8">
+          <path d="M-2 8 L8 -2 M2 10 L10 2" stroke="#60a5fa" strokeWidth="1.2" />
+        </pattern>
+        <pattern height="8" id="diagram-train-hatch" patternUnits="userSpaceOnUse" width="8">
+          <path d="M-2 8 L8 -2 M2 10 L10 2" stroke="#86efac" strokeWidth="1.2" />
+        </pattern>
+        <pattern height="8" id="diagram-result-hatch" patternUnits="userSpaceOnUse" width="8">
+          <path d="M-2 8 L8 -2 M2 10 L10 2" stroke="#c4b5fd" strokeWidth="1.2" />
+        </pattern>
+        <pattern height="8" id="diagram-predict-hatch" patternUnits="userSpaceOnUse" width="8">
+          <path d="M-2 8 L8 -2 M2 10 L10 2" stroke="#fde047" strokeWidth="1.2" />
+        </pattern>
+      </defs>
+
+      <g
+        fontFamily="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+        letterSpacing="0"
+      >
+        <g data-blackbox-diagram-node>
+          <text fill="#27272a" fontSize="18" fontWeight="700" x="34" y="73">
+            Input
+          </text>
+          <rect
+            fill="#fff"
+            height="42"
+            rx="10"
+            stroke="#18181b"
+            strokeWidth="2"
+            width="46"
+            x="26"
+            y="91"
+          />
+          <text fill="#18181b" fontSize="20" fontWeight="700" textAnchor="middle" x="49" y="118">
+            x
+          </text>
+          <rect
+            fill="#fff"
+            height="42"
+            rx="10"
+            stroke="#18181b"
+            strokeWidth="2"
+            width="46"
+            x="26"
+            y="169"
+          />
+          <text fill="#18181b" fontSize="20" fontWeight="700" textAnchor="middle" x="49" y="196">
+            y
+          </text>
+        </g>
+
+        <path
+          d="M74 112 C92 122 104 137 121 148"
+          data-blackbox-diagram-stroke
+          stroke="#27272a"
+          strokeLinecap="round"
+          strokeWidth="2.4"
+        />
+        <path
+          d="M74 190 C94 181 106 171 121 162"
+          data-blackbox-diagram-stroke
+          stroke="#27272a"
+          strokeLinecap="round"
+          strokeWidth="2.4"
+        />
+        <path
+          d="M112 144 L123 152 L110 158"
+          data-blackbox-diagram-stroke
+          stroke="#27272a"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2.4"
+        />
+
+        <g data-blackbox-diagram-node>
+          <text fill="#27272a" fontSize="18" fontWeight="700" textAnchor="middle" x="184" y="106">
+            Model
+          </text>
+          <rect fill="#dbeafe" height="58" rx="12" width="132" x="118" y="128" />
+          <rect
+            fill="url(#diagram-model-hatch)"
+            height="58"
+            opacity="0.82"
+            rx="12"
+            width="132"
+            x="118"
+            y="128"
+          />
+          <rect height="58" rx="12" stroke="#18181b" strokeWidth="2" width="132" x="118" y="128" />
+          <text fill="#18181b" fontSize="17" fontWeight="700" textAnchor="middle" x="184" y="151">
+            Linear
+          </text>
+          <text fill="#18181b" fontSize="17" fontWeight="700" textAnchor="middle" x="184" y="172">
+            Regression
+          </text>
+        </g>
+
+        <path
+          d="M254 158 H296"
+          data-blackbox-diagram-stroke
+          stroke="#27272a"
+          strokeLinecap="round"
+          strokeWidth="2.4"
+        />
+        <path
+          d="M286 151 L298 158 L286 165"
+          data-blackbox-diagram-stroke
+          stroke="#27272a"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2.4"
+        />
+
+        <g data-blackbox-diagram-node>
+          <text fill="#27272a" fontSize="18" fontWeight="700" textAnchor="middle" x="405" y="30">
+            Train
+          </text>
+          <rect fill="#dcfce7" height="228" rx="28" width="196" x="307" y="42" />
+          <rect
+            fill="url(#diagram-train-hatch)"
+            height="228"
+            opacity="0.9"
+            rx="28"
+            width="196"
+            x="307"
+            y="42"
+          />
+          <rect height="228" rx="28" stroke="#18181b" strokeWidth="2" width="196" x="307" y="42" />
+        </g>
+
+        <g data-blackbox-diagram-node>
+          <rect
+            fill="#fff"
+            height="34"
+            rx="9"
+            stroke="#18181b"
+            strokeWidth="2"
+            width="86"
+            x="362"
+            y="63"
+          />
+          <text fill="#18181b" fontSize="16" fontWeight="700" textAnchor="middle" x="405" y="85">
+            pred
+          </text>
+        </g>
+        <path
+          d="M405 99 V119"
+          data-blackbox-diagram-stroke
+          stroke="#18181b"
+          strokeLinecap="round"
+          strokeWidth="2.2"
+        />
+        <path
+          d="M399 112 L405 121 L411 112"
+          data-blackbox-diagram-stroke
+          stroke="#18181b"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2.2"
+        />
+
+        <g data-blackbox-diagram-node>
+          <rect
+            fill="#fff"
+            height="34"
+            rx="9"
+            stroke="#18181b"
+            strokeWidth="2"
+            width="126"
+            x="342"
+            y="121"
+          />
+          <text fill="#18181b" fontSize="16" fontWeight="700" textAnchor="middle" x="405" y="143">
+            find error
+          </text>
+        </g>
+        <path
+          d="M405 157 V177"
+          data-blackbox-diagram-stroke
+          stroke="#18181b"
+          strokeLinecap="round"
+          strokeWidth="2.2"
+        />
+        <path
+          d="M399 170 L405 179 L411 170"
+          data-blackbox-diagram-stroke
+          stroke="#18181b"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2.2"
+        />
+
+        <g data-blackbox-diagram-node>
+          <rect
+            fill="#fff"
+            height="34"
+            rx="9"
+            stroke="#18181b"
+            strokeWidth="2"
+            width="154"
+            x="328"
+            y="179"
+          />
+          <text fill="#18181b" fontSize="16" fontWeight="700" textAnchor="middle" x="405" y="201">
+            minimize error
+          </text>
+        </g>
+        <path
+          d="M405 215 V235"
+          data-blackbox-diagram-stroke
+          stroke="#18181b"
+          strokeLinecap="round"
+          strokeWidth="2.2"
+        />
+        <path
+          d="M399 228 L405 237 L411 228"
+          data-blackbox-diagram-stroke
+          stroke="#18181b"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2.2"
+        />
+
+        <g data-blackbox-diagram-node>
+          <rect
+            fill="#fff"
+            height="34"
+            rx="9"
+            stroke="#18181b"
+            strokeWidth="2"
+            width="108"
+            x="351"
+            y="237"
+          />
+          <text fill="#18181b" fontSize="16" fontWeight="700" textAnchor="middle" x="405" y="259">
+            get params
+          </text>
+        </g>
+
+        <path
+          d="M508 158 H548"
+          data-blackbox-diagram-stroke
+          stroke="#27272a"
+          strokeLinecap="round"
+          strokeWidth="2.4"
+        />
+        <path
+          d="M538 151 L550 158 L538 165"
+          data-blackbox-diagram-stroke
+          stroke="#27272a"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2.4"
+        />
+
+        <g data-blackbox-diagram-node>
+          <text fill="#27272a" fontSize="18" fontWeight="700" textAnchor="middle" x="618" y="106">
+            Result
+          </text>
+          <rect fill="#ede9fe" height="58" rx="12" width="136" x="552" y="128" />
+          <rect
+            fill="url(#diagram-result-hatch)"
+            height="58"
+            opacity="0.82"
+            rx="12"
+            width="136"
+            x="552"
+            y="128"
+          />
+          <rect height="58" rx="12" stroke="#18181b" strokeWidth="2" width="136" x="552" y="128" />
+          <text fill="#18181b" fontSize="15" fontWeight="700" textAnchor="middle" x="620" y="151">
+            coef_(w)
+          </text>
+          <text fill="#18181b" fontSize="15" fontWeight="700" textAnchor="middle" x="620" y="172">
+            intercept_(b)
+          </text>
+        </g>
+
+        <path
+          d="M692 158 H724"
+          data-blackbox-diagram-stroke
+          stroke="#27272a"
+          strokeLinecap="round"
+          strokeWidth="2.4"
+        />
+        <path
+          d="M714 151 L726 158 L714 165"
+          data-blackbox-diagram-stroke
+          stroke="#27272a"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2.4"
+        />
+
+        <g data-blackbox-diagram-node>
+          <text fill="#27272a" fontSize="18" fontWeight="700" textAnchor="middle" x="766" y="106">
+            Predict
+          </text>
+          <rect fill="#fef9c3" height="58" rx="12" width="94" x="728" y="128" />
+          <rect
+            fill="url(#diagram-predict-hatch)"
+            height="58"
+            opacity="0.82"
+            rx="12"
+            width="94"
+            x="728"
+            y="128"
+          />
+          <rect height="58" rx="12" stroke="#18181b" strokeWidth="2" width="94" x="728" y="128" />
+          <text fill="#18181b" fontSize="16" fontWeight="700" textAnchor="middle" x="775" y="164">
+            Y_pred
+          </text>
+        </g>
+      </g>
+    </svg>
   );
 }
