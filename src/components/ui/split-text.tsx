@@ -4,6 +4,7 @@ import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText as GSAPSplitText } from "gsap/SplitText";
 
+import { shouldReduceMotion } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 gsap.registerPlugin(ScrollTrigger, GSAPSplitText, useGSAP);
@@ -117,7 +118,7 @@ export function SplitText({
         return;
       }
 
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      if (shouldReduceMotion()) {
         gsap.set(element, { autoAlpha: 1, clearProps: "transform" });
         animationHalfwayRef.current = true;
         animationCompletedRef.current = true;

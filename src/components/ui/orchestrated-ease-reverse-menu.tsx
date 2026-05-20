@@ -3,6 +3,7 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { MorphSVGPlugin } from "gsap/MorphSVGPlugin";
 
+import { shouldReduceMotion } from "@/lib/motion";
 import smileIcon from "../../../assets/smile.svg";
 
 gsap.registerPlugin(useGSAP, MorphSVGPlugin);
@@ -137,9 +138,49 @@ export function OrchestratedEaseReverseMenu() {
         strokeWidth: islandDefaultStrokeWidth,
       });
 
+      const applyReducedMenuState = () => {
+        isAwayFromTopRef.current = false;
+        isLoveDockedRef.current = false;
+        isLoveMenuDisabledRef.current = false;
+        isLoveSectionActiveRef.current = false;
+        isLoveHeldAfterSectionRef.current = false;
+        isLoveScrollUpExitLockedRef.current = false;
+        setIsLoveMenuDisabled(false);
+        gsap.set(island, {
+          scale: 1,
+          x: 0,
+          y: 0,
+        });
+        gsap.set(islandSurface, {
+          autoAlpha: 1,
+          backgroundColor: islandDefaultFill,
+          borderColor: islandDefaultStroke,
+          borderWidth: islandDefaultStrokeWidth,
+        });
+        gsap.set(islandSvg, {
+          autoAlpha: 0,
+          scale: 1,
+        });
+        gsap.set(islandShape, {
+          attr: { d: islandCirclePath },
+          fill: islandShapeRestFill,
+          stroke: islandShapeRestStroke,
+          strokeWidth: islandDefaultStrokeWidth,
+        });
+        gsap.set([topBar, midBar, bottomBar], { opacity: 1, stroke: islandMenuStroke });
+      };
       const motionPreferences = gsap.matchMedia();
 
+      if (shouldReduceMotion()) {
+        applyReducedMenuState();
+      }
+
       motionPreferences.add("(prefers-reduced-motion: no-preference)", () => {
+        if (shouldReduceMotion()) {
+          applyReducedMenuState();
+          return undefined;
+        }
+
         const loveTarget = document.querySelector<HTMLElement>("[data-love-scroll-target]");
         const heroTitle = document.querySelector<HTMLElement>("[data-landing-scroll-title]");
 
@@ -407,37 +448,7 @@ export function OrchestratedEaseReverseMenu() {
         };
       });
 
-      motionPreferences.add("(prefers-reduced-motion: reduce)", () => {
-        isAwayFromTopRef.current = false;
-        isLoveDockedRef.current = false;
-        isLoveMenuDisabledRef.current = false;
-        isLoveSectionActiveRef.current = false;
-        isLoveHeldAfterSectionRef.current = false;
-        isLoveScrollUpExitLockedRef.current = false;
-        setIsLoveMenuDisabled(false);
-        gsap.set(island, {
-          scale: 1,
-          x: 0,
-          y: 0,
-        });
-        gsap.set(islandSurface, {
-          autoAlpha: 1,
-          backgroundColor: islandDefaultFill,
-          borderColor: islandDefaultStroke,
-          borderWidth: islandDefaultStrokeWidth,
-        });
-        gsap.set(islandSvg, {
-          autoAlpha: 0,
-          scale: 1,
-        });
-        gsap.set(islandShape, {
-          attr: { d: islandCirclePath },
-          fill: islandShapeRestFill,
-          stroke: islandShapeRestStroke,
-          strokeWidth: islandDefaultStrokeWidth,
-        });
-        gsap.set([topBar, midBar, bottomBar], { opacity: 1, stroke: islandMenuStroke });
-      });
+      motionPreferences.add("(prefers-reduced-motion: reduce)", applyReducedMenuState);
 
       const timeline = gsap
         .timeline({ paused: true })
@@ -767,9 +778,7 @@ export function OrchestratedEaseReverseMenu() {
 
       gsap.to(island, {
         autoAlpha: nextIsHidden ? 0 : 1,
-        duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-          ? 0
-          : footerHideAnimationDuration,
+        duration: shouldReduceMotion() ? 0 : footerHideAnimationDuration,
         ease: "power2.out",
         overwrite: true,
       });

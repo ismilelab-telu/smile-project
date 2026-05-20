@@ -15,6 +15,7 @@ import { GlassSurface } from "@/components/ui/glass-surface";
 import { CinematicFooter } from "@/components/ui/motion-footer";
 import { OrchestratedEaseReverseMenu } from "@/components/ui/orchestrated-ease-reverse-menu";
 import { SplitText } from "@/components/ui/split-text";
+import { shouldReduceMotion } from "@/lib/motion";
 import quoteWinkEmojiStaticSrc from "../../assets/quote-wink-smile.png";
 
 gsap.registerPlugin(useGSAP, DrawSVGPlugin, ScrollTrigger, GSAPSplitText);
@@ -160,6 +161,12 @@ export function LandingPage() {
         return;
       }
 
+      if (shouldReduceMotion()) {
+        gsap.set(visibleTargets, { autoAlpha: 1, clearProps: "all" });
+        gsap.set(fadeTarget, { autoAlpha: 0 });
+        return;
+      }
+
       const motionPreferences = gsap.matchMedia();
 
       motionPreferences.add("(prefers-reduced-motion: reduce)", () => {
@@ -291,10 +298,7 @@ export function LandingPage() {
         return;
       }
 
-      if (
-        typeof window.matchMedia !== "function" ||
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      ) {
+      if (typeof window.matchMedia !== "function" || shouldReduceMotion()) {
         gsap.set(heroAction, { autoAlpha: 1, clearProps: "transform" });
         return;
       }
@@ -371,9 +375,7 @@ export function LandingPage() {
         return;
       }
 
-      const motionPreferences = gsap.matchMedia();
-
-      motionPreferences.add("(prefers-reduced-motion: reduce)", () => {
+      const applyReducedIntroState = () => {
         gsap.set(introSection, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(introCard, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(introMeet, {
@@ -418,7 +420,16 @@ export function LandingPage() {
           autoAlpha: 1,
           clearProps: "transform",
         });
-      });
+      };
+
+      if (shouldReduceMotion()) {
+        applyReducedIntroState();
+        return;
+      }
+
+      const motionPreferences = gsap.matchMedia();
+
+      motionPreferences.add("(prefers-reduced-motion: reduce)", applyReducedIntroState);
 
       motionPreferences.add("(prefers-reduced-motion: no-preference)", () => {
         const getIntroMeetTextNode = () =>
@@ -933,9 +944,7 @@ export function LandingPage() {
           getBoardPaperExtension() / 2
         );
       };
-      const motionPreferences = gsap.matchMedia();
-
-      motionPreferences.add("(prefers-reduced-motion: reduce)", () => {
+      const applyReducedStoryState = () => {
         gsap.set(storySection, { clearProps: "backgroundColor" });
         gsap.set(storyStage, { clearProps: "backgroundColor" });
         gsap.set([simpleCard, openCard, unpackCard], { autoAlpha: 0 });
@@ -959,7 +968,16 @@ export function LandingPage() {
         gsap.set(diagramLineStrokes, { autoAlpha: 1, drawSVG: "0% 100%" });
         gsap.set(diagramArrowheads, { autoAlpha: 1, drawSVG: "0% 100%" });
         gsap.set(conclusionTitle, { autoAlpha: 1, clearProps: "filter,transform" });
-      });
+      };
+
+      if (shouldReduceMotion()) {
+        applyReducedStoryState();
+        return;
+      }
+
+      const motionPreferences = gsap.matchMedia();
+
+      motionPreferences.add("(prefers-reduced-motion: reduce)", applyReducedStoryState);
 
       motionPreferences.add("(prefers-reduced-motion: no-preference)", () => {
         const conclusionTitleSplit = GSAPSplitText.create(conclusionTitle, {
@@ -1575,7 +1593,7 @@ export function LandingPage() {
         !dotMorphSvg ||
         !dotMorphCircle ||
         typeof window.matchMedia !== "function" ||
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        shouldReduceMotion()
       ) {
         return;
       }
@@ -1830,10 +1848,7 @@ export function LandingPage() {
         );
       };
 
-      if (
-        typeof window.matchMedia !== "function" ||
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      ) {
+      if (typeof window.matchMedia !== "function" || shouldReduceMotion()) {
         gsap.set(finalSection, { backgroundColor: "#09090b" });
         gsap.set(finalWords, { autoAlpha: 1, clearProps: "filter,transform" });
         gsap.set(loveTarget, { autoAlpha: 1, clearProps: "transform" });

@@ -16,6 +16,7 @@ import ShapeGrid from "@/components/ShapeGrid";
 import { BlurText } from "@/components/ui/blur-text";
 import { CurvedLoop } from "@/components/ui/curved-loop";
 import { GlassSurface } from "@/components/ui/glass-surface";
+import { shouldReduceMotion } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 if (typeof window !== "undefined") {
@@ -128,7 +129,7 @@ export function CinematicFooter() {
   const [headingTextReplayKey, setHeadingTextReplayKey] = useState(0);
 
   useEffect(() => {
-    if (!wrapperRef.current || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (!wrapperRef.current || shouldReduceMotion()) {
       setIsHeadingTextVisible(true);
       setAreFooterButtonsVisible(true);
       return;
@@ -268,7 +269,7 @@ export function CinematicFooter() {
   }, [areFooterButtonsVisible]);
 
   const scrollToTop = () => {
-    window.scrollTo({ behavior: "smooth", top: 0 });
+    window.scrollTo({ behavior: shouldReduceMotion() ? "auto" : "smooth", top: 0 });
   };
 
   return (

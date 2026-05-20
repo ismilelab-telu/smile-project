@@ -5,6 +5,8 @@ import { useTheme } from "next-themes";
 import { useEffect, useRef, type ComponentProps } from "react";
 import * as THREE from "three";
 
+import { shouldUseLightweightVisuals } from "@/lib/motion";
+
 type DottedSurfaceProps = Omit<ComponentProps<"div">, "ref">;
 
 function canUseWebGL() {
@@ -20,11 +22,12 @@ function canUseWebGL() {
 export function DottedSurface({ className, children, ...props }: DottedSurfaceProps) {
   const { resolvedTheme, theme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
+  const useStaticSurface = shouldUseLightweightVisuals();
 
   useEffect(() => {
     const container = containerRef.current;
 
-    if (!container || !canUseWebGL()) {
+    if (!container || useStaticSurface || !canUseWebGL()) {
       return;
     }
 
@@ -98,12 +101,21 @@ export function DottedSurface({ className, children, ...props }: DottedSurfacePr
       renderer.setSize(nextWidth, nextHeight, false);
     };
 
-    const resizeObserver = new ResizeObserver(updateSize);
+    const resizeObserver = new ResizeObserver(() => {
+      updateSize();
+      renderer.render(scene, camera);
+    });
+    let isPageVisible = document.visibilityState === "visible";
+    let isSurfaceVisible = true;
     let animationId = 0;
     let count = 0;
 
     const animate = () => {
-      animationId = window.requestAnimationFrame(animate);
+      animationId = 0;
+
+      if (!isPageVisible || !isSurfaceVisible) {
+        return;
+      }
 
       const positionAttribute = geometry.attributes.position;
       const animatedPositions = positionAttribute.array as Float32Array;
@@ -120,22 +132,67 @@ export function DottedSurface({ className, children, ...props }: DottedSurfacePr
       positionAttribute.needsUpdate = true;
       renderer.render(scene, camera);
       count += 0.1;
+      animationId = window.requestAnimationFrame(animate);
     };
 
+    const startAnimation = () => {
+      if (animationId === 0 && isPageVisible && isSurfaceVisible) {
+        animationId = window.requestAnimationFrame(animate);
+      }
+    };
+
+    const stopAnimation = () => {
+      if (animationId !== 0) {
+        window.cancelAnimationFrame(animationId);
+        animationId = 0;
+      }
+    };
+
+    const handleDocumentVisibility = () => {
+      isPageVisible = document.visibilityState === "visible";
+
+      if (isPageVisible) {
+        startAnimation();
+      } else {
+        stopAnimation();
+      }
+    };
+
+    const visibilityObserver =
+      typeof IntersectionObserver === "function"
+        ? new IntersectionObserver(
+            ([entry]) => {
+              isSurfaceVisible = entry?.isIntersecting ?? true;
+
+              if (isSurfaceVisible) {
+                startAnimation();
+              } else {
+                stopAnimation();
+              }
+            },
+            { rootMargin: "25% 0px" },
+          )
+        : null;
+
     resizeObserver.observe(container);
+    visibilityObserver?.observe(container);
+    document.addEventListener("visibilitychange", handleDocumentVisibility);
     updateSize();
-    animate();
+    renderer.render(scene, camera);
+    startAnimation();
 
     return () => {
-      window.cancelAnimationFrame(animationId);
+      stopAnimation();
       resizeObserver.disconnect();
+      visibilityObserver?.disconnect();
+      document.removeEventListener("visibilitychange", handleDocumentVisibility);
       scene.remove(points);
       geometry.dispose();
       material.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [resolvedTheme, theme]);
+  }, [resolvedTheme, theme, useStaticSurface]);
 
   return (
     <div
@@ -144,6 +201,9 @@ export function DottedSurface({ className, children, ...props }: DottedSurfacePr
       className={cn("pointer-events-none absolute inset-0 z-0 overflow-hidden", className)}
       {...props}
     >
+      {useStaticSurface ? (
+        <span className="absolute inset-0 bg-[radial-gradient(circle,color-mix(in_oklch,var(--foreground)_20%,transparent)_1px,transparent_1.5px)] opacity-70 [background-size:48px_48px]" />
+      ) : null}
       {children}
     </div>
   );

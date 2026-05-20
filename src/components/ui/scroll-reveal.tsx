@@ -3,6 +3,7 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
+import { shouldReduceMotion } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
@@ -62,10 +63,7 @@ export function ScrollReveal({
 
       const wordElements = element.querySelectorAll<HTMLElement>(".word");
 
-      if (
-        typeof window.matchMedia === "function" &&
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      ) {
+      if (shouldReduceMotion()) {
         gsap.set(element, { clearProps: "transform", rotate: 0 });
         gsap.set(wordElements, {
           clearProps: "filter,opacity,willChange",

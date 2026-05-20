@@ -5,6 +5,8 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
+import { shouldReduceMotion } from "@/lib/motion";
+
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
 type ScrollFloatProps = {
@@ -55,10 +57,7 @@ export function ScrollFloat({
       const element = containerRef.current;
       if (!element) return;
 
-      if (
-        typeof window.matchMedia === "function" &&
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      ) {
+      if (shouldReduceMotion()) {
         gsap.set(element.querySelectorAll(".word"), {
           opacity: 1,
           scaleX: 1,

@@ -8,6 +8,7 @@ import {
 } from "react";
 import { motion } from "motion/react";
 
+import { shouldReduceMotion } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 type AnimationSnapshot = Partial<Record<"filter" | "opacity" | "y", number | string>>;
@@ -78,8 +79,14 @@ export function BlurText<TElement extends ElementType = "p">({
   const elements = useMemo(() => splitTextByAnimationUnit(text, animateBy), [animateBy, text]);
   const [inView, setInView] = useState(false);
   const ref = useRef<HTMLElement | null>(null);
+  const reduceMotion = shouldReduceMotion();
 
   useEffect(() => {
+    if (reduceMotion) {
+      setInView(true);
+      return;
+    }
+
     if (startAnimation !== undefined) {
       setInView(startAnimation);
       return;
@@ -109,7 +116,7 @@ export function BlurText<TElement extends ElementType = "p">({
     observer.observe(element);
 
     return () => observer.disconnect();
-  }, [rootMargin, startAnimation, threshold]);
+  }, [reduceMotion, rootMargin, startAnimation, threshold]);
 
   const defaultFrom = useMemo(
     () =>
@@ -131,8 +138,9 @@ export function BlurText<TElement extends ElementType = "p">({
     [direction],
   );
 
-  const fromSnapshot = animationFrom ?? defaultFrom;
-  const toSnapshots = animationTo ?? defaultTo;
+  const staticSnapshot = { filter: "blur(0px)", opacity: 1, y: 0 };
+  const fromSnapshot = reduceMotion ? staticSnapshot : (animationFrom ?? defaultFrom);
+  const toSnapshots = reduceMotion ? [staticSnapshot] : (animationTo ?? defaultTo);
   const stepCount = toSnapshots.length + 1;
   const totalDuration = stepDuration * (stepCount - 1);
   const times = Array.from({ length: stepCount }, (_, index) =>
@@ -149,7 +157,7 @@ export function BlurText<TElement extends ElementType = "p">({
         const animateKeyframes = buildKeyframes(fromSnapshot, toSnapshots);
         const spanTransition = {
           delay: (index * delay) / 1000,
-          duration: totalDuration,
+          duration: reduceMotion ? 0 : totalDuration,
           ease: easing,
           times,
         };

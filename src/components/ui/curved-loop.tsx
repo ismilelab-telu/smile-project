@@ -2,6 +2,8 @@
 
 import { useEffect, useId, useMemo, useRef, useState, type PointerEvent } from "react";
 
+import { shouldReduceMotion } from "@/lib/motion";
+
 type CurvedLoopProps = {
   className?: string;
   curveAmount?: number;
@@ -48,6 +50,7 @@ export function CurvedLoop({
   }, [marqueeText]);
 
   const measureRef = useRef<SVGTextElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const textPathRef = useRef<SVGTextPathElement | null>(null);
   const dragRef = useRef(false);
   const lastXRef = useRef(0);
@@ -106,12 +109,34 @@ export function CurvedLoop({
   }, [spacing]);
 
   useEffect(() => {
-    if (!spacing || !ready) {
+    if (!spacing || !ready || shouldReduceMotion()) {
       return;
     }
 
     let frame = 0;
-    const step = () => {
+    let isLoopVisible = true;
+    let isPageVisible = document.visibilityState === "visible";
+
+    const stopLoop = () => {
+      if (frame !== 0) {
+        cancelAnimationFrame(frame);
+        frame = 0;
+      }
+    };
+
+    const startLoop = () => {
+      if (frame === 0 && isLoopVisible && isPageVisible) {
+        frame = requestAnimationFrame(step);
+      }
+    };
+
+    function step() {
+      frame = 0;
+
+      if (!isLoopVisible || !isPageVisible) {
+        return;
+      }
+
       if (!dragRef.current && textPathRef.current) {
         const delta = dirRef.current === "right" ? speed : -speed;
         const newOffset = wrapOffset(offsetRef.current + delta, spacing);
@@ -119,11 +144,48 @@ export function CurvedLoop({
         textPathRef.current.setAttribute("startOffset", `${newOffset}px`);
       }
 
-      frame = requestAnimationFrame(step);
+      startLoop();
+    }
+
+    const visibilityTarget =
+      containerRef.current?.closest("[data-navigation-menu-hide-zone]") ?? containerRef.current;
+    const intersectionObserver =
+      visibilityTarget && typeof IntersectionObserver === "function"
+        ? new IntersectionObserver(
+            ([entry]) => {
+              isLoopVisible = entry?.isIntersecting ?? true;
+
+              if (isLoopVisible) {
+                startLoop();
+              } else {
+                stopLoop();
+              }
+            },
+            { rootMargin: "20% 0px" },
+          )
+        : null;
+    const handleDocumentVisibility = () => {
+      isPageVisible = document.visibilityState === "visible";
+
+      if (isPageVisible) {
+        startLoop();
+      } else {
+        stopLoop();
+      }
     };
 
-    frame = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frame);
+    if (visibilityTarget) {
+      intersectionObserver?.observe(visibilityTarget);
+    }
+
+    document.addEventListener("visibilitychange", handleDocumentVisibility);
+    startLoop();
+
+    return () => {
+      stopLoop();
+      intersectionObserver?.disconnect();
+      document.removeEventListener("visibilitychange", handleDocumentVisibility);
+    };
   }, [spacing, speed, ready]);
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -170,6 +232,7 @@ export function CurvedLoop({
     <div
       aria-label={marqueeText}
       className="flex w-full items-center justify-center overflow-visible"
+      ref={containerRef}
       role="img"
       style={{ cursor: cursorStyle, visibility: ready ? "visible" : "hidden" }}
       onPointerDown={onPointerDown}

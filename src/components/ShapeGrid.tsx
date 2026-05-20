@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 
+import { shouldReduceMotion } from "@/lib/motion";
+
 import "./ShapeGrid.css";
 
 type ShapeGridDirection = "right" | "left" | "up" | "down" | "diagonal";
@@ -60,6 +62,8 @@ const ShapeGrid = ({
       return;
     }
 
+    const reduceMotion = shouldReduceMotion();
+    const shouldAnimate = !reduceMotion && speed > 0;
     const isHex = shape === "hexagon";
     const isTri = shape === "triangle";
     const hexHoriz = squareSize * 1.5;
@@ -70,7 +74,6 @@ const ShapeGrid = ({
       canvas.height = canvas.offsetHeight;
     };
 
-    window.addEventListener("resize", resizeCanvas);
     resizeCanvas();
 
     const drawHex = (cx: number, cy: number, size: number) => {
@@ -265,12 +268,36 @@ const ShapeGrid = ({
       }
     };
 
-    const updateAnimation = () => {
+    let isCanvasVisible = true;
+    let isPageVisible = document.visibilityState === "visible";
+
+    const stopAnimation = () => {
+      if (requestRef.current !== null) {
+        cancelAnimationFrame(requestRef.current);
+        requestRef.current = null;
+      }
+    };
+
+    const startAnimation = () => {
+      if (!shouldAnimate || requestRef.current !== null || !isCanvasVisible || !isPageVisible) {
+        return;
+      }
+
+      requestRef.current = requestAnimationFrame(updateAnimation);
+    };
+
+    function updateAnimation() {
+      requestRef.current = null;
+
+      if (!isCanvasVisible || !isPageVisible) {
+        return;
+      }
+
       updateGridOffset();
       updateCellOpacities();
       drawGrid();
-      requestRef.current = requestAnimationFrame(updateAnimation);
-    };
+      startAnimation();
+    }
 
     const updateCellOpacities = () => {
       const targets = new Map<string, number>();
@@ -431,6 +458,13 @@ const ShapeGrid = ({
       }
     };
 
+    const handleResize = () => {
+      resizeCanvas();
+      drawGrid();
+    };
+
+    window.addEventListener("resize", handleResize);
+
     if (!disableHover) {
       window.addEventListener("pointermove", handlePointerMove, { passive: true });
       window.addEventListener("blur", clearHoveredSquare);
@@ -444,7 +478,36 @@ const ShapeGrid = ({
       }
     }
 
-    requestRef.current = requestAnimationFrame(updateAnimation);
+    const visibilityTarget = canvas.closest("[data-navigation-menu-hide-zone]") ?? canvas;
+    const intersectionObserver =
+      typeof IntersectionObserver === "function"
+        ? new IntersectionObserver(
+            ([entry]) => {
+              isCanvasVisible = entry?.isIntersecting ?? true;
+
+              if (isCanvasVisible) {
+                startAnimation();
+              } else {
+                stopAnimation();
+              }
+            },
+            { rootMargin: "20% 0px" },
+          )
+        : null;
+    const handleDocumentVisibility = () => {
+      isPageVisible = document.visibilityState === "visible";
+
+      if (isPageVisible) {
+        startAnimation();
+      } else {
+        stopAnimation();
+      }
+    };
+
+    drawGrid();
+    intersectionObserver?.observe(visibilityTarget);
+    document.addEventListener("visibilitychange", handleDocumentVisibility);
+    startAnimation();
 
     return () => {
       if (persistenceKey) {
@@ -454,14 +517,14 @@ const ShapeGrid = ({
         });
       }
 
-      window.removeEventListener("resize", resizeCanvas);
+      window.removeEventListener("resize", handleResize);
+      document.removeEventListener("visibilitychange", handleDocumentVisibility);
+      intersectionObserver?.disconnect();
       if (!disableHover) {
         window.removeEventListener("pointermove", handlePointerMove);
         window.removeEventListener("blur", clearHoveredSquare);
       }
-      if (requestRef.current !== null) {
-        cancelAnimationFrame(requestRef.current);
-      }
+      stopAnimation();
     };
   }, [
     direction,

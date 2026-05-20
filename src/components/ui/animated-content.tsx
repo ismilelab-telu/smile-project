@@ -2,6 +2,8 @@ import { type HTMLAttributes, type ReactNode, useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
+import { shouldReduceMotion } from "@/lib/motion";
+
 gsap.registerPlugin(ScrollTrigger);
 
 type AnimatedContentProps = Omit<HTMLAttributes<HTMLDivElement>, "children"> & {
@@ -58,10 +60,7 @@ export default function AnimatedContent({
       return;
     }
 
-    if (
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
+    if (shouldReduceMotion()) {
       gsap.set(element, {
         opacity: 1,
         scale: 1,
