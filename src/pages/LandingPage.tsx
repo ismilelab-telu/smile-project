@@ -880,11 +880,59 @@ export function LandingPage() {
         return;
       }
 
-      const getVisualBaseWidth = () => Math.min(window.innerWidth * 0.9, 900);
-      const getVisualBaseHeight = () => Math.min(window.innerHeight * 0.58, 500);
+      const getVisualBaseWidth = () => {
+        const viewportLimit = Math.min(window.innerWidth * 0.9, 1240);
+        const minWidth = Math.min(window.innerWidth * 0.9, 760);
+        const preferredWidth = Math.min(window.innerWidth * 0.64, window.innerHeight * 1.22);
+
+        return gsap.utils.clamp(minWidth, viewportLimit, preferredWidth);
+      };
+      const getVisualBaseHeight = () => {
+        const maxHeight = Math.min(window.innerHeight * 0.56, 680);
+        const minHeight = Math.min(maxHeight, Math.max(260, window.innerHeight * 0.36));
+        const preferredHeight = getVisualBaseWidth() * 0.56;
+
+        return gsap.utils.clamp(minHeight, maxHeight, preferredHeight);
+      };
+      const getEditorRestY = () => window.innerHeight * 0.045;
       const getBlackBoxSize = () => Math.min(getVisualBaseWidth(), getVisualBaseHeight()) * 0.46;
-      const getBoardWidth = () => Math.min(window.innerWidth * 0.95, 1320);
-      const getBoardHeight = () => Math.min(window.innerHeight * 0.56, 580);
+      const getStoryStageHeight = () =>
+        storyStage.getBoundingClientRect().height || window.innerHeight;
+      const getBoardWidth = () => {
+        const stageHeight = getStoryStageHeight();
+        const viewportLimit = Math.min(window.innerWidth * 0.95, 1540);
+        const minWidth = Math.min(window.innerWidth * 0.9, 860);
+        const preferredWidth = Math.min(window.innerWidth * 0.86, stageHeight * 1.18);
+
+        return gsap.utils.clamp(minWidth, viewportLimit, preferredWidth);
+      };
+      const getBoardHeight = () => {
+        const maxHeight = Math.min(window.innerHeight * 0.54, 600);
+        const minHeight = Math.min(maxHeight, Math.max(320, window.innerHeight * 0.4));
+        const preferredHeight = getBoardWidth() * 0.38;
+
+        return gsap.utils.clamp(minHeight, maxHeight, preferredHeight);
+      };
+      const getBoardPaperExtension = () => {
+        const stageHeight = getStoryStageHeight();
+        const tallViewportProgress = gsap.utils.clamp(0, 1, (stageHeight - 1180) / 180);
+
+        return gsap.utils.interpolate(180, 330, tallViewportProgress);
+      };
+      const getBoardPaperHeight = () => getBoardHeight() + getBoardPaperExtension();
+      const getBoardY = () => {
+        const stageHeight = getStoryStageHeight();
+        const visualTopAnchor = stageHeight * 0.61;
+        const bottomGap = gsap.utils.clamp(12, 24, stageHeight * 0.014);
+
+        return (
+          stageHeight -
+          bottomGap -
+          getBoardHeight() / 2 -
+          visualTopAnchor +
+          getBoardPaperExtension() / 2
+        );
+      };
       const motionPreferences = gsap.matchMedia();
 
       motionPreferences.add("(prefers-reduced-motion: reduce)", () => {
@@ -897,16 +945,16 @@ export function LandingPage() {
           backgroundColor: "#fafafa",
           borderColor: "rgba(9, 9, 11, 0.12)",
           borderRadius: "28px 28px 0 0",
-          height: getBoardHeight,
+          height: getBoardPaperHeight,
           scale: 1,
           width: getBoardWidth,
           xPercent: -50,
-          y: 144,
+          y: getBoardY,
           yPercent: -50,
         });
         gsap.set(editorShell, { autoAlpha: 0 });
         gsap.set(boxContent, { autoAlpha: 0 });
-        gsap.set(diagramContent, { autoAlpha: 1 });
+        gsap.set(diagramContent, { autoAlpha: 1, height: getBoardHeight });
         gsap.set(diagramNodes, { autoAlpha: 1, scale: 1 });
         gsap.set(diagramLineStrokes, { autoAlpha: 1, drawSVG: "0% 100%" });
         gsap.set(diagramArrowheads, { autoAlpha: 1, drawSVG: "0% 100%" });
@@ -966,6 +1014,7 @@ export function LandingPage() {
         });
         gsap.set(diagramContent, {
           autoAlpha: 0,
+          height: getBoardHeight,
           willChange: "opacity",
         });
         gsap.set(diagramNodes, {
@@ -1063,7 +1112,7 @@ export function LandingPage() {
             {
               duration: 0.78,
               ease: "power3.inOut",
-              y: 0,
+              y: getEditorRestY,
             },
             0,
           );
@@ -1163,10 +1212,10 @@ export function LandingPage() {
               boxShadow: "0 34px 110px rgba(0, 0, 0, 0.42)",
               duration: 0.42,
               ease: "power3.inOut",
-              height: getBoardHeight,
+              height: getBoardPaperHeight,
               scale: 1,
               width: getBoardWidth,
-              y: 144,
+              y: getBoardY,
             },
             boardMorphStart,
           )
@@ -1187,6 +1236,7 @@ export function LandingPage() {
               autoAlpha: 1,
               duration: 0.26,
               ease: "none",
+              height: getBoardHeight,
             },
             boardMorphStart + 0.26,
           )
@@ -2362,7 +2412,7 @@ export function LandingPage() {
         >
           <div className="flex flex-col items-center">
             <SplitText
-              className="max-w-full whitespace-nowrap text-[clamp(2.8rem,10vw,8.6rem)] leading-[0.9] tracking-normal text-foreground font-semibold"
+              className="max-w-full whitespace-nowrap text-[clamp(2.8rem,min(10vw,13svh),8.6rem)] leading-[0.9] tracking-normal text-foreground font-semibold"
               data-landing-scroll-title
               delay={50}
               duration={1.3}
@@ -2380,7 +2430,7 @@ export function LandingPage() {
             />
             <SplitText
               animateTarget="lines"
-              className="mt-6 max-w-2xl text-[clamp(1rem,2vw,1.3rem)] leading-[1.65] text-muted-foreground"
+              className="mt-6 max-w-2xl text-[clamp(1rem,min(2vw,2.4svh),1.3rem)] leading-[1.65] text-muted-foreground"
               delay={100}
               duration={0.6}
               ease="expo.out"
@@ -2477,14 +2527,14 @@ export function LandingPage() {
               >
                 <span
                   aria-hidden="true"
-                  className="absolute inset-x-0 top-1/2 block text-[clamp(5rem,11vw,11.5rem)] leading-[0.82] font-normal tracking-normal text-zinc-950 will-change-transform"
+                  className="absolute inset-x-0 top-1/2 block text-[clamp(5rem,min(11vw,16svh),11.5rem)] leading-[0.82] font-normal tracking-normal text-zinc-950 will-change-transform"
                   data-playground-intro-meet
                 >
                   {playgroundIntroEyebrow}
                 </span>
                 <span
                   aria-hidden="true"
-                  className="absolute inset-x-0 top-1/2 block text-[clamp(3.4rem,6.8vw,7rem)] leading-[0.88] font-medium tracking-normal text-zinc-950 opacity-0 will-change-[transform,opacity]"
+                  className="absolute inset-x-0 top-1/2 block text-[clamp(3.4rem,min(6.8vw,10svh),7rem)] leading-[0.88] font-medium tracking-normal text-zinc-950 opacity-0 will-change-[transform,opacity]"
                   data-playground-intro-product
                 >
                   {playgroundIntroTitle}
@@ -2492,7 +2542,7 @@ export function LandingPage() {
               </h2>
 
               <p
-                className="absolute inset-x-12 top-[39%] z-10 mx-auto max-w-4xl text-center text-[clamp(1.1rem,1.65vw,1.45rem)] leading-[1.5] font-normal text-zinc-600 opacity-0 will-change-[transform,opacity]"
+                className="absolute inset-x-12 top-[39%] z-10 mx-auto max-w-4xl text-center text-[clamp(1.1rem,min(1.65vw,2.5svh),1.45rem)] leading-[1.5] font-normal text-zinc-600 opacity-0 will-change-[transform,opacity]"
                 data-playground-intro-subtitle
               >
                 {playgroundIntroSubtitle}
@@ -2529,7 +2579,7 @@ export function LandingPage() {
                 data-blackbox-card="simple"
               >
                 <h2
-                  className="text-[clamp(2.6rem,5.9vw,7rem)] leading-[0.92] font-semibold tracking-normal text-zinc-50"
+                  className="text-[clamp(2.6rem,min(5.9vw,10.8svh),7rem)] leading-[0.92] font-semibold tracking-normal text-zinc-50"
                   data-blackbox-headline="call"
                 >
                   <span className="block whitespace-nowrap">ML can look simple</span>
@@ -2543,7 +2593,7 @@ export function LandingPage() {
                 data-blackbox-card="open"
               >
                 <h2
-                  className="text-[clamp(2.35rem,5.8vw,7rem)] leading-[0.94] font-semibold tracking-normal text-zinc-50"
+                  className="text-[clamp(2.35rem,min(5.8vw,10.8svh),7rem)] leading-[0.94] font-semibold tracking-normal text-zinc-50"
                   data-blackbox-headline="hidden"
                 >
                   <span className="block whitespace-nowrap">But the logic stays</span>
@@ -2559,7 +2609,7 @@ export function LandingPage() {
                 data-blackbox-card="unpack"
               >
                 <h2
-                  className="text-[clamp(2.5rem,6.1vw,7.2rem)] leading-[0.94] font-semibold tracking-normal text-zinc-950"
+                  className="text-[clamp(2.5rem,min(6.1vw,11svh),7.2rem)] leading-[0.94] font-semibold tracking-normal text-zinc-950"
                   data-blackbox-headline="unpack"
                 >
                   <span className="block whitespace-nowrap">So we unpack</span>
@@ -2567,7 +2617,7 @@ export function LandingPage() {
                 </h2>
               </section>
               <div
-                className="pointer-events-none absolute top-[61%] left-1/2 z-50 h-[min(58svh,500px)] w-[min(90vw,900px)] overflow-hidden border bg-zinc-900 text-zinc-50"
+                className="pointer-events-none absolute top-[61%] left-1/2 z-50 h-[min(56svh,680px)] w-[min(90vw,1240px)] overflow-hidden border bg-zinc-900 text-zinc-50"
                 data-blackbox-visual
               >
                 <div className="absolute inset-0 flex flex-col" data-blackbox-editor-shell>
@@ -2581,7 +2631,7 @@ export function LandingPage() {
                   </div>
                   <pre
                     aria-label={blackBoxStoryCodeLines.join("\n")}
-                    className="min-h-0 flex-1 overflow-hidden p-5 font-mono text-[clamp(0.72rem,1.4vw,1rem)] leading-[1.58] whitespace-pre text-zinc-100 sm:p-7"
+                    className="min-h-0 flex-1 overflow-hidden p-5 font-mono text-[clamp(0.72rem,min(1.4vw,1.8svh),1rem)] leading-[1.58] whitespace-pre text-zinc-100 sm:p-7"
                   >
                     {blackBoxStoryCodeSegments.map((line, lineIndex) => (
                       <code
@@ -2613,7 +2663,7 @@ export function LandingPage() {
 
                 <div
                   aria-hidden="true"
-                  className="absolute inset-0 flex items-center justify-center p-2 opacity-0 sm:p-4"
+                  className="absolute inset-x-0 top-0 flex h-[min(54svh,600px)] items-center justify-center p-2 opacity-0 sm:p-4"
                   data-blackbox-diagram-content
                 >
                   <BlackBoxProcessDiagram className="h-full w-full overflow-visible" />
@@ -2626,7 +2676,7 @@ export function LandingPage() {
                 data-understand-slide
               >
                 <h2
-                  className="max-w-7xl text-center text-[clamp(2.65rem,8.4vw,8.8rem)] leading-[0.92] font-semibold tracking-normal opacity-0"
+                  className="max-w-7xl text-center text-[clamp(2.65rem,min(8.4vw,13svh),8.8rem)] leading-[0.92] font-semibold tracking-normal opacity-0"
                   data-understand-title
                   id="understand-process-title"
                 >
@@ -2661,7 +2711,7 @@ export function LandingPage() {
             >
               <span
                 aria-hidden="true"
-                className="inline-block text-4xl leading-[1.14] font-extrabold tracking-normal sm:text-5xl md:text-7xl lg:text-8xl xl:text-9xl"
+                className="inline-block text-[clamp(2.25rem,min(7.5vw,12svh),8rem)] leading-[1.14] font-extrabold tracking-normal"
               >
                 {playgroundTeachingLines.map((line, lineIndex) => (
                   <span key={line} className="contents">
@@ -2748,7 +2798,7 @@ export function LandingPage() {
             >
               <span
                 aria-hidden="true"
-                className="flex max-w-full items-center justify-center gap-x-[0.18em] overflow-visible pb-[0.14em] text-4xl leading-[1.04] whitespace-nowrap sm:text-5xl md:text-7xl lg:text-8xl xl:text-9xl"
+                className="flex max-w-full items-center justify-center gap-x-[0.18em] overflow-visible pb-[0.14em] text-[clamp(2.25rem,min(7.5vw,12svh),8rem)] leading-[1.04] whitespace-nowrap"
                 data-final-lead-text
               >
                 {playgroundFinalLeadWords.map((word) => (
@@ -2764,7 +2814,7 @@ export function LandingPage() {
 
               <span
                 aria-hidden="true"
-                className="mt-7 flex max-w-full flex-wrap items-center justify-center gap-x-[0.18em] gap-y-3 text-4xl leading-[0.9] whitespace-nowrap sm:mt-9 sm:text-5xl md:text-7xl lg:text-8xl xl:text-9xl"
+                className="mt-[clamp(1.75rem,4svh,2.25rem)] flex max-w-full flex-wrap items-center justify-center gap-x-[0.18em] gap-y-3 text-[clamp(2.25rem,min(7.5vw,12svh),8rem)] leading-[0.9] whitespace-nowrap"
               >
                 <span className="inline-block" data-final-word="fall">
                   fall
@@ -2833,7 +2883,7 @@ export function LandingPage() {
         >
           <div className="container mx-auto">
             <h3
-              className="flex w-max gap-[4vw] pl-[100vw] text-[clamp(2rem,10vw,12rem)] leading-[1.1] font-semibold tracking-normal whitespace-nowrap motion-reduce:w-auto motion-reduce:flex-wrap motion-reduce:pl-0 motion-reduce:whitespace-normal"
+              className="flex w-max gap-[4vw] pl-[100vw] text-[clamp(2rem,min(10vw,18svh),12rem)] leading-[1.1] font-semibold tracking-normal whitespace-nowrap motion-reduce:w-auto motion-reduce:flex-wrap motion-reduce:pl-0 motion-reduce:whitespace-normal"
               data-horizontal-quote-text
               id="horizontal-quote-title"
             >
@@ -2842,7 +2892,7 @@ export function LandingPage() {
           </div>
           <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
             <div
-              className="relative size-[clamp(5.25rem,12vw,10rem)] opacity-0 will-change-[filter,transform,opacity]"
+              className="relative size-[clamp(5.25rem,min(12vw,18svh),10rem)] opacity-0 will-change-[filter,transform,opacity]"
               data-horizontal-quote-emoji
             >
               <picture

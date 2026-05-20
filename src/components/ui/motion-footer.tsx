@@ -29,7 +29,7 @@ const footerFogClassName =
   "bg-[radial-gradient(ellipse_at_center,transparent_0%,transparent_48%,oklch(0.985_0_0_/_72%)_100%),linear-gradient(to_bottom,oklch(0.985_0_0_/_88%)_0%,transparent_11%,transparent_76%,oklch(0.985_0_0_/_92%)_100%)]";
 
 const giantTextClassName =
-  "bg-[linear-gradient(180deg,color-mix(in_oklch,var(--foreground)_12%,transparent)_0%,transparent_62%)] bg-clip-text text-[clamp(8rem,24vw,24rem)] leading-[0.75] font-black tracking-normal text-transparent [-webkit-text-stroke:1px_color-mix(in_oklch,var(--foreground)_7%,transparent)]";
+  "bg-[linear-gradient(180deg,color-mix(in_oklch,var(--foreground)_12%,transparent)_0%,transparent_62%)] bg-clip-text text-[clamp(8rem,min(24vw,34svh),24rem)] leading-[0.75] font-black tracking-normal text-transparent [-webkit-text-stroke:1px_color-mix(in_oklch,var(--foreground)_7%,transparent)]";
 
 const textGlowClassName =
   "bg-[linear-gradient(180deg,var(--foreground)_0%,color-mix(in_oklch,var(--foreground)_46%,transparent)_100%)] bg-clip-text [-webkit-text-fill-color:transparent] drop-shadow-[0_0_20px_color-mix(in_oklch,var(--foreground)_14%,transparent)]";
@@ -331,7 +331,7 @@ export function CinematicFooter() {
                 animateBy="sentence"
                 as="h2"
                 className={cn(
-                  "justify-center text-center text-[clamp(2.7rem,9vw,6.2rem)] leading-[0.95] font-black tracking-normal",
+                  "justify-center text-center text-[clamp(2.7rem,min(9vw,11svh),6.2rem)] leading-[0.95] font-black tracking-normal",
                 )}
                 delay={footerHeadingWordDelay}
                 direction="bottom"
