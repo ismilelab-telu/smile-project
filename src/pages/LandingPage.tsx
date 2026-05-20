@@ -10,9 +10,9 @@ import { PlaygroundIntroAxes } from "@/components/PlaygroundIntroAxes";
 import { PlaygroundIntroDots } from "@/components/PlaygroundIntroDots";
 import { PlaygroundIntroHands } from "@/components/PlaygroundIntroHands";
 import { PlaygroundIntroRegressionLine } from "@/components/PlaygroundIntroRegressionLine";
+import { DeferredCinematicFooter } from "@/components/DeferredCinematicFooter";
 import { DottedSurface } from "@/components/ui/dotted-surface";
 import { GlassSurface } from "@/components/ui/glass-surface";
-import { CinematicFooter } from "@/components/ui/motion-footer";
 import { OrchestratedEaseReverseMenu } from "@/components/ui/orchestrated-ease-reverse-menu";
 import { SplitText } from "@/components/ui/split-text";
 import { shouldReduceMotion } from "@/lib/motion";
@@ -2591,7 +2591,7 @@ export function LandingPage() {
                 data-blackbox-card="simple"
               >
                 <h2
-                  className="text-[clamp(2.6rem,min(5.9vw,10.8svh),7rem)] leading-[0.92] font-semibold tracking-normal text-zinc-50"
+                  className="text-[clamp(2.6rem,min(6.3vw,11.8svh),8.6rem)] leading-[0.92] font-semibold tracking-normal text-zinc-50"
                   data-blackbox-headline="call"
                 >
                   <span className="block whitespace-nowrap">ML can look simple</span>
@@ -2605,7 +2605,7 @@ export function LandingPage() {
                 data-blackbox-card="open"
               >
                 <h2
-                  className="text-[clamp(2.35rem,min(5.8vw,10.8svh),7rem)] leading-[0.94] font-semibold tracking-normal text-zinc-50"
+                  className="text-[clamp(2.35rem,min(6.2vw,11.8svh),8.6rem)] leading-[0.94] font-semibold tracking-normal text-zinc-50"
                   data-blackbox-headline="hidden"
                 >
                   <span className="block whitespace-nowrap">But the logic stays</span>
@@ -2621,7 +2621,7 @@ export function LandingPage() {
                 data-blackbox-card="unpack"
               >
                 <h2
-                  className="text-[clamp(2.5rem,min(6.1vw,11svh),7.2rem)] leading-[0.94] font-semibold tracking-normal text-zinc-950"
+                  className="text-[clamp(2.5rem,min(6.4vw,12svh),8.8rem)] leading-[0.94] font-semibold tracking-normal text-zinc-950"
                   data-blackbox-headline="unpack"
                 >
                   <span className="block whitespace-nowrap">So we unpack</span>
@@ -2939,7 +2939,7 @@ export function LandingPage() {
         </section>
       </section>
 
-      <CinematicFooter />
+      <DeferredCinematicFooter />
     </>
   );
 }

@@ -4,22 +4,32 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 
 describe("App", () => {
+  const lazyRouteTimeout = { timeout: 3000 };
+
   beforeEach(() => {
     vi.restoreAllMocks();
     window.history.pushState(null, "", "/");
   });
 
-  it("renders the landing page", () => {
+  it("renders the landing page", async () => {
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: "Smile Project" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Open 404 page/ })).toHaveAttribute("href", "/404");
+    expect(
+      await screen.findByRole("heading", { name: "Smile Project" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("link", { name: /Open 404 page/ }, lazyRouteTimeout),
+    ).toHaveAttribute("href", "/404");
   });
 
   it("opens the orchestrated GSAP navigation island", async () => {
     render(<App />);
 
-    const menuButton = screen.getByRole("button", { name: "Open navigation menu" });
+    const menuButton = await screen.findByRole(
+      "button",
+      { name: "Open navigation menu" },
+      lazyRouteTimeout,
+    );
 
     fireEvent.click(menuButton);
 
@@ -34,10 +44,19 @@ describe("App", () => {
   it("hides the navigation island while the footer is visible", async () => {
     render(<App />);
 
-    const footerHideZone = document.querySelector<HTMLElement>("[data-navigation-menu-hide-zone]");
+    const menuButton = await screen.findByRole(
+      "button",
+      { name: "Open navigation menu" },
+      lazyRouteTimeout,
+    );
+    let footerHideZone: HTMLElement | null = null;
 
-    expect(footerHideZone).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Open navigation menu" })).toBeInTheDocument();
+    await waitFor(() => {
+      footerHideZone = document.querySelector<HTMLElement>("[data-navigation-menu-hide-zone]");
+      expect(footerHideZone).not.toBeNull();
+    });
+
+    expect(menuButton).toBeInTheDocument();
 
     vi.spyOn(footerHideZone!, "getBoundingClientRect").mockReturnValue({
       bottom: window.innerHeight + 320,
@@ -60,29 +79,37 @@ describe("App", () => {
     });
   });
 
-  it("renders fuzzy text utility pages", () => {
+  it("renders fuzzy text utility pages", async () => {
     window.history.pushState(null, "", "/support");
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: "404 not found." })).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "404" })).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "not found." })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "404 not found." }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+    expect(await screen.findByRole("img", { name: "404" }, lazyRouteTimeout)).toBeInTheDocument();
+    expect(
+      await screen.findByRole("img", { name: "not found." }, lazyRouteTimeout),
+    ).toBeInTheDocument();
   });
 
-  it("routes the explore action to the 404 page", () => {
+  it("routes the explore action to the 404 page", async () => {
     render(<App />);
 
-    fireEvent.click(screen.getByRole("link", { name: /Open 404 page/ }));
+    fireEvent.click(await screen.findByRole("link", { name: /Open 404 page/ }, lazyRouteTimeout));
 
-    expect(screen.getByRole("heading", { name: "404 not found." })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "404 not found." }, lazyRouteTimeout),
+    ).toBeInTheDocument();
     expect(window.location.pathname).toBe("/404");
   });
 
-  it("does not route model picker paths", () => {
+  it("does not route model picker paths", async () => {
     window.history.pushState(null, "", "/model-picker");
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: "404 not found." })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "404 not found." }, lazyRouteTimeout),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Simple Linear Regression/ }),
     ).not.toBeInTheDocument();

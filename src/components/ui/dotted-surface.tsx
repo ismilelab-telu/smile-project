@@ -1,11 +1,10 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { useTheme } from "next-themes";
 import { useEffect, useRef, type ComponentProps } from "react";
-import * as THREE from "three";
+import { useTheme } from "next-themes";
 
 import { shouldUseLightweightVisuals } from "@/lib/motion";
+import { cn } from "@/lib/utils";
 
 type DottedSurfaceProps = Omit<ComponentProps<"div">, "ref">;
 
@@ -31,166 +30,200 @@ export function DottedSurface({ className, children, ...props }: DottedSurfacePr
       return;
     }
 
-    const isDarkTheme = resolvedTheme === "dark" || theme === "dark";
-    const separation = 150;
-    const amountX = 40;
-    const amountY = 60;
-    const scene = new THREE.Scene();
+    let cleanup: (() => void) | undefined;
+    let isDisposed = false;
 
-    scene.fog = new THREE.Fog(isDarkTheme ? 0x111111 : 0xffffff, 2000, 10000);
+    void (async () => {
+      const [
+        { PerspectiveCamera },
+        { Float32BufferAttribute },
+        { BufferGeometry },
+        { PointsMaterial },
+        { Points },
+        { WebGLRenderer },
+        { Fog },
+        { Scene },
+      ] = await Promise.all([
+        import("three/src/cameras/PerspectiveCamera.js"),
+        import("three/src/core/BufferAttribute.js"),
+        import("three/src/core/BufferGeometry.js"),
+        import("three/src/materials/PointsMaterial.js"),
+        import("three/src/objects/Points.js"),
+        import("three/src/renderers/WebGLRenderer.js"),
+        import("three/src/scenes/Fog.js"),
+        import("three/src/scenes/Scene.js"),
+      ]);
 
-    const camera = new THREE.PerspectiveCamera(60, 1, 1, 10000);
-    camera.position.set(0, 355, 1220);
-
-    const renderer = new THREE.WebGLRenderer({
-      alpha: true,
-      antialias: true,
-    });
-
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(scene.fog.color, 0);
-    renderer.domElement.style.display = "block";
-    renderer.domElement.style.height = "100%";
-    renderer.domElement.style.inset = "0";
-    renderer.domElement.style.position = "absolute";
-    renderer.domElement.style.width = "100%";
-
-    container.appendChild(renderer.domElement);
-
-    const positions: number[] = [];
-    const colors: number[] = [];
-
-    for (let ix = 0; ix < amountX; ix++) {
-      for (let iy = 0; iy < amountY; iy++) {
-        positions.push(
-          ix * separation - (amountX * separation) / 2,
-          0,
-          iy * separation - (amountY * separation) / 2,
-        );
-
-        if (isDarkTheme) {
-          colors.push(0.78, 0.78, 0.78);
-        } else {
-          colors.push(0, 0, 0);
-        }
-      }
-    }
-
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-
-    const material = new THREE.PointsMaterial({
-      opacity: isDarkTheme ? 0.78 : 0.92,
-      size: 8,
-      sizeAttenuation: true,
-      transparent: true,
-      vertexColors: true,
-    });
-
-    const points = new THREE.Points(geometry, material);
-    scene.add(points);
-
-    const updateSize = () => {
-      const { height, width } = container.getBoundingClientRect();
-      const nextWidth = Math.max(1, Math.floor(width));
-      const nextHeight = Math.max(1, Math.floor(height));
-
-      camera.aspect = nextWidth / nextHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(nextWidth, nextHeight, false);
-    };
-
-    const resizeObserver = new ResizeObserver(() => {
-      updateSize();
-      renderer.render(scene, camera);
-    });
-    let isPageVisible = document.visibilityState === "visible";
-    let isSurfaceVisible = true;
-    let animationId = 0;
-    let count = 0;
-
-    const animate = () => {
-      animationId = 0;
-
-      if (!isPageVisible || !isSurfaceVisible) {
+      if (isDisposed) {
         return;
       }
 
-      const positionAttribute = geometry.attributes.position;
-      const animatedPositions = positionAttribute.array as Float32Array;
-      let index = 0;
+      const isDarkTheme = resolvedTheme === "dark" || theme === "dark";
+      const separation = 150;
+      const amountX = 40;
+      const amountY = 60;
+      const scene = new Scene();
+
+      scene.fog = new Fog(isDarkTheme ? 0x111111 : 0xffffff, 2000, 10000);
+
+      const camera = new PerspectiveCamera(60, 1, 1, 10000);
+      camera.position.set(0, 355, 1220);
+
+      const renderer = new WebGLRenderer({
+        alpha: true,
+        antialias: true,
+      });
+
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setClearColor(scene.fog.color, 0);
+      renderer.domElement.style.display = "block";
+      renderer.domElement.style.height = "100%";
+      renderer.domElement.style.inset = "0";
+      renderer.domElement.style.position = "absolute";
+      renderer.domElement.style.width = "100%";
+
+      container.appendChild(renderer.domElement);
+
+      const positions: number[] = [];
+      const colors: number[] = [];
 
       for (let ix = 0; ix < amountX; ix++) {
         for (let iy = 0; iy < amountY; iy++) {
-          animatedPositions[index * 3 + 1] =
-            Math.sin((ix + count) * 0.3) * 50 + Math.sin((iy + count) * 0.5) * 50;
-          index++;
+          positions.push(
+            ix * separation - (amountX * separation) / 2,
+            0,
+            iy * separation - (amountY * separation) / 2,
+          );
+
+          if (isDarkTheme) {
+            colors.push(0.78, 0.78, 0.78);
+          } else {
+            colors.push(0, 0, 0);
+          }
         }
       }
 
-      positionAttribute.needsUpdate = true;
-      renderer.render(scene, camera);
-      count += 0.1;
-      animationId = window.requestAnimationFrame(animate);
-    };
+      const geometry = new BufferGeometry();
+      geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+      geometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
 
-    const startAnimation = () => {
-      if (animationId === 0 && isPageVisible && isSurfaceVisible) {
-        animationId = window.requestAnimationFrame(animate);
-      }
-    };
+      const material = new PointsMaterial({
+        opacity: isDarkTheme ? 0.78 : 0.92,
+        size: 8,
+        sizeAttenuation: true,
+        transparent: true,
+        vertexColors: true,
+      });
 
-    const stopAnimation = () => {
-      if (animationId !== 0) {
-        window.cancelAnimationFrame(animationId);
+      const points = new Points(geometry, material);
+      scene.add(points);
+
+      const updateSize = () => {
+        const { height, width } = container.getBoundingClientRect();
+        const nextWidth = Math.max(1, Math.floor(width));
+        const nextHeight = Math.max(1, Math.floor(height));
+
+        camera.aspect = nextWidth / nextHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(nextWidth, nextHeight, false);
+      };
+
+      const resizeObserver = new ResizeObserver(() => {
+        updateSize();
+        renderer.render(scene, camera);
+      });
+      let isPageVisible = document.visibilityState === "visible";
+      let isSurfaceVisible = true;
+      let animationId = 0;
+      let count = 0;
+
+      const animate = () => {
         animationId = 0;
-      }
-    };
 
-    const handleDocumentVisibility = () => {
-      isPageVisible = document.visibilityState === "visible";
+        if (!isPageVisible || !isSurfaceVisible) {
+          return;
+        }
 
-      if (isPageVisible) {
-        startAnimation();
-      } else {
+        const positionAttribute = geometry.attributes.position;
+        const animatedPositions = positionAttribute.array as Float32Array;
+        let index = 0;
+
+        for (let ix = 0; ix < amountX; ix++) {
+          for (let iy = 0; iy < amountY; iy++) {
+            animatedPositions[index * 3 + 1] =
+              Math.sin((ix + count) * 0.3) * 50 + Math.sin((iy + count) * 0.5) * 50;
+            index++;
+          }
+        }
+
+        positionAttribute.needsUpdate = true;
+        renderer.render(scene, camera);
+        count += 0.1;
+        animationId = window.requestAnimationFrame(animate);
+      };
+
+      const startAnimation = () => {
+        if (animationId === 0 && isPageVisible && isSurfaceVisible) {
+          animationId = window.requestAnimationFrame(animate);
+        }
+      };
+
+      const stopAnimation = () => {
+        if (animationId !== 0) {
+          window.cancelAnimationFrame(animationId);
+          animationId = 0;
+        }
+      };
+
+      const handleDocumentVisibility = () => {
+        isPageVisible = document.visibilityState === "visible";
+
+        if (isPageVisible) {
+          startAnimation();
+        } else {
+          stopAnimation();
+        }
+      };
+
+      const visibilityObserver =
+        typeof IntersectionObserver === "function"
+          ? new IntersectionObserver(
+              ([entry]) => {
+                isSurfaceVisible = entry?.isIntersecting ?? true;
+
+                if (isSurfaceVisible) {
+                  startAnimation();
+                } else {
+                  stopAnimation();
+                }
+              },
+              { rootMargin: "25% 0px" },
+            )
+          : null;
+
+      resizeObserver.observe(container);
+      visibilityObserver?.observe(container);
+      document.addEventListener("visibilitychange", handleDocumentVisibility);
+      updateSize();
+      renderer.render(scene, camera);
+      startAnimation();
+
+      cleanup = () => {
         stopAnimation();
-      }
-    };
-
-    const visibilityObserver =
-      typeof IntersectionObserver === "function"
-        ? new IntersectionObserver(
-            ([entry]) => {
-              isSurfaceVisible = entry?.isIntersecting ?? true;
-
-              if (isSurfaceVisible) {
-                startAnimation();
-              } else {
-                stopAnimation();
-              }
-            },
-            { rootMargin: "25% 0px" },
-          )
-        : null;
-
-    resizeObserver.observe(container);
-    visibilityObserver?.observe(container);
-    document.addEventListener("visibilitychange", handleDocumentVisibility);
-    updateSize();
-    renderer.render(scene, camera);
-    startAnimation();
+        resizeObserver.disconnect();
+        visibilityObserver?.disconnect();
+        document.removeEventListener("visibilitychange", handleDocumentVisibility);
+        scene.remove(points);
+        geometry.dispose();
+        material.dispose();
+        renderer.dispose();
+        renderer.domElement.remove();
+      };
+    })();
 
     return () => {
-      stopAnimation();
-      resizeObserver.disconnect();
-      visibilityObserver?.disconnect();
-      document.removeEventListener("visibilitychange", handleDocumentVisibility);
-      scene.remove(points);
-      geometry.dispose();
-      material.dispose();
-      renderer.dispose();
-      renderer.domElement.remove();
+      isDisposed = true;
+      cleanup?.();
     };
   }, [resolvedTheme, theme, useStaticSurface]);
 

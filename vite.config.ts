@@ -5,6 +5,49 @@ import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   plugins: [tailwindcss(), react()],
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          includeDependenciesRecursively: false,
+          groups: [
+            {
+              entriesAware: true,
+              name: "react-vendor",
+              priority: 50,
+              test: /node_modules[\\/](react|react-dom|scheduler|next-themes)[\\/]/,
+            },
+            {
+              entriesAware: true,
+              name: "gsap-vendor",
+              priority: 40,
+              test: /node_modules[\\/]gsap[\\/]/,
+            },
+            {
+              entriesAware: true,
+              name: "motion-vendor",
+              priority: 40,
+              test: /node_modules[\\/]motion[\\/]/,
+            },
+            {
+              entriesAware: true,
+              maxSize: 260_000,
+              name: "three-vendor",
+              priority: 40,
+              test: /node_modules[\\/]three[\\/]/,
+            },
+            {
+              entriesAware: true,
+              name: "icons-vendor",
+              priority: 30,
+              test: /node_modules[\\/]@tabler[\\/]icons-react[\\/]/,
+            },
+          ],
+          minSize: 20_000,
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),

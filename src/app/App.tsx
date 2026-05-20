@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
-
-import { FuzzyTextPage } from "../pages/FuzzyTextPage";
-import { LandingPage } from "../pages/LandingPage";
+import { lazy, Suspense, useEffect, useState } from "react";
 
 const fuzzyTextRoutes = new Set(["/404", "/about", "/contributing", "/follow-us", "/support"]);
+
+const FuzzyTextPage = lazy(() =>
+  import("../pages/FuzzyTextPage").then((module) => ({ default: module.FuzzyTextPage })),
+);
+const LandingPage = lazy(() =>
+  import("../pages/LandingPage").then((module) => ({ default: module.LandingPage })),
+);
 
 function getCurrentPath() {
   return typeof window === "undefined" ? "/" : window.location.pathname;
@@ -61,9 +65,9 @@ export function App() {
     };
   }, []);
 
-  if (fuzzyTextRoutes.has(path) || path !== "/") {
-    return <FuzzyTextPage />;
-  }
-
-  return <LandingPage />;
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-background" />}>
+      {fuzzyTextRoutes.has(path) || path !== "/" ? <FuzzyTextPage /> : <LandingPage />}
+    </Suspense>
+  );
 }
