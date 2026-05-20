@@ -16,7 +16,6 @@ import { GlassSurface } from "@/components/ui/glass-surface";
 import { OrchestratedEaseReverseMenu } from "@/components/ui/orchestrated-ease-reverse-menu";
 import { SplitText } from "@/components/ui/split-text";
 import { shouldReduceMotion } from "@/lib/motion";
-import quoteWinkEmojiStaticSrc from "../../assets/quote-wink-smile.png";
 
 gsap.registerPlugin(useGSAP, DrawSVGPlugin, ScrollTrigger, GSAPSplitText);
 
@@ -113,9 +112,6 @@ const representationQuote =
 const playgroundFinalLeadWordMoveDuration = 0.24;
 const playgroundFinalLeadWordStarts = [0, 0.24, 0.42] as const;
 const playgroundFinalLeadWordStartY = 420;
-const quoteWinkEmojiWebpSrc = "https://fonts.gstatic.com/s/e/notoemoji/latest/1f609/512.webp";
-const quoteWinkEmojiGifSrc = "https://fonts.gstatic.com/s/e/notoemoji/latest/1f609/512.gif";
-const quoteWinkEmojiPlaybackDuration = 2.25;
 const finalLoveDockStart = 1.78;
 const finalLoveDockMoveDuration = 0.24;
 const finalLoveBounceRiseDuration = 0.18;
@@ -892,23 +888,35 @@ export function LandingPage() {
       }
 
       const getVisualBaseWidth = () => {
-        const viewportLimit = Math.min(window.innerWidth * 0.9, 1240);
+        const viewportLimit = Math.min(window.innerWidth * 0.9, 1500);
         const minWidth = Math.min(window.innerWidth * 0.9, 760);
-        const preferredWidth = Math.min(window.innerWidth * 0.64, window.innerHeight * 1.22);
+        const preferredWidth = Math.min(window.innerWidth * 0.58, window.innerHeight * 1.18);
 
         return gsap.utils.clamp(minWidth, viewportLimit, preferredWidth);
       };
       const getVisualBaseHeight = () => {
-        const maxHeight = Math.min(window.innerHeight * 0.56, 680);
-        const minHeight = Math.min(maxHeight, Math.max(260, window.innerHeight * 0.36));
-        const preferredHeight = getVisualBaseWidth() * 0.56;
+        const maxHeight = Math.min(window.innerHeight * 0.48, 660);
+        const minHeight = Math.min(maxHeight, Math.max(260, window.innerHeight * 0.34));
+        const preferredHeight = getVisualBaseWidth() * 0.48;
 
         return gsap.utils.clamp(minHeight, maxHeight, preferredHeight);
       };
-      const getEditorRestY = () => window.innerHeight * 0.045;
       const getBlackBoxSize = () => Math.min(getVisualBaseWidth(), getVisualBaseHeight()) * 0.46;
       const getStoryStageHeight = () =>
         storyStage.getBoundingClientRect().height || window.innerHeight;
+      const getEditorRestY = () => {
+        const stageHeight = getStoryStageHeight();
+        const visualTopAnchor = stageHeight * 0.61;
+        const editorBottomOverflow = gsap.utils.clamp(24, 44, stageHeight * 0.028);
+
+        return stageHeight + editorBottomOverflow - getVisualBaseHeight() / 2 - visualTopAnchor;
+      };
+      const getBlackBoxY = () => {
+        const stageHeight = getStoryStageHeight();
+        const visualTopAnchor = stageHeight * 0.61;
+
+        return stageHeight * 0.56 - visualTopAnchor;
+      };
       const getBoardWidth = () => {
         const stageHeight = getStoryStageHeight();
         const viewportLimit = Math.min(window.innerWidth * 0.95, 1540);
@@ -1178,6 +1186,7 @@ export function LandingPage() {
               height: getBlackBoxSize,
               scale: 1,
               width: getBlackBoxSize,
+              y: getBlackBoxY,
             },
             blackBoxMorphStart,
           )
@@ -2201,29 +2210,8 @@ export function LandingPage() {
     () => {
       const section = horizontalQuoteSectionRef.current;
       const headline = section?.querySelector<HTMLElement>("[data-horizontal-quote-text]");
-      const emoji = section?.querySelector<HTMLElement>("[data-horizontal-quote-emoji]");
-      const emojiStaticLayer = section?.querySelector<HTMLElement>(
-        "[data-horizontal-quote-emoji-static]",
-      );
-      const emojiAnimatedLayer = section?.querySelector<HTMLElement>(
-        "[data-horizontal-quote-emoji-animated]",
-      );
-      const emojiAnimatedSource = section?.querySelector<HTMLSourceElement>(
-        "[data-horizontal-quote-emoji-source]",
-      );
-      const emojiAnimatedImage = section?.querySelector<HTMLImageElement>(
-        "[data-horizontal-quote-emoji-image]",
-      );
 
-      if (
-        !section ||
-        !headline ||
-        !emoji ||
-        !emojiStaticLayer ||
-        !emojiAnimatedLayer ||
-        !emojiAnimatedSource ||
-        !emojiAnimatedImage
-      ) {
+      if (!section || !headline) {
         return;
       }
 
@@ -2235,42 +2223,10 @@ export function LandingPage() {
           whiteSpace: "normal",
           width: "auto",
         });
-        gsap.set(emoji, {
-          autoAlpha: 1,
-          clearProps: "filter,transform",
-        });
-        gsap.set(emojiStaticLayer, { autoAlpha: 1 });
-        gsap.set(emojiAnimatedLayer, { autoAlpha: 0 });
         return;
       }
 
       const quoteScrollDistance = 5000;
-      const quoteEmojiScrollDistance = 2600;
-
-      const resetAnimatedEmojiSource = () => {
-        emojiAnimatedSource.removeAttribute("srcset");
-        emojiAnimatedImage.removeAttribute("src");
-      };
-      const restartAnimatedEmoji = () => {
-        resetAnimatedEmojiSource();
-
-        void emojiAnimatedImage.offsetWidth;
-        emojiAnimatedSource.setAttribute("srcset", quoteWinkEmojiWebpSrc);
-        emojiAnimatedImage.setAttribute("src", quoteWinkEmojiGifSrc);
-      };
-      const resetEmoji = () => {
-        resetAnimatedEmojiSource();
-        gsap.set(emoji, {
-          autoAlpha: 0,
-          filter: "blur(26px)",
-          scale: 2.35,
-          transformOrigin: "50% 50%",
-        });
-        gsap.set(emojiStaticLayer, { autoAlpha: 1 });
-        gsap.set(emojiAnimatedLayer, { autoAlpha: 0 });
-      };
-
-      resetEmoji();
 
       const quoteSplit = GSAPSplitText.create(headline, {
         aria: "auto",
@@ -2282,63 +2238,12 @@ export function LandingPage() {
 
       const quotePinTrigger = ScrollTrigger.create({
         anticipatePin: 0.4,
-        end: () => `+=${quoteScrollDistance + quoteEmojiScrollDistance}`,
+        end: () => `+=${quoteScrollDistance}`,
         invalidateOnRefresh: true,
         pin: true,
         start: "top top",
         trigger: section,
       });
-
-      const getQuotePinStart = () => quotePinTrigger.start;
-      const getQuoteEmojiStart = () => getQuotePinStart() + quoteScrollDistance;
-      const getQuoteEmojiEnd = () => getQuoteEmojiStart() + quoteEmojiScrollDistance;
-
-      const emojiTimeline = gsap
-        .timeline({
-          paused: true,
-          onInterrupt: resetAnimatedEmojiSource,
-        })
-        .call(resetAnimatedEmojiSource, [], 0)
-        .set(emojiStaticLayer, { autoAlpha: 1 }, 0)
-        .set(emojiAnimatedLayer, { autoAlpha: 0 }, 0)
-        .fromTo(
-          emoji,
-          {
-            autoAlpha: 0,
-            filter: "blur(26px)",
-            scale: 2.35,
-          },
-          {
-            autoAlpha: 1,
-            duration: 0.62,
-            ease: "power3.out",
-            filter: "blur(0px)",
-            scale: 1,
-          },
-          0,
-        )
-        .call(restartAnimatedEmoji, [], 0.62)
-        .set(emojiAnimatedLayer, { autoAlpha: 1 }, 0.62)
-        .set(emojiStaticLayer, { autoAlpha: 0 }, 0.62)
-        .to(emoji, { duration: quoteWinkEmojiPlaybackDuration, ease: "none" }, 0.62)
-        .to(emoji, {
-          autoAlpha: 0,
-          duration: 0.46,
-          ease: "power3.in",
-          filter: "blur(22px)",
-          scale: 0.34,
-        })
-        .call(resetAnimatedEmojiSource);
-
-      const playEmoji = () => {
-        resetEmoji();
-        emojiTimeline.restart();
-      };
-
-      const stopEmoji = () => {
-        emojiTimeline.pause(0);
-        resetEmoji();
-      };
 
       const scrollTween = gsap.to(headline, {
         ease: "none",
@@ -2350,17 +2255,6 @@ export function LandingPage() {
           trigger: section,
         },
         x: () => -(headline.scrollWidth + window.innerWidth * 0.24),
-      });
-
-      const emojiWindowTrigger = ScrollTrigger.create({
-        end: getQuoteEmojiEnd,
-        invalidateOnRefresh: true,
-        onEnter: playEmoji,
-        onEnterBack: playEmoji,
-        onLeave: stopEmoji,
-        onLeaveBack: stopEmoji,
-        start: getQuoteEmojiStart,
-        trigger: section,
       });
 
       quoteSplit.chars.forEach((character) => {
@@ -2379,12 +2273,9 @@ export function LandingPage() {
       });
 
       return () => {
-        emojiWindowTrigger.kill();
         scrollTween.scrollTrigger?.kill();
         scrollTween.kill();
-        emojiTimeline.kill();
         quotePinTrigger.kill();
-        resetAnimatedEmojiSource();
         quoteSplit.revert();
       };
     },
@@ -2591,7 +2482,7 @@ export function LandingPage() {
                 data-blackbox-card="simple"
               >
                 <h2
-                  className="text-[clamp(2.6rem,min(6.3vw,11.8svh),8.6rem)] leading-[0.92] font-semibold tracking-normal text-zinc-50"
+                  className="text-[clamp(2.8rem,min(7.1vw,13svh),10rem)] leading-[0.92] font-semibold tracking-normal text-zinc-50"
                   data-blackbox-headline="call"
                 >
                   <span className="block whitespace-nowrap">ML can look simple</span>
@@ -2605,7 +2496,7 @@ export function LandingPage() {
                 data-blackbox-card="open"
               >
                 <h2
-                  className="text-[clamp(2.35rem,min(6.2vw,11.8svh),8.6rem)] leading-[0.94] font-semibold tracking-normal text-zinc-50"
+                  className="text-[clamp(2.6rem,min(7vw,13svh),10rem)] leading-[0.94] font-semibold tracking-normal text-zinc-50"
                   data-blackbox-headline="hidden"
                 >
                   <span className="block whitespace-nowrap">But the logic stays</span>
@@ -2621,7 +2512,7 @@ export function LandingPage() {
                 data-blackbox-card="unpack"
               >
                 <h2
-                  className="text-[clamp(2.5rem,min(6.4vw,12svh),8.8rem)] leading-[0.94] font-semibold tracking-normal text-zinc-950"
+                  className="text-[clamp(2.8rem,min(7.2vw,13.2svh),10.2rem)] leading-[0.94] font-semibold tracking-normal text-zinc-950"
                   data-blackbox-headline="unpack"
                 >
                   <span className="block whitespace-nowrap">So we unpack</span>
@@ -2629,21 +2520,18 @@ export function LandingPage() {
                 </h2>
               </section>
               <div
-                className="pointer-events-none absolute top-[61%] left-1/2 z-50 h-[min(56svh,680px)] w-[min(90vw,1240px)] overflow-hidden border bg-zinc-900 text-zinc-50"
+                className="pointer-events-none absolute top-[61%] left-1/2 z-50 h-[min(56svh,660px)] w-[min(90vw,1500px)] overflow-hidden border bg-zinc-900 text-zinc-50"
                 data-blackbox-visual
               >
                 <div className="absolute inset-0 flex flex-col" data-blackbox-editor-shell>
-                  <div className="flex h-11 shrink-0 items-center gap-2 border-b border-zinc-700/70 bg-zinc-950/72 px-4">
-                    <span className="size-3 rounded-full bg-red-400" />
-                    <span className="size-3 rounded-full bg-yellow-300" />
-                    <span className="size-3 rounded-full bg-emerald-400" />
-                    <span className="ml-3 text-xs font-medium tracking-normal text-zinc-400">
-                      model.py
-                    </span>
+                  <div className="flex h-[clamp(2.75rem,min(4vw,5.4svh),3.65rem)] shrink-0 items-center gap-[clamp(0.5rem,0.7vw,0.75rem)] border-b border-zinc-600/70 bg-zinc-800 px-[clamp(1rem,1.5vw,1.75rem)]">
+                    <span className="size-[clamp(0.75rem,0.95vw,1rem)] rounded-full bg-red-400" />
+                    <span className="size-[clamp(0.75rem,0.95vw,1rem)] rounded-full bg-yellow-300" />
+                    <span className="size-[clamp(0.75rem,0.95vw,1rem)] rounded-full bg-emerald-400" />
                   </div>
                   <pre
                     aria-label={blackBoxStoryCodeLines.join("\n")}
-                    className="min-h-0 flex-1 overflow-hidden p-5 font-mono text-[clamp(0.72rem,min(1.4vw,1.8svh),1rem)] leading-[1.58] whitespace-pre text-zinc-100 sm:p-7"
+                    className="min-h-0 flex-1 overflow-hidden p-5 font-mono text-[clamp(0.9rem,calc(0.42rem+1.2svh),1.5rem)] leading-[1.58] whitespace-pre text-zinc-100 sm:p-7"
                   >
                     {blackBoxStoryCodeSegments.map((line, lineIndex) => (
                       <code
@@ -2901,40 +2789,6 @@ export function LandingPage() {
             >
               {representationQuote}
             </h3>
-          </div>
-          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
-            <div
-              className="relative size-[clamp(5.25rem,min(12vw,18svh),10rem)] opacity-0 will-change-[filter,transform,opacity]"
-              data-horizontal-quote-emoji
-            >
-              <picture
-                className="absolute inset-0 block size-full"
-                data-horizontal-quote-emoji-static
-              >
-                <img
-                  alt="😉"
-                  className="block size-full"
-                  draggable={false}
-                  height="512"
-                  src={quoteWinkEmojiStaticSrc}
-                  width="512"
-                />
-              </picture>
-              <picture
-                className="absolute inset-0 block size-full opacity-0"
-                data-horizontal-quote-emoji-animated
-              >
-                <source data-horizontal-quote-emoji-source type="image/webp" />
-                <img
-                  alt="😉"
-                  className="block size-full"
-                  data-horizontal-quote-emoji-image
-                  draggable={false}
-                  height="512"
-                  width="512"
-                />
-              </picture>
-            </div>
           </div>
         </section>
       </section>
