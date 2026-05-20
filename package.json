@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
+    "dev:host": "vp dev --host 0.0.0.0",
     "build": "tsc --noEmit && vp build",
     "preview": "vp preview",
+    "preview:host": "vp preview --host 0.0.0.0",
     "check": "vp check src tests index.html vite.config.ts playwright.config.ts package.json tsconfig.json",
     "lint": "vp lint src tests vite.config.ts playwright.config.ts",
     "format": "vp fmt --write src tests index.html vite.config.ts playwright.config.ts package.json tsconfig.json",
