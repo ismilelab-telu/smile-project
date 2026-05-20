@@ -2227,10 +2227,7 @@ export function LandingPage() {
         return;
       }
 
-      if (
-        typeof window.matchMedia !== "function" ||
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      ) {
+      if (typeof window.matchMedia !== "function" || shouldReduceMotion()) {
         gsap.set(headline, {
           autoAlpha: 1,
           clearProps: "transform",
