@@ -1,4 +1,4 @@
-import { type SVGProps, useCallback, useRef, useState } from "react";
+import { type SVGProps, useCallback, useEffect, useRef, useState } from "react";
 import { IconArrowRight } from "@tabler/icons-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -124,8 +124,66 @@ const finalWithWordStart =
 const finalItWordStart = finalWithWordStart + 0.28;
 const finalDotRevealStart = finalItWordStart + 0.24;
 const finalDotZoomStart = finalDotRevealStart + 0.24;
+const mobileViewportQuery = "(max-width: 767px)";
+
+function useIsMobileViewport() {
+  const [isMobileViewport, setIsMobileViewport] = useState(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return false;
+    }
+
+    return window.matchMedia(mobileViewportQuery).matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia(mobileViewportQuery);
+    const syncViewportState = () => {
+      setIsMobileViewport(mediaQuery.matches);
+    };
+
+    syncViewportState();
+    mediaQuery.addEventListener("change", syncViewportState);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncViewportState);
+    };
+  }, []);
+
+  return isMobileViewport;
+}
 
 export function LandingPage() {
+  const isMobileViewport = useIsMobileViewport();
+
+  return isMobileViewport ? <MobileDevelopmentNotice /> : <LandingPageExperience />;
+}
+
+function MobileDevelopmentNotice() {
+  return (
+    <main className="flex min-h-[100svh] items-center justify-center bg-background px-6 py-10 text-foreground">
+      <section
+        aria-labelledby="mobile-development-title"
+        className="mx-auto flex w-full max-w-md flex-col items-center text-center"
+      >
+        <h1
+          className="text-[clamp(2.55rem,13vw,4.7rem)] leading-[0.94] font-semibold tracking-normal"
+          id="mobile-development-title"
+        >
+          Best viewed with room to think.
+        </h1>
+        <p className="mt-6 text-base leading-7 text-muted-foreground">
+          Small screens are still being shaped. Open it on desktop for the intended experience.
+        </p>
+      </section>
+    </main>
+  );
+}
+
+function LandingPageExperience() {
   const landingRef = useRef<HTMLElement>(null);
   const playgroundSectionRef = useRef<HTMLElement>(null);
   const horizontalQuoteSectionRef = useRef<HTMLElement>(null);
