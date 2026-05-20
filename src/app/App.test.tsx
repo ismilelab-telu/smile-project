@@ -13,7 +13,7 @@ describe("App", () => {
     render(<App />);
 
     expect(screen.getByRole("heading", { name: "Smile Project" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Open model picker/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open 404 page/ })).toHaveAttribute("href", "/404");
   });
 
   it("opens the orchestrated GSAP navigation island", async () => {
@@ -69,31 +69,22 @@ describe("App", () => {
     expect(screen.getByRole("img", { name: "not found." })).toBeInTheDocument();
   });
 
-  it("shows grouped machine learning models in the mode menu", () => {
-    window.history.pushState(null, "", "/model-picker");
+  it("routes the explore action to the 404 page", () => {
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Simple Linear Regression/ }));
+    fireEvent.click(screen.getByRole("link", { name: /Open 404 page/ }));
 
-    const modeMenu = screen.getByRole("listbox", { name: "Machine learning models" });
-
-    expect(modeMenu).toBeInTheDocument();
-    expect(within(modeMenu).getByText("Supervised Learning")).toBeInTheDocument();
-    expect(within(modeMenu).getByText("Unsupervised Learning")).toBeInTheDocument();
-    expect(
-      within(modeMenu).getByRole("option", { name: "K-Means Clustering" }),
-    ).toBeInTheDocument();
-    expect(within(modeMenu).getByRole("option", { name: "Transformer" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "404 not found." })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/404");
   });
 
-  it("updates the active model picker title from the mode menu", () => {
+  it("does not route model picker paths", () => {
     window.history.pushState(null, "", "/model-picker");
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Simple Linear Regression/ }));
-    fireEvent.click(screen.getByRole("option", { name: "Transformer" }));
-
-    expect(screen.getByRole("heading", { name: "Transformer" })).toBeInTheDocument();
-    expect(screen.getByTestId("selected-model-group")).toHaveTextContent("Deep Learning");
+    expect(screen.getByRole("heading", { name: "404 not found." })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Simple Linear Regression/ }),
+    ).not.toBeInTheDocument();
   });
 });

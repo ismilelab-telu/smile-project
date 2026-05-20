@@ -2409,11 +2409,11 @@ export function LandingPage() {
               ref={exploreZoneRef}
             >
               <a
-                aria-label="Open model picker"
+                aria-label="Open 404 page"
                 className="relative isolate inline-flex min-h-12 items-center justify-center overflow-hidden rounded-[99px] border-0 bg-transparent px-8 font-semibold text-foreground outline-none will-change-transform"
                 data-app-link
                 data-hero-explore-button
-                href="/model-picker"
+                href="/404"
                 ref={exploreButtonRef}
               >
                 <GlassSurface
