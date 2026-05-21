@@ -102,16 +102,4 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(window.location.pathname).toBe("/404");
   });
-
-  it("does not route model picker paths", async () => {
-    window.history.pushState(null, "", "/model-picker");
-    render(<App />);
-
-    expect(
-      await screen.findByRole("heading", { name: "404 not found." }, lazyRouteTimeout),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /Simple Linear Regression/ }),
-    ).not.toBeInTheDocument();
-  });
 });

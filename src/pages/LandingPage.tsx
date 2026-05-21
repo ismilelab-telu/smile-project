@@ -6,10 +6,10 @@ import { DrawSVGPlugin } from "gsap/DrawSVGPlugin";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText as GSAPSplitText } from "gsap/SplitText";
 
-import { PlaygroundIntroAxes } from "@/components/PlaygroundIntroAxes";
-import { PlaygroundIntroDots } from "@/components/PlaygroundIntroDots";
-import { PlaygroundIntroHands } from "@/components/PlaygroundIntroHands";
-import { PlaygroundIntroRegressionLine } from "@/components/PlaygroundIntroRegressionLine";
+import { LandingIntroAxes } from "@/components/LandingIntroAxes";
+import { LandingIntroDots } from "@/components/LandingIntroDots";
+import { LandingIntroHands } from "@/components/LandingIntroHands";
+import { LandingIntroRegressionLine } from "@/components/LandingIntroRegressionLine";
 import { DeferredCinematicFooter } from "@/components/DeferredCinematicFooter";
 import { DottedSurface } from "@/components/ui/dotted-surface";
 import { GlassSurface } from "@/components/ui/glass-surface";
@@ -19,11 +19,11 @@ import { shouldReduceMotion } from "@/lib/motion";
 
 gsap.registerPlugin(useGSAP, DrawSVGPlugin, ScrollTrigger, GSAPSplitText);
 
-const playgroundIntroEyebrow = "Introducing";
-const playgroundIntroTitle = "Interactive ML Playground";
-const playgroundIntroSubtitle =
+const introEyebrow = "Introducing";
+const introTitle = "Interactive ML Playground";
+const introSubtitleCopy =
   "A visual-first playground for exploring how machine learning models learn.";
-const blackBoxStoryCodeSegments = [
+const blackBoxCodeSegments = [
   [
     { className: "text-fuchsia-300", text: "from" },
     { text: " " },
@@ -100,18 +100,18 @@ const blackBoxStoryCodeSegments = [
     { className: "text-zinc-500", text: ")" },
   ],
 ] as const;
-const blackBoxStoryCodeLines = blackBoxStoryCodeSegments.map((line) =>
+const blackBoxCodeLines = blackBoxCodeSegments.map((line) =>
   line.map((segment) => segment.text).join(""),
 );
-const playgroundTeachingCopy = "We don't just teach\nyou Machine Learning.";
-const playgroundTeachingLines = playgroundTeachingCopy.split("\n");
-const playgroundFinalAriaLabel = "We make you fall in love with it.";
-const playgroundFinalLeadWords = ["We", "make", "you"];
+const teachingHeadlineCopy = "We don't just teach\nyou Machine Learning.";
+const teachingHeadlineLines = teachingHeadlineCopy.split("\n");
+const finalHeadlineAriaLabel = "We make you fall in love with it.";
+const finalLeadWordLabels = ["We", "make", "you"];
 const representationQuote =
   "The key to artificial intelligence has always been the representation. —Jeff Hawkins";
-const playgroundFinalLeadWordMoveDuration = 0.24;
-const playgroundFinalLeadWordStarts = [0, 0.24, 0.42] as const;
-const playgroundFinalLeadWordStartY = 420;
+const finalLeadWordMoveDuration = 0.24;
+const finalLeadWordStarts = [0, 0.24, 0.42] as const;
+const finalLeadWordStartY = 420;
 const finalLoveDockStart = 1.78;
 const finalLoveDockMoveDuration = 0.24;
 const finalLoveBounceRiseDuration = 0.18;
@@ -124,21 +124,21 @@ const finalWithWordStart =
 const finalItWordStart = finalWithWordStart + 0.28;
 const finalDotRevealStart = finalItWordStart + 0.24;
 const finalDotZoomStart = finalDotRevealStart + 0.24;
-const mobileViewportQuery = "(max-width: 767px)";
-const playgroundStackStickyOffset = 64;
-const playgroundIntroRevealScrollUnits = 4.85;
-const playgroundIntroExitScrollUnits = 1;
-const playgroundFirstSlideEntryViewportStart = 0.58;
-const playgroundStackPrimaryZoomScale = 0.775;
-const playgroundStackSecondaryZoomScale = 0.825;
+const compactViewportQuery = "(max-width: 767px)";
+const storyStickyOffset = 64;
+const introRevealScrollUnits = 4.85;
+const introExitScrollUnits = 1;
+const firstSlideEntryViewportStart = 0.58;
+const stackPrimaryZoomScale = 0.775;
+const stackSecondaryZoomScale = 0.825;
 
-function useIsMobileViewport() {
-  const [isMobileViewport, setIsMobileViewport] = useState(() => {
+function useIsCompactViewport() {
+  const [isCompactViewport, setIsCompactViewport] = useState(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
       return false;
     }
 
-    return window.matchMedia(mobileViewportQuery).matches;
+    return window.matchMedia(compactViewportQuery).matches;
   });
 
   useEffect(() => {
@@ -146,9 +146,9 @@ function useIsMobileViewport() {
       return;
     }
 
-    const mediaQuery = window.matchMedia(mobileViewportQuery);
+    const mediaQuery = window.matchMedia(compactViewportQuery);
     const syncViewportState = () => {
-      setIsMobileViewport(mediaQuery.matches);
+      setIsCompactViewport(mediaQuery.matches);
     };
 
     syncViewportState();
@@ -159,25 +159,25 @@ function useIsMobileViewport() {
     };
   }, []);
 
-  return isMobileViewport;
+  return isCompactViewport;
 }
 
 export function LandingPage() {
-  const isMobileViewport = useIsMobileViewport();
+  const isCompactViewport = useIsCompactViewport();
 
-  return isMobileViewport ? <MobileDevelopmentNotice /> : <LandingPageExperience />;
+  return isCompactViewport ? <DesktopOnlyNotice /> : <LandingExperience />;
 }
 
-function MobileDevelopmentNotice() {
+function DesktopOnlyNotice() {
   return (
     <main className="flex min-h-[100svh] items-center justify-center bg-background px-6 py-10 text-foreground">
       <section
-        aria-labelledby="mobile-development-title"
+        aria-labelledby="desktop-only-title"
         className="mx-auto flex w-full max-w-md flex-col items-center text-center"
       >
         <h1
           className="text-[clamp(2.55rem,13vw,4.7rem)] leading-[0.94] font-semibold tracking-normal"
-          id="mobile-development-title"
+          id="desktop-only-title"
         >
           Best viewed with room to think.
         </h1>
@@ -189,9 +189,9 @@ function MobileDevelopmentNotice() {
   );
 }
 
-function LandingPageExperience() {
+function LandingExperience() {
   const landingRef = useRef<HTMLElement>(null);
-  const playgroundSectionRef = useRef<HTMLElement>(null);
+  const storySequenceRef = useRef<HTMLElement>(null);
   const horizontalQuoteSectionRef = useRef<HTMLElement>(null);
   const finalDotMorphSvgRef = useRef<SVGSVGElement>(null);
   const finalDotMorphCircleRef = useRef<SVGCircleElement>(null);
@@ -381,7 +381,7 @@ function LandingPageExperience() {
 
   useGSAP(
     () => {
-      const root = playgroundSectionRef.current;
+      const root = storySequenceRef.current;
 
       if (!root) {
         return;
@@ -389,27 +389,31 @@ function LandingPageExperience() {
 
       const storySection = root.querySelector<HTMLElement>("[data-blackbox-story-section]");
       const storyStage = root.querySelector<HTMLElement>("[data-blackbox-story-stage]");
-      const introSection = root.querySelector<HTMLElement>("[data-playground-intro-panel]");
-      const introCard = root.querySelector<HTMLElement>("[data-playground-intro-card]");
-      const introMeet = root.querySelector<HTMLElement>("[data-playground-intro-meet]");
-      const introProduct = root.querySelector<HTMLElement>("[data-playground-intro-product]");
-      const introSubtitle = root.querySelector<HTMLElement>("[data-playground-intro-subtitle]");
-      const introChart = root.querySelector<HTMLElement>("[data-playground-intro-chart]");
-      const introDots = root.querySelector<HTMLElement>("[data-playground-intro-dots]");
+      const introSection = root.querySelector<HTMLElement>("[data-landing-intro-panel]");
+      const introCard = root.querySelector<HTMLElement>("[data-landing-intro-card]");
+      const introEyebrowElement = root.querySelector<HTMLElement>("[data-landing-intro-eyebrow]");
+      const introTitleElement = root.querySelector<HTMLElement>("[data-landing-intro-title]");
+      const introSubtitleElement = root.querySelector<HTMLElement>("[data-landing-intro-subtitle]");
+      const introChartElement = root.querySelector<HTMLElement>("[data-landing-intro-chart]");
+      const introDotsSvg = root.querySelector<HTMLElement>("[data-landing-intro-dots]");
       const introDotElements = Array.from(
-        introDots?.querySelectorAll<SVGPathElement>("[data-playground-intro-dot]") ?? [],
+        introDotsSvg?.querySelectorAll<SVGPathElement>("[data-landing-intro-dot]") ?? [],
       );
-      const introAxisXLine = root.querySelector<SVGPathElement>("[data-playground-axis-x-line]");
-      const introAxisXArrow = root.querySelector<SVGPathElement>("[data-playground-axis-x-arrow]");
-      const introAxisYLine = root.querySelector<SVGPathElement>("[data-playground-axis-y-line]");
-      const introAxisYArrow = root.querySelector<SVGPathElement>("[data-playground-axis-y-arrow]");
+      const introAxisXLine = root.querySelector<SVGPathElement>("[data-landing-intro-axis-x-line]");
+      const introAxisXArrow = root.querySelector<SVGPathElement>(
+        "[data-landing-intro-axis-x-arrow]",
+      );
+      const introAxisYLine = root.querySelector<SVGPathElement>("[data-landing-intro-axis-y-line]");
+      const introAxisYArrow = root.querySelector<SVGPathElement>(
+        "[data-landing-intro-axis-y-arrow]",
+      );
       const introRegressionLine = root.querySelector<SVGPathElement>(
-        "[data-playground-regression-line]",
+        "[data-landing-intro-regression-line]",
       );
       const introHandElements = Array.from(
-        root.querySelectorAll<SVGGElement>("[data-playground-intro-hand]"),
+        root.querySelectorAll<SVGGElement>("[data-landing-intro-hand]"),
       );
-      const introRightHand = root.querySelector<SVGGElement>("[data-playground-intro-right-hand]");
+      const introRightHand = root.querySelector<SVGGElement>("[data-landing-intro-right-hand]");
       const introAxisElements = [
         introAxisXLine,
         introAxisXArrow,
@@ -422,11 +426,11 @@ function LandingPageExperience() {
         !storyStage ||
         !introSection ||
         !introCard ||
-        !introMeet ||
-        !introProduct ||
-        !introSubtitle ||
-        !introChart ||
-        !introDots ||
+        !introEyebrowElement ||
+        !introTitleElement ||
+        !introSubtitleElement ||
+        !introChartElement ||
+        !introDotsSvg ||
         !introAxisXLine ||
         !introAxisXArrow ||
         !introAxisYLine ||
@@ -442,7 +446,7 @@ function LandingPageExperience() {
       const applyReducedIntroState = () => {
         gsap.set(introSection, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(introCard, { autoAlpha: 1, clearProps: "transform" });
-        gsap.set(introMeet, {
+        gsap.set(introEyebrowElement, {
           clearProps: "filter",
           scale: 0.44,
           transformOrigin: "50% 50%",
@@ -450,21 +454,21 @@ function LandingPageExperience() {
           y: -116,
           yPercent: -50,
         });
-        gsap.set(introProduct, {
+        gsap.set(introTitleElement, {
           autoAlpha: 1,
           transformOrigin: "50% 50%",
           y: -10,
           yPercent: -50,
         });
-        gsap.set(introSubtitle, {
+        gsap.set(introSubtitleElement, {
           autoAlpha: 1,
           clearProps: "transform",
         });
-        gsap.set(introChart, {
+        gsap.set(introChartElement, {
           autoAlpha: 1,
           clearProps: "transform",
         });
-        gsap.set(introDots, {
+        gsap.set(introDotsSvg, {
           autoAlpha: 1,
           clearProps: "transform",
         });
@@ -496,31 +500,30 @@ function LandingPageExperience() {
       motionPreferences.add("(prefers-reduced-motion: reduce)", applyReducedIntroState);
 
       motionPreferences.add("(prefers-reduced-motion: no-preference)", () => {
-        const getIntroMeetTextNode = () =>
-          Array.from(introMeet.childNodes).find(
+        const getIntroEyebrowTextNode = () =>
+          Array.from(introEyebrowElement.childNodes).find(
             (node): node is Text =>
-              node.nodeType === Node.TEXT_NODE &&
-              node.textContent?.includes(playgroundIntroEyebrow) === true,
+              node.nodeType === Node.TEXT_NODE && node.textContent?.includes(introEyebrow) === true,
           );
-        const measureIntroMeetCutX = () => {
-          const textNode = getIntroMeetTextNode();
-          const cutCharacterIndex = playgroundIntroEyebrow.indexOf("c");
+        const measureIntroEyebrowCutX = () => {
+          const textNode = getIntroEyebrowTextNode();
+          const cutCharacterIndex = introEyebrow.indexOf("c");
 
           if (!textNode || cutCharacterIndex < 0) {
             return -window.innerWidth * 0.14;
           }
 
-          const currentX = Number(gsap.getProperty(introMeet, "x")) || 0;
-          const currentScale = Number(gsap.getProperty(introMeet, "scale")) || 1;
+          const currentX = Number(gsap.getProperty(introEyebrowElement, "x")) || 0;
+          const currentScale = Number(gsap.getProperty(introEyebrowElement, "scale")) || 1;
           const range = document.createRange();
 
-          gsap.set(introMeet, { scale: 1, x: 0 });
+          gsap.set(introEyebrowElement, { scale: 1, x: 0 });
           range.setStart(textNode, cutCharacterIndex);
           range.setEnd(textNode, cutCharacterIndex + 1);
 
           const characterBounds = range.getBoundingClientRect();
 
-          gsap.set(introMeet, { scale: currentScale, x: currentX });
+          gsap.set(introEyebrowElement, { scale: currentScale, x: currentX });
 
           if (characterBounds.width <= 0) {
             return -window.innerWidth * 0.14;
@@ -528,23 +531,23 @@ function LandingPageExperience() {
 
           return window.innerWidth / 2 - (characterBounds.left + characterBounds.width / 2);
         };
-        const getIntroMeetStartX = () => measureIntroMeetCutX() + window.innerWidth * 0.86;
-        const introProductSplit = GSAPSplitText.create(introProduct, {
+        const getIntroEyebrowStartX = () => measureIntroEyebrowCutX() + window.innerWidth * 0.86;
+        const introTitleSplit = GSAPSplitText.create(introTitleElement, {
           aria: "hidden",
           tag: "span",
           type: "words",
-          wordsClass: "intro-product-word",
+          wordsClass: "intro-title-word",
         });
-        const introProductWords =
-          introProductSplit.words.length > 0 ? introProductSplit.words : [introProduct];
-        const introSubtitleSplit = GSAPSplitText.create(introSubtitle, {
+        const introTitleWords =
+          introTitleSplit.words.length > 0 ? introTitleSplit.words : [introTitleElement];
+        const introSubtitleSplit = GSAPSplitText.create(introSubtitleElement, {
           aria: "hidden",
           tag: "span",
           type: "words",
           wordsClass: "intro-subtitle-word",
         });
         const introSubtitleWords =
-          introSubtitleSplit.words.length > 0 ? introSubtitleSplit.words : [introSubtitle];
+          introSubtitleSplit.words.length > 0 ? introSubtitleSplit.words : [introSubtitleElement];
 
         gsap.set(introSection, {
           autoAlpha: 1,
@@ -557,27 +560,27 @@ function LandingPageExperience() {
           transformOrigin: "50% 50%",
           y: 0,
         });
-        gsap.set(introMeet, {
+        gsap.set(introEyebrowElement, {
           autoAlpha: 0,
           filter: "blur(18px)",
           scale: 1,
           transformOrigin: "50% 50%",
-          x: getIntroMeetStartX,
+          x: getIntroEyebrowStartX,
           y: 0,
           yPercent: -50,
         });
-        gsap.set(introProduct, {
+        gsap.set(introTitleElement, {
           autoAlpha: 0,
           transformOrigin: "50% 50%",
           y: 230,
           yPercent: -50,
         });
-        gsap.set(introProductWords, {
+        gsap.set(introTitleWords, {
           autoAlpha: 0,
           filter: "blur(14px)",
           yPercent: 70,
         });
-        gsap.set(introSubtitle, {
+        gsap.set(introSubtitleElement, {
           autoAlpha: 0,
           y: 28,
         });
@@ -586,10 +589,10 @@ function LandingPageExperience() {
           filter: "blur(8px)",
           yPercent: 80,
         });
-        gsap.set(introChart, {
+        gsap.set(introChartElement, {
           autoAlpha: 1,
         });
-        gsap.set(introDots, {
+        gsap.set(introDotsSvg, {
           autoAlpha: 1,
         });
         gsap.set(introDotElements, {
@@ -619,8 +622,8 @@ function LandingPageExperience() {
         });
 
         const getIntroStackScrollDistance = () =>
-          window.innerHeight * (playgroundIntroRevealScrollUnits + playgroundIntroExitScrollUnits);
-        const introExitStart = playgroundIntroRevealScrollUnits + 0.18;
+          window.innerHeight * (introRevealScrollUnits + introExitScrollUnits);
+        const introExitStart = introRevealScrollUnits + 0.18;
 
         let introTimeline: gsap.core.Timeline;
         const introExitHold = { progress: 0 };
@@ -630,14 +633,14 @@ function LandingPageExperience() {
             end: () => `+=${getIntroStackScrollDistance()}`,
             invalidateOnRefresh: true,
             scrub: true,
-            start: `top top+=${playgroundStackStickyOffset}`,
+            start: `top top+=${storyStickyOffset}`,
             trigger: storySection,
           },
         });
 
         introTimeline
           .to(
-            introMeet,
+            introEyebrowElement,
             {
               autoAlpha: 1,
               duration: 0.04,
@@ -646,16 +649,16 @@ function LandingPageExperience() {
             0,
           )
           .to(
-            introMeet,
+            introEyebrowElement,
             {
               duration: 0.42,
               ease: "power3.out",
-              x: measureIntroMeetCutX,
+              x: measureIntroEyebrowCutX,
             },
             0,
           )
           .to(
-            introMeet,
+            introEyebrowElement,
             {
               duration: 0.24,
               ease: "power2.out",
@@ -663,9 +666,9 @@ function LandingPageExperience() {
             },
             0,
           )
-          .to(introMeet, { x: 0 }, 0.42)
+          .to(introEyebrowElement, { x: 0 }, 0.42)
           .to(
-            introMeet,
+            introEyebrowElement,
             {
               clearProps: "filter",
               duration: 0.34,
@@ -677,7 +680,7 @@ function LandingPageExperience() {
             0.72,
           )
           .to(
-            introProduct,
+            introTitleElement,
             {
               autoAlpha: 1,
               duration: 0.24,
@@ -687,7 +690,7 @@ function LandingPageExperience() {
             0.8,
           )
           .to(
-            introProductWords,
+            introTitleWords,
             {
               autoAlpha: 1,
               duration: 0.56,
@@ -699,7 +702,7 @@ function LandingPageExperience() {
             0.86,
           )
           .to(
-            introSubtitle,
+            introSubtitleElement,
             {
               autoAlpha: 1,
               duration: 0.16,
@@ -813,18 +816,18 @@ function LandingPageExperience() {
 
         return () => {
           introSubtitleSplit.revert();
-          introProductSplit.revert();
+          introTitleSplit.revert();
         };
       });
 
       return () => motionPreferences.revert();
     },
-    { scope: playgroundSectionRef },
+    { scope: storySequenceRef },
   );
 
   useGSAP(
     () => {
-      const root = playgroundSectionRef.current;
+      const root = storySequenceRef.current;
 
       if (!root) {
         return;
@@ -832,7 +835,7 @@ function LandingPageExperience() {
 
       const storySection = root.querySelector<HTMLElement>("[data-blackbox-story-section]");
       const storyStage = root.querySelector<HTMLElement>("[data-blackbox-story-stage]");
-      const introSection = root.querySelector<HTMLElement>("[data-playground-intro-panel]");
+      const introSection = root.querySelector<HTMLElement>("[data-landing-intro-panel]");
       const simpleCard = root.querySelector<HTMLElement>("[data-blackbox-card='simple']");
       const openCard = root.querySelector<HTMLElement>("[data-blackbox-card='open']");
       const unpackCard = root.querySelector<HTMLElement>("[data-blackbox-card='unpack']");
@@ -1006,13 +1009,13 @@ function LandingPageExperience() {
         );
       };
       const getStoryTopScrollY = () => storySection.getBoundingClientRect().top + window.scrollY;
-      const getStoryPinnedStartScrollY = () => getStoryTopScrollY() - playgroundStackStickyOffset;
+      const getStoryPinnedStartScrollY = () => getStoryTopScrollY() - storyStickyOffset;
       const getStoryPinnedEndScrollY = () =>
         getStoryTopScrollY() + storySection.offsetHeight - window.innerHeight;
       const getIntroStackScrollDistance = () =>
-        getStoryStageHeight() + window.innerHeight * playgroundIntroRevealScrollUnits;
+        getStoryStageHeight() + window.innerHeight * introRevealScrollUnits;
       const getFirstSlideEntryDistance = () =>
-        window.innerHeight * playgroundFirstSlideEntryViewportStart - playgroundStackStickyOffset;
+        window.innerHeight * firstSlideEntryViewportStart - storyStickyOffset;
       const getFirstSlideEntryStartScrollY = () =>
         getStoryPinnedStartScrollY() + getIntroStackScrollDistance() - getFirstSlideEntryDistance();
       const getFirstSlideEntryEndScrollY = () =>
@@ -1199,7 +1202,7 @@ function LandingPageExperience() {
             {
               duration: 0.78,
               ease: "power3.inOut",
-              scale: playgroundStackPrimaryZoomScale,
+              scale: stackPrimaryZoomScale,
             },
             0,
           )
@@ -1240,7 +1243,7 @@ function LandingPageExperience() {
             {
               duration: 0.78,
               ease: "power3.inOut",
-              scale: playgroundStackPrimaryZoomScale,
+              scale: stackPrimaryZoomScale,
             },
             "open",
           )
@@ -1296,7 +1299,7 @@ function LandingPageExperience() {
             {
               duration: 0.78,
               ease: "power3.inOut",
-              scale: playgroundStackSecondaryZoomScale,
+              scale: stackSecondaryZoomScale,
             },
             "unpack",
           )
@@ -1595,7 +1598,7 @@ function LandingPageExperience() {
             {
               duration: 0.78,
               ease: "power3.inOut",
-              scale: playgroundStackSecondaryZoomScale,
+              scale: stackSecondaryZoomScale,
             },
             "understand",
           )
@@ -1604,7 +1607,7 @@ function LandingPageExperience() {
             {
               duration: 0.78,
               ease: "power3.inOut",
-              scale: playgroundStackSecondaryZoomScale,
+              scale: stackSecondaryZoomScale,
             },
             "understand",
           )
@@ -1657,12 +1660,12 @@ function LandingPageExperience() {
 
       return () => motionPreferences.revert();
     },
-    { scope: playgroundSectionRef },
+    { scope: storySequenceRef },
   );
 
   useGSAP(
     () => {
-      const root = playgroundSectionRef.current;
+      const root = storySequenceRef.current;
 
       if (!root) {
         return;
@@ -1863,12 +1866,12 @@ function LandingPageExperience() {
           morphCircleGrowStart + morphCircleGrowDuration,
         );
     },
-    { scope: playgroundSectionRef },
+    { scope: storySequenceRef },
   );
 
   useGSAP(
     () => {
-      const root = playgroundSectionRef.current;
+      const root = storySequenceRef.current;
 
       if (!root) {
         return;
@@ -1876,7 +1879,7 @@ function LandingPageExperience() {
 
       const finalSection = root.querySelector<HTMLElement>("[data-final-love-story-section]");
       const finalStage = root.querySelector<HTMLElement>("[data-final-love-story-stage]");
-      const finalLeadWords = Array.from(
+      const finalLeadWordElements = Array.from(
         root.querySelectorAll<HTMLElement>("[data-final-lead-word]"),
       );
       const fallWord = root.querySelector<HTMLElement>("[data-final-word='fall']");
@@ -1893,7 +1896,7 @@ function LandingPageExperience() {
       if (
         !finalSection ||
         !finalStage ||
-        finalLeadWords.length !== playgroundFinalLeadWords.length ||
+        finalLeadWordElements.length !== finalLeadWordLabels.length ||
         !fallWord ||
         !inWord ||
         !loveTarget ||
@@ -1908,8 +1911,21 @@ function LandingPageExperience() {
         return;
       }
 
-      const [weWord, makeWord, youWord] = finalLeadWords as [HTMLElement, HTMLElement, HTMLElement];
-      const finalWords = [weWord, makeWord, youWord, fallWord, inWord, withWord, itWord, finalDot];
+      const [weWord, makeWord, youWord] = finalLeadWordElements as [
+        HTMLElement,
+        HTMLElement,
+        HTMLElement,
+      ];
+      const finalWordElements = [
+        weWord,
+        makeWord,
+        youWord,
+        fallWord,
+        inWord,
+        withWord,
+        itWord,
+        finalDot,
+      ];
       const loveScrollState = { coverProgress: 0, progress: 0 };
       const loveBounceState = { y: 0 };
       const dispatchLoveScrollProgress = (
@@ -1942,7 +1958,7 @@ function LandingPageExperience() {
 
       if (typeof window.matchMedia !== "function" || shouldReduceMotion()) {
         gsap.set(finalSection, { backgroundColor: "#09090b" });
-        gsap.set(finalWords, { autoAlpha: 1, clearProps: "filter,transform" });
+        gsap.set(finalWordElements, { autoAlpha: 1, clearProps: "filter,transform" });
         gsap.set(loveTarget, { autoAlpha: 1, clearProps: "transform" });
         gsap.set(inlineLove, { autoAlpha: 0 });
         gsap.set(loveBounceDot, { autoAlpha: 0, clearProps: "transform" });
@@ -1954,10 +1970,10 @@ function LandingPageExperience() {
       const dotMorphState = { progress: 0 };
 
       gsap.set(finalSection, { backgroundColor: "#09090b" });
-      finalLeadWords.forEach((word) => {
+      finalLeadWordElements.forEach((word) => {
         gsap.set(word, {
           autoAlpha: 0,
-          y: playgroundFinalLeadWordStartY,
+          y: finalLeadWordStartY,
           willChange: "opacity, transform",
         });
       });
@@ -2090,14 +2106,14 @@ function LandingPageExperience() {
         },
       });
 
-      finalLeadWords.forEach((word, index) => {
-        const start = playgroundFinalLeadWordStarts[index] ?? index * 0.25;
+      finalLeadWordElements.forEach((word, index) => {
+        const start = finalLeadWordStarts[index] ?? index * 0.25;
 
         finalTimeline.to(
           word,
           {
             autoAlpha: 1,
-            duration: playgroundFinalLeadWordMoveDuration,
+            duration: finalLeadWordMoveDuration,
             ease: "power2.inOut",
             y: 0,
           },
@@ -2286,7 +2302,7 @@ function LandingPageExperience() {
         dispatchLoveScrollProgress(0, 0);
       };
     },
-    { scope: playgroundSectionRef },
+    { scope: storySequenceRef },
   );
 
   useGSAP(
@@ -2489,13 +2505,13 @@ function LandingPageExperience() {
       <section
         className="relative bg-zinc-50 px-6 text-zinc-950"
         aria-label="Interactive ML Playground introduction"
-        ref={playgroundSectionRef}
+        ref={storySequenceRef}
       >
-        <div className="relative -mx-6 w-[calc(100%+3rem)]" data-playground-slides-region>
+        <div className="relative -mx-6 w-[calc(100%+3rem)]" data-landing-slides-region>
           <div
             aria-hidden="true"
             className="pointer-events-none sticky top-0 z-50 h-16 bg-zinc-50"
-            data-playground-slides-header
+            data-landing-slides-header
           />
           <section
             aria-label="Introducing Interactive ML Playground. ML can look simple from the outside. But the logic stays inside a black box. So we unpack every step."
@@ -2508,53 +2524,53 @@ function LandingPageExperience() {
             >
               <div
                 className="absolute inset-0 z-0 flex items-stretch justify-center overflow-hidden rounded-t-md bg-zinc-50"
-                data-playground-intro-panel
+                data-landing-intro-panel
               >
                 <article
-                  aria-labelledby="playground-intro-title"
+                  aria-labelledby="landing-intro-title"
                   className="relative h-full w-full overflow-hidden rounded-t-2xl border-t border-zinc-50 bg-zinc-200"
-                  data-playground-intro-card
+                  data-landing-intro-card
                 >
                   <h2
-                    aria-label={`${playgroundIntroEyebrow} ${playgroundIntroTitle}. ${playgroundIntroSubtitle}`}
+                    aria-label={`${introEyebrow} ${introTitle}. ${introSubtitleCopy}`}
                     className="absolute inset-x-10 top-[calc(31%-140px)] z-10 h-[280px] text-center"
-                    id="playground-intro-title"
+                    id="landing-intro-title"
                   >
                     <span
                       aria-hidden="true"
                       className="absolute inset-x-0 top-1/2 block text-[clamp(5rem,min(11vw,16svh),11.5rem)] leading-[0.82] font-normal tracking-normal text-zinc-950 will-change-transform"
-                      data-playground-intro-meet
+                      data-landing-intro-eyebrow
                     >
-                      {playgroundIntroEyebrow}
+                      {introEyebrow}
                     </span>
                     <span
                       aria-hidden="true"
                       className="absolute inset-x-0 top-1/2 block text-[clamp(3.4rem,min(6.8vw,10svh),7rem)] leading-[0.88] font-medium tracking-normal text-zinc-950 opacity-0 will-change-[transform,opacity]"
-                      data-playground-intro-product
+                      data-landing-intro-title
                     >
-                      {playgroundIntroTitle}
+                      {introTitle}
                     </span>
                   </h2>
 
                   <p
                     className="absolute inset-x-12 top-[39%] z-10 mx-auto max-w-4xl text-center text-[clamp(1.1rem,min(1.65vw,2.5svh),1.45rem)] leading-[1.5] font-normal text-zinc-600 opacity-0 will-change-[transform,opacity]"
-                    data-playground-intro-subtitle
+                    data-landing-intro-subtitle
                   >
-                    {playgroundIntroSubtitle}
+                    {introSubtitleCopy}
                   </p>
 
                   <figure
                     aria-hidden="true"
                     className="pointer-events-none absolute left-1/2 top-[55%] z-10 aspect-[170/95] w-[min(28vw,680px)] -translate-x-1/2 opacity-0 will-change-[opacity]"
-                    data-playground-intro-chart
+                    data-landing-intro-chart
                   >
-                    <PlaygroundIntroAxes className="absolute inset-0 z-0 h-full w-full overflow-visible text-zinc-700" />
-                    <PlaygroundIntroRegressionLine className="absolute inset-0 z-20 h-full w-full overflow-visible text-[#2575F2]" />
-                    <PlaygroundIntroDots
+                    <LandingIntroAxes className="absolute inset-0 z-0 h-full w-full overflow-visible text-zinc-700" />
+                    <LandingIntroRegressionLine className="absolute inset-0 z-20 h-full w-full overflow-visible text-[#2575F2]" />
+                    <LandingIntroDots
                       className="relative z-10 h-full w-full overflow-visible text-[#05C68E]"
-                      data-playground-intro-dots
+                      data-landing-intro-dots
                     />
-                    <PlaygroundIntroHands className="absolute inset-0 z-40 h-full w-full overflow-visible text-zinc-950" />
+                    <LandingIntroHands className="absolute inset-0 z-40 h-full w-full overflow-visible text-zinc-950" />
                   </figure>
                 </article>
               </div>
@@ -2612,10 +2628,10 @@ function LandingPageExperience() {
                     <span className="size-[clamp(0.75rem,0.95vw,1rem)] rounded-full bg-emerald-400" />
                   </div>
                   <pre
-                    aria-label={blackBoxStoryCodeLines.join("\n")}
+                    aria-label={blackBoxCodeLines.join("\n")}
                     className="min-h-0 flex-1 overflow-hidden p-5 font-mono text-[clamp(0.9rem,calc(0.42rem+1.2svh),1.5rem)] leading-[1.58] whitespace-pre text-zinc-100 sm:p-7"
                   >
-                    {blackBoxStoryCodeSegments.map((line, lineIndex) => (
+                    {blackBoxCodeSegments.map((line, lineIndex) => (
                       <code
                         aria-hidden="true"
                         className="block min-h-[1.58em]"
@@ -2688,14 +2704,14 @@ function LandingPageExperience() {
               <circle cx="0" cy="0" data-teaching-dot-morph-circle fill="#09090b" r="0" />
             </svg>
             <h2
-              aria-label={playgroundTeachingCopy.replace("\n", " ")}
+              aria-label={teachingHeadlineCopy.replace("\n", " ")}
               className="relative z-10 my-5 mx-auto w-full max-w-screen-2xl pb-[0.5em] text-center"
             >
               <span
                 aria-hidden="true"
                 className="inline-block text-[clamp(2.25rem,min(7.5vw,12svh),8rem)] leading-[1.14] font-extrabold tracking-normal"
               >
-                {playgroundTeachingLines.map((line, lineIndex) => (
+                {teachingHeadlineLines.map((line, lineIndex) => (
                   <span key={line} className="contents">
                     {line.split(" ").map((word, wordIndex, words) => {
                       const wordStartIndex = words
@@ -2710,7 +2726,7 @@ function LandingPageExperience() {
                           {word.split("").map((character, characterIndex) => {
                             const lineCharacterIndex = wordStartIndex + characterIndex;
                             const isMorphDot =
-                              lineIndex === playgroundTeachingLines.length - 1 &&
+                              lineIndex === teachingHeadlineLines.length - 1 &&
                               lineCharacterIndex === line.lastIndexOf(".");
 
                             if (isMorphDot) {
@@ -2753,7 +2769,7 @@ function LandingPageExperience() {
                         </span>
                       );
                     })}
-                    {lineIndex < playgroundTeachingLines.length - 1 ? <br /> : null}
+                    {lineIndex < teachingHeadlineLines.length - 1 ? <br /> : null}
                   </span>
                 ))}
               </span>
@@ -2775,7 +2791,7 @@ function LandingPageExperience() {
             data-final-love-story-stage
           >
             <h2
-              aria-label={playgroundFinalAriaLabel}
+              aria-label={finalHeadlineAriaLabel}
               className="relative z-[1400] mx-auto flex w-full max-w-screen-2xl flex-col items-center justify-center text-center font-extrabold tracking-normal"
             >
               <span
@@ -2783,7 +2799,7 @@ function LandingPageExperience() {
                 className="flex max-w-full items-center justify-center gap-x-[0.18em] overflow-visible pb-[0.14em] text-[clamp(2.25rem,min(7.5vw,12svh),8rem)] leading-[1.04] whitespace-nowrap"
                 data-final-lead-text
               >
-                {playgroundFinalLeadWords.map((word) => (
+                {finalLeadWordLabels.map((word) => (
                   <span
                     className="inline-block will-change-[transform,opacity]"
                     data-final-lead-word={word.toLowerCase()}

@@ -21,13 +21,13 @@ const dotStaticTransforms: Record<number, string> = {
   12: "translate(6.35 90.45) scale(0.68) translate(-6.35 -90.45)",
 };
 
-export function PlaygroundIntroDots(props: SVGProps<SVGSVGElement>) {
+export function LandingIntroDots(props: SVGProps<SVGSVGElement>) {
   return (
     <svg fill="none" viewBox="0 6 170 95" xmlns="http://www.w3.org/2000/svg" {...props}>
       <g fill="currentColor">
         {dotPaths.map((dotPath, index) => (
           <g key={`${index}-${dotPath}`} transform={dotStaticTransforms[index]}>
-            <path data-playground-intro-dot d={dotPath} />
+            <path data-landing-intro-dot d={dotPath} />
           </g>
         ))}
       </g>
