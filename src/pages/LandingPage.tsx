@@ -129,6 +129,8 @@ const playgroundStackStickyOffset = 64;
 const playgroundIntroRevealScrollUnits = 4.85;
 const playgroundIntroExitScrollUnits = 1;
 const playgroundFirstSlideEntryViewportStart = 0.58;
+const playgroundStackPrimaryZoomScale = 0.775;
+const playgroundStackSecondaryZoomScale = 0.825;
 
 function useIsMobileViewport() {
   const [isMobileViewport, setIsMobileViewport] = useState(() => {
@@ -1197,7 +1199,7 @@ function LandingPageExperience() {
             {
               duration: 0.78,
               ease: "power3.inOut",
-              scale: 0.82,
+              scale: playgroundStackPrimaryZoomScale,
             },
             0,
           )
@@ -1238,7 +1240,7 @@ function LandingPageExperience() {
             {
               duration: 0.78,
               ease: "power3.inOut",
-              scale: 0.82,
+              scale: playgroundStackPrimaryZoomScale,
             },
             "open",
           )
@@ -1294,7 +1296,7 @@ function LandingPageExperience() {
             {
               duration: 0.78,
               ease: "power3.inOut",
-              scale: 0.86,
+              scale: playgroundStackSecondaryZoomScale,
             },
             "unpack",
           )
@@ -1593,7 +1595,7 @@ function LandingPageExperience() {
             {
               duration: 0.78,
               ease: "power3.inOut",
-              scale: 0.86,
+              scale: playgroundStackSecondaryZoomScale,
             },
             "understand",
           )
@@ -1602,7 +1604,7 @@ function LandingPageExperience() {
             {
               duration: 0.78,
               ease: "power3.inOut",
-              scale: 0.86,
+              scale: playgroundStackSecondaryZoomScale,
             },
             "understand",
           )
