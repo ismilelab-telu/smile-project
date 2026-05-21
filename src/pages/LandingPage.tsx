@@ -125,6 +125,10 @@ const finalItWordStart = finalWithWordStart + 0.28;
 const finalDotRevealStart = finalItWordStart + 0.24;
 const finalDotZoomStart = finalDotRevealStart + 0.24;
 const mobileViewportQuery = "(max-width: 767px)";
+const playgroundStackStickyOffset = 64;
+const playgroundIntroRevealScrollUnits = 4.85;
+const playgroundIntroExitScrollUnits = 1;
+const playgroundFirstSlideEntryViewportStart = 0.58;
 
 function useIsMobileViewport() {
   const [isMobileViewport, setIsMobileViewport] = useState(() => {
@@ -381,6 +385,8 @@ function LandingPageExperience() {
         return;
       }
 
+      const storySection = root.querySelector<HTMLElement>("[data-blackbox-story-section]");
+      const storyStage = root.querySelector<HTMLElement>("[data-blackbox-story-stage]");
       const introSection = root.querySelector<HTMLElement>("[data-playground-intro-panel]");
       const introCard = root.querySelector<HTMLElement>("[data-playground-intro-card]");
       const introMeet = root.querySelector<HTMLElement>("[data-playground-intro-meet]");
@@ -410,6 +416,8 @@ function LandingPageExperience() {
       ].filter((axisElement): axisElement is SVGPathElement => axisElement !== null);
 
       if (
+        !storySection ||
+        !storyStage ||
         !introSection ||
         !introCard ||
         !introMeet ||
@@ -608,28 +616,20 @@ function LandingPageExperience() {
           y: 73,
         });
 
-        const introRevealScrollUnits = 4.85;
-        const introExitScrollUnits = 1;
-        const introExitStart = introRevealScrollUnits + 0.18;
-        const syncIntroPanelSpacing = () => {
-          introSection.style.marginBottom = `${window.innerHeight * introRevealScrollUnits}px`;
-        };
-
-        syncIntroPanelSpacing();
+        const getIntroStackScrollDistance = () =>
+          window.innerHeight * (playgroundIntroRevealScrollUnits + playgroundIntroExitScrollUnits);
+        const introExitStart = playgroundIntroRevealScrollUnits + 0.18;
 
         let introTimeline: gsap.core.Timeline;
         const introExitHold = { progress: 0 };
 
         introTimeline = gsap.timeline({
           scrollTrigger: {
-            end: () => `+=${window.innerHeight * (introRevealScrollUnits + introExitScrollUnits)}`,
+            end: () => `+=${getIntroStackScrollDistance()}`,
             invalidateOnRefresh: true,
-            onRefreshInit: syncIntroPanelSpacing,
-            pin: true,
-            pinSpacing: false,
             scrub: true,
-            start: "bottom bottom",
-            trigger: introSection,
+            start: `top top+=${playgroundStackStickyOffset}`,
+            trigger: storySection,
           },
         });
 
@@ -810,7 +810,6 @@ function LandingPageExperience() {
           );
 
         return () => {
-          introSection.style.marginBottom = "";
           introSubtitleSplit.revert();
           introProductSplit.revert();
         };
@@ -1004,6 +1003,18 @@ function LandingPageExperience() {
           getBoardPaperExtension() / 2
         );
       };
+      const getStoryTopScrollY = () => storySection.getBoundingClientRect().top + window.scrollY;
+      const getStoryPinnedStartScrollY = () => getStoryTopScrollY() - playgroundStackStickyOffset;
+      const getStoryPinnedEndScrollY = () =>
+        getStoryTopScrollY() + storySection.offsetHeight - window.innerHeight;
+      const getIntroStackScrollDistance = () =>
+        getStoryStageHeight() + window.innerHeight * playgroundIntroRevealScrollUnits;
+      const getFirstSlideEntryDistance = () =>
+        window.innerHeight * playgroundFirstSlideEntryViewportStart - playgroundStackStickyOffset;
+      const getFirstSlideEntryStartScrollY = () =>
+        getStoryPinnedStartScrollY() + getIntroStackScrollDistance() - getFirstSlideEntryDistance();
+      const getFirstSlideEntryEndScrollY = () =>
+        getStoryPinnedStartScrollY() + getIntroStackScrollDistance();
       const applyReducedStoryState = () => {
         gsap.set(storySection, { clearProps: "backgroundColor" });
         gsap.set(storyStage, { clearProps: "backgroundColor" });
@@ -1163,21 +1174,19 @@ function LandingPageExperience() {
         const storyTimeline = gsap.timeline({
           defaults: { ease: "power2.out" },
           scrollTrigger: {
-            end: "bottom bottom",
+            end: getStoryPinnedEndScrollY,
             invalidateOnRefresh: true,
             scrub: true,
-            start: "top top+=64",
+            start: getFirstSlideEntryEndScrollY,
             trigger: storySection,
           },
         });
-        const firstSlideIntroScaleStart = 0.18;
-        const firstSlideIntroScaleDuration = 0.6;
         const firstSlideEntryTimeline = gsap.timeline({
           scrollTrigger: {
-            end: "top top+=64",
+            end: getFirstSlideEntryEndScrollY,
             invalidateOnRefresh: true,
             scrub: true,
-            start: "top 58%",
+            start: getFirstSlideEntryStartScrollY,
             trigger: storySection,
           },
         });
@@ -1186,11 +1195,11 @@ function LandingPageExperience() {
           .to(
             introSection,
             {
-              duration: firstSlideIntroScaleDuration,
+              duration: 0.78,
               ease: "power3.inOut",
               scale: 0.82,
             },
-            firstSlideIntroScaleStart,
+            0,
           )
           .to(
             simpleCard,
@@ -2486,68 +2495,67 @@ function LandingPageExperience() {
             className="pointer-events-none sticky top-0 z-50 h-16 bg-zinc-50"
             data-playground-slides-header
           />
-          <div
-            className="relative z-10 flex h-[calc(100svh-4rem)] w-full items-stretch justify-center overflow-hidden rounded-t-md bg-zinc-50"
-            data-playground-intro-panel
-          >
-            <article
-              aria-labelledby="playground-intro-title"
-              className="relative h-full w-full overflow-hidden rounded-t-2xl border-t border-zinc-50 bg-zinc-200"
-              data-playground-intro-card
-            >
-              <h2
-                aria-label={`${playgroundIntroEyebrow} ${playgroundIntroTitle}. ${playgroundIntroSubtitle}`}
-                className="absolute inset-x-10 top-[calc(31%-140px)] z-10 h-[280px] text-center"
-                id="playground-intro-title"
-              >
-                <span
-                  aria-hidden="true"
-                  className="absolute inset-x-0 top-1/2 block text-[clamp(5rem,min(11vw,16svh),11.5rem)] leading-[0.82] font-normal tracking-normal text-zinc-950 will-change-transform"
-                  data-playground-intro-meet
-                >
-                  {playgroundIntroEyebrow}
-                </span>
-                <span
-                  aria-hidden="true"
-                  className="absolute inset-x-0 top-1/2 block text-[clamp(3.4rem,min(6.8vw,10svh),7rem)] leading-[0.88] font-medium tracking-normal text-zinc-950 opacity-0 will-change-[transform,opacity]"
-                  data-playground-intro-product
-                >
-                  {playgroundIntroTitle}
-                </span>
-              </h2>
-
-              <p
-                className="absolute inset-x-12 top-[39%] z-10 mx-auto max-w-4xl text-center text-[clamp(1.1rem,min(1.65vw,2.5svh),1.45rem)] leading-[1.5] font-normal text-zinc-600 opacity-0 will-change-[transform,opacity]"
-                data-playground-intro-subtitle
-              >
-                {playgroundIntroSubtitle}
-              </p>
-
-              <figure
-                aria-hidden="true"
-                className="pointer-events-none absolute left-1/2 top-[55%] z-10 aspect-[170/95] w-[min(28vw,680px)] -translate-x-1/2 opacity-0 will-change-[opacity]"
-                data-playground-intro-chart
-              >
-                <PlaygroundIntroAxes className="absolute inset-0 z-0 h-full w-full overflow-visible text-zinc-700" />
-                <PlaygroundIntroRegressionLine className="absolute inset-0 z-20 h-full w-full overflow-visible text-[#2575F2]" />
-                <PlaygroundIntroDots
-                  className="relative z-10 h-full w-full overflow-visible text-[#05C68E]"
-                  data-playground-intro-dots
-                />
-                <PlaygroundIntroHands className="absolute inset-0 z-40 h-full w-full overflow-visible text-zinc-950" />
-              </figure>
-            </article>
-          </div>
-
           <section
-            aria-label="ML can look simple from the outside. But the logic stays inside a black box. So we unpack every step."
-            className="relative z-20 h-[660svh] w-full bg-transparent text-zinc-950"
+            aria-label="Introducing Interactive ML Playground. ML can look simple from the outside. But the logic stays inside a black box. So we unpack every step."
+            className="relative z-20 h-[1240svh] w-full bg-transparent text-zinc-950"
             data-blackbox-story-section
           >
             <div
               className="sticky top-16 h-[calc(100svh-4rem)] overflow-hidden rounded-t-2xl bg-transparent"
               data-blackbox-story-stage
             >
+              <div
+                className="absolute inset-0 z-0 flex items-stretch justify-center overflow-hidden rounded-t-md bg-zinc-50"
+                data-playground-intro-panel
+              >
+                <article
+                  aria-labelledby="playground-intro-title"
+                  className="relative h-full w-full overflow-hidden rounded-t-2xl border-t border-zinc-50 bg-zinc-200"
+                  data-playground-intro-card
+                >
+                  <h2
+                    aria-label={`${playgroundIntroEyebrow} ${playgroundIntroTitle}. ${playgroundIntroSubtitle}`}
+                    className="absolute inset-x-10 top-[calc(31%-140px)] z-10 h-[280px] text-center"
+                    id="playground-intro-title"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-x-0 top-1/2 block text-[clamp(5rem,min(11vw,16svh),11.5rem)] leading-[0.82] font-normal tracking-normal text-zinc-950 will-change-transform"
+                      data-playground-intro-meet
+                    >
+                      {playgroundIntroEyebrow}
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-x-0 top-1/2 block text-[clamp(3.4rem,min(6.8vw,10svh),7rem)] leading-[0.88] font-medium tracking-normal text-zinc-950 opacity-0 will-change-[transform,opacity]"
+                      data-playground-intro-product
+                    >
+                      {playgroundIntroTitle}
+                    </span>
+                  </h2>
+
+                  <p
+                    className="absolute inset-x-12 top-[39%] z-10 mx-auto max-w-4xl text-center text-[clamp(1.1rem,min(1.65vw,2.5svh),1.45rem)] leading-[1.5] font-normal text-zinc-600 opacity-0 will-change-[transform,opacity]"
+                    data-playground-intro-subtitle
+                  >
+                    {playgroundIntroSubtitle}
+                  </p>
+
+                  <figure
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-1/2 top-[55%] z-10 aspect-[170/95] w-[min(28vw,680px)] -translate-x-1/2 opacity-0 will-change-[opacity]"
+                    data-playground-intro-chart
+                  >
+                    <PlaygroundIntroAxes className="absolute inset-0 z-0 h-full w-full overflow-visible text-zinc-700" />
+                    <PlaygroundIntroRegressionLine className="absolute inset-0 z-20 h-full w-full overflow-visible text-[#2575F2]" />
+                    <PlaygroundIntroDots
+                      className="relative z-10 h-full w-full overflow-visible text-[#05C68E]"
+                      data-playground-intro-dots
+                    />
+                    <PlaygroundIntroHands className="absolute inset-0 z-40 h-full w-full overflow-visible text-zinc-950" />
+                  </figure>
+                </article>
+              </div>
               <section
                 aria-hidden="true"
                 className="absolute inset-0 z-10 flex items-start justify-center rounded-t-2xl bg-zinc-500 px-4 pt-[9svh] text-center"
