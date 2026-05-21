@@ -28,8 +28,11 @@ const islandLoveScrollZIndex = 1300;
 const loveDockYOffset = 1;
 const heroTitleCutoffTop = 96;
 const topRightInset = 16;
+const openIslandMaxWidth = 400;
 const footerHideZoneSelector = "[data-navigation-menu-hide-zone]";
 const footerHideAnimationDuration = 0.24;
+
+const getOpenIslandWidth = () => Math.min(window.innerWidth * 0.9, openIslandMaxWidth);
 
 const mixOklchColors = (from: string, to: string, progress: number) => {
   const clampedProgress = Math.min(Math.max(progress, 0), 1);
@@ -453,7 +456,7 @@ export function OrchestratedEaseReverseMenu() {
       const timeline = gsap
         .timeline({ paused: true })
         .set(overlay, { pointerEvents: "auto" })
-        .set(island, { scale: 1 }, 0)
+        .set(island, { scale: 1, width: closedIslandSize }, 0)
         .set(
           islandSurface,
           {
@@ -475,13 +478,17 @@ export function OrchestratedEaseReverseMenu() {
           0,
         )
         .set([topBar, midBar, bottomBar], { stroke: islandMenuStroke }, 0)
-        .to(
+        .fromTo(
           island,
+          {
+            width: closedIslandSize,
+          },
           {
             duration: 0.8,
             ease: "back.out(2)",
             easeReverse: useReverseEase ? "power2.out" : false,
-            width: () => Math.min(window.innerWidth * 0.9, 400),
+            overwrite: "auto",
+            width: getOpenIslandWidth,
           },
           0,
         )
@@ -677,7 +684,9 @@ export function OrchestratedEaseReverseMenu() {
           duration,
           ease: "power2.out",
           force3D: false,
+          overwrite: "auto",
           scale: isLoveActive ? islandHeartScale : 1,
+          width: closedIslandSize,
           x: targetBounds.left + targetBounds.width / 2 - window.innerWidth / 2,
           xPercent: -50,
           y:
@@ -696,7 +705,9 @@ export function OrchestratedEaseReverseMenu() {
       duration,
       ease: "power2.out",
       force3D: false,
+      overwrite: "auto",
       scale: isLoveActive ? islandHeartScale : 1,
+      width: closedIslandSize,
       x: getBaseX,
       xPercent: -50,
       y: 0,
