@@ -618,6 +618,7 @@ function LandingPageExperience() {
         syncIntroPanelSpacing();
 
         let introTimeline: gsap.core.Timeline;
+        const introExitHold = { progress: 0 };
 
         introTimeline = gsap.timeline({
           scrollTrigger: {
@@ -799,22 +800,13 @@ function LandingPageExperience() {
             3.9,
           )
           .to(
-            introSection,
+            introExitHold,
             {
               duration: 0.58,
-              ease: "power3.inOut",
-              scale: 0.86,
+              ease: "none",
+              progress: 1,
             },
             introExitStart,
-          )
-          .to(
-            introSection,
-            {
-              duration: 0.22,
-              ease: "power2.in",
-              opacity: 0,
-            },
-            introExitStart + 0.36,
           );
 
         return () => {
@@ -839,6 +831,7 @@ function LandingPageExperience() {
 
       const storySection = root.querySelector<HTMLElement>("[data-blackbox-story-section]");
       const storyStage = root.querySelector<HTMLElement>("[data-blackbox-story-stage]");
+      const introSection = root.querySelector<HTMLElement>("[data-playground-intro-panel]");
       const simpleCard = root.querySelector<HTMLElement>("[data-blackbox-card='simple']");
       const openCard = root.querySelector<HTMLElement>("[data-blackbox-card='open']");
       const unpackCard = root.querySelector<HTMLElement>("[data-blackbox-card='unpack']");
@@ -904,6 +897,7 @@ function LandingPageExperience() {
       if (
         !storySection ||
         !storyStage ||
+        !introSection ||
         !simpleCard ||
         !openCard ||
         !unpackCard ||
@@ -1057,6 +1051,11 @@ function LandingPageExperience() {
 
         gsap.set(storySection, { clearProps: "backgroundColor" });
         gsap.set(storyStage, { clearProps: "backgroundColor" });
+        gsap.set(introSection, {
+          scale: 1,
+          transformOrigin: "50% 50%",
+          willChange: "transform",
+        });
         gsap.set([simpleCard, openCard, unpackCard, conclusionSlide], {
           autoAlpha: 1,
           scale: 1,
@@ -1171,6 +1170,8 @@ function LandingPageExperience() {
             trigger: storySection,
           },
         });
+        const firstSlideIntroScaleStart = 0.18;
+        const firstSlideIntroScaleDuration = 0.6;
         const firstSlideEntryTimeline = gsap.timeline({
           scrollTrigger: {
             end: "top top+=64",
@@ -1182,6 +1183,15 @@ function LandingPageExperience() {
         });
 
         firstSlideEntryTimeline
+          .to(
+            introSection,
+            {
+              duration: firstSlideIntroScaleDuration,
+              ease: "power3.inOut",
+              scale: 0.82,
+            },
+            firstSlideIntroScaleStart,
+          )
           .to(
             simpleCard,
             {
