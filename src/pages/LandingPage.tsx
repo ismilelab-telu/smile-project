@@ -1895,10 +1895,12 @@ function LandingPageExperience() {
         progress = loveScrollState.progress,
         coverProgress = loveScrollState.coverProgress,
         bounceOffsetY = loveBounceState.y,
+        forceHidden = false,
       ) => {
         const clampedProgress = gsap.utils.clamp(0, 1, progress);
         const clampedCoverProgress = gsap.utils.clamp(0, 1, coverProgress);
         const safeBounceOffsetY = Number.isFinite(bounceOffsetY) ? bounceOffsetY : 0;
+        const shouldForceHidden = Boolean(forceHidden);
 
         window.dispatchEvent(
           new CustomEvent("smile:love-scroll-progress", {
@@ -1906,9 +1908,11 @@ function LandingPageExperience() {
               active:
                 clampedProgress > 0.001 ||
                 clampedCoverProgress > 0.001 ||
-                Math.abs(safeBounceOffsetY) > 0.001,
+                Math.abs(safeBounceOffsetY) > 0.001 ||
+                shouldForceHidden,
               bounceOffsetY: safeBounceOffsetY,
               coverProgress: clampedCoverProgress,
+              forceHidden: shouldForceHidden,
               progress: clampedProgress,
             },
           }),
@@ -2052,7 +2056,7 @@ function LandingPageExperience() {
           invalidateOnRefresh: true,
           onLeave: () => {
             gsap.set(dotMorphSvg, { autoAlpha: 0 });
-            dispatchLoveScrollProgress(0, 0);
+            dispatchLoveScrollProgress(1, 1, 0, true);
           },
           onLeaveBack: () => dispatchLoveScrollProgress(0, 0),
           onRefresh: () => {
@@ -2837,6 +2841,7 @@ function LandingPageExperience() {
           aria-labelledby="horizontal-quote-title"
           className="relative -mx-6 flex h-[100svh] w-[calc(100%+3rem)] items-center overflow-hidden bg-zinc-50 text-zinc-950"
           data-horizontal-quote-section
+          data-navigation-menu-hide-zone
           ref={horizontalQuoteSectionRef}
         >
           <div className="container mx-auto">

@@ -202,6 +202,7 @@ export function OrchestratedEaseReverseMenu() {
         const loveColorEase = gsap.parseEase("sine.inOut");
         let lastLoveBounceOffsetY = 0;
         let lastLoveCoverProgress = 0;
+        let lastLoveForceHidden = false;
         let lastLoveProgress = 0;
         let isLoveScrollActive = false;
 
@@ -281,6 +282,7 @@ export function OrchestratedEaseReverseMenu() {
           const positionVars = {
             autoAlpha: isFooterMenuHiddenRef.current ? 0 : 1,
             force3D: false,
+            pointerEvents: isFooterMenuHiddenRef.current ? "none" : "auto",
             scale: 1,
             transformOrigin: "50% 50%",
             x: getBaseX(dockProgress),
@@ -307,18 +309,22 @@ export function OrchestratedEaseReverseMenu() {
           active: boolean,
           coverProgress = 0,
           bounceOffsetY = 0,
+          forceHidden = false,
         ) => {
           const clampedProgress = gsap.utils.clamp(0, 1, progress);
           const clampedCoverProgress = gsap.utils.clamp(0, 1, coverProgress);
           const safeBounceOffsetY = Number.isFinite(bounceOffsetY) ? bounceOffsetY : 0;
+          const shouldForceHidden = Boolean(forceHidden);
           const isActive =
             active ||
             clampedProgress > 0.001 ||
             clampedCoverProgress > 0.001 ||
-            Math.abs(safeBounceOffsetY) > 0.001;
+            Math.abs(safeBounceOffsetY) > 0.001 ||
+            shouldForceHidden;
 
           lastLoveBounceOffsetY = safeBounceOffsetY;
           lastLoveCoverProgress = clampedCoverProgress;
+          lastLoveForceHidden = shouldForceHidden;
           lastLoveProgress = clampedProgress;
           isLoveScrollActive = isActive;
           isLoveSectionActiveRef.current = isActive;
@@ -372,8 +378,9 @@ export function OrchestratedEaseReverseMenu() {
             strokeWidth: interpolate(islandDefaultStrokeWidth, 0, colorProgress),
           });
           gsap.set(island, {
-            autoAlpha: isFooterMenuHiddenRef.current ? 0 : 1,
+            autoAlpha: isFooterMenuHiddenRef.current || shouldForceHidden ? 0 : 1,
             force3D: false,
+            pointerEvents: isFooterMenuHiddenRef.current || shouldForceHidden ? "none" : "auto",
             scale: interpolate(1, islandHeartScale, clampedProgress),
             transformOrigin: "50% 50%",
             x,
@@ -393,6 +400,7 @@ export function OrchestratedEaseReverseMenu() {
               active?: boolean;
               bounceOffsetY?: number;
               coverProgress?: number;
+              forceHidden?: boolean;
               progress?: number;
             }>
           ).detail;
@@ -402,6 +410,7 @@ export function OrchestratedEaseReverseMenu() {
             detail?.active ?? false,
             detail?.coverProgress ?? 0,
             detail?.bounceOffsetY ?? 0,
+            detail?.forceHidden ?? false,
           );
         };
 
@@ -412,6 +421,7 @@ export function OrchestratedEaseReverseMenu() {
               true,
               lastLoveCoverProgress,
               lastLoveBounceOffsetY,
+              lastLoveForceHidden,
             );
             return;
           }
@@ -430,6 +440,7 @@ export function OrchestratedEaseReverseMenu() {
               true,
               lastLoveCoverProgress,
               lastLoveBounceOffsetY,
+              lastLoveForceHidden,
             );
             return;
           }
@@ -745,15 +756,17 @@ export function OrchestratedEaseReverseMenu() {
     let frameId: number | null = null;
 
     const shouldHideForFooter = () => {
-      const hideZone = document.querySelector<HTMLElement>(footerHideZoneSelector);
+      const hideZones = Array.from(document.querySelectorAll<HTMLElement>(footerHideZoneSelector));
 
-      if (!hideZone) {
+      if (hideZones.length === 0) {
         return false;
       }
 
-      const bounds = hideZone.getBoundingClientRect();
+      return hideZones.some((hideZone) => {
+        const bounds = hideZone.getBoundingClientRect();
 
-      return bounds.top < window.innerHeight && bounds.bottom > 0;
+        return bounds.top < window.innerHeight && bounds.bottom > 0;
+      });
     };
 
     const applyFooterVisibility = () => {
@@ -1024,16 +1037,16 @@ export function OrchestratedEaseReverseMenu() {
                 strokeWidth="1.5"
                 x1="2"
                 x2="14"
-                y1="5"
-                y2="5"
+                y1="6"
+                y2="6"
               />
               <line
                 ref={midBarRef}
                 stroke={islandMenuStroke}
                 strokeLinecap="round"
-                strokeWidth="1.5"
-                x1="2"
-                x2="14"
+                strokeWidth="0"
+                x1="8"
+                x2="8"
                 y1="8"
                 y2="8"
               />
@@ -1044,8 +1057,8 @@ export function OrchestratedEaseReverseMenu() {
                 strokeWidth="1.5"
                 x1="2"
                 x2="14"
-                y1="11"
-                y2="11"
+                y1="10"
+                y2="10"
               />
             </svg>
           </span>
