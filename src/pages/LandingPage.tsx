@@ -1064,7 +1064,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
         gsap.set(editorShell, { autoAlpha: 0 });
         gsap.set(boxContent, { autoAlpha: 0 });
         gsap.set(diagramContent, { autoAlpha: 1, height: getBoardHeight });
-        gsap.set(diagramNodes, { autoAlpha: 1, scale: 1 });
+        gsap.set(diagramNodes, { autoAlpha: 1, display: "inline", scale: 1 });
         gsap.set(diagramLineStrokes, { autoAlpha: 1, drawSVG: "0% 100%" });
         gsap.set(diagramArrowheads, { autoAlpha: 1, drawSVG: "0% 100%" });
         gsap.set(conclusionTitle, { autoAlpha: 1, clearProps: "filter,transform" });
@@ -1142,6 +1142,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
         });
         gsap.set(diagramNodes, {
           autoAlpha: 0,
+          display: "none",
           scale: 1,
           x: 0,
           y: 0,
@@ -1152,7 +1153,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
         });
         gsap.set(diagramArrowheads, {
           autoAlpha: 0,
-          drawSVG: "0% 100%",
+          drawSVG: "50% 50%",
         });
         gsap.set(conclusionTitle, {
           autoAlpha: 1,
@@ -1173,7 +1174,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
         const blackBoxMorphStart = openCardStart + 0.08;
         const unpackCardStart = openCardStart + 1.42;
         const boardMorphStart = unpackCardStart + 0.39;
-        const conclusionCardStart = boardMorphStart + 3.28;
+        const conclusionCardStart = boardMorphStart + 6.2;
         const conclusionWordRevealStart = conclusionCardStart + 0.34;
         const conclusionWordRevealDuration = 0.64;
         const conclusionWordRevealStagger = 0.11;
@@ -1377,6 +1378,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
             inputNode,
             {
               autoAlpha: 1,
+              display: "inline",
               duration: 0.24,
               ease: "none",
               scale: 1,
@@ -1389,13 +1391,14 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
             modelNode,
             {
               autoAlpha: 1,
+              display: "inline",
               duration: 0.24,
               ease: "none",
               scale: 1,
               x: 0,
               y: 0,
             },
-            boardMorphStart + 0.54,
+            boardMorphStart + 1.16,
           )
           .to(
             inputToModelLines,
@@ -1407,25 +1410,19 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
             },
             boardMorphStart + 0.68,
           )
-          .to(
+          .fromTo(
             inputToModelArrowheads,
             {
               autoAlpha: 1,
-              duration: 0.01,
-              ease: "none",
-              stagger: 0.03,
+              drawSVG: "50% 50%",
             },
-            boardMorphStart + 0.84,
-          )
-          .to(
-            trainNode,
             {
               autoAlpha: 1,
-              duration: 0.24,
-              ease: "none",
-              scale: 1,
-              x: 0,
-              y: 0,
+              drawSVG: "0% 100%",
+              duration: 0.12,
+              ease: "power2.out",
+              immediateRender: false,
+              stagger: 0.03,
             },
             boardMorphStart + 0.9,
           )
@@ -1437,40 +1434,48 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
               ease: "power2.out",
               stagger: 0.03,
             },
-            boardMorphStart + 1.04,
+            boardMorphStart + 1.22,
           )
-          .to(
+          .fromTo(
             modelToTrainArrowheads,
             {
               autoAlpha: 1,
-              duration: 0.01,
-              ease: "none",
+              drawSVG: "50% 50%",
             },
-            boardMorphStart + 1.2,
+            {
+              autoAlpha: 1,
+              drawSVG: "0% 100%",
+              duration: 0.12,
+              ease: "power2.out",
+              immediateRender: false,
+            },
+            boardMorphStart + 1.38,
+          )
+          .to(
+            trainNode,
+            {
+              autoAlpha: 1,
+              display: "inline",
+              duration: 0.24,
+              ease: "none",
+              scale: 1,
+              x: 0,
+              y: 0,
+            },
+            boardMorphStart + 1.58,
           )
           .to(
             predNode,
             {
               autoAlpha: 1,
+              display: "inline",
               duration: 0.24,
               ease: "none",
               scale: 1,
               x: 0,
               y: 0,
             },
-            boardMorphStart + 1.22,
-          )
-          .to(
-            findErrorNode,
-            {
-              autoAlpha: 1,
-              duration: 0.24,
-              ease: "none",
-              scale: 1,
-              x: 0,
-              y: 0,
-            },
-            boardMorphStart + 1.36,
+            boardMorphStart + 1.76,
           )
           .to(
             predToFindLines,
@@ -1480,28 +1485,35 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
               ease: "power2.out",
               stagger: 0.03,
             },
-            boardMorphStart + 1.5,
+            boardMorphStart + 1.94,
           )
-          .to(
+          .fromTo(
             predToFindArrowheads,
             {
               autoAlpha: 1,
-              duration: 0.01,
-              ease: "none",
+              drawSVG: "50% 50%",
             },
-            boardMorphStart + 1.66,
-          )
-          .to(
-            minimizeErrorNode,
             {
               autoAlpha: 1,
+              drawSVG: "0% 100%",
+              duration: 0.12,
+              ease: "power2.out",
+              immediateRender: false,
+            },
+            boardMorphStart + 2.1,
+          )
+          .to(
+            findErrorNode,
+            {
+              autoAlpha: 1,
+              display: "inline",
               duration: 0.24,
               ease: "none",
               scale: 1,
               x: 0,
               y: 0,
             },
-            boardMorphStart + 1.68,
+            boardMorphStart + 2.3,
           )
           .to(
             findToMinimizeLines,
@@ -1511,28 +1523,35 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
               ease: "power2.out",
               stagger: 0.03,
             },
-            boardMorphStart + 1.82,
+            boardMorphStart + 2.48,
           )
-          .to(
+          .fromTo(
             findToMinimizeArrowheads,
             {
               autoAlpha: 1,
-              duration: 0.01,
-              ease: "none",
+              drawSVG: "50% 50%",
             },
-            boardMorphStart + 1.98,
-          )
-          .to(
-            getParamsNode,
             {
               autoAlpha: 1,
+              drawSVG: "0% 100%",
+              duration: 0.12,
+              ease: "power2.out",
+              immediateRender: false,
+            },
+            boardMorphStart + 2.64,
+          )
+          .to(
+            minimizeErrorNode,
+            {
+              autoAlpha: 1,
+              display: "inline",
               duration: 0.24,
               ease: "none",
               scale: 1,
               x: 0,
               y: 0,
             },
-            boardMorphStart + 2,
+            boardMorphStart + 2.84,
           )
           .to(
             minimizeToParamsLines,
@@ -1542,28 +1561,35 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
               ease: "power2.out",
               stagger: 0.03,
             },
-            boardMorphStart + 2.14,
+            boardMorphStart + 3.02,
           )
-          .to(
+          .fromTo(
             minimizeToParamsArrowheads,
             {
               autoAlpha: 1,
-              duration: 0.01,
-              ease: "none",
+              drawSVG: "50% 50%",
             },
-            boardMorphStart + 2.3,
-          )
-          .to(
-            resultNode,
             {
               autoAlpha: 1,
+              drawSVG: "0% 100%",
+              duration: 0.12,
+              ease: "power2.out",
+              immediateRender: false,
+            },
+            boardMorphStart + 3.18,
+          )
+          .to(
+            getParamsNode,
+            {
+              autoAlpha: 1,
+              display: "inline",
               duration: 0.24,
               ease: "none",
               scale: 1,
               x: 0,
               y: 0,
             },
-            boardMorphStart + 2.32,
+            boardMorphStart + 3.38,
           )
           .to(
             trainToResultLines,
@@ -1573,28 +1599,35 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
               ease: "power2.out",
               stagger: 0.03,
             },
-            boardMorphStart + 2.46,
+            boardMorphStart + 3.56,
           )
-          .to(
+          .fromTo(
             trainToResultArrowheads,
             {
               autoAlpha: 1,
-              duration: 0.01,
-              ease: "none",
+              drawSVG: "50% 50%",
             },
-            boardMorphStart + 2.62,
-          )
-          .to(
-            predictNode,
             {
               autoAlpha: 1,
+              drawSVG: "0% 100%",
+              duration: 0.12,
+              ease: "power2.out",
+              immediateRender: false,
+            },
+            boardMorphStart + 3.72,
+          )
+          .to(
+            resultNode,
+            {
+              autoAlpha: 1,
+              display: "inline",
               duration: 0.24,
               ease: "none",
               scale: 1,
               x: 0,
               y: 0,
             },
-            boardMorphStart + 2.64,
+            boardMorphStart + 3.92,
           )
           .to(
             resultToPredictLines,
@@ -1604,18 +1637,37 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
               ease: "power2.out",
               stagger: 0.03,
             },
-            boardMorphStart + 2.78,
+            boardMorphStart + 4.1,
           )
-          .to(
+          .fromTo(
             resultToPredictArrowheads,
             {
               autoAlpha: 1,
-              duration: 0.01,
-              ease: "none",
+              drawSVG: "50% 50%",
             },
-            boardMorphStart + 2.94,
+            {
+              autoAlpha: 1,
+              drawSVG: "0% 100%",
+              duration: 0.12,
+              ease: "power2.out",
+              immediateRender: false,
+            },
+            boardMorphStart + 4.26,
           )
-          .set(storyVisual, { autoAlpha: 1 }, boardMorphStart + 3.04)
+          .to(
+            predictNode,
+            {
+              autoAlpha: 1,
+              display: "inline",
+              duration: 0.24,
+              ease: "none",
+              scale: 1,
+              x: 0,
+              y: 0,
+            },
+            boardMorphStart + 4.46,
+          )
+          .set(storyVisual, { autoAlpha: 1 }, boardMorphStart + 4.76)
           .addLabel("understand", conclusionCardStart)
           .to(
             unpackCard,
@@ -2554,7 +2606,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
           />
           <section
             aria-label="Introducing Interactive ML Playground. ML can look simple from the outside. But the logic stays inside a black box. So we unpack every step."
-            className="relative z-20 h-[1240svh] w-full bg-transparent text-neutral-950"
+            className="relative z-20 h-[1800svh] w-full bg-transparent text-neutral-950"
             data-blackbox-story-section
           >
             <div
@@ -2877,7 +2929,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
                   </svg>
                   <span
                     aria-hidden="true"
-                    className="pointer-events-none absolute top-[calc(100%+0.08em)] left-[calc(50%-0.05em)] block h-[0.18em] w-[0.18em] -translate-x-1/2 opacity-0"
+                    className="pointer-events-none absolute top-[calc(100%+0.08em)] left-[calc(50%-0.027em)] block h-[0.18em] w-[0.18em] -translate-x-1/2 opacity-0"
                     data-love-bounce-dot
                   >
                     <svg
