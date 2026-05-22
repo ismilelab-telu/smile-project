@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 
 const ExplorePage = lazy(() =>
   import("../pages/ExplorePage").then((module) => ({ default: module.ExplorePage })),
@@ -9,6 +9,9 @@ const FuzzyTextPage = lazy(() =>
 const LandingPage = lazy(() =>
   import("../pages/LandingPage").then((module) => ({ default: module.LandingPage })),
 );
+
+const routeCoverDelayMs = 260;
+const routeRevealDelayMs = 360;
 
 function getCurrentPath() {
   return typeof window === "undefined" ? "/" : window.location.pathname;
@@ -22,11 +25,35 @@ function isLocalAppLink(element: HTMLAnchorElement) {
 
 export function App() {
   const [path, setPath] = useState(getCurrentPath);
+  const [transitionOverlay, setTransitionOverlay] = useState<"hidden" | "covering" | "revealing">(
+    "hidden",
+  );
+  const pathRef = useRef(path);
+  const transitionTimersRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    pathRef.current = path;
+  }, [path]);
 
   useEffect(() => {
     if ("scrollRestoration" in window.history) {
       window.history.scrollRestoration = "manual";
     }
+
+    const clearTransitionTimers = () => {
+      transitionTimersRef.current.forEach((timer) => {
+        window.clearTimeout(timer);
+      });
+      transitionTimersRef.current = [];
+    };
+    const navigateTo = (pathname: string) => {
+      window.history.pushState(null, "", pathname);
+      setPath(pathname);
+      window.scrollTo({ top: 0 });
+    };
+    const shouldReduceRouteTransition =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     window.scrollTo({ top: 0 });
     const restoreGuard = window.setTimeout(() => {
@@ -51,9 +78,26 @@ export function App() {
       const url = new URL(link.href);
 
       event.preventDefault();
-      window.history.pushState(null, "", url.pathname);
-      setPath(url.pathname);
-      window.scrollTo({ top: 0 });
+
+      if (pathRef.current === "/" && url.pathname === "/explore" && !shouldReduceRouteTransition) {
+        clearTransitionTimers();
+        setTransitionOverlay("covering");
+
+        const coverTimer = window.setTimeout(() => {
+          navigateTo(url.pathname);
+          setTransitionOverlay("revealing");
+        }, routeCoverDelayMs);
+        const revealTimer = window.setTimeout(() => {
+          setTransitionOverlay("hidden");
+        }, routeCoverDelayMs + routeRevealDelayMs);
+
+        transitionTimersRef.current = [coverTimer, revealTimer];
+        return;
+      }
+
+      clearTransitionTimers();
+      setTransitionOverlay("hidden");
+      navigateTo(url.pathname);
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -61,20 +105,29 @@ export function App() {
 
     return () => {
       window.clearTimeout(restoreGuard);
+      clearTransitionTimers();
       window.removeEventListener("popstate", handlePopState);
       document.removeEventListener("click", handleDocumentClick);
     };
   }, []);
 
   return (
-    <Suspense fallback={<main className="min-h-screen bg-background" />}>
-      {path === "/" ? (
-        <LandingPage />
-      ) : path === "/explore" ? (
-        <ExplorePage />
-      ) : (
-        <FuzzyTextPage path={path} />
-      )}
-    </Suspense>
+    <>
+      <Suspense fallback={<main className="min-h-screen bg-background" />}>
+        {path === "/" ? (
+          <LandingPage />
+        ) : path === "/explore" ? (
+          <ExplorePage />
+        ) : (
+          <FuzzyTextPage path={path} />
+        )}
+      </Suspense>
+      <div
+        aria-hidden="true"
+        className={`pointer-events-none fixed inset-0 z-[3000] bg-zinc-950 transition-opacity duration-300 ease-out ${
+          transitionOverlay === "covering" ? "opacity-100" : "opacity-0"
+        }`}
+      />
+    </>
   );
 }
