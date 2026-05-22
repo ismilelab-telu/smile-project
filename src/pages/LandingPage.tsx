@@ -222,6 +222,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
   const exploreZoneRef = useRef<HTMLDivElement>(null);
   const exploreButtonRef = useRef<HTMLAnchorElement>(null);
   const exploreLabelRef = useRef<HTMLSpanElement>(null);
+  const [canBlinkCodeCursor, setCanBlinkCodeCursor] = useState(true);
   const [canStartDescriptionAnimation, setCanStartDescriptionAnimation] =
     useState(skipIntroAnimation);
   const [canRevealHeroAction, setCanRevealHeroAction] = useState(skipIntroAnimation);
@@ -230,6 +231,27 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
   }, []);
   const revealHeroAction = useCallback(() => {
     setCanRevealHeroAction(true);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || shouldReduceMotion()) {
+      return;
+    }
+
+    const disableCodeCursorBlink = () => {
+      setCanBlinkCodeCursor(false);
+    };
+    const enableCodeCursorBlink = () => {
+      setCanBlinkCodeCursor(true);
+    };
+
+    ScrollTrigger.addEventListener("scrollStart", disableCodeCursorBlink);
+    ScrollTrigger.addEventListener("scrollEnd", enableCodeCursorBlink);
+
+    return () => {
+      ScrollTrigger.removeEventListener("scrollStart", disableCodeCursorBlink);
+      ScrollTrigger.removeEventListener("scrollEnd", enableCodeCursorBlink);
+    };
   }, []);
 
   useGSAP(
@@ -869,8 +891,12 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
       const diagramContent = root.querySelector<HTMLElement>("[data-blackbox-diagram-content]");
       const conclusionSlide = root.querySelector<HTMLElement>("[data-understand-slide]");
       const conclusionTitle = root.querySelector<HTMLElement>("[data-understand-title]");
+      const codeLines = Array.from(root.querySelectorAll<HTMLElement>("[data-blackbox-code-line]"));
       const codeCharacters = Array.from(
         root.querySelectorAll<HTMLElement>("[data-blackbox-code-char]"),
+      );
+      const codeCursors = Array.from(
+        root.querySelectorAll<HTMLElement>("[data-blackbox-code-cursor]"),
       );
       const diagramNodes = Array.from(
         root.querySelectorAll<SVGGElement>("[data-blackbox-diagram-node]"),
@@ -935,6 +961,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
         !diagramContent ||
         !conclusionSlide ||
         !conclusionTitle ||
+        codeLines.length === 0 ||
         !inputNode ||
         !modelNode ||
         !trainNode ||
@@ -945,6 +972,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
         !resultNode ||
         !predictNode ||
         codeCharacters.length === 0 ||
+        codeCursors.length !== codeLines.length ||
         diagramNodes.length === 0 ||
         diagramStrokes.length === 0 ||
         diagramLineStrokes.length === 0 ||
@@ -966,6 +994,11 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
       ) {
         return;
       }
+
+      const codeLineGroups = codeLines.map((line, index) => ({
+        characters: Array.from(line.querySelectorAll<HTMLElement>("[data-blackbox-code-char]")),
+        cursor: codeCursors[index]!,
+      }));
 
       const getVisualBaseWidth = () => {
         const viewportLimit = Math.min(window.innerWidth * 0.9, 1500);
@@ -1127,7 +1160,12 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
           transformOrigin: "50% 50%",
           willChange: "filter, opacity, transform",
         });
-        gsap.set(codeCharacters, { autoAlpha: 0 });
+        gsap.set(codeCharacters, { autoAlpha: 0, display: "none" });
+        gsap.set(codeCursors, {
+          autoAlpha: 0,
+          display: "inline-block",
+          willChange: "opacity",
+        });
         gsap.set(boxContent, {
           autoAlpha: 0,
           filter: "blur(0px)",
@@ -1166,11 +1204,20 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
           willChange: "filter, opacity, transform",
         });
 
-        const codeRevealStart = 0.16;
-        const codeRevealStagger = 0.006;
-        const codeRevealDuration =
-          0.01 + Math.max(codeCharacters.length - 1, 0) * codeRevealStagger;
-        const openCardStart = codeRevealStart + codeRevealDuration + 0.46;
+        const codeTypingStart = 0.18;
+        const codeTypingStagger = 0.026;
+        const codeCharacterRevealDuration = 0.001;
+        const codeLinePause = 0.1;
+        const codeBlankLinePause = 0.18;
+        const getCodeLineTypingDuration = (characterCount: number) =>
+          characterCount > 0
+            ? Math.max(characterCount - 1, 0) * codeTypingStagger + codeLinePause
+            : codeBlankLinePause;
+        const codeRevealDuration = codeLineGroups.reduce(
+          (duration, { characters }) => duration + getCodeLineTypingDuration(characters.length),
+          0,
+        );
+        const openCardStart = codeTypingStart + codeRevealDuration + 0.72;
         const blackBoxMorphStart = openCardStart + 0.08;
         const unpackCardStart = openCardStart + 1.42;
         const boardMorphStart = unpackCardStart + 0.39;
@@ -1263,18 +1310,33 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
             0,
           );
 
+        storyTimeline.addLabel("call", 0);
+
+        let codeTypingTime = codeTypingStart;
+
+        codeLineGroups.forEach(({ characters, cursor }) => {
+          storyTimeline.set(codeCursors, { autoAlpha: 0 }, codeTypingTime);
+          storyTimeline.set(cursor, { autoAlpha: 1 }, codeTypingTime);
+
+          if (characters.length > 0) {
+            storyTimeline.to(
+              characters,
+              {
+                autoAlpha: 1,
+                display: "inline",
+                duration: codeCharacterRevealDuration,
+                ease: "steps(1)",
+                stagger: codeTypingStagger,
+              },
+              codeTypingTime,
+            );
+          }
+
+          codeTypingTime += getCodeLineTypingDuration(characters.length);
+        });
+
         storyTimeline
-          .addLabel("call", 0)
-          .to(
-            codeCharacters,
-            {
-              autoAlpha: 1,
-              duration: 0.01,
-              ease: "none",
-              stagger: codeRevealStagger,
-            },
-            codeRevealStart,
-          )
+          .set(codeCursors, { autoAlpha: 0 }, openCardStart - 0.12)
           .addLabel("open", openCardStart)
           .to(
             simpleCard,
@@ -2726,6 +2788,19 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
                 data-blackbox-visual
               >
                 <div className="absolute inset-0 flex flex-col" data-blackbox-editor-shell>
+                  <style>
+                    {`
+                      @keyframes blackbox-code-cursor-blink {
+                        0%, 48% {
+                          opacity: 1;
+                        }
+
+                        49%, 100% {
+                          opacity: 0;
+                        }
+                      }
+                    `}
+                  </style>
                   <div className="flex h-[clamp(2.75rem,min(4vw,5.4svh),3.65rem)] shrink-0 items-center gap-[clamp(0.5rem,0.7vw,0.75rem)] border-b border-neutral-600/70 bg-neutral-800 px-[clamp(1rem,1.5vw,1.75rem)]">
                     <span className="size-[clamp(0.75rem,0.95vw,1rem)] rounded-full bg-red-400" />
                     <span className="size-[clamp(0.75rem,0.95vw,1rem)] rounded-full bg-yellow-300" />
@@ -2739,6 +2814,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
                       <code
                         aria-hidden="true"
                         className="block min-h-[1.58em]"
+                        data-blackbox-code-line
                         key={`blackbox-code-line-${lineIndex}`}
                       >
                         {line.map((segment, segmentIndex) =>
@@ -2752,6 +2828,19 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
                             </span>
                           )),
                         )}
+                        <span
+                          className="inline-block h-[1.08em] w-[0.62em] -translate-y-[0.02em] align-middle opacity-0"
+                          data-blackbox-code-cursor
+                        >
+                          <span
+                            className="block h-full w-full rounded-[1px] bg-white shadow-[0_0_16px_rgba(255,255,255,0.55)]"
+                            style={{
+                              animation: canBlinkCodeCursor
+                                ? "blackbox-code-cursor-blink 0.78s steps(1, end) infinite"
+                                : "none",
+                            }}
+                          />
+                        </span>
                       </code>
                     ))}
                   </pre>
