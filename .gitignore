@@ -10,7 +10,7 @@ coverage/
 playwright-report/
 test-results/
 .vitest-attachments/
-.playwright-mcp/*.log
+.playwright-mcp/
 
 # Data and model artifacts
 data/raw/*
