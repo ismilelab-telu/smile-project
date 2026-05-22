@@ -12,15 +12,14 @@ import type { ComponentType, SVGProps } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 
+import VariableProximity from "@/components/ui/variable-proximity";
 import { shouldReduceMotion } from "@/lib/motion";
 
 gsap.registerPlugin(useGSAP);
 
 type Mode = {
   title: string;
-  status?: string;
   statusTone: "emerald" | "sky" | "neutral";
-  summary: string;
   href: string;
   actionLabel: string;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
@@ -32,25 +31,20 @@ const modes: Mode[] = [
     href: "/learn",
     icon: AcademicCapIcon,
     statusTone: "emerald",
-    summary: "Jalur belajar terarah untuk memahami workflow ML dari data sampai evaluasi.",
     title: "Learning Mode",
   },
   {
-    actionLabel: "Open",
+    actionLabel: "Coming soon",
     href: "/playground",
     icon: BeakerIcon,
-    status: "Coming soon",
     statusTone: "sky",
-    summary: "Ruang eksperimen end-to-end untuk mencoba workflow ML dengan kontrol bebas.",
     title: "ML Playground",
   },
   {
-    actionLabel: "Open",
+    actionLabel: "Coming soon",
     href: "/algorithm-lab",
     icon: ChartBarSquareIcon,
-    status: "Coming soon",
     statusTone: "neutral",
-    summary: "Lab visual untuk membedah perilaku algoritma dan membandingkan tradeoff.",
     title: "Algorithm Lab",
   },
 ];
@@ -70,6 +64,8 @@ const iconToneClassName = {
 } satisfies Record<Mode["statusTone"], string>;
 
 export function ExplorePage() {
+  const headingRef = useRef<HTMLSpanElement>(null);
+
   return (
     <main className="relative min-h-screen bg-neutral-950 text-neutral-50">
       <header className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-[clamp(1.5rem,3vw,2.5rem)] py-[clamp(1.5rem,3vw,2.5rem)] [@media_(min-width:2200px)]:px-14 [@media_(min-width:2200px)]:py-14">
@@ -92,7 +88,17 @@ export function ExplorePage() {
       <section className="grid min-h-screen grid-cols-[24px_minmax(0,1fr)_24px] items-center py-28 sm:grid-cols-[48px_minmax(0,1fr)_48px] lg:grid-cols-[minmax(48px,1fr)_minmax(0,680px)_88px_minmax(0,920px)_minmax(48px,1fr)] lg:py-32 xl:grid-cols-[minmax(7rem,1fr)_minmax(0,clamp(680px,33vw,860px))_clamp(88px,5vw,144px)_minmax(0,clamp(920px,42vw,1180px))_minmax(7rem,1fr)] [@media_(min-width:2200px)]:py-40">
         <div className="col-start-2 grid gap-y-10">
           <h1 className="text-[4rem] leading-[0.9] font-semibold tracking-normal sm:text-[5rem] lg:text-[6.75rem] xl:text-[7.75rem] 2xl:text-[8.5rem] [@media_(min-width:2200px)]:text-[9.75rem]">
-            Choose a mode.
+            <span className="relative block" ref={headingRef}>
+              <VariableProximity
+                className="block text-inherit"
+                containerRef={headingRef}
+                falloff="gaussian"
+                fromFontVariationSettings="'wght' 700, 'opsz' 24"
+                label="Choose a mode."
+                radius={180}
+                toFontVariationSettings="'wght' 1000, 'opsz' 96"
+              />
+            </span>
           </h1>
         </div>
 
@@ -514,14 +520,6 @@ function ModeCard({ mode }: { mode: Mode }) {
           <span className="text-xl font-semibold tracking-normal text-neutral-50 [@media_(min-width:2200px)]:text-2xl">
             {mode.title}
           </span>
-          {mode.status ? (
-            <span className="text-xs font-semibold text-neutral-500 [@media_(min-width:2200px)]:text-sm">
-              {mode.status}
-            </span>
-          ) : null}
-        </span>
-        <span className="mt-2 block max-w-2xl text-sm leading-6 text-neutral-400 [@media_(min-width:2200px)]:max-w-3xl [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7">
-          {mode.summary}
         </span>
       </span>
 

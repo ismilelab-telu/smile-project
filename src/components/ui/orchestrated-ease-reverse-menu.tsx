@@ -488,7 +488,7 @@ export function OrchestratedEaseReverseMenu() {
           },
           0,
         )
-        .set([topBar, midBar, bottomBar], { stroke: islandMenuStroke }, 0)
+        .set([topBar, midBar, bottomBar], { opacity: 1, stroke: islandMenuStroke }, 0)
         .fromTo(
           island,
           {
@@ -869,28 +869,13 @@ export function OrchestratedEaseReverseMenu() {
 
     if (nextIsOpen) {
       const island = islandRef.current;
-      const playOpenTimeline = () => {
-        timeline.invalidate().eventCallback("onReverseComplete", null).timeScale(1).play();
-      };
 
       if (island) {
-        if (isAwayFromTopRef.current) {
-          gsap.to(island, {
-            duration: 0.46,
-            ease: "power2.out",
-            force3D: false,
-            onComplete: playOpenTimeline,
-            x: 0,
-            xPercent: -50,
-            y: 0,
-          });
-          return;
-        }
-
+        gsap.killTweensOf(island, "x,y");
         gsap.set(island, { x: 0, xPercent: -50, y: 0 });
       }
 
-      playOpenTimeline();
+      timeline.invalidate().eventCallback("onReverseComplete", null).timeScale(1).play();
       return;
     }
 
@@ -1037,16 +1022,16 @@ export function OrchestratedEaseReverseMenu() {
                 strokeWidth="1.5"
                 x1="2"
                 x2="14"
-                y1="6"
-                y2="6"
+                y1="5"
+                y2="5"
               />
               <line
                 ref={midBarRef}
                 stroke={islandMenuStroke}
                 strokeLinecap="round"
-                strokeWidth="0"
-                x1="8"
-                x2="8"
+                strokeWidth="1.5"
+                x1="2"
+                x2="14"
                 y1="8"
                 y2="8"
               />
@@ -1057,8 +1042,8 @@ export function OrchestratedEaseReverseMenu() {
                 strokeWidth="1.5"
                 x1="2"
                 x2="14"
-                y1="10"
-                y2="10"
+                y1="11"
+                y2="11"
               />
             </svg>
           </span>
@@ -1085,7 +1070,7 @@ export function OrchestratedEaseReverseMenu() {
         />
         <div className="absolute inset-x-4 top-[68px] flex justify-center">
           <div
-            className="w-full max-w-[400px] rounded-[18px] border border-[oklch(87.1108%_0.0055_286.29)] bg-[oklch(98.5%_0_0)] p-1.5 opacity-0 shadow-[0_14px_40px_oklch(17.7638%_0_0_/_0.08)]"
+            className="invisible w-full max-w-[400px] rounded-[18px] border border-[oklch(87.1108%_0.0055_286.29)] bg-[oklch(98.5%_0_0)] p-1.5 opacity-0 shadow-[0_14px_40px_oklch(17.7638%_0_0_/_0.08)]"
             ref={panelRef}
           >
             <nav aria-label="Navigation menu links">
