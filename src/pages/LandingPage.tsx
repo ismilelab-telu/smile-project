@@ -995,7 +995,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
         const stageHeight = getStoryStageHeight();
         const visualTopAnchor = stageHeight * 0.61;
 
-        return stageHeight * 0.56 - visualTopAnchor;
+        return stageHeight * 0.61 - visualTopAnchor;
       };
       const getBoardWidth = () => {
         const stageHeight = getStoryStageHeight();
@@ -2637,19 +2637,19 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
                 >
                   <h2
                     aria-label={`${introEyebrow} ${introTitle}. ${introSubtitleCopy}`}
-                    className="absolute inset-x-10 top-[calc(31%-140px)] z-10 h-[280px] text-center"
+                    className="absolute inset-x-10 top-[calc(31%-140px)] z-10 h-[280px] text-center min-[2200px]:top-[calc(31%-170px)] min-[2200px]:h-[340px]"
                     id="landing-intro-title"
                   >
                     <span
                       aria-hidden="true"
-                      className="absolute inset-x-0 top-1/2 block text-[clamp(5rem,min(11vw,16svh),11.5rem)] leading-[0.82] font-normal tracking-normal text-neutral-950 will-change-transform"
+                      className="absolute inset-x-0 top-1/2 block text-[clamp(5rem,min(11vw,16svh),11.5rem)] leading-[0.82] font-normal tracking-normal text-neutral-950 will-change-transform min-[2200px]:top-[44%] min-[2200px]:text-[clamp(11.5rem,8.2vw,14rem)]"
                       data-landing-intro-eyebrow
                     >
                       {introEyebrow}
                     </span>
                     <span
                       aria-hidden="true"
-                      className="absolute inset-x-0 top-1/2 block text-[clamp(3.4rem,min(6.8vw,10svh),7rem)] leading-[0.88] font-medium tracking-normal text-neutral-950 opacity-0 will-change-[transform,opacity]"
+                      className="absolute inset-x-0 top-1/2 block text-[clamp(3.4rem,min(6.8vw,10svh),7rem)] leading-[0.88] font-medium tracking-normal text-neutral-950 opacity-0 will-change-[transform,opacity] min-[2200px]:top-[57%] min-[2200px]:text-[clamp(7rem,5.35vw,9rem)]"
                       data-landing-intro-title
                     >
                       {introTitle}
@@ -2657,7 +2657,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
                   </h2>
 
                   <p
-                    className="absolute inset-x-12 top-[39%] z-10 mx-auto max-w-4xl text-center text-[clamp(1.1rem,min(1.65vw,2.5svh),1.45rem)] leading-[1.5] font-normal text-neutral-600 opacity-0 will-change-[transform,opacity]"
+                    className="absolute inset-x-12 top-[39%] z-10 mx-auto max-w-4xl text-center text-[clamp(1.1rem,min(1.65vw,2.5svh),1.45rem)] leading-[1.5] font-normal text-neutral-600 opacity-0 will-change-[transform,opacity] min-[2200px]:top-[41%] min-[2200px]:max-w-6xl min-[2200px]:text-[clamp(1.45rem,1vw,1.7rem)]"
                     data-landing-intro-subtitle
                   >
                     {introSubtitleCopy}
@@ -2680,7 +2680,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
               </div>
               <section
                 aria-hidden="true"
-                className="absolute inset-0 z-10 flex items-start justify-center rounded-t-2xl bg-neutral-500 px-4 pt-[9svh] text-center"
+                className="absolute inset-0 z-10 flex items-start justify-center rounded-t-2xl bg-neutral-500 px-4 pt-[12svh] text-center"
                 data-blackbox-card="simple"
               >
                 <h2
@@ -2694,7 +2694,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
 
               <section
                 aria-hidden="true"
-                className="absolute inset-0 z-20 flex items-start justify-center rounded-t-2xl bg-sky-500 px-4 pt-[9svh] text-center"
+                className="absolute inset-0 z-20 flex items-start justify-center rounded-t-2xl bg-sky-500 px-4 pt-[12svh] text-center"
                 data-blackbox-card="open"
               >
                 <h2
@@ -2710,7 +2710,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
 
               <section
                 aria-hidden="true"
-                className="absolute inset-0 z-30 flex items-start justify-center rounded-t-2xl bg-emerald-500 px-4 pt-[9svh] text-center"
+                className="absolute inset-0 z-30 flex items-start justify-center rounded-t-2xl bg-emerald-500 px-4 pt-[12svh] text-center"
                 data-blackbox-card="unpack"
               >
                 <h2
@@ -2940,9 +2940,10 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
                       fill="oklch(61.224% 0.2313 22.61)"
                     />
                   </svg>
+                  {/* Keep X centering in layout, not transform: GSAP owns transform for bounce y/scale. */}
                   <span
                     aria-hidden="true"
-                    className="pointer-events-none absolute top-[calc(100%+0.08em)] left-[calc(50%-0.027em)] block h-[0.18em] w-[0.18em] -translate-x-1/2 opacity-0"
+                    className="pointer-events-none absolute top-[calc(100%+0.08em)] left-[calc(50%-var(--love-bounce-dot-size)/2-var(--love-bounce-dot-optical-offset))] block h-[var(--love-bounce-dot-size)] w-[var(--love-bounce-dot-size)] opacity-0 [--love-bounce-dot-optical-offset:0.052em] [--love-bounce-dot-size:0.18em]"
                     data-love-bounce-dot
                   >
                     <svg
