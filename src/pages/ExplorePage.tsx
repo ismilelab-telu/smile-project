@@ -78,29 +78,34 @@ const iconToneClassName = {
 export function ExplorePage() {
   return (
     <main className="relative min-h-screen bg-background text-foreground">
-      <header className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-[clamp(2rem,4vw,5rem)] py-[clamp(1.5rem,3vw,2.5rem)]">
+      <header className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-[clamp(2rem,4vw,5rem)] py-[clamp(1.5rem,3vw,2.5rem)] [@media_(min-width:2200px)]:px-28 [@media_(min-width:2200px)]:py-14">
         <a
           aria-label="Back to home"
-          className="inline-flex size-10 items-center justify-center rounded-lg border border-border bg-surface text-foreground transition-colors hover:border-zinc-300 hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+          className="inline-flex size-10 items-center justify-center rounded-lg border border-border bg-surface text-foreground transition-colors hover:border-zinc-300 hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 [@media_(min-width:2200px)]:size-12"
           data-app-link
           href="/"
         >
-          <ArrowLeftIcon aria-hidden="true" className="size-5" />
+          <ArrowLeftIcon aria-hidden="true" className="size-5 [@media_(min-width:2200px)]:size-6" />
         </a>
-        <div className="flex items-center gap-3">
-          <p className="text-sm font-medium text-muted-foreground">Smile Project</p>
+        <div className="flex items-center gap-3 [@media_(min-width:2200px)]:gap-4">
+          <p className="text-sm font-medium text-muted-foreground [@media_(min-width:2200px)]:text-base">
+            Smile Project
+          </p>
           <ExploreMenu />
         </div>
       </header>
 
-      <section className="grid min-h-screen grid-cols-[24px_minmax(0,1fr)_24px] items-center py-28 sm:grid-cols-[48px_minmax(0,1fr)_48px] lg:grid-cols-[minmax(48px,1fr)_minmax(0,680px)_72px_minmax(0,920px)_minmax(48px,1fr)] lg:py-32 xl:grid-cols-[minmax(48px,1fr)_minmax(0,680px)_88px_minmax(0,920px)_minmax(48px,1fr)]">
+      <section className="grid min-h-screen grid-cols-[24px_minmax(0,1fr)_24px] items-center py-28 sm:grid-cols-[48px_minmax(0,1fr)_48px] lg:grid-cols-[minmax(48px,1fr)_minmax(0,680px)_88px_minmax(0,920px)_minmax(48px,1fr)] lg:py-32 xl:grid-cols-[minmax(7rem,1fr)_minmax(0,clamp(680px,33vw,860px))_clamp(88px,5vw,144px)_minmax(0,clamp(920px,42vw,1180px))_minmax(7rem,1fr)] [@media_(min-width:2200px)]:py-40">
         <div className="col-start-2 grid gap-y-10">
-          <h1 className="text-[4rem] leading-[0.9] font-semibold tracking-normal sm:text-[5rem] lg:text-[6.75rem] xl:text-[7.75rem] 2xl:text-[8.5rem]">
+          <h1 className="text-[4rem] leading-[0.9] font-semibold tracking-normal sm:text-[5rem] lg:text-[6.75rem] xl:text-[7.75rem] 2xl:text-[8.5rem] [@media_(min-width:2200px)]:text-[9.75rem]">
             Choose a mode.
           </h1>
         </div>
 
-        <div className="col-start-2 grid gap-4 lg:col-start-4" aria-label="Available modes">
+        <div
+          className="col-start-2 grid gap-4 lg:col-start-4 [@media_(min-width:2200px)]:gap-5"
+          aria-label="Available modes"
+        >
           {modes.map((mode) => (
             <ModeCard key={mode.title} mode={mode} />
           ))}
@@ -364,11 +369,14 @@ function ExploreMenu() {
       <button
         aria-expanded={isOpen}
         aria-label={isOpen ? "Close menu" : "Open menu"}
-        className="relative z-50 inline-flex size-10 items-center justify-center rounded-lg bg-transparent text-foreground transition-opacity hover:opacity-65 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+        className="relative z-50 inline-flex size-10 items-center justify-center rounded-lg bg-transparent text-foreground transition-opacity hover:opacity-65 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 [@media_(min-width:2200px)]:size-12"
         onClick={() => setMenuOpen(!isOpen)}
         type="button"
       >
-        <span className="relative block h-5 w-5" aria-hidden="true">
+        <span
+          className="relative block h-5 w-5 [@media_(min-width:2200px)]:scale-110"
+          aria-hidden="true"
+        >
           <span
             className="absolute left-[3px] top-[5px] h-0.5 w-3.5 rounded-full bg-current"
             data-explore-menu-bar="top"
@@ -386,7 +394,7 @@ function ExploreMenu() {
 
       <div
         aria-hidden={!isOpen}
-        className="invisible fixed inset-0 z-40 flex flex-col items-end gap-2 p-4"
+        className="invisible fixed inset-0 z-40 flex flex-col items-end gap-2 p-4 [@media_(min-width:2200px)]:gap-3 [@media_(min-width:2200px)]:p-6"
         data-explore-menu-nav
       >
         <button
@@ -399,7 +407,7 @@ function ExploreMenu() {
 
         <nav
           aria-label="Explore menu"
-          className="relative z-10 flex min-h-[420px] w-[min(700px,calc(100vw_-_2rem))] flex-1 transform-gpu flex-col rounded-lg border-2 border-zinc-950 bg-white px-7 pt-16 pb-7 text-zinc-950 shadow-2xl will-change-transform"
+          className="relative z-10 flex min-h-[420px] w-[min(700px,calc(100vw_-_2rem))] flex-1 transform-gpu flex-col rounded-lg border-2 border-zinc-950 bg-white px-7 pt-16 pb-7 text-zinc-950 shadow-2xl will-change-transform [@media_(min-width:2200px)]:min-h-[520px] [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:px-9 [@media_(min-width:2200px)]:pt-20 [@media_(min-width:2200px)]:pb-9"
           data-explore-menu-panel
         >
           <ul className="flex flex-1 list-none flex-col justify-center">
@@ -410,7 +418,7 @@ function ExploreMenu() {
                 key={link.href}
               >
                 <a
-                  className="block py-4 text-[clamp(1.7rem,4vw,2.15rem)] leading-[1.05] font-semibold tracking-normal transition-colors hover:text-sky-700"
+                  className="block py-4 text-[clamp(1.7rem,4vw,2.15rem)] leading-[1.05] font-semibold tracking-normal transition-colors hover:text-sky-700 [@media_(min-width:2200px)]:py-5 [@media_(min-width:2200px)]:text-[2.55rem]"
                   data-app-link
                   href={link.href}
                 >
@@ -419,43 +427,48 @@ function ExploreMenu() {
               </li>
             ))}
           </ul>
-          <span aria-hidden="true" className="block h-4 shrink-0" />
+          <span aria-hidden="true" className="block h-4 shrink-0 [@media_(min-width:2200px)]:h-6" />
         </nav>
 
         <section
           aria-label="Learning Mode highlight"
-          className="relative z-10 flex min-h-36 w-[min(700px,calc(100vw_-_2rem))] transform-gpu flex-col justify-center rounded-lg border-2 border-emerald-700 bg-gradient-to-br from-emerald-400 via-emerald-200 to-sky-200 p-7 text-zinc-950 shadow-2xl will-change-transform"
+          className="relative z-10 flex min-h-36 w-[min(700px,calc(100vw_-_2rem))] transform-gpu flex-col justify-center rounded-lg border-2 border-emerald-700 bg-gradient-to-br from-emerald-400 via-emerald-200 to-sky-200 p-7 text-zinc-950 shadow-2xl will-change-transform [@media_(min-width:2200px)]:min-h-44 [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:p-9"
           data-explore-menu-panel
         >
-          <p className="font-mono text-xs font-semibold tracking-[0.12em] text-zinc-700 uppercase">
+          <p className="font-mono text-xs font-semibold tracking-[0.12em] text-zinc-700 uppercase [@media_(min-width:2200px)]:text-sm">
             Next path
           </p>
-          <div className="mt-4 flex items-center gap-4">
-            <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-lg bg-zinc-950/10 text-zinc-950">
-              <BoltIcon aria-hidden="true" className="size-6" />
+          <div className="mt-4 flex items-center gap-4 [@media_(min-width:2200px)]:mt-5 [@media_(min-width:2200px)]:gap-5">
+            <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-lg bg-zinc-950/10 text-zinc-950 [@media_(min-width:2200px)]:size-14">
+              <BoltIcon aria-hidden="true" className="size-6 [@media_(min-width:2200px)]:size-7" />
             </span>
             <div>
-              <h2 className="text-xl leading-tight font-semibold tracking-normal">Learning Mode</h2>
-              <p className="mt-1 text-sm leading-6 text-zinc-700">
+              <h2 className="text-xl leading-tight font-semibold tracking-normal [@media_(min-width:2200px)]:text-2xl">
+                Learning Mode
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-zinc-700 [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7">
                 Mulai dari workflow ML dasar sampai evaluasi model.
               </p>
             </div>
           </div>
           <a
-            className="mt-5 inline-flex w-fit items-center gap-2 rounded-full bg-zinc-950 px-4 py-2 font-mono text-xs font-semibold text-emerald-100 transition-colors hover:bg-zinc-800"
+            className="mt-5 inline-flex w-fit items-center gap-2 rounded-full bg-zinc-950 px-4 py-2 font-mono text-xs font-semibold text-emerald-100 transition-colors hover:bg-zinc-800 [@media_(min-width:2200px)]:mt-6 [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-2.5 [@media_(min-width:2200px)]:text-sm"
             data-app-link
             href="/learn"
           >
             Start path
-            <ArrowRightIcon aria-hidden="true" className="size-4" />
+            <ArrowRightIcon
+              aria-hidden="true"
+              className="size-4 [@media_(min-width:2200px)]:size-5"
+            />
           </a>
         </section>
 
         <div
-          className="relative z-10 flex h-28 w-[min(700px,calc(100vw_-_2rem))] transform-gpu items-center rounded-lg border-2 border-zinc-700 bg-zinc-950 px-7 text-zinc-400 shadow-2xl will-change-transform"
+          className="relative z-10 flex h-28 w-[min(700px,calc(100vw_-_2rem))] transform-gpu items-center rounded-lg border-2 border-zinc-700 bg-zinc-950 px-7 text-zinc-400 shadow-2xl will-change-transform [@media_(min-width:2200px)]:h-36 [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:px-9"
           data-explore-menu-panel
         >
-          <ul className="flex list-none flex-wrap gap-4 font-mono text-xs font-semibold">
+          <ul className="flex list-none flex-wrap gap-4 font-mono text-xs font-semibold [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:text-sm">
             <li>
               <a className="transition-colors hover:text-white" data-app-link href="/404">
                 Contact
@@ -472,7 +485,10 @@ function ExploreMenu() {
               </a>
             </li>
           </ul>
-          <HomeIcon aria-hidden="true" className="ml-auto size-10 text-emerald-300" />
+          <HomeIcon
+            aria-hidden="true"
+            className="ml-auto size-10 text-emerald-300 [@media_(min-width:2200px)]:size-12"
+          />
         </div>
       </div>
     </div>
@@ -484,37 +500,40 @@ function ModeCard({ mode }: { mode: Mode }) {
 
   return (
     <a
-      className="group grid gap-5 rounded-lg border border-border bg-surface p-5 shadow-[0_18px_54px_oklch(17.7638%_0_0_/_0.07)] transition duration-200 hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-[0_22px_68px_oklch(17.7638%_0_0_/_0.1)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-6"
+      className="group grid gap-5 rounded-lg border border-border bg-surface p-5 shadow-[0_18px_54px_oklch(17.7638%_0_0_/_0.07)] transition duration-200 hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-[0_22px_68px_oklch(17.7638%_0_0_/_0.1)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-6 [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-7"
       data-app-link
       href={mode.href}
     >
       <span
-        className={`inline-flex size-12 items-center justify-center rounded-lg ring-1 ${iconToneClassName[mode.statusTone]}`}
+        className={`inline-flex size-12 items-center justify-center rounded-lg ring-1 [@media_(min-width:2200px)]:size-14 ${iconToneClassName[mode.statusTone]}`}
       >
-        <Icon aria-hidden="true" className="size-6" />
+        <Icon aria-hidden="true" className="size-6 [@media_(min-width:2200px)]:size-7" />
       </span>
 
       <span className="min-w-0">
         <span className="flex flex-wrap items-center gap-2">
-          <span className="text-xl font-semibold tracking-normal text-foreground">
+          <span className="text-xl font-semibold tracking-normal text-foreground [@media_(min-width:2200px)]:text-2xl">
             {mode.title}
           </span>
           {mode.status ? (
             <span
-              className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusToneClassName[mode.statusTone]}`}
+              className={`rounded-md border px-2 py-1 text-xs font-semibold [@media_(min-width:2200px)]:px-2.5 [@media_(min-width:2200px)]:py-1.5 [@media_(min-width:2200px)]:text-sm ${statusToneClassName[mode.statusTone]}`}
             >
               {mode.status}
             </span>
           ) : null}
         </span>
-        <span className="mt-2 block max-w-2xl text-sm leading-6 text-muted-foreground">
+        <span className="mt-2 block max-w-2xl text-sm leading-6 text-muted-foreground [@media_(min-width:2200px)]:max-w-3xl [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7">
           {mode.summary}
         </span>
       </span>
 
-      <span className="inline-flex items-center gap-2 text-sm font-semibold text-foreground transition-colors group-hover:text-sky-700">
+      <span className="inline-flex items-center gap-2 text-sm font-semibold text-foreground transition-colors group-hover:text-sky-700 [@media_(min-width:2200px)]:text-base">
         {mode.actionLabel}
-        <ArrowRightIcon aria-hidden="true" className="size-[18px] shrink-0" />
+        <ArrowRightIcon
+          aria-hidden="true"
+          className="size-[18px] shrink-0 [@media_(min-width:2200px)]:size-5"
+        />
       </span>
     </a>
   );
