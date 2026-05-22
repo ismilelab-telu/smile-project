@@ -19,7 +19,7 @@ gsap.registerPlugin(useGSAP);
 type Mode = {
   title: string;
   status?: string;
-  statusTone: "emerald" | "sky" | "zinc";
+  statusTone: "emerald" | "sky" | "neutral";
   summary: string;
   href: string;
   actionLabel: string;
@@ -49,7 +49,7 @@ const modes: Mode[] = [
     href: "/algorithm-lab",
     icon: ChartBarSquareIcon,
     status: "Coming soon",
-    statusTone: "zinc",
+    statusTone: "neutral",
     summary: "Lab visual untuk membedah perilaku algoritma dan membandingkan tradeoff.",
     title: "Algorithm Lab",
   },
@@ -66,23 +66,23 @@ const menuLinks = [
 const iconToneClassName = {
   emerald: "bg-emerald-400/10 text-emerald-300 ring-emerald-400/20",
   sky: "bg-sky-400/10 text-sky-300 ring-sky-400/20",
-  zinc: "bg-zinc-800 text-zinc-300 ring-zinc-700",
+  neutral: "bg-neutral-800 text-neutral-300 ring-neutral-700",
 } satisfies Record<Mode["statusTone"], string>;
 
 export function ExplorePage() {
   return (
-    <main className="relative min-h-screen bg-zinc-950 text-zinc-50">
+    <main className="relative min-h-screen bg-neutral-950 text-neutral-50">
       <header className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-[clamp(1.5rem,3vw,2.5rem)] py-[clamp(1.5rem,3vw,2.5rem)] [@media_(min-width:2200px)]:px-14 [@media_(min-width:2200px)]:py-14">
         <a
           aria-label="Back to home"
-          className="inline-flex size-10 items-center justify-center rounded-lg bg-transparent text-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 [@media_(min-width:2200px)]:size-12"
+          className="inline-flex size-10 items-center justify-center rounded-lg bg-transparent text-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 [@media_(min-width:2200px)]:size-12"
           data-app-link
           href="/"
         >
           <ArrowLeftIcon aria-hidden="true" className="size-5 [@media_(min-width:2200px)]:size-6" />
         </a>
         <div className="flex items-center gap-3 [@media_(min-width:2200px)]:gap-4">
-          <p className="text-sm font-medium text-zinc-400 [@media_(min-width:2200px)]:text-base">
+          <p className="text-sm font-medium text-neutral-400 [@media_(min-width:2200px)]:text-base">
             Smile Project
           </p>
           <ExploreMenu />
@@ -364,7 +364,7 @@ function ExploreMenu() {
         aria-expanded={isOpen}
         aria-label={isOpen ? "Close menu" : "Open menu"}
         className={`relative z-50 inline-flex size-10 cursor-pointer items-center justify-center rounded-lg bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 [@media_(min-width:2200px)]:size-12 ${
-          isOpen ? "text-zinc-950" : "text-zinc-100"
+          isOpen ? "text-neutral-950" : "text-neutral-100"
         }`}
         onClick={() => setMenuOpen(!isOpen)}
         type="button"
@@ -395,7 +395,7 @@ function ExploreMenu() {
       >
         <button
           aria-label="Close menu"
-          className="absolute inset-0 bg-zinc-950/35 opacity-0 will-change-[opacity]"
+          className="absolute inset-0 bg-neutral-950/35 opacity-0 will-change-[opacity]"
           data-explore-menu-backdrop
           onClick={() => setMenuOpen(false)}
           type="button"
@@ -403,7 +403,7 @@ function ExploreMenu() {
 
         <nav
           aria-label="Explore menu"
-          className="relative z-10 flex min-h-[420px] w-[min(700px,calc(100vw_-_2rem))] flex-1 transform-gpu flex-col rounded-xl border-2 border-zinc-950 bg-white px-7 pt-16 pb-7 text-zinc-950 shadow-2xl will-change-transform [@media_(min-width:2200px)]:min-h-[520px] [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:px-9 [@media_(min-width:2200px)]:pt-20 [@media_(min-width:2200px)]:pb-9"
+          className="relative z-10 flex min-h-[420px] w-[min(700px,calc(100vw_-_2rem))] flex-1 transform-gpu flex-col rounded-xl border-2 border-neutral-950 bg-white px-7 pt-16 pb-7 text-neutral-950 shadow-2xl will-change-transform [@media_(min-width:2200px)]:min-h-[520px] [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:px-9 [@media_(min-width:2200px)]:pt-20 [@media_(min-width:2200px)]:pb-9"
           data-explore-menu-panel
         >
           <ul className="flex flex-1 list-none flex-col justify-center">
@@ -414,7 +414,7 @@ function ExploreMenu() {
                 key={link.href}
               >
                 <a
-                  className="block py-4 text-[clamp(1.7rem,4vw,2.15rem)] leading-[1.05] font-semibold tracking-normal text-zinc-950 transition-colors hover:text-emerald-400 [@media_(min-width:2200px)]:py-5 [@media_(min-width:2200px)]:text-[2.55rem]"
+                  className="block py-4 text-[clamp(1.7rem,4vw,2.15rem)] leading-[1.05] font-semibold tracking-normal text-neutral-950 transition-colors hover:text-emerald-400 [@media_(min-width:2200px)]:py-5 [@media_(min-width:2200px)]:text-[2.55rem]"
                   data-app-link
                   href={link.href}
                 >
@@ -428,14 +428,14 @@ function ExploreMenu() {
 
         <section
           aria-label="Learning Mode highlight"
-          className="relative z-10 flex min-h-36 w-[min(700px,calc(100vw_-_2rem))] transform-gpu flex-col justify-center rounded-xl border-2 border-emerald-700 bg-gradient-to-br from-emerald-500 via-emerald-300 to-sky-300 p-7 text-zinc-950 shadow-2xl will-change-transform [@media_(min-width:2200px)]:min-h-44 [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:p-9"
+          className="relative z-10 flex min-h-36 w-[min(700px,calc(100vw_-_2rem))] transform-gpu flex-col justify-center rounded-xl border-2 border-emerald-700 bg-gradient-to-br from-emerald-500 via-emerald-300 to-sky-300 p-7 text-neutral-950 shadow-2xl will-change-transform [@media_(min-width:2200px)]:min-h-44 [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:p-9"
           data-explore-menu-panel
         >
-          <p className="font-mono text-xs font-semibold tracking-[0.12em] text-zinc-700 uppercase [@media_(min-width:2200px)]:text-sm">
+          <p className="font-mono text-xs font-semibold tracking-[0.12em] text-neutral-700 uppercase [@media_(min-width:2200px)]:text-sm">
             What's new
           </p>
           <div className="mt-4 flex items-center gap-4 [@media_(min-width:2200px)]:mt-5 [@media_(min-width:2200px)]:gap-5">
-            <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-xl bg-zinc-950/10 text-zinc-950 [@media_(min-width:2200px)]:size-14">
+            <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-xl bg-neutral-950/10 text-neutral-950 [@media_(min-width:2200px)]:size-14">
               <SparklesIcon
                 aria-hidden="true"
                 className="size-6 [@media_(min-width:2200px)]:size-7"
@@ -445,13 +445,13 @@ function ExploreMenu() {
               <h2 className="text-xl leading-tight font-semibold tracking-normal [@media_(min-width:2200px)]:text-2xl">
                 Learning Mode
               </h2>
-              <p className="mt-1 text-sm leading-6 text-zinc-700 [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7">
+              <p className="mt-1 text-sm leading-6 text-neutral-700 [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7">
                 Mulai dari workflow ML dasar sampai evaluasi model.
               </p>
             </div>
           </div>
           <a
-            className="mt-5 inline-flex w-fit items-center gap-2 rounded-full bg-zinc-950 px-4 py-2 font-mono text-xs font-semibold text-emerald-100 transition-colors hover:bg-zinc-800 [@media_(min-width:2200px)]:mt-6 [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-2.5 [@media_(min-width:2200px)]:text-sm"
+            className="mt-5 inline-flex w-fit items-center gap-2 rounded-full bg-neutral-950 px-4 py-2 font-mono text-xs font-semibold text-emerald-100 transition-colors hover:bg-neutral-800 [@media_(min-width:2200px)]:mt-6 [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-2.5 [@media_(min-width:2200px)]:text-sm"
             data-app-link
             href="/learn"
           >
@@ -464,7 +464,7 @@ function ExploreMenu() {
         </section>
 
         <div
-          className="relative z-10 flex h-28 w-[min(700px,calc(100vw_-_2rem))] transform-gpu items-center rounded-xl border-2 border-zinc-700 bg-zinc-950 px-7 text-zinc-400 shadow-2xl will-change-transform [@media_(min-width:2200px)]:h-36 [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:px-9"
+          className="relative z-10 flex h-28 w-[min(700px,calc(100vw_-_2rem))] transform-gpu items-center rounded-xl border-2 border-neutral-700 bg-neutral-950 px-7 text-neutral-400 shadow-2xl will-change-transform [@media_(min-width:2200px)]:h-36 [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:px-9"
           data-explore-menu-panel
         >
           <ul className="flex list-none flex-wrap gap-4 font-mono text-xs font-semibold [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:text-sm">
@@ -499,7 +499,7 @@ function ModeCard({ mode }: { mode: Mode }) {
 
   return (
     <a
-      className="group grid gap-5 rounded-xl border border-zinc-800 bg-zinc-900 p-5 shadow-[0_18px_54px_oklch(0%_0_0_/_0.26)] transition duration-200 hover:-translate-y-0.5 hover:border-zinc-700 hover:bg-zinc-900/92 hover:shadow-[0_22px_68px_oklch(0%_0_0_/_0.34)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-6 [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-7"
+      className="group grid gap-5 rounded-xl border border-neutral-800 bg-neutral-900 p-5 shadow-[0_18px_54px_oklch(0%_0_0_/_0.26)] transition duration-200 hover:-translate-y-0.5 hover:border-neutral-700 hover:bg-neutral-900/92 hover:shadow-[0_22px_68px_oklch(0%_0_0_/_0.34)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-6 [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-7"
       data-app-link
       href={mode.href}
     >
@@ -511,21 +511,21 @@ function ModeCard({ mode }: { mode: Mode }) {
 
       <span className="min-w-0">
         <span className="flex flex-wrap items-center gap-2">
-          <span className="text-xl font-semibold tracking-normal text-zinc-50 [@media_(min-width:2200px)]:text-2xl">
+          <span className="text-xl font-semibold tracking-normal text-neutral-50 [@media_(min-width:2200px)]:text-2xl">
             {mode.title}
           </span>
           {mode.status ? (
-            <span className="text-xs font-semibold text-zinc-500 [@media_(min-width:2200px)]:text-sm">
+            <span className="text-xs font-semibold text-neutral-500 [@media_(min-width:2200px)]:text-sm">
               {mode.status}
             </span>
           ) : null}
         </span>
-        <span className="mt-2 block max-w-2xl text-sm leading-6 text-zinc-400 [@media_(min-width:2200px)]:max-w-3xl [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7">
+        <span className="mt-2 block max-w-2xl text-sm leading-6 text-neutral-400 [@media_(min-width:2200px)]:max-w-3xl [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7">
           {mode.summary}
         </span>
       </span>
 
-      <span className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-100 transition-colors group-hover:text-emerald-400 [@media_(min-width:2200px)]:text-base">
+      <span className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-100 transition-colors group-hover:text-emerald-400 [@media_(min-width:2200px)]:text-base">
         {mode.actionLabel}
         <ArrowRightIcon
           aria-hidden="true"

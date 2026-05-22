@@ -124,7 +124,7 @@ export function App() {
       </Suspense>
       <div
         aria-hidden="true"
-        className={`pointer-events-none fixed inset-0 z-[3000] bg-zinc-950 transition-opacity duration-300 ease-out ${
+        className={`pointer-events-none fixed inset-0 z-[3000] bg-neutral-950 transition-opacity duration-300 ease-out ${
           transitionOverlay === "covering" ? "opacity-100" : "opacity-0"
         }`}
       />

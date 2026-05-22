@@ -44,60 +44,60 @@ const blackBoxCodeSegments = [
   ],
   [],
   [
-    { className: "text-zinc-100", text: "X_train" },
-    { className: "text-zinc-500", text: ", " },
-    { className: "text-zinc-100", text: "X_test" },
-    { className: "text-zinc-500", text: ", " },
-    { className: "text-zinc-100", text: "y_train" },
-    { className: "text-zinc-500", text: ", " },
-    { className: "text-zinc-100", text: "y_test" },
+    { className: "text-neutral-100", text: "X_train" },
+    { className: "text-neutral-500", text: ", " },
+    { className: "text-neutral-100", text: "X_test" },
+    { className: "text-neutral-500", text: ", " },
+    { className: "text-neutral-100", text: "y_train" },
+    { className: "text-neutral-500", text: ", " },
+    { className: "text-neutral-100", text: "y_test" },
     { text: " " },
     { className: "text-fuchsia-300", text: "=" },
     { text: " " },
     { className: "text-emerald-300", text: "train_test_split" },
-    { className: "text-zinc-500", text: "(" },
-    { className: "text-zinc-100", text: "X" },
-    { className: "text-zinc-500", text: ", " },
-    { className: "text-zinc-100", text: "y" },
-    { className: "text-zinc-500", text: ")" },
+    { className: "text-neutral-500", text: "(" },
+    { className: "text-neutral-100", text: "X" },
+    { className: "text-neutral-500", text: ", " },
+    { className: "text-neutral-100", text: "y" },
+    { className: "text-neutral-500", text: ")" },
   ],
   [],
   [
-    { className: "text-zinc-100", text: "model" },
+    { className: "text-neutral-100", text: "model" },
     { text: " " },
     { className: "text-fuchsia-300", text: "=" },
     { text: " " },
     { className: "text-emerald-300", text: "LinearRegression" },
-    { className: "text-zinc-500", text: "()" },
+    { className: "text-neutral-500", text: "()" },
   ],
   [
-    { className: "text-zinc-100", text: "model" },
-    { className: "text-zinc-500", text: "." },
+    { className: "text-neutral-100", text: "model" },
+    { className: "text-neutral-500", text: "." },
     { className: "text-amber-300", text: "fit" },
-    { className: "text-zinc-500", text: "(" },
-    { className: "text-zinc-100", text: "X_train" },
-    { className: "text-zinc-500", text: ", " },
-    { className: "text-zinc-100", text: "y_train" },
-    { className: "text-zinc-500", text: ")" },
+    { className: "text-neutral-500", text: "(" },
+    { className: "text-neutral-100", text: "X_train" },
+    { className: "text-neutral-500", text: ", " },
+    { className: "text-neutral-100", text: "y_train" },
+    { className: "text-neutral-500", text: ")" },
   ],
   [],
   [
-    { className: "text-zinc-100", text: "model" },
-    { className: "text-zinc-500", text: "." },
+    { className: "text-neutral-100", text: "model" },
+    { className: "text-neutral-500", text: "." },
     { className: "text-amber-300", text: "coef_" },
   ],
   [
-    { className: "text-zinc-100", text: "model" },
-    { className: "text-zinc-500", text: "." },
+    { className: "text-neutral-100", text: "model" },
+    { className: "text-neutral-500", text: "." },
     { className: "text-amber-300", text: "intercept_" },
   ],
   [
-    { className: "text-zinc-100", text: "model" },
-    { className: "text-zinc-500", text: "." },
+    { className: "text-neutral-100", text: "model" },
+    { className: "text-neutral-500", text: "." },
     { className: "text-amber-300", text: "predict" },
-    { className: "text-zinc-500", text: "(" },
-    { className: "text-zinc-100", text: "X_test" },
-    { className: "text-zinc-500", text: ")" },
+    { className: "text-neutral-500", text: "(" },
+    { className: "text-neutral-100", text: "X_test" },
+    { className: "text-neutral-500", text: ")" },
   ],
 ] as const;
 const blackBoxCodeLines = blackBoxCodeSegments.map((line) =>
@@ -2503,19 +2503,19 @@ function LandingExperience() {
       </main>
 
       <section
-        className="relative bg-zinc-50 px-6 text-zinc-950"
+        className="relative bg-neutral-50 px-6 text-neutral-950"
         aria-label="Interactive ML Playground introduction"
         ref={storySequenceRef}
       >
         <div className="relative -mx-6 w-[calc(100%+3rem)]" data-landing-slides-region>
           <div
             aria-hidden="true"
-            className="pointer-events-none sticky top-0 z-50 h-16 bg-zinc-50"
+            className="pointer-events-none sticky top-0 z-50 h-16 bg-neutral-50"
             data-landing-slides-header
           />
           <section
             aria-label="Introducing Interactive ML Playground. ML can look simple from the outside. But the logic stays inside a black box. So we unpack every step."
-            className="relative z-20 h-[1240svh] w-full bg-transparent text-zinc-950"
+            className="relative z-20 h-[1240svh] w-full bg-transparent text-neutral-950"
             data-blackbox-story-section
           >
             <div
@@ -2523,12 +2523,12 @@ function LandingExperience() {
               data-blackbox-story-stage
             >
               <div
-                className="absolute inset-0 z-0 flex items-stretch justify-center overflow-hidden rounded-t-md bg-zinc-50"
+                className="absolute inset-0 z-0 flex items-stretch justify-center overflow-hidden rounded-t-md bg-neutral-50"
                 data-landing-intro-panel
               >
                 <article
                   aria-labelledby="landing-intro-title"
-                  className="relative h-full w-full overflow-hidden rounded-t-2xl border-t border-zinc-50 bg-zinc-200"
+                  className="relative h-full w-full overflow-hidden rounded-t-2xl border-t border-neutral-50 bg-neutral-200"
                   data-landing-intro-card
                 >
                   <h2
@@ -2538,14 +2538,14 @@ function LandingExperience() {
                   >
                     <span
                       aria-hidden="true"
-                      className="absolute inset-x-0 top-1/2 block text-[clamp(5rem,min(11vw,16svh),11.5rem)] leading-[0.82] font-normal tracking-normal text-zinc-950 will-change-transform"
+                      className="absolute inset-x-0 top-1/2 block text-[clamp(5rem,min(11vw,16svh),11.5rem)] leading-[0.82] font-normal tracking-normal text-neutral-950 will-change-transform"
                       data-landing-intro-eyebrow
                     >
                       {introEyebrow}
                     </span>
                     <span
                       aria-hidden="true"
-                      className="absolute inset-x-0 top-1/2 block text-[clamp(3.4rem,min(6.8vw,10svh),7rem)] leading-[0.88] font-medium tracking-normal text-zinc-950 opacity-0 will-change-[transform,opacity]"
+                      className="absolute inset-x-0 top-1/2 block text-[clamp(3.4rem,min(6.8vw,10svh),7rem)] leading-[0.88] font-medium tracking-normal text-neutral-950 opacity-0 will-change-[transform,opacity]"
                       data-landing-intro-title
                     >
                       {introTitle}
@@ -2553,7 +2553,7 @@ function LandingExperience() {
                   </h2>
 
                   <p
-                    className="absolute inset-x-12 top-[39%] z-10 mx-auto max-w-4xl text-center text-[clamp(1.1rem,min(1.65vw,2.5svh),1.45rem)] leading-[1.5] font-normal text-zinc-600 opacity-0 will-change-[transform,opacity]"
+                    className="absolute inset-x-12 top-[39%] z-10 mx-auto max-w-4xl text-center text-[clamp(1.1rem,min(1.65vw,2.5svh),1.45rem)] leading-[1.5] font-normal text-neutral-600 opacity-0 will-change-[transform,opacity]"
                     data-landing-intro-subtitle
                   >
                     {introSubtitleCopy}
@@ -2564,23 +2564,23 @@ function LandingExperience() {
                     className="pointer-events-none absolute left-1/2 top-[55%] z-10 aspect-[170/95] w-[min(28vw,680px)] -translate-x-1/2 opacity-0 will-change-[opacity]"
                     data-landing-intro-chart
                   >
-                    <LandingIntroAxes className="absolute inset-0 z-0 h-full w-full overflow-visible text-zinc-700" />
+                    <LandingIntroAxes className="absolute inset-0 z-0 h-full w-full overflow-visible text-neutral-700" />
                     <LandingIntroRegressionLine className="absolute inset-0 z-20 h-full w-full overflow-visible text-[#2575F2]" />
                     <LandingIntroDots
                       className="relative z-10 h-full w-full overflow-visible text-[#05C68E]"
                       data-landing-intro-dots
                     />
-                    <LandingIntroHands className="absolute inset-0 z-40 h-full w-full overflow-visible text-zinc-950" />
+                    <LandingIntroHands className="absolute inset-0 z-40 h-full w-full overflow-visible text-neutral-950" />
                   </figure>
                 </article>
               </div>
               <section
                 aria-hidden="true"
-                className="absolute inset-0 z-10 flex items-start justify-center rounded-t-2xl bg-zinc-500 px-4 pt-[9svh] text-center"
+                className="absolute inset-0 z-10 flex items-start justify-center rounded-t-2xl bg-neutral-500 px-4 pt-[9svh] text-center"
                 data-blackbox-card="simple"
               >
                 <h2
-                  className="text-[clamp(2.8rem,min(7.1vw,13svh),10rem)] leading-[0.92] font-semibold tracking-normal text-zinc-50"
+                  className="text-[clamp(2.8rem,min(7.1vw,13svh),10rem)] leading-[0.92] font-semibold tracking-normal text-neutral-50"
                   data-blackbox-headline="call"
                 >
                   <span className="block whitespace-nowrap">ML can look simple</span>
@@ -2594,12 +2594,12 @@ function LandingExperience() {
                 data-blackbox-card="open"
               >
                 <h2
-                  className="text-[clamp(2.6rem,min(7vw,13svh),10rem)] leading-[0.94] font-semibold tracking-normal text-zinc-50"
+                  className="text-[clamp(2.6rem,min(7vw,13svh),10rem)] leading-[0.94] font-semibold tracking-normal text-neutral-50"
                   data-blackbox-headline="hidden"
                 >
                   <span className="block whitespace-nowrap">But the logic stays</span>
                   <span className="block whitespace-nowrap">
-                    inside a <span className="text-zinc-950">black box.</span>
+                    inside a <span className="text-neutral-950">black box.</span>
                   </span>
                 </h2>
               </section>
@@ -2610,26 +2610,26 @@ function LandingExperience() {
                 data-blackbox-card="unpack"
               >
                 <h2
-                  className="text-[clamp(2.8rem,min(7.2vw,13.2svh),10.2rem)] leading-[0.94] font-semibold tracking-normal text-zinc-950"
+                  className="text-[clamp(2.8rem,min(7.2vw,13.2svh),10.2rem)] leading-[0.94] font-semibold tracking-normal text-neutral-950"
                   data-blackbox-headline="unpack"
                 >
                   <span className="block whitespace-nowrap">So we unpack</span>
-                  <span className="block whitespace-nowrap text-zinc-50">every step.</span>
+                  <span className="block whitespace-nowrap text-neutral-50">every step.</span>
                 </h2>
               </section>
               <div
-                className="pointer-events-none absolute top-[61%] left-1/2 z-50 h-[min(56svh,660px)] w-[min(90vw,1500px)] overflow-hidden border bg-zinc-900 text-zinc-50"
+                className="pointer-events-none absolute top-[61%] left-1/2 z-50 h-[min(56svh,660px)] w-[min(90vw,1500px)] overflow-hidden border bg-neutral-900 text-neutral-50"
                 data-blackbox-visual
               >
                 <div className="absolute inset-0 flex flex-col" data-blackbox-editor-shell>
-                  <div className="flex h-[clamp(2.75rem,min(4vw,5.4svh),3.65rem)] shrink-0 items-center gap-[clamp(0.5rem,0.7vw,0.75rem)] border-b border-zinc-600/70 bg-zinc-800 px-[clamp(1rem,1.5vw,1.75rem)]">
+                  <div className="flex h-[clamp(2.75rem,min(4vw,5.4svh),3.65rem)] shrink-0 items-center gap-[clamp(0.5rem,0.7vw,0.75rem)] border-b border-neutral-600/70 bg-neutral-800 px-[clamp(1rem,1.5vw,1.75rem)]">
                     <span className="size-[clamp(0.75rem,0.95vw,1rem)] rounded-full bg-red-400" />
                     <span className="size-[clamp(0.75rem,0.95vw,1rem)] rounded-full bg-yellow-300" />
                     <span className="size-[clamp(0.75rem,0.95vw,1rem)] rounded-full bg-emerald-400" />
                   </div>
                   <pre
                     aria-label={blackBoxCodeLines.join("\n")}
-                    className="min-h-0 flex-1 overflow-hidden p-5 font-mono text-[clamp(0.9rem,calc(0.42rem+1.2svh),1.5rem)] leading-[1.58] whitespace-pre text-zinc-100 sm:p-7"
+                    className="min-h-0 flex-1 overflow-hidden p-5 font-mono text-[clamp(0.9rem,calc(0.42rem+1.2svh),1.5rem)] leading-[1.58] whitespace-pre text-neutral-100 sm:p-7"
                   >
                     {blackBoxCodeSegments.map((line, lineIndex) => (
                       <code
@@ -2670,7 +2670,7 @@ function LandingExperience() {
 
               <section
                 aria-labelledby="understand-process-title"
-                className="absolute inset-0 z-[60] flex items-center justify-center overflow-hidden rounded-t-2xl bg-zinc-50 px-6 text-zinc-950"
+                className="absolute inset-0 z-[60] flex items-center justify-center overflow-hidden rounded-t-2xl bg-neutral-50 px-6 text-neutral-950"
                 data-understand-slide
               >
                 <h2
@@ -2688,11 +2688,11 @@ function LandingExperience() {
         </div>
 
         <div
-          className="relative z-30 -mx-6 h-[320svh] w-[calc(100%+3rem)] bg-zinc-50"
+          className="relative z-30 -mx-6 h-[320svh] w-[calc(100%+3rem)] bg-neutral-50"
           data-teaching-story-section
         >
           <div
-            className="sticky top-0 flex h-[100svh] items-center justify-center overflow-hidden bg-zinc-50 px-6 py-20 sm:py-24 lg:py-28"
+            className="sticky top-0 flex h-[100svh] items-center justify-center overflow-hidden bg-neutral-50 px-6 py-20 sm:py-24 lg:py-28"
             data-teaching-story-stage
           >
             <svg
@@ -2778,7 +2778,7 @@ function LandingExperience() {
         </div>
 
         <div
-          className="relative -mx-6 h-[560svh] w-[calc(100%+3rem)] bg-zinc-950"
+          className="relative -mx-6 h-[560svh] w-[calc(100%+3rem)] bg-neutral-950"
           data-final-love-story-section
         >
           <div
@@ -2787,7 +2787,7 @@ function LandingExperience() {
             data-love-scroll-section
           />
           <div
-            className="pointer-events-none sticky top-0 z-[1400] flex h-[100svh] items-center justify-center overflow-hidden px-6 py-20 text-zinc-50 sm:py-24 lg:py-28"
+            className="pointer-events-none sticky top-0 z-[1400] flex h-[100svh] items-center justify-center overflow-hidden px-6 py-20 text-neutral-50 sm:py-24 lg:py-28"
             data-final-love-story-stage
           >
             <h2
@@ -2875,7 +2875,7 @@ function LandingExperience() {
 
         <section
           aria-labelledby="horizontal-quote-title"
-          className="relative -mx-6 flex h-[100svh] w-[calc(100%+3rem)] items-center overflow-hidden bg-zinc-50 text-zinc-950"
+          className="relative -mx-6 flex h-[100svh] w-[calc(100%+3rem)] items-center overflow-hidden bg-neutral-50 text-neutral-950"
           data-horizontal-quote-section
           data-navigation-menu-hide-zone
           ref={horizontalQuoteSectionRef}

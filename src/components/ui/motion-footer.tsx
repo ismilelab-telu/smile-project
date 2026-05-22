@@ -307,7 +307,7 @@ export function CinematicFooter() {
 
           <div className="pointer-events-none absolute inset-x-0 -top-6 z-10 opacity-55">
             <CurvedLoop
-              className="fill-zinc-500"
+              className="fill-neutral-500"
               curveAmount={160}
               direction="left"
               interactive={false}

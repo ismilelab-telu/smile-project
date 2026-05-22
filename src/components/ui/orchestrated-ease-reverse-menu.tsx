@@ -1014,7 +1014,7 @@ export function OrchestratedEaseReverseMenu() {
                 ? "Close navigation menu"
                 : "Open navigation menu"
           }
-          className={`absolute top-1/2 right-2 z-10 flex size-[34px] -translate-y-1/2 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 ${isLoveMenuDisabled || isFooterMenuHidden ? "cursor-default" : "cursor-pointer"}`}
+          className={`absolute top-1/2 right-2 z-10 flex size-[34px] -translate-y-1/2 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-950 ${isLoveMenuDisabled || isFooterMenuHidden ? "cursor-default" : "cursor-pointer"}`}
           disabled={isLoveMenuDisabled || isFooterMenuHidden}
           onClick={handleMenuButtonClick}
           ref={menuButtonRef}
@@ -1092,7 +1092,7 @@ export function OrchestratedEaseReverseMenu() {
               {menuItems.map((item, index) => (
                 <a
                   aria-label={`${item.label} ${item.number}`}
-                  className="group flex items-center justify-between px-4 py-[13px] text-base leading-none font-normal text-zinc-800 outline-none transition-colors first:rounded-t-[10px] last:rounded-b-[10px] hover:text-emerald-500 focus-visible:bg-zinc-100 focus-visible:text-emerald-500 [&+&]:border-t [&+&]:border-zinc-200"
+                  className="group flex items-center justify-between px-4 py-[13px] text-base leading-none font-normal text-neutral-800 outline-none transition-colors first:rounded-t-[10px] last:rounded-b-[10px] hover:text-emerald-500 focus-visible:bg-neutral-100 focus-visible:text-emerald-500 [&+&]:border-t [&+&]:border-neutral-200"
                   data-app-link
                   data-orchestrated-focusable
                   href={item.href}
@@ -1105,7 +1105,7 @@ export function OrchestratedEaseReverseMenu() {
                   <span className="relative after:pointer-events-none after:absolute after:right-0 after:-bottom-1 after:left-0 after:h-px after:origin-left after:scale-x-0 after:bg-emerald-500 after:transition-transform after:duration-200 after:ease-out group-hover:after:scale-x-100 group-focus-visible:after:scale-x-100">
                     {item.label}
                   </span>
-                  <span className="relative text-[0.7rem] text-zinc-400 transition-colors after:pointer-events-none after:absolute after:right-0 after:-bottom-1 after:left-0 after:h-px after:origin-left after:scale-x-0 after:bg-emerald-500 after:transition-transform after:duration-200 after:ease-out group-hover:text-zinc-500 group-hover:after:scale-x-100 group-focus-visible:text-zinc-500 group-focus-visible:after:scale-x-100">
+                  <span className="relative text-[0.7rem] text-neutral-400 transition-colors after:pointer-events-none after:absolute after:right-0 after:-bottom-1 after:left-0 after:h-px after:origin-left after:scale-x-0 after:bg-emerald-500 after:transition-transform after:duration-200 after:ease-out group-hover:text-neutral-500 group-hover:after:scale-x-100 group-focus-visible:text-neutral-500 group-focus-visible:after:scale-x-100">
                     {item.number}
                   </span>
                 </a>

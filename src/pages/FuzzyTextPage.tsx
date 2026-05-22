@@ -15,7 +15,7 @@ export function FuzzyTextPage({ path = "/" }: FuzzyTextPageProps) {
     : { href: "/", label: "Home" };
 
   return (
-    <main className="relative flex min-h-screen overflow-hidden bg-zinc-50 text-black">
+    <main className="relative flex min-h-screen overflow-hidden bg-neutral-50 text-black">
       <section className="relative z-10 mx-auto flex min-h-screen w-[min(1120px,calc(100%_-_32px))] flex-col items-center justify-center gap-5 px-4 py-24 text-center">
         <h1 className="sr-only">{notFoundText}</h1>
         <FuzzyText
