@@ -1,18 +1,16 @@
 ---
 name: git-commit
-description: Create clean, conventional commits without pushing. Use when the user asks to "commit", wants a generated commit message, wants add-all staging, or wants commits split logically based on git diff analysis.
+description: Create clean conventional commits without pushing. Use when asked to commit, generate a commit message, stage changes, or split commits from a diff.
 ---
 
 # Git Commit
 
-## Overview
-
-Inspect the working tree, choose a staging strategy (add all vs split by diff), run required validation commands, and create conventional commits. Do not push.
+Inspect the working tree, stage coherent changes, run required validation, and create
+conventional commits. Do not push.
 
 ## Quick Workflow
 
-1. Confirm repository state.
-   Run:
+1. Inspect repository state before staging:
 
 ```bash
 git status --porcelain
@@ -20,151 +18,92 @@ git diff --stat
 git diff
 ```
 
-Optional helper:
+Optional summary helper:
 
 ```bash
 .agents/skills/git-commit/scripts/diff-summary.sh
 ```
 
-2. Choose a staging strategy from the diff.
-   Pick the narrowest staging approach that keeps each commit to a single “why”.
+2. Choose a staging strategy from the diff. Keep each commit to one intent.
 
-Decision guide:
+- Use `git add -A` when everything is one coherent concern.
+- Use `git add <paths>` when concerns are separated by file or folder.
+- Use `git add -p` when concerns are mixed inside the same file.
 
-- Use **add-all** when everything is one coherent concern (a single feature/fix/refactor) and the commit message won’t need “and”.
-- Use **add by paths** when the changes are multiple concerns but cleanly separated by files/folders.
-- Use **add interactively (`-p`)** when different concerns are mixed within the same file (common with formatting + logic, refactor + fix, etc.).
-
-3. Stage changes.
-
-Add-all strategy:
+Stage and verify:
 
 ```bash
 git add -A
-```
-
-Split-by-path strategy (repeat per logical commit):
-
-```bash
-git add <paths>
+# or: git add <paths>
+# or: git add -p
 git diff --cached
 ```
 
-Split-by-hunk strategy (repeat per logical commit):
-
-```bash
-git add -p
-# or: git add -p <path>
-git diff --cached
-```
-
-If you staged too much:
+If staged too much:
 
 ```bash
 git restore --staged <paths>
 ```
 
-4. Run required validation before each commit.
-   Always follow repository-level agent instructions first (for example `AGENTS.md`) and run the required validator command.
-   If the repository exposes a canonical validation command such as `vp check`, prefer that command first.
-   If the repository routes tooling through a wrapper CLI, prefer that CLI directly over package-script wrappers and raw upstream commands. For example, use `vp check` or `vp test run` when VitePlus is the canonical toolchain.
-   If repo instructions and package scripts appear to conflict, treat raw tool commands in docs as potentially stale and verify the canonical command entrypoint before committing.
-   Default when no repo-specific override exists:
+3. Run validation before each commit.
+
+- Follow repository-level instructions first, especially `AGENTS.md`.
+- Prefer the repo's canonical tooling over package scripts or raw upstream tools.
+- For VitePlus repos, use direct `vp` commands such as `vp check`, `vp lint <files>`,
+  and `vp test run` when relevant.
+- If repo docs and scripts conflict, treat scripts as stale until the canonical entrypoint
+  is verified.
+- Use staged paths where practical; broaden validation when staged changes cross contracts.
+- Skip validation for docs-only, comments-only, whitespace-only, and low-risk visual-only
+  tweaks, then say why in the final response.
+
+Default when the repo has no validation guidance:
 
 ```bash
 npx oxlint <paths> --fix && npx tsc -b --noEmit
 ```
 
-Use the staged paths where practical. If the staged set is large or mixed, use broader paths that cover the staged files.
-
-5. Commit with a conventional commit message.
-   Use:
+4. Commit with a conventional message:
 
 ```bash
 git commit -m "type(scope): subject"
 ```
 
-For multiline messages (subject + body), prefer a heredoc so the body stays readable and compact:
+For non-trivial diffs, migrations, flags, or follow-ups, use a compact body:
 
 ```bash
 git commit -F - <<'EOF'
 type(scope): subject
 
-Why (intent/context)
-What changed (high-level)
-Notes (migrations, flags, follow-ups)
+Why: intent or constraint.
+What: high-level change.
+Notes: migrations, flags, or follow-ups if any.
 EOF
 ```
 
-For longer bodies, prefer the editor:
+If the body hits commitlint line-length limits, wrap it into multiple short `Why:`,
+`What:`, or `Notes:` lines.
 
-```bash
-git commit
-```
-
-## Multiline Commit Message Guidance
-
-Default to a body when the diff is non-trivial, when intent is not obvious, or when follow-up actions are required.
-
-Keep the body short and outcome-focused:
-
-- Start with why, not how.
-- Call out important side effects or constraints.
-- Mention migrations, flags, or manual steps when relevant.
-- Wrap each body line to satisfy commitlint limits (commonly `body-max-line-length: 100`).
-- If a line is too long, split it into additional `What:` / `Notes:` lines instead of cramming details.
-
-Recommended body shape (2–6 short lines):
-
-- Why: user/business intent, bug cause, or constraint
-- What: key changes at a high level
-- Notes: migrations, flags, follow-ups (if any)
-
-Example:
-
-```bash
-git commit -F - <<'EOF'
-feat(auth): enforce session timeout
-
-Why: invalidate sessions after 30m inactivity to meet compliance requirements.
-What: enforce timeout server-side and surface expiration to clients.
-EOF
-```
-
-If commitlint fails with a body line-length error, re-run commit with wrapped lines, for example:
-
-```bash
-git commit -F - <<'EOF'
-chore(tooling): upgrade vite and react plugin beta
-
-Why: align build tooling with Vite 8 beta and avoid no-test run failures.
-What: replace rolldown-vite alias with vite@8.0.0-beta.16.
-What: switch to @vitejs/plugin-react@6.0.0-beta.0 and refresh lockfile.
-EOF
-```
-
-## Commit Strategy Guidance
+## Commit Strategy
 
 Prefer the smallest number of commits that preserves clarity.
 
-Signals to split:
+Split when:
 
 - Multiple top-level areas changed with different intent.
-- Mixed change types (e.g., `feat` + `fix` + `refactor`).
-- A commit message would need "and".
+- Mixed change types appear, such as `feat` plus `fix`.
+- The message would need "and".
 
-Practical split patterns:
+Common split patterns:
 
-- By concern: feature, bugfix, refactor, docs, tests.
-- By area: backend vs frontend, or by module/directory.
+- By concern: feature, fix, refactor, docs, tests.
+- By area: frontend, backend, module, or folder.
 
-## Conventional Commit Heuristics
+## Message Rules
 
-Choose the narrowest correct type:
-
-- `feat`: new behavior or user-visible capability
+- `feat`: new user-visible behavior
 - `fix`: bug fix or behavior correction
-- `refactor`: internal change without behavior change
+- `refactor`: internal code change without behavior change
 - `docs`: documentation only
 - `test`: tests only
 - `chore`: tooling, config, maintenance
@@ -172,12 +111,12 @@ Choose the narrowest correct type:
 Scope:
 
 - Derive from the most relevant top-level folder or bounded module.
-- Keep it short and stable (e.g., `auth`, `orders`, `ui`, `api`).
+- Keep it short and stable, for example `auth`, `orders`, `ui`, or `api`.
 
 Subject:
 
 - Imperative mood, lowercase, no trailing period.
-- Describe outcome, not implementation detail.
+- Describe outcome rather than implementation detail.
 
 Examples:
 
@@ -187,14 +126,9 @@ Examples:
 
 ## Safety Rules
 
-Do:
-
 - Inspect diffs before staging and before committing.
 - Use `git diff --cached` to verify the staged set.
 - Create multiple commits when it increases clarity.
 - Stop after commit. Do not push.
-
-Do not:
-
-- Use destructive git commands (e.g., `git reset --hard`).
 - Rewrite history unless explicitly asked.
+- Do not use destructive commands such as `git reset --hard`.
