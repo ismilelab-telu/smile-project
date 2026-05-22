@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 
 type DottedSurfaceProps = Omit<ComponentProps<"div">, "ref">;
 
+const globalWaveStartTime = typeof performance === "undefined" ? 0 : performance.now();
+
 function canUseWebGL() {
   try {
     const canvas = document.createElement("canvas");
@@ -128,14 +130,34 @@ export function DottedSurface({ className, children, ...props }: DottedSurfacePr
         renderer.setSize(nextWidth, nextHeight, false);
       };
 
-      const resizeObserver = new ResizeObserver(() => {
-        updateSize();
-        renderer.render(scene, camera);
-      });
       let isPageVisible = document.visibilityState === "visible";
       let isSurfaceVisible = true;
       let animationId = 0;
-      let count = 0;
+
+      const renderWaveFrame = () => {
+        const positionAttribute = geometry.attributes.position;
+        const animatedPositions = positionAttribute.array as Float32Array;
+        const elapsedSeconds =
+          typeof performance === "undefined" ? 0 : (performance.now() - globalWaveStartTime) / 1000;
+        const wavePhase = elapsedSeconds * 6;
+        let index = 0;
+
+        for (let ix = 0; ix < amountX; ix++) {
+          for (let iy = 0; iy < amountY; iy++) {
+            animatedPositions[index * 3 + 1] =
+              Math.sin((ix + wavePhase) * 0.3) * 50 + Math.sin((iy + wavePhase) * 0.5) * 50;
+            index++;
+          }
+        }
+
+        positionAttribute.needsUpdate = true;
+        renderer.render(scene, camera);
+      };
+
+      const resizeObserver = new ResizeObserver(() => {
+        updateSize();
+        renderWaveFrame();
+      });
 
       const animate = () => {
         animationId = 0;
@@ -144,21 +166,7 @@ export function DottedSurface({ className, children, ...props }: DottedSurfacePr
           return;
         }
 
-        const positionAttribute = geometry.attributes.position;
-        const animatedPositions = positionAttribute.array as Float32Array;
-        let index = 0;
-
-        for (let ix = 0; ix < amountX; ix++) {
-          for (let iy = 0; iy < amountY; iy++) {
-            animatedPositions[index * 3 + 1] =
-              Math.sin((ix + count) * 0.3) * 50 + Math.sin((iy + count) * 0.5) * 50;
-            index++;
-          }
-        }
-
-        positionAttribute.needsUpdate = true;
-        renderer.render(scene, camera);
-        count += 0.1;
+        renderWaveFrame();
         animationId = window.requestAnimationFrame(animate);
       };
 
@@ -205,7 +213,7 @@ export function DottedSurface({ className, children, ...props }: DottedSurfacePr
       visibilityObserver?.observe(container);
       document.addEventListener("visibilitychange", handleDocumentVisibility);
       updateSize();
-      renderer.render(scene, camera);
+      renderWaveFrame();
       startAnimation();
 
       cleanup = () => {

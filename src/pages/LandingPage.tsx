@@ -131,6 +131,21 @@ const introExitScrollUnits = 1;
 const firstSlideEntryViewportStart = 0.58;
 const stackPrimaryZoomScale = 0.775;
 const stackSecondaryZoomScale = 0.825;
+const landingTitleClassName =
+  "max-w-full whitespace-nowrap text-[clamp(2.8rem,min(10vw,13svh),8.6rem)] leading-[0.9] tracking-normal text-foreground font-semibold";
+const landingSubtitleClassName =
+  "mt-6 max-w-2xl text-[clamp(1rem,min(2vw,2.4svh),1.3rem)] leading-[1.65] text-muted-foreground";
+const landingSubtitleText =
+  "Make sense of machine learning by interacting with models instead of just reading about them.";
+
+type LandingPageProps = {
+  onRendered?: () => void;
+  skipIntroAnimation?: boolean;
+};
+
+type LandingExperienceProps = {
+  skipIntroAnimation?: boolean;
+};
 
 function useIsCompactViewport() {
   const [isCompactViewport, setIsCompactViewport] = useState(() => {
@@ -162,10 +177,18 @@ function useIsCompactViewport() {
   return isCompactViewport;
 }
 
-export function LandingPage() {
+export function LandingPage({ onRendered, skipIntroAnimation = false }: LandingPageProps) {
   const isCompactViewport = useIsCompactViewport();
 
-  return isCompactViewport ? <DesktopOnlyNotice /> : <LandingExperience />;
+  useEffect(() => {
+    onRendered?.();
+  }, [onRendered]);
+
+  return isCompactViewport ? (
+    <DesktopOnlyNotice />
+  ) : (
+    <LandingExperience skipIntroAnimation={skipIntroAnimation} />
+  );
 }
 
 function DesktopOnlyNotice() {
@@ -189,7 +212,7 @@ function DesktopOnlyNotice() {
   );
 }
 
-function LandingExperience() {
+function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProps) {
   const landingRef = useRef<HTMLElement>(null);
   const storySequenceRef = useRef<HTMLElement>(null);
   const horizontalQuoteSectionRef = useRef<HTMLElement>(null);
@@ -199,8 +222,9 @@ function LandingExperience() {
   const exploreZoneRef = useRef<HTMLDivElement>(null);
   const exploreButtonRef = useRef<HTMLAnchorElement>(null);
   const exploreLabelRef = useRef<HTMLSpanElement>(null);
-  const [canStartDescriptionAnimation, setCanStartDescriptionAnimation] = useState(false);
-  const [canRevealHeroAction, setCanRevealHeroAction] = useState(false);
+  const [canStartDescriptionAnimation, setCanStartDescriptionAnimation] =
+    useState(skipIntroAnimation);
+  const [canRevealHeroAction, setCanRevealHeroAction] = useState(skipIntroAnimation);
   const startDescriptionAnimation = useCallback(() => {
     setCanStartDescriptionAnimation(true);
   }, []);
@@ -2413,40 +2437,55 @@ function LandingExperience() {
           data-landing-scroll-content
         >
           <div className="flex flex-col items-center">
-            <SplitText
-              className="max-w-full whitespace-nowrap text-[clamp(2.8rem,min(10vw,13svh),8.6rem)] leading-[0.9] tracking-normal text-foreground font-semibold"
-              data-landing-scroll-title
-              delay={50}
-              duration={1.3}
-              ease="power3.out"
-              from={{ opacity: 0, y: 40 }}
-              id="landing-title"
-              onLetterAnimationHalfway={startDescriptionAnimation}
-              splitType="chars"
-              style={{ overflow: "visible", whiteSpace: "nowrap" }}
-              tag="h1"
-              text="Smile Project"
-              textAlign="center"
-              to={{ opacity: 1, y: 0 }}
-              triggerOnScroll={false}
-            />
-            <SplitText
-              animateTarget="lines"
-              className="mt-6 max-w-2xl text-[clamp(1rem,min(2vw,2.4svh),1.3rem)] leading-[1.65] text-muted-foreground"
-              delay={100}
-              duration={0.6}
-              ease="expo.out"
-              from={{ opacity: 0, yPercent: 100 }}
-              mask="lines"
-              onLetterAnimationHalfway={revealHeroAction}
-              splitType="words,lines"
-              startAnimation={canStartDescriptionAnimation}
-              tag="p"
-              text="Make sense of machine learning by interacting with models instead of just reading about them."
-              textAlign="center"
-              to={{ opacity: 1, yPercent: 0 }}
-              triggerOnScroll={false}
-            />
+            {skipIntroAnimation ? (
+              <h1
+                className={landingTitleClassName}
+                data-landing-scroll-title
+                id="landing-title"
+                style={{ overflow: "visible", whiteSpace: "nowrap" }}
+              >
+                Smile Project
+              </h1>
+            ) : (
+              <SplitText
+                className={landingTitleClassName}
+                data-landing-scroll-title
+                delay={50}
+                duration={1.3}
+                ease="power3.out"
+                from={{ opacity: 0, y: 40 }}
+                id="landing-title"
+                onLetterAnimationHalfway={startDescriptionAnimation}
+                splitType="chars"
+                style={{ overflow: "visible", whiteSpace: "nowrap" }}
+                tag="h1"
+                text="Smile Project"
+                textAlign="center"
+                to={{ opacity: 1, y: 0 }}
+                triggerOnScroll={false}
+              />
+            )}
+            {skipIntroAnimation ? (
+              <p className={landingSubtitleClassName}>{landingSubtitleText}</p>
+            ) : (
+              <SplitText
+                animateTarget="lines"
+                className={landingSubtitleClassName}
+                delay={100}
+                duration={0.6}
+                ease="expo.out"
+                from={{ opacity: 0, yPercent: 100 }}
+                mask="lines"
+                onLetterAnimationHalfway={revealHeroAction}
+                splitType="words,lines"
+                startAnimation={canStartDescriptionAnimation}
+                tag="p"
+                text={landingSubtitleText}
+                textAlign="center"
+                to={{ opacity: 1, yPercent: 0 }}
+                triggerOnScroll={false}
+              />
+            )}
           </div>
           <div
             className="mt-8 flex flex-wrap items-center justify-center gap-3"

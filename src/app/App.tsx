@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 const ExplorePage = lazy(() =>
   import("../pages/ExplorePage").then((module) => ({ default: module.ExplorePage })),
@@ -28,12 +28,18 @@ export function App() {
   const [transitionOverlay, setTransitionOverlay] = useState<"hidden" | "covering" | "revealing">(
     "hidden",
   );
+  const hasRenderedLandingRef = useRef(false);
   const pathRef = useRef(path);
   const transitionTimersRef = useRef<number[]>([]);
+  const shouldSkipLandingIntro = path === "/" && hasRenderedLandingRef.current;
 
   useEffect(() => {
     pathRef.current = path;
   }, [path]);
+
+  const handleLandingRendered = useCallback(() => {
+    hasRenderedLandingRef.current = true;
+  }, []);
 
   useEffect(() => {
     if ("scrollRestoration" in window.history) {
@@ -115,7 +121,10 @@ export function App() {
     <>
       <Suspense fallback={<main className="min-h-screen bg-background" />}>
         {path === "/" ? (
-          <LandingPage />
+          <LandingPage
+            onRendered={handleLandingRendered}
+            skipIntroAnimation={shouldSkipLandingIntro}
+          />
         ) : path === "/explore" ? (
           <ExplorePage />
         ) : (
