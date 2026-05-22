@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 
-const fuzzyTextRoutes = new Set(["/404", "/about", "/contributing", "/follow-us", "/support"]);
-
+const ExplorePage = lazy(() =>
+  import("../pages/ExplorePage").then((module) => ({ default: module.ExplorePage })),
+);
 const FuzzyTextPage = lazy(() =>
   import("../pages/FuzzyTextPage").then((module) => ({ default: module.FuzzyTextPage })),
 );
@@ -67,7 +68,13 @@ export function App() {
 
   return (
     <Suspense fallback={<main className="min-h-screen bg-background" />}>
-      {fuzzyTextRoutes.has(path) || path !== "/" ? <FuzzyTextPage /> : <LandingPage />}
+      {path === "/" ? (
+        <LandingPage />
+      ) : path === "/explore" ? (
+        <ExplorePage />
+      ) : (
+        <FuzzyTextPage path={path} />
+      )}
     </Suspense>
   );
 }

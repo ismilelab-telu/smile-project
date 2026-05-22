@@ -2461,11 +2461,11 @@ function LandingExperience() {
               ref={exploreZoneRef}
             >
               <a
-                aria-label="Open 404 page"
+                aria-label="Open Explore page"
                 className="relative isolate inline-flex min-h-12 items-center justify-center overflow-hidden rounded-[99px] border-0 bg-transparent px-8 font-semibold text-foreground outline-none will-change-transform"
                 data-app-link
                 data-hero-explore-button
-                href="/404"
+                href="/explore"
                 ref={exploreButtonRef}
               >
                 <GlassSurface

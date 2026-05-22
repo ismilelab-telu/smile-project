@@ -18,8 +18,8 @@ describe("App", () => {
       await screen.findByRole("heading", { name: "Smile Project" }, lazyRouteTimeout),
     ).toBeInTheDocument();
     expect(
-      await screen.findByRole("link", { name: /Open 404 page/ }, lazyRouteTimeout),
-    ).toHaveAttribute("href", "/404");
+      await screen.findByRole("link", { name: /Open Explore page/ }, lazyRouteTimeout),
+    ).toHaveAttribute("href", "/explore");
   });
 
   it("opens the orchestrated GSAP navigation island", async () => {
@@ -92,14 +92,64 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
-  it("routes the explore action to the 404 page", async () => {
+  it("routes inactive mode placeholders back to explore", async () => {
+    for (const placeholderPath of ["/playground", "/algorithm-lab"]) {
+      window.history.pushState(null, "", placeholderPath);
+      const { unmount } = render(<App />);
+
+      expect(
+        await screen.findByRole("heading", { name: "404 not found." }, lazyRouteTimeout),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Explore" })).toHaveAttribute("href", "/explore");
+
+      unmount();
+    }
+  });
+
+  it("opens the explore page menu", async () => {
+    window.history.pushState(null, "", "/explore");
     render(<App />);
 
-    fireEvent.click(await screen.findByRole("link", { name: /Open 404 page/ }, lazyRouteTimeout));
+    const menuButton = await screen.findByRole("button", { name: "Open menu" }, lazyRouteTimeout);
+
+    fireEvent.click(menuButton);
+
+    const exploreMenu = await screen.findByRole("navigation", {
+      name: "Explore menu",
+    });
+
+    expect(menuButton).toHaveAttribute("aria-expanded", "true");
+    expect(within(exploreMenu).getByRole("link", { name: /Learning Mode/ })).toHaveAttribute(
+      "href",
+      "/learn",
+    );
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(menuButton).toHaveAttribute("aria-expanded", "false");
+    });
+  });
+
+  it("routes the explore action to the mode selection page", async () => {
+    render(<App />);
+
+    fireEvent.click(
+      await screen.findByRole("link", { name: /Open Explore page/ }, lazyRouteTimeout),
+    );
 
     expect(
-      await screen.findByRole("heading", { name: "404 not found." }, lazyRouteTimeout),
+      await screen.findByRole("heading", { name: "Choose a mode." }, lazyRouteTimeout),
     ).toBeInTheDocument();
-    expect(window.location.pathname).toBe("/404");
+    expect(screen.getByRole("link", { name: /Learning Mode/ })).toHaveAttribute("href", "/learn");
+    expect(screen.getByRole("link", { name: /ML Playground/ })).toHaveAttribute(
+      "href",
+      "/playground",
+    );
+    expect(screen.getByRole("link", { name: /Algorithm Lab/ })).toHaveAttribute(
+      "href",
+      "/algorithm-lab",
+    );
+    expect(window.location.pathname).toBe("/explore");
   });
 });

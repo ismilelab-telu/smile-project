@@ -3,8 +3,17 @@ import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { FuzzyText } from "@/components/ui/fuzzy-text";
 
 const notFoundText = "404 not found.";
+const explorePlaceholderRoutes = new Set(["/playground", "/algorithm-lab"]);
 
-export function FuzzyTextPage() {
+type FuzzyTextPageProps = {
+  path?: string;
+};
+
+export function FuzzyTextPage({ path = "/" }: FuzzyTextPageProps) {
+  const backLink = explorePlaceholderRoutes.has(path)
+    ? { href: "/explore", label: "Explore" }
+    : { href: "/", label: "Home" };
+
   return (
     <main className="relative flex min-h-screen overflow-hidden bg-zinc-50 text-black">
       <section className="relative z-10 mx-auto flex min-h-screen w-[min(1120px,calc(100%_-_32px))] flex-col items-center justify-center gap-5 px-4 py-24 text-center">
@@ -47,10 +56,10 @@ export function FuzzyTextPage() {
         <a
           className="mt-5 inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-foreground transition-opacity hover:opacity-70"
           data-app-link
-          href="/"
+          href={backLink.href}
         >
           <ArrowLeftIcon aria-hidden="true" className="size-[18px] shrink-0" />
-          Home
+          {backLink.label}
         </a>
       </section>
     </main>

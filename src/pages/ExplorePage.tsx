@@ -1,0 +1,521 @@
+import {
+  AcademicCapIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  BeakerIcon,
+  BoltIcon,
+  ChartBarSquareIcon,
+  HomeIcon,
+} from "@heroicons/react/24/outline";
+import { useEffect, useRef, useState } from "react";
+import type { ComponentType, SVGProps } from "react";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
+
+import { shouldReduceMotion } from "@/lib/motion";
+
+gsap.registerPlugin(useGSAP);
+
+type Mode = {
+  title: string;
+  status?: string;
+  statusTone: "emerald" | "sky" | "zinc";
+  summary: string;
+  href: string;
+  actionLabel: string;
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
+};
+
+const modes: Mode[] = [
+  {
+    actionLabel: "Start path",
+    href: "/learn",
+    icon: AcademicCapIcon,
+    statusTone: "emerald",
+    summary: "Jalur belajar terarah untuk memahami workflow ML dari data sampai evaluasi.",
+    title: "Learning Mode",
+  },
+  {
+    actionLabel: "Open",
+    href: "/playground",
+    icon: BeakerIcon,
+    status: "Coming soon",
+    statusTone: "sky",
+    summary: "Ruang eksperimen end-to-end untuk mencoba workflow ML dengan kontrol bebas.",
+    title: "ML Playground",
+  },
+  {
+    actionLabel: "Open",
+    href: "/algorithm-lab",
+    icon: ChartBarSquareIcon,
+    status: "Coming soon",
+    statusTone: "zinc",
+    summary: "Lab visual untuk membedah perilaku algoritma dan membandingkan tradeoff.",
+    title: "Algorithm Lab",
+  },
+];
+
+const menuLinks = [
+  { href: "/", label: "Home" },
+  { href: "/explore", label: "Explore" },
+  { href: "/learn", label: "Learning Mode" },
+  { href: "/playground", label: "ML Playground" },
+  { href: "/algorithm-lab", label: "Algorithm Lab" },
+];
+
+const statusToneClassName = {
+  emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  sky: "border-sky-200 bg-sky-50 text-sky-700",
+  zinc: "border-zinc-200 bg-zinc-100 text-zinc-700",
+} satisfies Record<Mode["statusTone"], string>;
+
+const iconToneClassName = {
+  emerald: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+  sky: "bg-sky-50 text-sky-700 ring-sky-100",
+  zinc: "bg-zinc-100 text-zinc-700 ring-zinc-200",
+} satisfies Record<Mode["statusTone"], string>;
+
+export function ExplorePage() {
+  return (
+    <main className="relative min-h-screen bg-background text-foreground">
+      <header className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-[clamp(2rem,4vw,5rem)] py-[clamp(1.5rem,3vw,2.5rem)]">
+        <a
+          aria-label="Back to home"
+          className="inline-flex size-10 items-center justify-center rounded-lg border border-border bg-surface text-foreground transition-colors hover:border-zinc-300 hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+          data-app-link
+          href="/"
+        >
+          <ArrowLeftIcon aria-hidden="true" className="size-5" />
+        </a>
+        <div className="flex items-center gap-3">
+          <p className="text-sm font-medium text-muted-foreground">Smile Project</p>
+          <ExploreMenu />
+        </div>
+      </header>
+
+      <section className="grid min-h-screen grid-cols-[24px_minmax(0,1fr)_24px] items-center py-28 sm:grid-cols-[48px_minmax(0,1fr)_48px] lg:grid-cols-[minmax(48px,1fr)_minmax(0,680px)_72px_minmax(0,920px)_minmax(48px,1fr)] lg:py-32 xl:grid-cols-[minmax(48px,1fr)_minmax(0,680px)_88px_minmax(0,920px)_minmax(48px,1fr)]">
+        <div className="col-start-2 grid gap-y-10">
+          <h1 className="text-[4rem] leading-[0.9] font-semibold tracking-normal sm:text-[5rem] lg:text-[6.75rem] xl:text-[7.75rem] 2xl:text-[8.5rem]">
+            Choose a mode.
+          </h1>
+        </div>
+
+        <div className="col-start-2 grid gap-4 lg:col-start-4" aria-label="Available modes">
+          {modes.map((mode) => (
+            <ModeCard key={mode.title} mode={mode} />
+          ))}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function ExploreMenu() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const timelineRef = useRef<gsap.core.Timeline | null>(null);
+  const enterEndTimeRef = useRef(0);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const { contextSafe } = useGSAP(
+    () => {
+      const root = rootRef.current;
+
+      if (!root) {
+        return;
+      }
+
+      const nav = root.querySelector<HTMLElement>("[data-explore-menu-nav]");
+      const backdrop = root.querySelector<HTMLElement>("[data-explore-menu-backdrop]");
+      const panels = gsap.utils.toArray<HTMLElement>("[data-explore-menu-panel]", root);
+      const navItems = gsap.utils.toArray<HTMLElement>("[data-explore-menu-item]", root);
+      const topBar = root.querySelector<HTMLElement>("[data-explore-menu-bar='top']");
+      const middleBar = root.querySelector<HTMLElement>("[data-explore-menu-bar='middle']");
+      const bottomBar = root.querySelector<HTMLElement>("[data-explore-menu-bar='bottom']");
+
+      if (!nav || !backdrop || panels.length === 0 || !topBar || !middleBar || !bottomBar) {
+        return;
+      }
+
+      gsap.set(nav, { pointerEvents: "none", visibility: "hidden" });
+      gsap.set(backdrop, { autoAlpha: 0, willChange: "opacity" });
+      gsap.set(panels, {
+        force3D: true,
+        rotation: 0,
+        transformOrigin: "50% 50%",
+        willChange: "transform",
+        x: "112%",
+        y: 0,
+      });
+      gsap.set(navItems, { autoAlpha: 0, force3D: true, willChange: "transform,opacity", x: -18 });
+
+      if (shouldReduceMotion()) {
+        gsap.set(panels, { x: 0 });
+        gsap.set(navItems, { autoAlpha: 1, x: 0 });
+        return;
+      }
+
+      const timeline = gsap.timeline({
+        onReverseComplete: () => {
+          gsap.set(nav, { pointerEvents: "none", visibility: "hidden" });
+        },
+        paused: true,
+      });
+
+      timeline
+        .set(nav, { pointerEvents: "auto", visibility: "visible" })
+        .to(
+          backdrop,
+          {
+            autoAlpha: 1,
+            duration: 0.28,
+            ease: "power2.out",
+          },
+          0,
+        )
+        .fromTo(
+          panels,
+          { rotation: 0, x: "112%", y: 0 },
+          {
+            duration: 0.58,
+            ease: "back.out(1.25)",
+            force3D: true,
+            stagger: 0.08,
+            x: "0%",
+            y: 0,
+          },
+          0,
+        )
+        .fromTo(
+          navItems,
+          { autoAlpha: 0, x: -18 },
+          {
+            autoAlpha: 1,
+            duration: 0.42,
+            ease: "power3.out",
+            force3D: true,
+            stagger: 0.035,
+            x: 0,
+          },
+          0.14,
+        )
+        .to(
+          topBar,
+          {
+            duration: 0.28,
+            ease: "back.out(1.4)",
+            rotation: 45,
+            transformOrigin: "50% 50%",
+            y: 4,
+          },
+          0.06,
+        )
+        .to(
+          middleBar,
+          {
+            autoAlpha: 0,
+            duration: 0.18,
+            ease: "power2.out",
+            scaleX: 0.25,
+            transformOrigin: "50% 50%",
+          },
+          0.06,
+        )
+        .to(
+          bottomBar,
+          {
+            duration: 0.28,
+            ease: "back.out(1.4)",
+            rotation: -45,
+            transformOrigin: "50% 50%",
+            y: -4,
+          },
+          0.06,
+        )
+        .addPause();
+
+      enterEndTimeRef.current = timeline.duration();
+
+      timeline
+        .to(
+          [topBar, middleBar, bottomBar],
+          {
+            autoAlpha: 1,
+            duration: 0.18,
+            rotation: 0,
+            scaleX: 1,
+            y: 0,
+          },
+          ">",
+        )
+        .to(
+          panels,
+          {
+            duration: 0.82,
+            ease: "power3.in",
+            force3D: true,
+            rotation: () => gsap.utils.random(-16, 16),
+            stagger: {
+              each: 0.025,
+              from: "end",
+            },
+            y: "112vh",
+          },
+          "<",
+        )
+        .to(
+          backdrop,
+          {
+            autoAlpha: 0,
+            duration: 0.28,
+            ease: "power2.in",
+          },
+          "<0.12",
+        )
+        .set(nav, { pointerEvents: "none", visibility: "hidden" });
+
+      timelineRef.current = timeline;
+
+      return () => {
+        timelineRef.current = null;
+      };
+    },
+    { scope: rootRef },
+  );
+
+  const syncReducedMenuState = contextSafe((nextOpen: boolean) => {
+    const root = rootRef.current;
+
+    if (!root) {
+      return;
+    }
+
+    const nav = root.querySelector<HTMLElement>("[data-explore-menu-nav]");
+    const backdrop = root.querySelector<HTMLElement>("[data-explore-menu-backdrop]");
+    const panels = gsap.utils.toArray<HTMLElement>("[data-explore-menu-panel]", root);
+    const navItems = gsap.utils.toArray<HTMLElement>("[data-explore-menu-item]", root);
+    const topBar = root.querySelector<HTMLElement>("[data-explore-menu-bar='top']");
+    const middleBar = root.querySelector<HTMLElement>("[data-explore-menu-bar='middle']");
+    const bottomBar = root.querySelector<HTMLElement>("[data-explore-menu-bar='bottom']");
+
+    gsap.set(nav, {
+      pointerEvents: nextOpen ? "auto" : "none",
+      visibility: nextOpen ? "visible" : "hidden",
+    });
+    gsap.set(backdrop, { autoAlpha: nextOpen ? 1 : 0 });
+    gsap.set(panels, { rotation: 0, x: 0, y: 0 });
+    gsap.set(navItems, { autoAlpha: 1, x: 0 });
+    gsap.set(topBar, { rotation: nextOpen ? 45 : 0, y: nextOpen ? 4 : 0 });
+    gsap.set(middleBar, { autoAlpha: nextOpen ? 0 : 1, scaleX: nextOpen ? 0.25 : 1 });
+    gsap.set(bottomBar, { rotation: nextOpen ? -45 : 0, y: nextOpen ? -4 : 0 });
+  });
+
+  const setMenuOpen = contextSafe((nextOpen: boolean) => {
+    setIsOpen(nextOpen);
+
+    if (shouldReduceMotion()) {
+      syncReducedMenuState(nextOpen);
+      return;
+    }
+
+    const timeline = timelineRef.current;
+
+    if (!timeline) {
+      return;
+    }
+
+    if (nextOpen) {
+      if (timeline.time() >= enterEndTimeRef.current) {
+        timeline.timeScale(1).restart();
+        return;
+      }
+
+      timeline.timeScale(1).play();
+      return;
+    }
+
+    if (timeline.time() < enterEndTimeRef.current) {
+      timeline.timeScale(1.8).reverse();
+      return;
+    }
+
+    timeline.timeScale(1).play();
+  });
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, setMenuOpen]);
+
+  return (
+    <div ref={rootRef}>
+      <button
+        aria-expanded={isOpen}
+        aria-label={isOpen ? "Close menu" : "Open menu"}
+        className="relative z-50 inline-flex size-10 items-center justify-center rounded-lg bg-transparent text-foreground transition-opacity hover:opacity-65 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+        onClick={() => setMenuOpen(!isOpen)}
+        type="button"
+      >
+        <span className="relative block h-5 w-5" aria-hidden="true">
+          <span
+            className="absolute left-[3px] top-[5px] h-0.5 w-3.5 rounded-full bg-current"
+            data-explore-menu-bar="top"
+          />
+          <span
+            className="absolute left-[3px] top-[9px] h-0.5 w-3.5 rounded-full bg-current"
+            data-explore-menu-bar="middle"
+          />
+          <span
+            className="absolute left-[3px] top-[13px] h-0.5 w-3.5 rounded-full bg-current"
+            data-explore-menu-bar="bottom"
+          />
+        </span>
+      </button>
+
+      <div
+        aria-hidden={!isOpen}
+        className="invisible fixed inset-0 z-40 flex flex-col items-end gap-2 p-4"
+        data-explore-menu-nav
+      >
+        <button
+          aria-label="Close menu"
+          className="absolute inset-0 bg-zinc-950/35 opacity-0 will-change-[opacity]"
+          data-explore-menu-backdrop
+          onClick={() => setMenuOpen(false)}
+          type="button"
+        />
+
+        <nav
+          aria-label="Explore menu"
+          className="relative z-10 flex min-h-[420px] w-[min(700px,calc(100vw_-_2rem))] flex-1 transform-gpu flex-col rounded-lg border-2 border-zinc-950 bg-white px-7 pt-16 pb-7 text-zinc-950 shadow-2xl will-change-transform"
+          data-explore-menu-panel
+        >
+          <ul className="flex flex-1 list-none flex-col justify-center">
+            {menuLinks.map((link) => (
+              <li
+                className="overflow-hidden will-change-[transform,opacity]"
+                data-explore-menu-item
+                key={link.href}
+              >
+                <a
+                  className="block py-4 text-[clamp(1.7rem,4vw,2.15rem)] leading-[1.05] font-semibold tracking-normal transition-colors hover:text-sky-700"
+                  data-app-link
+                  href={link.href}
+                >
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+          <span aria-hidden="true" className="block h-4 shrink-0" />
+        </nav>
+
+        <section
+          aria-label="Learning Mode highlight"
+          className="relative z-10 flex min-h-36 w-[min(700px,calc(100vw_-_2rem))] transform-gpu flex-col justify-center rounded-lg border-2 border-emerald-700 bg-gradient-to-br from-emerald-400 via-emerald-200 to-sky-200 p-7 text-zinc-950 shadow-2xl will-change-transform"
+          data-explore-menu-panel
+        >
+          <p className="font-mono text-xs font-semibold tracking-[0.12em] text-zinc-700 uppercase">
+            Next path
+          </p>
+          <div className="mt-4 flex items-center gap-4">
+            <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-lg bg-zinc-950/10 text-zinc-950">
+              <BoltIcon aria-hidden="true" className="size-6" />
+            </span>
+            <div>
+              <h2 className="text-xl leading-tight font-semibold tracking-normal">Learning Mode</h2>
+              <p className="mt-1 text-sm leading-6 text-zinc-700">
+                Mulai dari workflow ML dasar sampai evaluasi model.
+              </p>
+            </div>
+          </div>
+          <a
+            className="mt-5 inline-flex w-fit items-center gap-2 rounded-full bg-zinc-950 px-4 py-2 font-mono text-xs font-semibold text-emerald-100 transition-colors hover:bg-zinc-800"
+            data-app-link
+            href="/learn"
+          >
+            Start path
+            <ArrowRightIcon aria-hidden="true" className="size-4" />
+          </a>
+        </section>
+
+        <div
+          className="relative z-10 flex h-28 w-[min(700px,calc(100vw_-_2rem))] transform-gpu items-center rounded-lg border-2 border-zinc-700 bg-zinc-950 px-7 text-zinc-400 shadow-2xl will-change-transform"
+          data-explore-menu-panel
+        >
+          <ul className="flex list-none flex-wrap gap-4 font-mono text-xs font-semibold">
+            <li>
+              <a className="transition-colors hover:text-white" data-app-link href="/404">
+                Contact
+              </a>
+            </li>
+            <li>
+              <a className="transition-colors hover:text-white" data-app-link href="/404">
+                Support
+              </a>
+            </li>
+            <li>
+              <a className="transition-colors hover:text-white" data-app-link href="/404">
+                Changelog
+              </a>
+            </li>
+          </ul>
+          <HomeIcon aria-hidden="true" className="ml-auto size-10 text-emerald-300" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModeCard({ mode }: { mode: Mode }) {
+  const Icon = mode.icon;
+
+  return (
+    <a
+      className="group grid gap-5 rounded-lg border border-border bg-surface p-5 shadow-[0_18px_54px_oklch(17.7638%_0_0_/_0.07)] transition duration-200 hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-[0_22px_68px_oklch(17.7638%_0_0_/_0.1)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-6"
+      data-app-link
+      href={mode.href}
+    >
+      <span
+        className={`inline-flex size-12 items-center justify-center rounded-lg ring-1 ${iconToneClassName[mode.statusTone]}`}
+      >
+        <Icon aria-hidden="true" className="size-6" />
+      </span>
+
+      <span className="min-w-0">
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="text-xl font-semibold tracking-normal text-foreground">
+            {mode.title}
+          </span>
+          {mode.status ? (
+            <span
+              className={`rounded-md border px-2 py-1 text-xs font-semibold ${statusToneClassName[mode.statusTone]}`}
+            >
+              {mode.status}
+            </span>
+          ) : null}
+        </span>
+        <span className="mt-2 block max-w-2xl text-sm leading-6 text-muted-foreground">
+          {mode.summary}
+        </span>
+      </span>
+
+      <span className="inline-flex items-center gap-2 text-sm font-semibold text-foreground transition-colors group-hover:text-sky-700">
+        {mode.actionLabel}
+        <ArrowRightIcon aria-hidden="true" className="size-[18px] shrink-0" />
+      </span>
+    </a>
+  );
+}
