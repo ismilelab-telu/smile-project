@@ -1,4 +1,4 @@
-import { IconArrowLeft } from "@tabler/icons-react";
+import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 import { FuzzyText } from "@/components/ui/fuzzy-text";
 
@@ -49,7 +49,7 @@ export function FuzzyTextPage() {
           data-app-link
           href="/"
         >
-          <IconArrowLeft aria-hidden="true" size={18} />
+          <ArrowLeftIcon aria-hidden="true" className="size-[18px] shrink-0" />
           Home
         </a>
       </section>

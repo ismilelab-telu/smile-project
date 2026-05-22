@@ -1,5 +1,5 @@
 import { type SVGProps, useCallback, useEffect, useRef, useState } from "react";
-import { IconArrowRight } from "@tabler/icons-react";
+import { ArrowRightIcon } from "@heroicons/react/24/outline";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { DrawSVGPlugin } from "gsap/DrawSVGPlugin";
@@ -2488,7 +2488,7 @@ function LandingExperience() {
                   ref={exploreLabelRef}
                 >
                   Explore
-                  <IconArrowRight aria-hidden="true" size={18} />
+                  <ArrowRightIcon aria-hidden="true" className="size-[18px] shrink-0" />
                 </span>
               </a>
             </div>

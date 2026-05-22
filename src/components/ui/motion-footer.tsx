@@ -8,7 +8,7 @@ import {
   type ElementType,
   type HTMLAttributes,
 } from "react";
-import { IconBrandGithub, IconGitPullRequest } from "@tabler/icons-react";
+import { CodeBracketIcon, UsersIcon } from "@heroicons/react/24/outline";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
@@ -358,7 +358,7 @@ export function CinematicFooter() {
                   href="/follow-us"
                   revealed={areFooterButtonsVisible}
                 >
-                  <IconBrandGithub aria-hidden="true" size={20} />
+                  <UsersIcon aria-hidden="true" className="size-5 shrink-0" strokeWidth={2.5} />
                   Follow us
                 </FooterGlassButton>
 
@@ -372,7 +372,11 @@ export function CinematicFooter() {
                   href="/contributing"
                   revealed={areFooterButtonsVisible}
                 >
-                  <IconGitPullRequest aria-hidden="true" size={20} />
+                  <CodeBracketIcon
+                    aria-hidden="true"
+                    className="size-5 shrink-0"
+                    strokeWidth={2.5}
+                  />
                   Contributing
                 </FooterGlassButton>
               </div>
