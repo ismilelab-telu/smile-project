@@ -2537,7 +2537,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
       <OrchestratedEaseReverseMenu />
       <svg
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-[2000] h-[100svh] w-screen opacity-0"
+        className="pointer-events-none fixed inset-0 z-[2000] h-[100svh] w-full opacity-0"
         data-final-dot-morph-svg
         preserveAspectRatio="none"
         ref={finalDotMorphSvgRef}
