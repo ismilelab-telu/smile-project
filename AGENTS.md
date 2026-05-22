@@ -51,7 +51,9 @@
 
 # Visual Design
 
-- The project theme is white and black.
+- The project theme is white, zinc, emerald, and sky.
+- Use white as the main background, zinc for text/surfaces/borders, emerald for success/progress/positive learning states, and sky for informational/interactive data states.
+- Avoid introducing new dominant color families unless the user explicitly approves the palette change.
 - The app uses Heroicons as its icon system for all new UI surfaces.
 - Use Heroicons through `@heroicons/react`, defaulting to `@heroicons/react/24/outline`.
 - Use `currentColor` sizing via Tailwind classes such as `size-5` or `size-[18px]`; avoid custom SVG icons when a Heroicons icon fits.
