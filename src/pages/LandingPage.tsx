@@ -1174,7 +1174,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
         const blackBoxMorphStart = openCardStart + 0.08;
         const unpackCardStart = openCardStart + 1.42;
         const boardMorphStart = unpackCardStart + 0.39;
-        const conclusionCardStart = boardMorphStart + 6.2;
+        const conclusionCardStart = boardMorphStart + 3.45;
         const conclusionWordRevealStart = conclusionCardStart + 0.34;
         const conclusionWordRevealDuration = 0.64;
         const conclusionWordRevealStagger = 0.11;
@@ -1200,6 +1200,19 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
             bounds.bottom + gsap.utils.random(window.innerHeight * 0.28, window.innerHeight * 0.54)
           );
         };
+        const diagramRevealStartOffset = 0.4;
+        const diagramRevealTimeScale = 2 / 3;
+        const getDiagramRevealTime = (offset: number) =>
+          boardMorphStart +
+          diagramRevealStartOffset +
+          (offset - diagramRevealStartOffset) * diagramRevealTimeScale;
+        const diagramNodeRevealLeadOffset = 0.08;
+        const getDiagramNodeRevealTime = (offset: number) =>
+          getDiagramRevealTime(offset - diagramNodeRevealLeadOffset);
+        const diagramNodeRevealDuration = 0.1;
+        const diagramLineDrawDuration = 0.11;
+        const diagramArrowheadDrawDuration = 0.08;
+        const diagramStrokeStagger = 0.02;
 
         const storyTimeline = gsap.timeline({
           defaults: { ease: "power2.out" },
@@ -1379,36 +1392,36 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
             {
               autoAlpha: 1,
               display: "inline",
-              duration: 0.24,
+              duration: diagramNodeRevealDuration,
               ease: "none",
               scale: 1,
               x: 0,
               y: 0,
             },
-            boardMorphStart + 0.4,
+            getDiagramRevealTime(0.4),
           )
           .to(
             modelNode,
             {
               autoAlpha: 1,
               display: "inline",
-              duration: 0.24,
+              duration: diagramNodeRevealDuration,
               ease: "none",
               scale: 1,
               x: 0,
               y: 0,
             },
-            boardMorphStart + 1.16,
+            getDiagramNodeRevealTime(1.16),
           )
           .to(
             inputToModelLines,
             {
               drawSVG: "0% 100%",
-              duration: 0.16,
+              duration: diagramLineDrawDuration,
               ease: "power2.out",
-              stagger: 0.03,
+              stagger: diagramStrokeStagger,
             },
-            boardMorphStart + 0.68,
+            getDiagramRevealTime(0.68),
           )
           .fromTo(
             inputToModelArrowheads,
@@ -1419,22 +1432,22 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
             {
               autoAlpha: 1,
               drawSVG: "0% 100%",
-              duration: 0.12,
+              duration: diagramArrowheadDrawDuration,
               ease: "power2.out",
               immediateRender: false,
-              stagger: 0.03,
+              stagger: diagramStrokeStagger,
             },
-            boardMorphStart + 0.9,
+            getDiagramRevealTime(0.9),
           )
           .to(
             modelToTrainLines,
             {
               drawSVG: "0% 100%",
-              duration: 0.16,
+              duration: diagramLineDrawDuration,
               ease: "power2.out",
-              stagger: 0.03,
+              stagger: diagramStrokeStagger,
             },
-            boardMorphStart + 1.22,
+            getDiagramRevealTime(1.22),
           )
           .fromTo(
             modelToTrainArrowheads,
@@ -1445,47 +1458,47 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
             {
               autoAlpha: 1,
               drawSVG: "0% 100%",
-              duration: 0.12,
+              duration: diagramArrowheadDrawDuration,
               ease: "power2.out",
               immediateRender: false,
             },
-            boardMorphStart + 1.38,
+            getDiagramRevealTime(1.38),
           )
           .to(
             trainNode,
             {
               autoAlpha: 1,
               display: "inline",
-              duration: 0.24,
+              duration: diagramNodeRevealDuration,
               ease: "none",
               scale: 1,
               x: 0,
               y: 0,
             },
-            boardMorphStart + 1.58,
+            getDiagramNodeRevealTime(1.58),
           )
           .to(
             predNode,
             {
               autoAlpha: 1,
               display: "inline",
-              duration: 0.24,
+              duration: diagramNodeRevealDuration,
               ease: "none",
               scale: 1,
               x: 0,
               y: 0,
             },
-            boardMorphStart + 1.76,
+            getDiagramNodeRevealTime(1.76),
           )
           .to(
             predToFindLines,
             {
               drawSVG: "0% 100%",
-              duration: 0.16,
+              duration: diagramLineDrawDuration,
               ease: "power2.out",
-              stagger: 0.03,
+              stagger: diagramStrokeStagger,
             },
-            boardMorphStart + 1.94,
+            getDiagramRevealTime(1.94),
           )
           .fromTo(
             predToFindArrowheads,
@@ -1496,34 +1509,34 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
             {
               autoAlpha: 1,
               drawSVG: "0% 100%",
-              duration: 0.12,
+              duration: diagramArrowheadDrawDuration,
               ease: "power2.out",
               immediateRender: false,
             },
-            boardMorphStart + 2.1,
+            getDiagramRevealTime(2.1),
           )
           .to(
             findErrorNode,
             {
               autoAlpha: 1,
               display: "inline",
-              duration: 0.24,
+              duration: diagramNodeRevealDuration,
               ease: "none",
               scale: 1,
               x: 0,
               y: 0,
             },
-            boardMorphStart + 2.3,
+            getDiagramNodeRevealTime(2.3),
           )
           .to(
             findToMinimizeLines,
             {
               drawSVG: "0% 100%",
-              duration: 0.16,
+              duration: diagramLineDrawDuration,
               ease: "power2.out",
-              stagger: 0.03,
+              stagger: diagramStrokeStagger,
             },
-            boardMorphStart + 2.48,
+            getDiagramRevealTime(2.48),
           )
           .fromTo(
             findToMinimizeArrowheads,
@@ -1534,34 +1547,34 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
             {
               autoAlpha: 1,
               drawSVG: "0% 100%",
-              duration: 0.12,
+              duration: diagramArrowheadDrawDuration,
               ease: "power2.out",
               immediateRender: false,
             },
-            boardMorphStart + 2.64,
+            getDiagramRevealTime(2.64),
           )
           .to(
             minimizeErrorNode,
             {
               autoAlpha: 1,
               display: "inline",
-              duration: 0.24,
+              duration: diagramNodeRevealDuration,
               ease: "none",
               scale: 1,
               x: 0,
               y: 0,
             },
-            boardMorphStart + 2.84,
+            getDiagramNodeRevealTime(2.84),
           )
           .to(
             minimizeToParamsLines,
             {
               drawSVG: "0% 100%",
-              duration: 0.16,
+              duration: diagramLineDrawDuration,
               ease: "power2.out",
-              stagger: 0.03,
+              stagger: diagramStrokeStagger,
             },
-            boardMorphStart + 3.02,
+            getDiagramRevealTime(3.02),
           )
           .fromTo(
             minimizeToParamsArrowheads,
@@ -1572,34 +1585,34 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
             {
               autoAlpha: 1,
               drawSVG: "0% 100%",
-              duration: 0.12,
+              duration: diagramArrowheadDrawDuration,
               ease: "power2.out",
               immediateRender: false,
             },
-            boardMorphStart + 3.18,
+            getDiagramRevealTime(3.18),
           )
           .to(
             getParamsNode,
             {
               autoAlpha: 1,
               display: "inline",
-              duration: 0.24,
+              duration: diagramNodeRevealDuration,
               ease: "none",
               scale: 1,
               x: 0,
               y: 0,
             },
-            boardMorphStart + 3.38,
+            getDiagramNodeRevealTime(3.38),
           )
           .to(
             trainToResultLines,
             {
               drawSVG: "0% 100%",
-              duration: 0.16,
+              duration: diagramLineDrawDuration,
               ease: "power2.out",
-              stagger: 0.03,
+              stagger: diagramStrokeStagger,
             },
-            boardMorphStart + 3.56,
+            getDiagramRevealTime(3.56),
           )
           .fromTo(
             trainToResultArrowheads,
@@ -1610,34 +1623,34 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
             {
               autoAlpha: 1,
               drawSVG: "0% 100%",
-              duration: 0.12,
+              duration: diagramArrowheadDrawDuration,
               ease: "power2.out",
               immediateRender: false,
             },
-            boardMorphStart + 3.72,
+            getDiagramRevealTime(3.72),
           )
           .to(
             resultNode,
             {
               autoAlpha: 1,
               display: "inline",
-              duration: 0.24,
+              duration: diagramNodeRevealDuration,
               ease: "none",
               scale: 1,
               x: 0,
               y: 0,
             },
-            boardMorphStart + 3.92,
+            getDiagramNodeRevealTime(3.92),
           )
           .to(
             resultToPredictLines,
             {
               drawSVG: "0% 100%",
-              duration: 0.16,
+              duration: diagramLineDrawDuration,
               ease: "power2.out",
-              stagger: 0.03,
+              stagger: diagramStrokeStagger,
             },
-            boardMorphStart + 4.1,
+            getDiagramRevealTime(4.1),
           )
           .fromTo(
             resultToPredictArrowheads,
@@ -1648,26 +1661,26 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
             {
               autoAlpha: 1,
               drawSVG: "0% 100%",
-              duration: 0.12,
+              duration: diagramArrowheadDrawDuration,
               ease: "power2.out",
               immediateRender: false,
             },
-            boardMorphStart + 4.26,
+            getDiagramRevealTime(4.26),
           )
           .to(
             predictNode,
             {
               autoAlpha: 1,
               display: "inline",
-              duration: 0.24,
+              duration: diagramNodeRevealDuration,
               ease: "none",
               scale: 1,
               x: 0,
               y: 0,
             },
-            boardMorphStart + 4.46,
+            getDiagramNodeRevealTime(4.46),
           )
-          .set(storyVisual, { autoAlpha: 1 }, boardMorphStart + 4.76)
+          .set(storyVisual, { autoAlpha: 1 }, getDiagramRevealTime(4.76))
           .addLabel("understand", conclusionCardStart)
           .to(
             unpackCard,

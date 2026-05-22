@@ -1,30 +1,21 @@
 "use client";
 
+import { type CSSProperties, type ElementType, type HTMLAttributes } from "react";
 import {
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ElementType,
-  type HTMLAttributes,
-} from "react";
-import { CodeBracketIcon, UsersIcon } from "@heroicons/react/24/outline";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+  CodeBracketIcon,
+  HomeIcon,
+  InformationCircleIcon,
+  LifebuoyIcon,
+  UsersIcon,
+} from "@heroicons/react/24/outline";
 
 import ShapeGrid from "@/components/ShapeGrid";
-import { BlurText } from "@/components/ui/blur-text";
 import { CurvedLoop } from "@/components/ui/curved-loop";
-import { GlassSurface } from "@/components/ui/glass-surface";
 import { shouldReduceMotion } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger);
-}
-
 const footerAuroraClassName =
-  "bg-[radial-gradient(circle_at_50%_50%,color-mix(in_oklch,var(--foreground)_18%,transparent)_0%,color-mix(in_oklch,var(--muted-foreground)_14%,transparent)_42%,transparent_70%)]";
+  "bg-[radial-gradient(circle_at_50%_50%,oklch(1_0_0_/_0.78)_0%,oklch(0.985_0_0_/_0.46)_42%,transparent_70%)]";
 
 const footerFogClassName =
   "bg-[radial-gradient(ellipse_at_center,transparent_0%,transparent_48%,oklch(0.985_0_0_/_72%)_100%),linear-gradient(to_bottom,oklch(0.985_0_0_/_88%)_0%,transparent_11%,transparent_76%,oklch(0.985_0_0_/_92%)_100%)]";
@@ -35,22 +26,11 @@ const giantTextClassName =
 const textGlowClassName =
   "bg-[linear-gradient(180deg,var(--foreground)_0%,color-mix(in_oklch,var(--foreground)_46%,transparent)_100%)] bg-clip-text [-webkit-text-fill-color:transparent] drop-shadow-[0_0_20px_color-mix(in_oklch,var(--foreground)_14%,transparent)]";
 
-const glassPillClassName =
-  "relative isolate overflow-hidden bg-transparent transition-colors duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)] hover:text-foreground";
+const footerTextButtonClassName =
+  "inline-flex cursor-pointer items-center justify-center gap-2.5 bg-transparent p-0 text-foreground underline-offset-[0.45em] transition-colors duration-300 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-neutral-950";
 
 const footerHeadingText = "ML should be fun!";
 const footerCurvedLoopText = "Predicting the future isn't magic, it's artificial intelligence.";
-const footerHeadingWordDelay = 150;
-const footerHeadingStepDuration = 0.35;
-const footerRevealTopThreshold = 1;
-const footerCoveredResetBuffer = 24;
-const footerHeadingRevealProgress = 0.8;
-const footerButtonRevealDelay = Math.round(
-  ((footerHeadingText.split(" ").length - 1) * footerHeadingWordDelay +
-    footerHeadingStepDuration * 2 * 1000) *
-    footerHeadingRevealProgress,
-);
-const footerGlassOpacity = 0.58;
 
 type FooterThemeStyle = CSSProperties & Record<`--${string}`, string>;
 
@@ -61,213 +41,39 @@ const footerThemeStyle: FooterThemeStyle = {
   "--surface": "oklch(1 0 0)",
 };
 
-type FooterGlassButtonProps = HTMLAttributes<HTMLElement> & {
+type FooterTextButtonProps = HTMLAttributes<HTMLElement> & {
   as?: ElementType;
   href?: string;
-  revealed?: boolean;
   type?: "button" | "submit" | "reset";
 };
 
-const FooterGlassButton = ({
+const FooterTextButton = ({
   as: Component = "button",
   "aria-hidden": ariaHidden,
   children,
   className,
-  revealed = true,
   style,
-  tabIndex,
   ...props
-}: FooterGlassButtonProps) => {
+}: FooterTextButtonProps) => {
   return (
     <Component
-      aria-hidden={revealed ? ariaHidden : true}
-      className={cn("cursor-pointer", className)}
-      data-footer-glass-button
+      aria-hidden={ariaHidden}
+      className={cn(footerTextButtonClassName, className)}
       style={{
         appearance: "none",
+        background: "transparent",
         border: 0,
         outline: "none",
-        opacity: 0,
-        pointerEvents: revealed ? undefined : "none",
-        transform: "translateY(22px)",
-        visibility: "hidden",
         ...style,
       }}
-      tabIndex={revealed ? tabIndex : -1}
       {...props}
     >
-      <GlassSurface
-        aria-hidden="true"
-        data-footer-glass-surface
-        borderRadius={999}
-        height="100%"
-        style={{
-          inset: 0,
-          opacity: footerGlassOpacity,
-          pointerEvents: "none",
-          position: "absolute",
-          zIndex: 0,
-        }}
-        width="100%"
-      />
-      <span className="pointer-events-none relative z-10 inline-flex items-center justify-center gap-3">
-        {children}
-      </span>
+      {children}
     </Component>
   );
 };
 
 export function CinematicFooter() {
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const giantTextRef = useRef<HTMLDivElement>(null);
-  const headingRef = useRef<HTMLDivElement>(null);
-  const linksRef = useRef<HTMLDivElement>(null);
-  const buttonRevealTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
-  const isFooterContentRevealedRef = useRef(false);
-  const [areFooterButtonsVisible, setAreFooterButtonsVisible] = useState(false);
-  const [isHeadingTextVisible, setIsHeadingTextVisible] = useState(false);
-  const [headingTextReplayKey, setHeadingTextReplayKey] = useState(0);
-
-  useEffect(() => {
-    if (!wrapperRef.current || shouldReduceMotion()) {
-      setIsHeadingTextVisible(true);
-      setAreFooterButtonsVisible(true);
-      return;
-    }
-
-    let revealCheckFrame: number | null = null;
-
-    const ctx = gsap.context(() => {
-      const isFooterFullyCovered = () =>
-        (wrapperRef.current?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY) <=
-        footerRevealTopThreshold;
-
-      const clearButtonRevealTimeout = () => {
-        if (buttonRevealTimeoutRef.current !== null) {
-          window.clearTimeout(buttonRevealTimeoutRef.current);
-          buttonRevealTimeoutRef.current = null;
-        }
-      };
-
-      const getFooterContentCoveredStart = () => {
-        const fallbackResetPoint = window.innerHeight * 0.72;
-        const contentBottom =
-          linksRef.current?.getBoundingClientRect().bottom ??
-          headingRef.current?.getBoundingClientRect().bottom ??
-          fallbackResetPoint;
-        const resetPoint = Math.min(
-          window.innerHeight - 1,
-          Math.max(0, contentBottom + footerCoveredResetBuffer),
-        );
-
-        return `top ${Math.round(resetPoint)}px`;
-      };
-
-      const revealFooterContent = () => {
-        if (isFooterContentRevealedRef.current) {
-          return;
-        }
-
-        isFooterContentRevealedRef.current = true;
-        clearButtonRevealTimeout();
-        setAreFooterButtonsVisible(false);
-        setHeadingTextReplayKey((key) => key + 1);
-        setIsHeadingTextVisible(true);
-        buttonRevealTimeoutRef.current = window.setTimeout(() => {
-          buttonRevealTimeoutRef.current = null;
-          setAreFooterButtonsVisible(true);
-        }, footerButtonRevealDelay);
-      };
-
-      const revealFooterContentWhenCovered = () => {
-        if (isFooterFullyCovered()) {
-          revealFooterContent();
-        }
-      };
-
-      ScrollTrigger.create({
-        onLeaveBack: () => {
-          clearButtonRevealTimeout();
-          isFooterContentRevealedRef.current = false;
-          setAreFooterButtonsVisible(false);
-          setIsHeadingTextVisible(false);
-        },
-        start: getFooterContentCoveredStart,
-        trigger: wrapperRef.current,
-      });
-
-      ScrollTrigger.create({
-        end: "bottom top",
-        onRefresh: revealFooterContentWhenCovered,
-        onUpdate: revealFooterContentWhenCovered,
-        start: "top bottom",
-        trigger: wrapperRef.current,
-      });
-
-      revealCheckFrame = window.requestAnimationFrame(revealFooterContentWhenCovered);
-
-      gsap.fromTo(
-        giantTextRef.current,
-        { opacity: 0, scale: 0.86, y: "10vh" },
-        {
-          ease: "power1.out",
-          opacity: 1,
-          scale: 1,
-          scrollTrigger: {
-            end: "bottom bottom",
-            scrub: 1,
-            start: "top 80%",
-            trigger: wrapperRef.current,
-          },
-          y: "0vh",
-        },
-      );
-    }, wrapperRef);
-
-    return () => {
-      if (revealCheckFrame !== null) {
-        window.cancelAnimationFrame(revealCheckFrame);
-      }
-      if (buttonRevealTimeoutRef.current !== null) {
-        window.clearTimeout(buttonRevealTimeoutRef.current);
-        buttonRevealTimeoutRef.current = null;
-      }
-      ctx.revert();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!wrapperRef.current) {
-      return;
-    }
-
-    const ctx = gsap.context(() => {
-      if (!areFooterButtonsVisible) {
-        gsap.to("[data-footer-glass-button]", {
-          autoAlpha: 0,
-          duration: 0.28,
-          ease: "power2.in",
-          overwrite: true,
-          stagger: 0.035,
-          y: 22,
-        });
-        return;
-      }
-
-      gsap.to("[data-footer-glass-button]", {
-        autoAlpha: 1,
-        clearProps: "transform",
-        duration: 0.7,
-        ease: "power3.out",
-        overwrite: true,
-        stagger: 0.08,
-        y: 0,
-      });
-    }, wrapperRef);
-
-    return () => ctx.revert();
-  }, [areFooterButtonsVisible]);
-
   const scrollToTop = () => {
     window.scrollTo({ behavior: shouldReduceMotion() ? "auto" : "smooth", top: 0 });
   };
@@ -276,7 +82,6 @@ export function CinematicFooter() {
     <>
       <div
         data-navigation-menu-hide-zone
-        ref={wrapperRef}
         className="relative h-[100svh] w-full [clip-path:polygon(0%_0,100%_0%,100%_100%,0_100%)] [mask-image:linear-gradient(to_bottom,transparent_0%,black_14%,black_100%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent_0%,black_14%,black_100%)]"
       >
         <footer
@@ -299,7 +104,7 @@ export function CinematicFooter() {
           </div>
           <div
             className={cn(
-              "pointer-events-none absolute top-1/2 left-1/2 z-0 h-[62vh] w-[82vw] -translate-x-1/2 -translate-y-1/2 animate-[footer-breathe_8s_ease-in-out_infinite_alternate] rounded-[50%] blur-[82px]",
+              "pointer-events-none absolute top-1/2 left-1/2 z-0 h-[62vh] w-[82vw] -translate-x-1/2 -translate-y-1/2 rounded-[50%] blur-[82px]",
               footerAuroraClassName,
             )}
           />
@@ -317,7 +122,6 @@ export function CinematicFooter() {
           </div>
 
           <div
-            ref={giantTextRef}
             className={cn(
               "pointer-events-none absolute -bottom-[4vh] left-1/2 z-0 -translate-x-1/2 select-none whitespace-nowrap",
               giantTextClassName,
@@ -326,98 +130,89 @@ export function CinematicFooter() {
             SMILE
           </div>
 
-          <div className="relative z-10 mx-auto mt-20 flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-6">
-            <div ref={headingRef} className="mb-9">
-              <BlurText
-                animateBy="sentence"
-                as="h2"
+          <div className="relative z-10 mx-auto mt-20 flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-6 min-[2400px]:max-w-7xl">
+            <div className="mb-9">
+              <h2
                 className={cn(
-                  "justify-center text-center text-[clamp(2.7rem,min(9vw,11svh),6.2rem)] leading-[0.95] font-black tracking-normal",
+                  "justify-center text-center text-[clamp(2.7rem,min(9vw,11svh),6.2rem)] leading-[0.95] font-black tracking-normal whitespace-nowrap min-[2400px]:text-[7.1rem]",
+                  textGlowClassName,
                 )}
-                delay={footerHeadingWordDelay}
-                direction="bottom"
-                replayKey={headingTextReplayKey}
-                rootMargin="0px 0px -12% 0px"
-                segmentClassName={textGlowClassName}
-                startAnimation={isHeadingTextVisible}
-                stepDuration={footerHeadingStepDuration}
-                text={footerHeadingText}
-                threshold={0.2}
-              />
+              >
+                {footerHeadingText}
+              </h2>
             </div>
 
-            <div ref={linksRef} className="flex w-full flex-col items-center gap-5">
-              <div className="flex w-full flex-wrap justify-center gap-4">
-                <FooterGlassButton
+            <div className="flex w-full flex-col items-center gap-5 min-[2400px]:gap-8">
+              <div className="flex w-full flex-wrap justify-center gap-x-14 gap-y-5 md:gap-x-20 min-[2400px]:gap-x-32">
+                <FooterTextButton
                   as="a"
-                  className={cn(
-                    "inline-flex items-center gap-3 rounded-full px-8 py-4 text-sm font-bold text-foreground md:px-10 md:py-5 md:text-base",
-                    glassPillClassName,
-                  )}
+                  className="text-sm font-bold md:text-base min-[2400px]:text-2xl"
                   data-app-link
                   href="/follow-us"
-                  revealed={areFooterButtonsVisible}
                 >
-                  <UsersIcon aria-hidden="true" className="size-5 shrink-0" strokeWidth={2.5} />
+                  <UsersIcon
+                    aria-hidden="true"
+                    className="size-5 shrink-0 min-[2400px]:size-7"
+                    strokeWidth={2.5}
+                  />
                   Follow us
-                </FooterGlassButton>
+                </FooterTextButton>
 
-                <FooterGlassButton
+                <FooterTextButton
                   as="a"
-                  className={cn(
-                    "inline-flex items-center gap-3 rounded-full px-8 py-4 text-sm font-bold text-foreground md:px-10 md:py-5 md:text-base",
-                    glassPillClassName,
-                  )}
+                  className="text-sm font-bold md:text-base min-[2400px]:text-2xl"
                   data-app-link
                   href="/contributing"
-                  revealed={areFooterButtonsVisible}
                 >
                   <CodeBracketIcon
                     aria-hidden="true"
-                    className="size-5 shrink-0"
+                    className="size-5 shrink-0 min-[2400px]:size-7"
                     strokeWidth={2.5}
                   />
                   Contributing
-                </FooterGlassButton>
+                </FooterTextButton>
               </div>
 
-              <div className="mt-1 flex w-full flex-wrap justify-center gap-3 md:gap-5">
-                <FooterGlassButton
+              <div className="mt-2 flex w-full flex-wrap justify-center gap-x-10 gap-y-4 md:gap-x-14 min-[2400px]:mt-3 min-[2400px]:gap-x-24 min-[2400px]:gap-y-6">
+                <FooterTextButton
                   as="button"
-                  className={cn(
-                    "rounded-full px-6 py-3 text-xs font-semibold text-foreground md:text-sm",
-                    glassPillClassName,
-                  )}
+                  className="text-xs font-semibold md:text-sm min-[2400px]:text-xl"
                   onClick={scrollToTop}
-                  revealed={areFooterButtonsVisible}
                   type="button"
                 >
+                  <HomeIcon
+                    aria-hidden="true"
+                    className="size-4 shrink-0 min-[2400px]:size-6"
+                    strokeWidth={2.5}
+                  />
                   Home
-                </FooterGlassButton>
-                <FooterGlassButton
+                </FooterTextButton>
+                <FooterTextButton
                   as="a"
-                  className={cn(
-                    "rounded-full px-6 py-3 text-xs font-semibold text-foreground md:text-sm",
-                    glassPillClassName,
-                  )}
+                  className="text-xs font-semibold md:text-sm min-[2400px]:text-xl"
                   data-app-link
                   href="/support"
-                  revealed={areFooterButtonsVisible}
                 >
+                  <LifebuoyIcon
+                    aria-hidden="true"
+                    className="size-4 shrink-0 min-[2400px]:size-6"
+                    strokeWidth={2.5}
+                  />
                   Support
-                </FooterGlassButton>
-                <FooterGlassButton
+                </FooterTextButton>
+                <FooterTextButton
                   as="a"
-                  className={cn(
-                    "rounded-full px-6 py-3 text-xs font-semibold text-foreground md:text-sm",
-                    glassPillClassName,
-                  )}
+                  className="text-xs font-semibold md:text-sm min-[2400px]:text-xl"
                   data-app-link
                   href="/about"
-                  revealed={areFooterButtonsVisible}
                 >
+                  <InformationCircleIcon
+                    aria-hidden="true"
+                    className="size-4 shrink-0 min-[2400px]:size-6"
+                    strokeWidth={2.5}
+                  />
                   About us
-                </FooterGlassButton>
+                </FooterTextButton>
               </div>
             </div>
           </div>
