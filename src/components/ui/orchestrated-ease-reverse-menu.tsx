@@ -514,18 +514,26 @@ export function OrchestratedEaseReverseMenu() {
           },
           0.12,
         )
-        .to(
+        .fromTo(
           midBar,
           {
-            duration: 0.15,
+            attr: { "stroke-width": 1.5, x1: 2, x2: 14, y1: 8, y2: 8 },
+            opacity: 1,
+          },
+          {
+            attr: { "stroke-width": 0 },
+            duration: 0.08,
             ease: "power2.in",
             easeReverse: useReverseEase,
             opacity: 0,
           },
           0,
         )
-        .to(
+        .fromTo(
           topBar,
+          {
+            attr: { x1: 2, x2: 14, y1: 5, y2: 5 },
+          },
           {
             attr: { x1: 3, x2: 13, y1: 3, y2: 13 },
             duration: 0.28,
@@ -533,8 +541,11 @@ export function OrchestratedEaseReverseMenu() {
           },
           0,
         )
-        .to(
+        .fromTo(
           bottomBar,
+          {
+            attr: { x1: 2, x2: 14, y1: 11, y2: 11 },
+          },
           {
             attr: { x1: 13, x2: 3, y1: 3, y2: 13 },
             duration: 0.28,
