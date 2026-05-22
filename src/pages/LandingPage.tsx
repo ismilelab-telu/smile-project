@@ -254,6 +254,24 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || shouldReduceMotion()) {
+      return;
+    }
+
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        ScrollTrigger.refresh();
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, []);
+
   useGSAP(
     () => {
       const fadeTarget = "[data-landing-scroll-fade]";

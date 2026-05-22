@@ -1,4 +1,5 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 const ExplorePage = lazy(() =>
   import("../pages/ExplorePage").then((module) => ({ default: module.ExplorePage })),
@@ -10,13 +11,10 @@ const LandingPage = lazy(() =>
   import("../pages/LandingPage").then((module) => ({ default: module.LandingPage })),
 );
 
-const routeSlideDurationMs = 620;
 type RouteTheme = "dark" | "light";
-type RouteTransition = {
-  direction: -1 | 1;
-  fromPath: string;
-  phase: "preparing" | "running";
-  toPath: string;
+type RouteDirection = "back" | "forward";
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (callback: () => void) => { finished: Promise<void> };
 };
 
 function getRouteTheme(pathname: string): RouteTheme {
@@ -35,8 +33,8 @@ function getRouteOrder(pathname: string) {
   return 2;
 }
 
-function getRouteDirection(fromPath: string, toPath: string): -1 | 1 {
-  return getRouteOrder(toPath) >= getRouteOrder(fromPath) ? 1 : -1;
+function getRouteDirection(fromPath: string, toPath: string): RouteDirection {
+  return getRouteOrder(toPath) >= getRouteOrder(fromPath) ? "forward" : "back";
 }
 
 function getCurrentPath() {
@@ -51,12 +49,9 @@ function isLocalAppLink(element: HTMLAnchorElement) {
 
 export function App() {
   const [path, setPath] = useState(getCurrentPath);
-  const [routeTransition, setRouteTransition] = useState<RouteTransition | null>(null);
   const hasRenderedLandingRef = useRef(false);
-  const pathRef = useRef(path);
-  const transitionFrameRef = useRef<number | null>(null);
-  const transitionTimersRef = useRef<number[]>([]);
   const shouldSkipLandingIntro = path === "/" && hasRenderedLandingRef.current;
+  const pathRef = useRef(path);
 
   useEffect(() => {
     pathRef.current = path;
@@ -75,17 +70,6 @@ export function App() {
       window.history.scrollRestoration = "manual";
     }
 
-    const clearTransitionTimers = () => {
-      transitionTimersRef.current.forEach((timer) => {
-        window.clearTimeout(timer);
-      });
-      transitionTimersRef.current = [];
-
-      if (transitionFrameRef.current !== null) {
-        window.cancelAnimationFrame(transitionFrameRef.current);
-        transitionFrameRef.current = null;
-      }
-    };
     const navigateTo = (pathname: string) => {
       window.history.pushState(null, "", pathname);
       setPath(pathname);
@@ -101,8 +85,6 @@ export function App() {
     }, 0);
 
     const handlePopState = () => {
-      clearTransitionTimers();
-      setRouteTransition(null);
       setPath(getCurrentPath());
     };
 
@@ -125,47 +107,36 @@ export function App() {
       const isRouteTransition = currentPath !== url.pathname;
 
       if (!isRouteTransition) {
-        clearTransitionTimers();
-        setRouteTransition(null);
         window.scrollTo({ top: 0 });
         return;
       }
 
-      if (!shouldReduceRouteTransition) {
-        const toPath = url.pathname;
+      const viewTransitionDocument = document as ViewTransitionDocument;
+      const startViewTransition = viewTransitionDocument.startViewTransition?.bind(document);
 
-        clearTransitionTimers();
-        setRouteTransition({
-          direction: getRouteDirection(currentPath, toPath),
-          fromPath: currentPath,
-          phase: "preparing",
-          toPath,
-        });
-        navigateTo(toPath);
+      if (!shouldReduceRouteTransition && startViewTransition) {
+        document.documentElement.dataset.routeTransition = getRouteDirection(
+          currentPath,
+          url.pathname,
+        );
 
-        transitionFrameRef.current = window.requestAnimationFrame(() => {
-          transitionFrameRef.current = window.requestAnimationFrame(() => {
-            transitionFrameRef.current = null;
-            setRouteTransition((currentTransition) =>
-              currentTransition?.toPath === toPath
-                ? { ...currentTransition, phase: "running" }
-                : currentTransition,
-            );
+        try {
+          const transition = startViewTransition(() => {
+            flushSync(() => {
+              navigateTo(url.pathname);
+            });
           });
-        });
 
-        const doneTimer = window.setTimeout(() => {
-          setRouteTransition((currentTransition) =>
-            currentTransition?.toPath === toPath ? null : currentTransition,
-          );
-        }, routeSlideDurationMs + 80);
-
-        transitionTimersRef.current = [doneTimer];
+          void transition.finished.finally(() => {
+            delete document.documentElement.dataset.routeTransition;
+          });
+        } catch {
+          delete document.documentElement.dataset.routeTransition;
+          navigateTo(url.pathname);
+        }
         return;
       }
 
-      clearTransitionTimers();
-      setRouteTransition(null);
       navigateTo(url.pathname);
     };
 
@@ -174,46 +145,12 @@ export function App() {
 
     return () => {
       window.clearTimeout(restoreGuard);
-      clearTransitionTimers();
+      delete document.documentElement.dataset.routeTransition;
       window.removeEventListener("popstate", handlePopState);
       document.removeEventListener("click", handleDocumentClick);
     };
   }, []);
 
-  return (
-    <RouteStage
-      onLandingRendered={handleLandingRendered}
-      path={path}
-      skipLandingIntro={shouldSkipLandingIntro}
-      transition={routeTransition}
-    />
-  );
-}
-
-type RouteContentProps = {
-  onLandingRendered: () => void;
-  path: string;
-  skipLandingIntro: boolean;
-};
-
-function RouteContent({ onLandingRendered, path, skipLandingIntro }: RouteContentProps) {
-  if (path === "/") {
-    return <LandingPage onRendered={onLandingRendered} skipIntroAnimation={skipLandingIntro} />;
-  }
-
-  if (path === "/explore") {
-    return <ExplorePage />;
-  }
-
-  return <FuzzyTextPage path={path} />;
-}
-
-type RouteSuspenseProps = {
-  children: ReactNode;
-  path: string;
-};
-
-function RouteSuspense({ children, path }: RouteSuspenseProps) {
   return (
     <Suspense
       fallback={
@@ -224,64 +161,16 @@ function RouteSuspense({ children, path }: RouteSuspenseProps) {
         />
       }
     >
-      {children}
+      {path === "/" ? (
+        <LandingPage
+          onRendered={handleLandingRendered}
+          skipIntroAnimation={shouldSkipLandingIntro}
+        />
+      ) : path === "/explore" ? (
+        <ExplorePage />
+      ) : (
+        <FuzzyTextPage path={path} />
+      )}
     </Suspense>
-  );
-}
-
-type RouteStageProps = {
-  onLandingRendered: () => void;
-  path: string;
-  skipLandingIntro: boolean;
-  transition: RouteTransition | null;
-};
-
-function RouteStage({ onLandingRendered, path, skipLandingIntro, transition }: RouteStageProps) {
-  const isRunning = transition?.phase === "running";
-  const outgoingX = transition && isRunning ? transition.direction * -100 : 0;
-  const incomingX = transition ? (isRunning ? 0 : transition.direction * 100) : 0;
-  const transitionLayerClassName =
-    "absolute inset-0 overflow-hidden will-change-transform transition-transform duration-[620ms] ease-[cubic-bezier(0.76,0,0.24,1)]";
-  const activeTransitionTheme = transition ? getRouteTheme(transition.toPath) : getRouteTheme(path);
-
-  return (
-    <div
-      className={
-        transition
-          ? `pointer-events-none fixed inset-0 z-[3000] overflow-hidden ${
-              activeTransitionTheme === "dark" ? "bg-neutral-950" : "bg-background"
-            }`
-          : "min-h-screen overflow-x-hidden"
-      }
-    >
-      <div
-        className={transition ? transitionLayerClassName : "min-h-screen overflow-x-hidden"}
-        style={transition ? { transform: `translate3d(${incomingX}%, 0, 0)` } : undefined}
-      >
-        <RouteSuspense path={path}>
-          <RouteContent
-            onLandingRendered={onLandingRendered}
-            path={path}
-            skipLandingIntro={skipLandingIntro}
-          />
-        </RouteSuspense>
-      </div>
-
-      {transition ? (
-        <div
-          aria-hidden="true"
-          className={transitionLayerClassName}
-          style={{ transform: `translate3d(${outgoingX}%, 0, 0)` }}
-        >
-          <RouteSuspense path={transition.fromPath}>
-            <RouteContent
-              onLandingRendered={onLandingRendered}
-              path={transition.fromPath}
-              skipLandingIntro={transition.fromPath === "/"}
-            />
-          </RouteSuspense>
-        </div>
-      ) : null}
-    </div>
   );
 }
