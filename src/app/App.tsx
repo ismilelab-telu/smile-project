@@ -1,7 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
-import DotGrid from "@/components/ui/dot-grid";
+import LiquidEther from "@/components/ui/liquid-ether";
+
+const liquidEtherColors = ["#5227FF", "#FF9FFC", "#B497CF"];
 
 const ExplorePage = lazy(() =>
   import("../pages/ExplorePage").then((module) => ({ default: module.ExplorePage })),
@@ -215,18 +217,22 @@ export function App() {
 function SharedExploreBackground() {
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 bg-neutral-950">
-      <DotGrid
-        activeColor="oklch(76.5% 0.177 163.223)"
-        baseColor="oklch(43.9% 0 0)"
-        dotSize={3}
-        gap={26}
-        maxSpeed={4200}
-        proximity={150}
-        resistance={760}
-        returnDuration={1.35}
-        shockRadius={260}
-        shockStrength={4}
-        speedTrigger={120}
+      <LiquidEther
+        autoDemo
+        autoIntensity={2.2}
+        autoRampDuration={0.6}
+        autoResumeDelay={3000}
+        autoSpeed={0.5}
+        colors={liquidEtherColors}
+        cursorSize={100}
+        isBounce={false}
+        isViscous={false}
+        iterationsPoisson={32}
+        iterationsViscous={32}
+        mouseForce={20}
+        resolution={0.5}
+        takeoverDuration={0.25}
+        viscous={30}
       />
     </div>
   );

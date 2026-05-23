@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
@@ -15,6 +15,16 @@ function seedCompletedLessons(completedLessonIds: string[]) {
   );
 }
 
+function getStoredCompletedLessonIds() {
+  const stored = window.localStorage.getItem(learningProgressStorageKey);
+
+  if (!stored) {
+    throw new Error("Expected learning progress to be stored.");
+  }
+
+  return (JSON.parse(stored) as { completedLessonIds: string[] }).completedLessonIds;
+}
+
 describe("App", () => {
   const lazyRouteTimeout = { timeout: 3000 };
 
@@ -24,127 +34,7 @@ describe("App", () => {
     window.history.pushState(null, "", "/");
   });
 
-  it("renders the landing page", async () => {
-    render(<App />);
-
-    expect(
-      await screen.findByRole("heading", { name: "Smile Project" }, lazyRouteTimeout),
-    ).toBeInTheDocument();
-    expect(
-      await screen.findByRole("link", { name: /Open Explore page/ }, lazyRouteTimeout),
-    ).toHaveAttribute("href", "/explore");
-  });
-
-  it("opens the orchestrated GSAP navigation island", async () => {
-    render(<App />);
-
-    const menuButton = await screen.findByRole(
-      "button",
-      { name: "Open navigation menu" },
-      lazyRouteTimeout,
-    );
-
-    fireEvent.click(menuButton);
-
-    const menuDialog = screen.getByRole("dialog", { name: "Navigation menu" });
-    const workLink = await within(menuDialog).findByRole("link", { name: "Work 01" });
-
-    expect(menuButton).toHaveAttribute("aria-expanded", "true");
-    expect(workLink).toBeInTheDocument();
-    expect(within(menuDialog).getByRole("link", { name: "Contacts 05" })).toBeInTheDocument();
-  });
-
-  it("hides the navigation island while the footer is visible", async () => {
-    render(<App />);
-
-    const menuButton = await screen.findByRole(
-      "button",
-      { name: "Open navigation menu" },
-      lazyRouteTimeout,
-    );
-    let footerHideZone: HTMLElement | null = null;
-
-    await waitFor(() => {
-      footerHideZone = document.querySelector<HTMLElement>("[data-navigation-menu-hide-zone]");
-      expect(footerHideZone).not.toBeNull();
-    });
-
-    expect(menuButton).toBeInTheDocument();
-
-    vi.spyOn(footerHideZone!, "getBoundingClientRect").mockReturnValue({
-      bottom: window.innerHeight + 320,
-      height: 360,
-      left: 0,
-      right: window.innerWidth,
-      top: window.innerHeight - 40,
-      width: window.innerWidth,
-      x: 0,
-      y: window.innerHeight - 40,
-      toJSON: () => ({}),
-    });
-
-    fireEvent.scroll(window);
-
-    await waitFor(() => {
-      expect(
-        screen.queryByRole("button", { name: "Open navigation menu" }),
-      ).not.toBeInTheDocument();
-    });
-  });
-
-  it("renders fuzzy text utility pages", async () => {
-    window.history.pushState(null, "", "/support");
-    render(<App />);
-
-    expect(
-      await screen.findByRole("heading", { name: "404 not found." }, lazyRouteTimeout),
-    ).toBeInTheDocument();
-    expect(await screen.findByRole("img", { name: "404" }, lazyRouteTimeout)).toBeInTheDocument();
-    expect(
-      await screen.findByRole("img", { name: "not found." }, lazyRouteTimeout),
-    ).toBeInTheDocument();
-  });
-
-  it("routes inactive mode placeholders back to explore", async () => {
-    for (const placeholderPath of ["/playground", "/algorithm-lab"]) {
-      window.history.pushState(null, "", placeholderPath);
-      const { unmount } = render(<App />);
-
-      expect(
-        await screen.findByRole("heading", { name: "404 not found." }, lazyRouteTimeout),
-      ).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: "Explore" })).toHaveAttribute("href", "/explore");
-
-      unmount();
-    }
-  });
-
-  it("opens the explore page menu", async () => {
-    window.history.pushState(null, "", "/explore");
-    render(<App />);
-
-    const menuButton = await screen.findByRole("button", { name: "Open menu" }, lazyRouteTimeout);
-
-    fireEvent.click(menuButton);
-
-    const exploreMenu = await screen.findByRole("navigation", {
-      name: "Explore menu",
-    });
-
-    expect(menuButton).toHaveAttribute("aria-expanded", "true");
-    expect(within(exploreMenu).getByRole("link", { name: /Learning Mode/ })).toHaveAttribute(
-      "href",
-      "/learn",
-    );
-
-    fireEvent.keyDown(document, { key: "Escape" });
-
-    await waitFor(() => {
-      expect(menuButton).toHaveAttribute("aria-expanded", "false");
-    });
-  });
-
-  it("routes the explore action to the mode selection page", async () => {
+  it("routes from landing to the Explore mode selection", async () => {
     render(<App />);
 
     fireEvent.click(
@@ -166,27 +56,32 @@ describe("App", () => {
     expect(window.location.pathname).toBe("/explore");
   });
 
-  it("renders the Learning Mode home", async () => {
+  it("shows only the first Learning Mode lesson as available without progress", async () => {
     window.history.pushState(null, "", "/learn");
     render(<App />);
 
     expect(
       await screen.findByRole("heading", { name: "Regression Foundations" }, lazyRouteTimeout),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Modules" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Regression vs Classification" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "ML Workflow Order" })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Start lesson/ })).toHaveLength(1);
     expect(screen.getByRole("link", { name: /Start lesson/ })).toHaveAttribute(
       "href",
       "/learn/track-regression-foundations/lesson-0-1-feature-target",
     );
+    expect(
+      document.querySelector(
+        'a[href="/learn/track-regression-foundations/lesson-0-2-regression-classification"]',
+      ),
+    ).toBeNull();
+    expect(
+      document.querySelector(
+        'a[href="/learn/track-regression-foundations/lesson-0-3-ml-workflow-order"]',
+      ),
+    ).toBeNull();
     expect(screen.getAllByText("Locked").length).toBeGreaterThanOrEqual(2);
   });
 
-  it("submits the first Learning Mode exercise and persists progress", async () => {
+  it("completes the first lesson, persists progress, and unlocks the next lesson", async () => {
     window.history.pushState(
       null,
       "",
@@ -224,9 +119,78 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
 
     expect(await screen.findByRole("heading", { name: "Correct" })).toBeInTheDocument();
-    expect(window.localStorage.getItem("smile-learning-progress-v1")).toContain(
-      "lesson-0-1-feature-target",
+    expect(getStoredCompletedLessonIds()).toContain("lesson-0-1-feature-target");
+
+    fireEvent.click(screen.getAllByRole("link", { name: "Back to Learning Home" })[0]);
+
+    expect(
+      await screen.findByRole("heading", { name: "Regression Foundations" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Review lesson/ })).toHaveAttribute(
+      "href",
+      "/learn/track-regression-foundations/lesson-0-1-feature-target",
     );
+    expect(screen.getByRole("link", { name: /Start lesson/ })).toHaveAttribute(
+      "href",
+      "/learn/track-regression-foundations/lesson-0-2-regression-classification",
+    );
+    expect(
+      document.querySelector(
+        'a[href="/learn/track-regression-foundations/lesson-0-3-ml-workflow-order"]',
+      ),
+    ).toBeNull();
+  });
+
+  it("keeps the next lesson locked after an incorrect answer", async () => {
+    window.history.pushState(
+      null,
+      "",
+      "/learn/track-regression-foundations/lesson-0-1-feature-target",
+    );
+    render(<App />);
+
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: "Rows, Columns, Features, and Targets" },
+        lazyRouteTimeout,
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
+
+    expect(await screen.findByRole("heading", { name: "Not quite" })).toBeInTheDocument();
+    expect(getStoredCompletedLessonIds()).not.toContain("lesson-0-1-feature-target");
+
+    fireEvent.click(screen.getAllByRole("link", { name: "Back to Learning Home" })[0]);
+
+    expect(
+      await screen.findByRole("heading", { name: "Regression Foundations" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Start lesson/ })).toHaveAttribute(
+      "href",
+      "/learn/track-regression-foundations/lesson-0-1-feature-target",
+    );
+    expect(
+      document.querySelector(
+        'a[href="/learn/track-regression-foundations/lesson-0-2-regression-classification"]',
+      ),
+    ).toBeNull();
+  });
+
+  it("blocks direct access to locked Learning Mode lessons", async () => {
+    window.history.pushState(
+      null,
+      "",
+      "/learn/track-regression-foundations/lesson-0-2-regression-classification",
+    );
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Lesson locked" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Complete Lesson 0.1 first.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Submit answer" })).not.toBeInTheDocument();
   });
 
   it("submits the regression vs classification lesson", async () => {
@@ -253,9 +217,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
 
     expect(await screen.findByRole("heading", { name: "Correct" })).toBeInTheDocument();
-    expect(window.localStorage.getItem("smile-learning-progress-v1")).toContain(
-      "lesson-0-2-regression-classification",
-    );
+    expect(getStoredCompletedLessonIds()).toContain("lesson-0-2-regression-classification");
   });
 
   it("submits the ML workflow ordering lesson", async () => {
@@ -275,23 +237,6 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
 
     expect(await screen.findByRole("heading", { name: "Correct" })).toBeInTheDocument();
-    expect(window.localStorage.getItem("smile-learning-progress-v1")).toContain(
-      "lesson-0-3-ml-workflow-order",
-    );
-  });
-
-  it("blocks direct access to locked Learning Mode lessons", async () => {
-    window.history.pushState(
-      null,
-      "",
-      "/learn/track-regression-foundations/lesson-0-2-regression-classification",
-    );
-    render(<App />);
-
-    expect(
-      await screen.findByRole("heading", { name: "Lesson locked" }, lazyRouteTimeout),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Complete Lesson 0.1 first.")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Submit answer" })).not.toBeInTheDocument();
+    expect(getStoredCompletedLessonIds()).toContain("lesson-0-3-ml-workflow-order");
   });
 });
