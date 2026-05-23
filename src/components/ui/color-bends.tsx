@@ -124,6 +124,7 @@ type ColorBendsProps = {
   parallax?: number;
   rotation?: number;
   scale?: number;
+  onReady?: () => void;
   speed?: number;
   style?: CSSProperties;
   transparent?: boolean;
@@ -133,6 +134,7 @@ type ColorBendsProps = {
 const colorFallbacks = {
   "--color-cyan-400": "oklch(78.9% 0.154 211.53)",
   "--color-emerald-500": "oklch(69.6% 0.17 162.48)",
+  "--color-emerald-600": "oklch(59.6% 0.145 163.225)",
   "--color-purple-500": "oklch(62.7% 0.265 303.9)",
   "--color-rose-400": "oklch(71.2% 0.194 13.428)",
   "--color-rose-600": "oklch(58.6% 0.253 17.585)",
@@ -235,6 +237,23 @@ function colorToVector(color: string) {
   return new THREE.Vector3(0, 0, 0);
 }
 
+function updateColorUniforms(material: THREE.ShaderMaterial, colors: string[]) {
+  const colorVectors = colors.filter(Boolean).slice(0, MAX_COLORS).map(colorToVector);
+  const uniformColors = material.uniforms.uColors.value as THREE.Vector3[];
+
+  for (let index = 0; index < MAX_COLORS; index += 1) {
+    const vector = uniformColors[index];
+
+    if (index < colorVectors.length) {
+      vector.copy(colorVectors[index]);
+    } else {
+      vector.set(0, 0, 0);
+    }
+  }
+
+  material.uniforms.uColorCount.value = colorVectors.length;
+}
+
 function canUseWebGL() {
   return typeof window !== "undefined" && "WebGLRenderingContext" in window;
 }
@@ -255,6 +274,7 @@ export default function ColorBends({
   noise = 0.15,
   iterations = 1,
   intensity = 1.5,
+  onReady,
   bandWidth = 6,
 }: ColorBendsProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -262,6 +282,7 @@ export default function ColorBends({
   const rafRef = useRef<number | null>(null);
   const materialRef = useRef<THREE.ShaderMaterial | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const readyRef = useRef(false);
   const rotationRef = useRef(rotation);
   const autoRotateRef = useRef(autoRotate);
   const pointerTargetRef = useRef(new THREE.Vector2(0, 0));
@@ -273,6 +294,11 @@ export default function ColorBends({
     const container = containerRef.current;
 
     if (!container || useLightweightVisuals || !canUseWebGL()) {
+      if (!readyRef.current) {
+        readyRef.current = true;
+        onReady?.();
+      }
+
       return;
     }
 
@@ -305,6 +331,7 @@ export default function ColorBends({
       },
       vertexShader: vert,
     });
+    updateColorUniforms(material, colors);
     materialRef.current = material;
 
     const mesh = new THREE.Mesh(geometry, material);
@@ -357,6 +384,12 @@ export default function ColorBends({
       current.lerp(target, Math.min(1, delta * pointerSmoothRef.current));
       material.uniforms.uPointer.value.copy(current);
       renderer.render(scene, camera);
+
+      if (!readyRef.current) {
+        readyRef.current = true;
+        onReady?.();
+      }
+
       rafRef.current = requestAnimationFrame(loop);
     };
 
@@ -392,6 +425,7 @@ export default function ColorBends({
     parallax,
     scale,
     speed,
+    onReady,
     transparent,
     useLightweightVisuals,
     warpStrength,
@@ -418,19 +452,7 @@ export default function ColorBends({
     material.uniforms.uIntensity.value = intensity;
     material.uniforms.uBandWidth.value = bandWidth;
 
-    const colorVectors = colors.filter(Boolean).slice(0, MAX_COLORS).map(colorToVector);
-
-    for (let index = 0; index < MAX_COLORS; index += 1) {
-      const vector = material.uniforms.uColors.value[index];
-
-      if (index < colorVectors.length) {
-        vector.copy(colorVectors[index]);
-      } else {
-        vector.set(0, 0, 0);
-      }
-    }
-
-    material.uniforms.uColorCount.value = colorVectors.length;
+    updateColorUniforms(material, colors);
     material.uniforms.uTransparent.value = transparent ? 1 : 0;
     renderer?.setClearColor(new THREE.Color(0, 0, 0), transparent ? 0 : 1);
   }, [

@@ -11,7 +11,7 @@
       html[data-route-theme="dark"],
       html[data-route-theme="dark"] body,
       html[data-route-theme="dark"] #root {
-        background: oklch(14.5% 0 0);
+        background: oklch(0% 0 0);
         color-scheme: dark;
       }
     </style>
@@ -20,9 +20,8 @@
         window.history.scrollRestoration = "manual";
       }
 
-      if (window.location.pathname === "/explore") {
-        document.documentElement.dataset.routeTheme = "dark";
-      }
+      document.documentElement.dataset.routeTheme =
+        window.location.pathname === "/" ? "light" : "dark";
     </script>
     <title>Smile Project</title>
   </head>

@@ -8,9 +8,14 @@
 .color-bends-container--static {
   background:
     radial-gradient(
-      circle at 50% 50%,
-      color-mix(in oklch, var(--color-purple-500) 42%, transparent),
+      circle at 38% 44%,
+      color-mix(in oklch, var(--color-emerald-600) 58%, transparent),
       transparent 38%
+    ),
+    radial-gradient(
+      circle at 62% 56%,
+      color-mix(in oklch, var(--color-sky-400) 10%, transparent),
+      transparent 40%
     ),
     oklch(0% 0 0);
 }

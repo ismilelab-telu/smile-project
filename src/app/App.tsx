@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
 const ExplorePage = lazy(() =>
@@ -72,7 +72,7 @@ export function App() {
     hasRenderedLandingRef.current = true;
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.documentElement.dataset.routeTheme = getRouteTheme(path);
   }, [path]);
 

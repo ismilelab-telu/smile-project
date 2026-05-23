@@ -12,7 +12,7 @@ import {
 } from "../content/learning-content";
 import type { LearningProgress } from "../types";
 import { LearningHeader } from "./LearningHeader";
-import ColorBends from "@/components/ui/color-bends";
+import DotGrid from "@/components/ui/dot-grid";
 import { GlassSurface } from "@/components/ui/glass-surface";
 import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
 
@@ -26,13 +26,6 @@ const glassCardStyle = {
   zIndex: -1,
 } as const;
 
-const colorBendsStyle = {
-  inset: 0,
-  position: "absolute",
-} as const;
-
-const learningBackgroundColors = ["var(--color-purple-500)"];
-
 type LearningHomeProps = {
   progress: LearningProgress;
   onResetProgress: () => void;
@@ -45,26 +38,21 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
   const progressPercent = Math.round((completedLessons / totalActiveLessons) * 100);
 
   return (
-    <main className="relative isolate min-h-screen overflow-x-hidden bg-black text-foreground">
-      <div className="fixed inset-0 z-0 bg-black">
-        <ColorBends
-          autoRotate={0}
-          bandWidth={6}
-          colors={learningBackgroundColors}
-          frequency={1}
-          intensity={1.5}
-          iterations={1}
-          mouseInfluence={1}
-          noise={0.15}
-          parallax={0.5}
-          rotation={90}
-          scale={1}
-          speed={0.2}
-          style={colorBendsStyle}
-          transparent
-          warpStrength={1}
+    <main className="relative isolate min-h-screen overflow-x-hidden bg-neutral-950 text-foreground">
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <DotGrid
+          activeColor="oklch(76.5% 0.177 163.223)"
+          baseColor="oklch(43.9% 0 0)"
+          dotSize={3}
+          gap={26}
+          maxSpeed={4200}
+          proximity={150}
+          resistance={760}
+          returnDuration={1.35}
+          shockRadius={260}
+          shockStrength={4}
+          speedTrigger={120}
         />
-        <div className="pointer-events-none absolute inset-0 bg-black/42" />
       </div>
 
       <div className="relative z-10">
@@ -165,7 +153,7 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                             </p>
                           </div>
                           <LiquidLink
-                            className={`${liquidButtonClassName} min-h-11 text-neutral-50 [--liquid-button-color:var(--color-emerald-500)]`}
+                            className={`${liquidButtonClassName} min-h-11 text-neutral-50 [--liquid-button-color:var(--color-emerald-600)]`}
                             data-app-link
                             href={`/learn/${regressionFoundationsTrack.id}/${activeLesson.id}`}
                           >

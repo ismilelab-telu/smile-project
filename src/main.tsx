@@ -20,7 +20,12 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="light"
+      enableColorScheme={false}
+      enableSystem={false}
+    >
       <App />
     </ThemeProvider>
   </StrictMode>,

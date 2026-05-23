@@ -11,8 +11,7 @@ export const regressionFoundationsTrack: LearningTrack = {
     "module-5-split-baseline",
     "module-6-linear-regression-evaluation",
   ],
-  summary:
-    "A guided path for understanding supervised regression workflow from data to model evaluation.",
+  summary: "Understand supervised regression workflow from data to model evaluation.",
   title: "Regression Foundations",
 };
 
