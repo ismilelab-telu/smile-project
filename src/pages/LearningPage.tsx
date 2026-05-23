@@ -8,7 +8,7 @@ import { GlassSurface } from "@/components/ui/glass-surface";
 import { LiquidLink } from "@/components/ui/liquid-button";
 
 const liquidButtonClassName =
-  "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-neutral-50 backdrop-blur-xl shadow-[inset_0_1px_0_oklch(100%_0_0_/_0.16),0_12px_32px_oklch(0%_0_0_/_0.22)] [--liquid-button-background-color:oklch(100%_0_0_/_0.08)] [--liquid-button-color:var(--color-emerald-500)]";
+  "inline-flex items-center justify-center gap-3 rounded-2xl px-5 py-3 text-base font-semibold text-neutral-50 backdrop-blur-xl shadow-[inset_0_1px_0_oklch(100%_0_0_/_0.16),0_12px_32px_oklch(0%_0_0_/_0.22)] [--liquid-button-background-color:oklch(100%_0_0_/_0.08)] [--liquid-button-color:var(--color-emerald-500)] [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:rounded-3xl [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg";
 
 const glassCardStyle = {
   inset: 0,
@@ -40,7 +40,7 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
     return (
       <main className="relative z-10 isolate min-h-screen overflow-x-hidden text-foreground">
         <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
-        <section className="route-content-transition-target relative isolate mx-auto mt-20 max-w-lg overflow-hidden rounded-3xl p-6 text-center">
+        <section className="route-content-transition-target relative isolate mx-auto mt-20 max-w-xl overflow-hidden rounded-3xl p-8 text-center [@media_(min-width:2200px)]:max-w-3xl [@media_(min-width:2200px)]:p-10">
           <GlassSurface
             aria-hidden="true"
             backgroundOpacity={0.08}
@@ -52,11 +52,17 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
             style={glassCardStyle}
             width="100%"
           />
-          <h1 className="text-xl font-semibold text-foreground">Lesson not found</h1>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          <h1 className="text-2xl font-semibold text-foreground [@media_(min-width:2200px)]:text-4xl">
+            Lesson not found
+          </h1>
+          <p className="mt-4 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-5 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
             This lesson ID is not available in Learning Mode yet.
           </p>
-          <LiquidLink className={`${liquidButtonClassName} mt-5`} data-app-link href="/learn">
+          <LiquidLink
+            className={`${liquidButtonClassName} mt-6 [@media_(min-width:2200px)]:mt-7`}
+            data-app-link
+            href="/learn"
+          >
             Back to Learning Home
           </LiquidLink>
         </section>
@@ -69,7 +75,7 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
       return (
         <main className="relative z-10 isolate min-h-screen overflow-x-hidden text-foreground">
           <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
-          <section className="route-content-transition-target relative isolate mx-auto mt-20 max-w-lg overflow-hidden rounded-3xl p-6 text-center">
+          <section className="route-content-transition-target relative isolate mx-auto mt-20 max-w-xl overflow-hidden rounded-3xl p-8 text-center [@media_(min-width:2200px)]:max-w-3xl [@media_(min-width:2200px)]:p-10">
             <GlassSurface
               aria-hidden="true"
               backgroundOpacity={0.08}
@@ -81,11 +87,17 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
               style={glassCardStyle}
               width="100%"
             />
-            <h1 className="text-xl font-semibold text-foreground">Lesson locked</h1>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            <h1 className="text-2xl font-semibold text-foreground [@media_(min-width:2200px)]:text-4xl">
+              Lesson locked
+            </h1>
+            <p className="mt-4 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-5 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
               {getLessonLockReason(lesson, progress)}
             </p>
-            <LiquidLink className={`${liquidButtonClassName} mt-5`} data-app-link href="/learn">
+            <LiquidLink
+              className={`${liquidButtonClassName} mt-6 [@media_(min-width:2200px)]:mt-7`}
+              data-app-link
+              href="/learn"
+            >
               Back to Learning Home
             </LiquidLink>
           </section>
