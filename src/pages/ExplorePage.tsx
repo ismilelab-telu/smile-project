@@ -12,6 +12,8 @@ import type { ComponentType, SVGProps } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 
+import DotGrid from "@/components/ui/dot-grid";
+import { GlassSurface } from "@/components/ui/glass-surface";
 import VariableProximity from "@/components/ui/variable-proximity";
 import { shouldReduceMotion } from "@/lib/motion";
 
@@ -58,17 +60,33 @@ const menuLinks = [
 ];
 
 const iconToneClassName = {
-  emerald: "bg-emerald-400/10 text-emerald-300 ring-emerald-400/20",
-  sky: "bg-sky-400/10 text-sky-300 ring-sky-400/20",
-  neutral: "bg-neutral-800 text-neutral-300 ring-neutral-700",
+  emerald: "text-emerald-300",
+  sky: "text-sky-300",
+  neutral: "text-neutral-300",
 } satisfies Record<Mode["statusTone"], string>;
 
 export function ExplorePage() {
   const headingRef = useRef<HTMLSpanElement>(null);
 
   return (
-    <main className="relative min-h-screen bg-neutral-950 text-neutral-50">
-      <header className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-[clamp(1.5rem,3vw,2.5rem)] py-[clamp(1.5rem,3vw,2.5rem)] [@media_(min-width:2200px)]:px-14 [@media_(min-width:2200px)]:py-14">
+    <main className="relative isolate min-h-screen overflow-hidden bg-neutral-950 text-neutral-50">
+      <div className="pointer-events-none absolute inset-0 z-0">
+        <DotGrid
+          activeColor="oklch(76.5% 0.177 163.223)"
+          baseColor="oklch(43.9% 0 0)"
+          dotSize={3}
+          gap={26}
+          maxSpeed={4200}
+          proximity={150}
+          resistance={760}
+          returnDuration={1.35}
+          shockRadius={260}
+          shockStrength={4}
+          speedTrigger={120}
+        />
+      </div>
+
+      <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-[clamp(1.5rem,3vw,2.5rem)] py-[clamp(1.5rem,3vw,2.5rem)] [@media_(min-width:2200px)]:px-14 [@media_(min-width:2200px)]:py-14">
         <a
           aria-label="Back to home"
           className="inline-flex size-10 items-center justify-center rounded-lg bg-transparent text-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 [@media_(min-width:2200px)]:size-12"
@@ -85,7 +103,7 @@ export function ExplorePage() {
         </div>
       </header>
 
-      <section className="grid min-h-screen grid-cols-[24px_minmax(0,1fr)_24px] items-center py-28 sm:grid-cols-[48px_minmax(0,1fr)_48px] lg:grid-cols-[minmax(48px,1fr)_minmax(0,680px)_88px_minmax(0,920px)_minmax(48px,1fr)] lg:py-32 xl:grid-cols-[minmax(7rem,1fr)_minmax(0,clamp(680px,33vw,860px))_clamp(88px,5vw,144px)_minmax(0,clamp(920px,42vw,1180px))_minmax(7rem,1fr)] [@media_(min-width:2200px)]:py-40">
+      <section className="relative z-10 grid min-h-screen grid-cols-[24px_minmax(0,1fr)_24px] items-center py-28 sm:grid-cols-[48px_minmax(0,1fr)_48px] lg:grid-cols-[minmax(48px,1fr)_minmax(0,680px)_88px_minmax(0,920px)_minmax(48px,1fr)] lg:py-32 xl:grid-cols-[minmax(7rem,1fr)_minmax(0,clamp(680px,33vw,860px))_clamp(88px,5vw,144px)_minmax(0,clamp(920px,42vw,1180px))_minmax(7rem,1fr)] [@media_(min-width:2200px)]:py-40">
         <div className="col-start-2 grid gap-y-10">
           <h1 className="text-[4rem] leading-[0.9] font-semibold tracking-normal sm:text-[5rem] lg:text-[6.75rem] xl:text-[7.75rem] 2xl:text-[8.5rem] [@media_(min-width:2200px)]:text-[9.75rem]">
             <span className="relative block" ref={headingRef}>
@@ -409,7 +427,7 @@ function ExploreMenu() {
 
         <nav
           aria-label="Explore menu"
-          className="relative z-10 flex min-h-[420px] w-[min(700px,calc(100vw_-_2rem))] flex-1 transform-gpu flex-col rounded-xl border-2 border-neutral-950 bg-white px-7 pt-16 pb-7 text-neutral-950 shadow-2xl will-change-transform [@media_(min-width:2200px)]:min-h-[520px] [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:px-9 [@media_(min-width:2200px)]:pt-20 [@media_(min-width:2200px)]:pb-9"
+          className="relative z-10 flex min-h-[420px] w-[min(700px,calc(100vw_-_2rem))] flex-1 transform-gpu flex-col rounded-xl border-2 border-neutral-950 bg-zinc-300 px-7 pt-16 pb-7 text-neutral-950 shadow-2xl will-change-transform [@media_(min-width:2200px)]:min-h-[520px] [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:px-9 [@media_(min-width:2200px)]:pt-20 [@media_(min-width:2200px)]:pb-9"
           data-explore-menu-panel
         >
           <ul className="flex flex-1 list-none flex-col justify-center">
@@ -505,12 +523,29 @@ function ModeCard({ mode }: { mode: Mode }) {
 
   return (
     <a
-      className="group grid gap-5 rounded-xl border border-neutral-800 bg-neutral-900 p-5 shadow-[0_18px_54px_oklch(0%_0_0_/_0.26)] transition duration-200 hover:-translate-y-0.5 hover:border-neutral-700 hover:bg-neutral-900/92 hover:shadow-[0_22px_68px_oklch(0%_0_0_/_0.34)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-6 [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-7"
+      className="group relative isolate grid gap-5 overflow-hidden rounded-3xl bg-transparent p-5 shadow-[0_18px_54px_oklch(0%_0_0_/_0.24)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_68px_oklch(0%_0_0_/_0.32)] focus-visible:outline-none sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-6 [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-7"
       data-app-link
       href={mode.href}
     >
+      <GlassSurface
+        aria-hidden="true"
+        backgroundOpacity={0.1}
+        borderRadius={24}
+        brightness={24}
+        height="100%"
+        opacity={0.55}
+        saturation={1.6}
+        style={{
+          inset: 0,
+          pointerEvents: "none",
+          position: "absolute",
+          zIndex: -1,
+        }}
+        width="100%"
+      />
+
       <span
-        className={`inline-flex size-12 items-center justify-center rounded-xl ring-1 [@media_(min-width:2200px)]:size-14 ${iconToneClassName[mode.statusTone]}`}
+        className={`inline-flex items-center justify-center ${iconToneClassName[mode.statusTone]}`}
       >
         <Icon aria-hidden="true" className="size-6 [@media_(min-width:2200px)]:size-7" />
       </span>
