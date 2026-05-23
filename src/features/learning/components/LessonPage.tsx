@@ -11,6 +11,9 @@ import type { ColumnRole, EvaluationResult, Lesson } from "../types";
 import { LearningHeader } from "./LearningHeader";
 import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
 
+const liquidButtonClassName =
+  "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-neutral-50 backdrop-blur-xl shadow-[inset_0_1px_0_oklch(100%_0_0_/_0.16),0_12px_32px_oklch(0%_0_0_/_0.22)] [--liquid-button-background-color:oklch(100%_0_0_/_0.08)] [--liquid-button-color:var(--color-emerald-500)]";
+
 type LessonPageProps = {
   lesson: Lesson;
   onSubmitResult: (result: EvaluationResult) => void;
@@ -47,7 +50,7 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             The dataset view for this lesson is not available yet.
           </p>
-          <LiquidLink className="mt-5" data-app-link href="/learn">
+          <LiquidLink className={`${liquidButtonClassName} mt-5`} data-app-link href="/learn">
             Back to Learning Home
           </LiquidLink>
         </section>
@@ -219,7 +222,11 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
               <p className="text-sm leading-6 text-muted-foreground">
                 Submit will evaluate the column roles automatically.
               </p>
-              <LiquidButton className="min-h-11" onClick={submitAnswer} type="button">
+              <LiquidButton
+                className={`${liquidButtonClassName} min-h-11 cursor-pointer`}
+                onClick={submitAnswer}
+                type="button"
+              >
                 Submit answer
               </LiquidButton>
             </div>
@@ -276,7 +283,7 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
             </ol>
             {visibleHintCount < hints.length ? (
               <LiquidButton
-                className="mt-4 w-full"
+                className={`${liquidButtonClassName} mt-4 w-full cursor-pointer`}
                 onClick={() => setVisibleHintCount((count) => Math.min(count + 1, hints.length))}
                 type="button"
               >
@@ -290,7 +297,11 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
               The lesson is complete when the column roles are correct and feedback is shown.
             </p>
-            <LiquidLink className="mt-4 w-full" data-app-link href="/learn">
+            <LiquidLink
+              className={`${liquidButtonClassName} mt-4 w-full`}
+              data-app-link
+              href="/learn"
+            >
               Back to Learning Home
             </LiquidLink>
           </section>

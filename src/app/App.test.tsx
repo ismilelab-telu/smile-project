@@ -162,7 +162,7 @@ describe("App", () => {
       await screen.findByRole("heading", { name: "Regression Foundations" }, lazyRouteTimeout),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Modules" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Start lesson/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Start module/ })).toHaveAttribute(
       "href",
       "/learn/track-regression-foundations/lesson-0-1-feature-target",
     );

@@ -5,6 +5,8 @@ import { LiquidLink } from "@/components/ui/liquid-button";
 
 const notFoundText = "404 not found.";
 const explorePlaceholderRoutes = new Set(["/playground", "/algorithm-lab"]);
+const liquidButtonClassName =
+  "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-neutral-50 backdrop-blur-xl shadow-[inset_0_1px_0_oklch(100%_0_0_/_0.16),0_12px_32px_oklch(0%_0_0_/_0.22)] [--liquid-button-background-color:oklch(100%_0_0_/_0.08)] [--liquid-button-color:var(--color-emerald-500)]";
 
 type FuzzyTextPageProps = {
   path?: string;
@@ -54,7 +56,7 @@ export function FuzzyTextPage({ path = "/" }: FuzzyTextPageProps) {
           not found.
         </FuzzyText>
 
-        <LiquidLink className="mt-5 px-5 py-3" data-app-link href={backLink.href}>
+        <LiquidLink className={`${liquidButtonClassName} mt-5`} data-app-link href={backLink.href}>
           <ArrowLeftIcon aria-hidden="true" className="size-[18px] shrink-0" />
           {backLink.label}
         </LiquidLink>

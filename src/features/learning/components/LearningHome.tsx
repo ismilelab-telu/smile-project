@@ -11,9 +11,11 @@ import {
   regressionFoundationsTrack,
 } from "../content/learning-content";
 import type { LearningProgress } from "../types";
-import type { CSSProperties } from "react";
 import { LearningHeader } from "./LearningHeader";
 import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
+
+const liquidButtonClassName =
+  "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold backdrop-blur-xl shadow-[inset_0_1px_0_oklch(100%_0_0_/_0.16),0_12px_32px_oklch(0%_0_0_/_0.22)] [--liquid-button-background-color:oklch(100%_0_0_/_0.08)]";
 
 type LearningHomeProps = {
   progress: LearningProgress;
@@ -111,10 +113,9 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                           </p>
                         </div>
                         <LiquidLink
-                          className="min-h-11 border-emerald-500/50 px-4 py-2 text-emerald-100 focus-visible:outline-emerald-500"
+                          className={`${liquidButtonClassName} min-h-11 text-neutral-50 [--liquid-button-color:var(--color-emerald-500)]`}
                           data-app-link
                           href={`/learn/${regressionFoundationsTrack.id}/${activeLesson.id}`}
-                          style={{ "--liquid-button-color": "#10b981" } as CSSProperties}
                         >
                           {isIntroCompleted ? "Review module" : "Start module"}
                           <ArrowRightIcon aria-hidden="true" className="size-4" />
@@ -152,9 +153,8 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
             </p>
           </div>
           <LiquidButton
-            className="mt-5 w-full cursor-pointer border-rose-600/50 text-rose-100 focus-visible:outline-rose-500"
+            className={`${liquidButtonClassName} mt-5 w-full cursor-pointer text-neutral-50 [--liquid-button-color:var(--color-rose-600)]`}
             onClick={onResetProgress}
-            style={{ "--liquid-button-color": "#e11d48" } as CSSProperties}
             type="button"
           >
             Reset progress

@@ -5,6 +5,9 @@ import { LessonPage } from "@/features/learning/components/LessonPage";
 import { useLearningProgress } from "@/features/learning/progress/learning-progress";
 import { LiquidLink } from "@/components/ui/liquid-button";
 
+const liquidButtonClassName =
+  "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-neutral-50 backdrop-blur-xl shadow-[inset_0_1px_0_oklch(100%_0_0_/_0.16),0_12px_32px_oklch(0%_0_0_/_0.22)] [--liquid-button-background-color:oklch(100%_0_0_/_0.08)] [--liquid-button-color:var(--color-emerald-500)]";
+
 type LearningPageProps = {
   path?: string;
 };
@@ -33,7 +36,7 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             This lesson ID is not available in Learning Mode yet.
           </p>
-          <LiquidLink className="mt-5" data-app-link href="/learn">
+          <LiquidLink className={`${liquidButtonClassName} mt-5`} data-app-link href="/learn">
             Back to Learning Home
           </LiquidLink>
         </section>
