@@ -82,18 +82,18 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                         style={glassCardStyle}
                         width="100%"
                       />
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="flex gap-4">
-                          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-sm font-semibold text-foreground">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-4">
+                          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-white/10 text-sm font-semibold text-foreground backdrop-blur-md">
                             {index}
                           </span>
-                          <div>
+                          <div className="flex min-h-10 items-center">
                             <h3 className="text-base font-semibold text-foreground">
                               {module.title}
                             </h3>
                           </div>
                         </div>
-                        <div className="inline-flex w-fit items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground">
+                        <div className="inline-flex w-fit items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-muted-foreground backdrop-blur-md">
                           {isAvailable ? (
                             <>
                               {isIntroCompleted ? (
