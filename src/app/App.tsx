@@ -2,20 +2,16 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useSta
 import { flushSync } from "react-dom";
 
 import LiquidEther from "@/components/ui/liquid-ether";
+import { ExplorePage } from "@/pages/ExplorePage";
+import { LearningPage } from "@/pages/LearningPage";
 
 const liquidEtherColors = ["#059669", "#10B981", "#38BDF8"];
 
-const ExplorePage = lazy(() =>
-  import("../pages/ExplorePage").then((module) => ({ default: module.ExplorePage })),
-);
 const FuzzyTextPage = lazy(() =>
   import("../pages/FuzzyTextPage").then((module) => ({ default: module.FuzzyTextPage })),
 );
 const LandingPage = lazy(() =>
   import("../pages/LandingPage").then((module) => ({ default: module.LandingPage })),
-);
-const LearningPage = lazy(() =>
-  import("../pages/LearningPage").then((module) => ({ default: module.LearningPage })),
 );
 
 type RouteTheme = "dark" | "light";
