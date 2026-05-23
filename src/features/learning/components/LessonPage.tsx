@@ -2,10 +2,13 @@ import {
   ArrowDownIcon,
   ArrowUpIcon,
   CheckCircleIcon,
+  ChevronDownIcon,
   InformationCircleIcon,
   LightBulbIcon,
 } from "@heroicons/react/24/outline";
-import { useEffect, useMemo, useState } from "react";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
+import { useEffect, useId, useMemo, useRef, useState, type ComponentPropsWithoutRef } from "react";
 
 import { getDatasetView } from "../datasets/registry";
 import {
@@ -26,10 +29,21 @@ import type {
   TableColumnRoleExercise,
 } from "../types";
 import { LearningHeader } from "./LearningHeader";
+import { GlassSurface } from "@/components/ui/glass-surface";
 import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
+import { shouldReduceMotion } from "@/lib/motion";
+
+gsap.registerPlugin(useGSAP);
 
 const liquidButtonClassName =
   "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-neutral-50 backdrop-blur-xl shadow-[inset_0_1px_0_oklch(100%_0_0_/_0.16),0_12px_32px_oklch(0%_0_0_/_0.22)] [--liquid-button-background-color:oklch(100%_0_0_/_0.08)] [--liquid-button-color:var(--color-emerald-500)]";
+
+const glassCardStyle = {
+  inset: 0,
+  pointerEvents: "none",
+  position: "absolute",
+  zIndex: -1,
+} as const;
 
 type LessonPageProps = {
   lesson: Lesson;
@@ -42,6 +56,12 @@ const roleOptions: Array<{ label: string; value: ColumnRole }> = [
   { label: "Safe feature", value: "safe-feature" },
   { label: "Metadata", value: "metadata" },
 ];
+
+const roleDropdownExitTimeScale = 2.5;
+
+function getRoleOptionLabel(value: ColumnRole) {
+  return roleOptions.find((option) => option.value === value)?.label ?? roleOptions[0].label;
+}
 
 export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
   const expectedRoles = useMemo(() => getExpectedColumnRoles(), []);
@@ -80,7 +100,7 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
     return (
       <main className="relative z-10 isolate min-h-screen overflow-x-hidden text-foreground">
         <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
-        <section className="route-content-transition-target mx-auto mt-20 max-w-lg rounded-lg border border-border bg-surface p-6 text-center">
+        <LessonGlassCard className="route-content-transition-target mx-auto mt-20 max-w-lg p-6 text-center">
           <h1 className="text-xl font-semibold text-foreground">Lesson cannot be opened</h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             The dataset view for this lesson is not available yet.
@@ -88,7 +108,7 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
           <LiquidLink className={`${liquidButtonClassName} mt-5`} data-app-link href="/learn">
             Back to Learning Home
           </LiquidLink>
-        </section>
+        </LessonGlassCard>
       </main>
     );
   }
@@ -163,10 +183,7 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
             </h1>
           </section>
 
-          <section
-            aria-labelledby="concept-summary"
-            className="rounded-lg border border-border bg-surface p-5"
-          >
+          <LessonGlassCard aria-labelledby="concept-summary" className="p-5">
             <h2 className="text-lg font-semibold text-foreground" id="concept-summary">
               Concept summary
             </h2>
@@ -177,16 +194,13 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
                 </p>
               ))}
             </div>
-          </section>
+          </LessonGlassCard>
 
           {lesson.exercise.type === "table-column-role-assignment" && datasetView ? (
             <DatasetPreview exercise={lesson.exercise} datasetView={datasetView} />
           ) : null}
 
-          <section
-            aria-labelledby="exercise"
-            className="rounded-lg border border-border bg-surface"
-          >
+          <LessonGlassCard aria-labelledby="exercise" className="p-0">
             <div className="border-b border-border p-5">
               <p className="text-sm font-medium text-sky-300">Exercise</p>
               <h2 className="mt-2 text-lg font-semibold text-foreground" id="exercise">
@@ -231,13 +245,13 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
                 Submit answer
               </LiquidButton>
             </div>
-          </section>
+          </LessonGlassCard>
 
           {result ? <LessonResult result={result} /> : null}
         </article>
 
         <aside className="flex h-fit flex-col gap-4">
-          <section className="rounded-lg border border-border bg-surface p-5">
+          <LessonGlassCard className="p-5">
             <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
               <LightBulbIcon aria-hidden="true" className="size-5 text-emerald-300" />
               Hint
@@ -260,9 +274,9 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
                 Show another hint
               </LiquidButton>
             ) : null}
-          </section>
+          </LessonGlassCard>
 
-          <section className="rounded-lg border border-border bg-surface p-5">
+          <LessonGlassCard className="p-5">
             <h2 className="text-lg font-semibold text-foreground">Completion</h2>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
               The lesson is complete when the answer is correct and feedback is shown.
@@ -274,10 +288,33 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
             >
               Back to Learning Home
             </LiquidLink>
-          </section>
+          </LessonGlassCard>
         </aside>
       </div>
     </main>
+  );
+}
+
+function LessonGlassCard({
+  children,
+  className = "",
+  ...props
+}: ComponentPropsWithoutRef<"section">) {
+  return (
+    <section {...props} className={`relative isolate overflow-hidden rounded-3xl ${className}`}>
+      <GlassSurface
+        aria-hidden="true"
+        backgroundOpacity={0.08}
+        borderRadius={24}
+        brightness={24}
+        height="100%"
+        opacity={0.55}
+        saturation={1.6}
+        style={glassCardStyle}
+        width="100%"
+      />
+      {children}
+    </section>
   );
 }
 
@@ -289,10 +326,7 @@ function DatasetPreview({
   exercise: TableColumnRoleExercise;
 }) {
   return (
-    <section
-      aria-labelledby="dataset-preview"
-      className="rounded-lg border border-border bg-surface"
-    >
+    <LessonGlassCard aria-labelledby="dataset-preview" className="p-0">
       <div className="flex flex-col gap-2 border-b border-border p-5">
         <h2 className="text-lg font-semibold text-foreground" id="dataset-preview">
           Dataset preview
@@ -337,7 +371,227 @@ function DatasetPreview({
           </tbody>
         </table>
       </div>
-    </section>
+    </LessonGlassCard>
+  );
+}
+
+function RoleDropdown({
+  columnLabel,
+  onChange,
+  value,
+}: {
+  columnLabel: string;
+  onChange: (role: ColumnRole) => void;
+  value: ColumnRole;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const timelineRef = useRef<gsap.core.Timeline | null>(null);
+  const menuId = useId();
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedLabel = getRoleOptionLabel(value);
+
+  const { contextSafe } = useGSAP(
+    () => {
+      const root = rootRef.current;
+
+      if (!root) {
+        return;
+      }
+
+      const menu = root.querySelector<HTMLElement>("[data-role-dropdown-menu]");
+      const arrow = root.querySelector<HTMLElement>("[data-role-dropdown-arrow]");
+      const items = gsap.utils.toArray<HTMLElement>("[data-role-dropdown-item]", root);
+
+      if (!menu || !arrow) {
+        return;
+      }
+
+      gsap.set(menu, {
+        autoAlpha: 0,
+        pointerEvents: "none",
+        scale: 0.7,
+        transformOrigin: "50% 0%",
+        yPercent: -30,
+      });
+      gsap.set(arrow, { rotation: 0, transformOrigin: "50% 50%" });
+      gsap.set(items, { opacity: 1, x: 0 });
+
+      if (shouldReduceMotion()) {
+        timelineRef.current = null;
+        return;
+      }
+
+      const timeline = gsap.timeline({
+        onReverseComplete: () => {
+          gsap.set(menu, { pointerEvents: "none" });
+        },
+        paused: true,
+      });
+
+      timeline
+        .set(menu, { pointerEvents: "auto" }, 0)
+        .to(
+          arrow,
+          {
+            duration: 0.9,
+            ease: "elastic.out(1.2, 0.3)",
+            easeReverse: "power2.inOut",
+            rotation: 180,
+          },
+          0,
+        )
+        .to(
+          menu,
+          {
+            autoAlpha: 1,
+            duration: 1,
+            ease: "elastic.out(1.2, 0.3)",
+            easeReverse: "power3.out",
+            scale: 1,
+            yPercent: 0,
+          },
+          0,
+        )
+        .from(
+          items,
+          {
+            duration: 0.5,
+            ease: "back.out(3)",
+            easeReverse: "power2.out",
+            opacity: 0,
+            stagger: 0.07,
+            x: -20,
+          },
+          0.1,
+        );
+
+      timelineRef.current = timeline;
+
+      return () => {
+        timelineRef.current = null;
+      };
+    },
+    { scope: rootRef },
+  );
+
+  const syncReducedState = contextSafe((nextOpen: boolean) => {
+    const root = rootRef.current;
+
+    if (!root) {
+      return;
+    }
+
+    const menu = root.querySelector<HTMLElement>("[data-role-dropdown-menu]");
+    const arrow = root.querySelector<HTMLElement>("[data-role-dropdown-arrow]");
+    const items = gsap.utils.toArray<HTMLElement>("[data-role-dropdown-item]", root);
+
+    gsap.set(menu, {
+      autoAlpha: nextOpen ? 1 : 0,
+      pointerEvents: nextOpen ? "auto" : "none",
+      scale: 1,
+      yPercent: 0,
+    });
+    gsap.set(arrow, { rotation: nextOpen ? 180 : 0 });
+    gsap.set(items, { opacity: 1, x: 0 });
+  });
+
+  const setDropdownOpen = contextSafe((nextOpen: boolean) => {
+    setIsOpen(nextOpen);
+
+    if (shouldReduceMotion()) {
+      syncReducedState(nextOpen);
+      return;
+    }
+
+    const timeline = timelineRef.current;
+
+    if (!timeline) {
+      return;
+    }
+
+    if (nextOpen) {
+      timeline.timeScale(1).play();
+      return;
+    }
+
+    timeline.timeScale(roleDropdownExitTimeScale).reverse();
+  });
+
+  const selectRole = contextSafe((nextValue: ColumnRole) => {
+    onChange(nextValue);
+    setDropdownOpen(false);
+  });
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (rootRef.current?.contains(event.target as Node)) {
+        return;
+      }
+
+      setDropdownOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, setDropdownOpen]);
+
+  return (
+    <div className="relative inline-block w-full" ref={rootRef}>
+      <button
+        aria-controls={menuId}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        aria-label={`Role for ${columnLabel}`}
+        className="flex min-h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-lg border-2 border-neutral-500 bg-neutral-900 px-5 py-2 text-left text-[0.85rem] font-medium text-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+        onClick={() => setDropdownOpen(!isOpen)}
+        type="button"
+      >
+        <span className="truncate">{selectedLabel}</span>
+        <ChevronDownIcon
+          aria-hidden="true"
+          className="block size-3 shrink-0 text-current"
+          data-role-dropdown-arrow
+        />
+      </button>
+
+      <div
+        aria-hidden={!isOpen}
+        aria-label={`Role options for ${columnLabel}`}
+        className="invisible absolute top-[calc(100%+8px)] right-0 left-0 z-40 w-full origin-top overflow-hidden rounded-lg border-2 border-neutral-500 bg-neutral-900 text-neutral-300 opacity-0 shadow-[0_18px_50px_oklch(0%_0_0_/_0.34)] will-change-transform"
+        data-role-dropdown-menu
+        id={menuId}
+        role="listbox"
+      >
+        {roleOptions.map((option) => (
+          <button
+            aria-selected={value === option.value}
+            className="block w-full cursor-pointer border-b border-white/5 px-4 py-[9px] text-left text-[0.82rem] font-medium text-neutral-300 last:border-b-0 hover:bg-emerald-400/10 hover:text-neutral-50 focus-visible:bg-emerald-400/10 focus-visible:text-neutral-50 focus-visible:outline-none"
+            data-role-dropdown-item
+            key={option.value}
+            onClick={() => selectRole(option.value)}
+            role="option"
+            type="button"
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -359,7 +613,7 @@ function ColumnRoleExerciseView({
       </p>
       <div className="grid gap-3 p-5">
         {columns.map((column) => (
-          <label
+          <div
             className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-[minmax(0,1fr)_220px] sm:items-center"
             key={column.id}
           >
@@ -369,19 +623,12 @@ function ColumnRoleExerciseView({
                 Column ID: {column.id}
               </span>
             </span>
-            <select
-              aria-label={`Role for ${column.label}`}
-              className="min-h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
-              onChange={(event) => onUpdateAssignment(column.id, event.target.value as ColumnRole)}
+            <RoleDropdown
+              columnLabel={column.label}
+              onChange={(role) => onUpdateAssignment(column.id, role)}
               value={assignments[column.id] ?? "ignore"}
-            >
-              {roleOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+            />
+          </div>
         ))}
       </div>
     </>
@@ -475,7 +722,7 @@ function OrderedStepsExerciseView({
 
 function LessonResult({ result }: { result: EvaluationResult }) {
   return (
-    <section aria-live="polite" className="rounded-lg border border-border bg-surface p-5">
+    <LessonGlassCard aria-live="polite" className="p-5">
       <div className="flex gap-3">
         {result.status === "correct" ? (
           <CheckCircleIcon aria-hidden="true" className="size-6 shrink-0 text-emerald-300" />
@@ -500,6 +747,6 @@ function LessonResult({ result }: { result: EvaluationResult }) {
           ) : null}
         </div>
       </div>
-    </section>
+    </LessonGlassCard>
   );
 }

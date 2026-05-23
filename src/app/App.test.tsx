@@ -25,6 +25,11 @@ function getStoredCompletedLessonIds() {
   return (JSON.parse(stored) as { completedLessonIds: string[] }).completedLessonIds;
 }
 
+async function chooseColumnRole(columnLabel: string, roleLabel: string) {
+  fireEvent.click(screen.getByRole("button", { name: `Role for ${columnLabel}` }));
+  fireEvent.click(await screen.findByRole("option", { name: roleLabel }));
+}
+
 describe("App", () => {
   const lazyRouteTimeout = { timeout: 3000 };
 
@@ -97,24 +102,12 @@ describe("App", () => {
       ),
     ).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Role for Listing ID"), {
-      target: { value: "metadata" },
-    });
-    fireEvent.change(screen.getByLabelText("Role for District"), {
-      target: { value: "safe-feature" },
-    });
-    fireEvent.change(screen.getByLabelText("Role for Property Type"), {
-      target: { value: "safe-feature" },
-    });
-    fireEvent.change(screen.getByLabelText("Role for Building Area"), {
-      target: { value: "safe-feature" },
-    });
-    fireEvent.change(screen.getByLabelText("Role for Bedrooms"), {
-      target: { value: "safe-feature" },
-    });
-    fireEvent.change(screen.getByLabelText("Role for Price"), {
-      target: { value: "target" },
-    });
+    await chooseColumnRole("Listing ID", "Metadata");
+    await chooseColumnRole("District", "Safe feature");
+    await chooseColumnRole("Property Type", "Safe feature");
+    await chooseColumnRole("Building Area", "Safe feature");
+    await chooseColumnRole("Bedrooms", "Safe feature");
+    await chooseColumnRole("Price", "Target");
 
     fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
 

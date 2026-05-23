@@ -4,10 +4,18 @@ import { LearningHeader } from "@/features/learning/components/LearningHeader";
 import { LessonPage } from "@/features/learning/components/LessonPage";
 import { getLessonLockReason, isLessonUnlocked } from "@/features/learning/progress/lesson-access";
 import { useLearningProgress } from "@/features/learning/progress/learning-progress";
+import { GlassSurface } from "@/components/ui/glass-surface";
 import { LiquidLink } from "@/components/ui/liquid-button";
 
 const liquidButtonClassName =
   "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-neutral-50 backdrop-blur-xl shadow-[inset_0_1px_0_oklch(100%_0_0_/_0.16),0_12px_32px_oklch(0%_0_0_/_0.22)] [--liquid-button-background-color:oklch(100%_0_0_/_0.08)] [--liquid-button-color:var(--color-emerald-500)]";
+
+const glassCardStyle = {
+  inset: 0,
+  pointerEvents: "none",
+  position: "absolute",
+  zIndex: -1,
+} as const;
 
 type LearningPageProps = {
   path?: string;
@@ -32,7 +40,18 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
     return (
       <main className="relative z-10 isolate min-h-screen overflow-x-hidden text-foreground">
         <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
-        <section className="route-content-transition-target mx-auto mt-20 max-w-lg rounded-lg border border-border bg-surface p-6 text-center">
+        <section className="route-content-transition-target relative isolate mx-auto mt-20 max-w-lg overflow-hidden rounded-3xl p-6 text-center">
+          <GlassSurface
+            aria-hidden="true"
+            backgroundOpacity={0.08}
+            borderRadius={24}
+            brightness={24}
+            height="100%"
+            opacity={0.55}
+            saturation={1.6}
+            style={glassCardStyle}
+            width="100%"
+          />
           <h1 className="text-xl font-semibold text-foreground">Lesson not found</h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             This lesson ID is not available in Learning Mode yet.
@@ -50,7 +69,18 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
       return (
         <main className="relative z-10 isolate min-h-screen overflow-x-hidden text-foreground">
           <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
-          <section className="route-content-transition-target mx-auto mt-20 max-w-lg rounded-lg border border-border bg-surface p-6 text-center">
+          <section className="route-content-transition-target relative isolate mx-auto mt-20 max-w-lg overflow-hidden rounded-3xl p-6 text-center">
+            <GlassSurface
+              aria-hidden="true"
+              backgroundOpacity={0.08}
+              borderRadius={24}
+              brightness={24}
+              height="100%"
+              opacity={0.55}
+              saturation={1.6}
+              style={glassCardStyle}
+              width="100%"
+            />
             <h1 className="text-xl font-semibold text-foreground">Lesson locked</h1>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
               {getLessonLockReason(lesson, progress)}
