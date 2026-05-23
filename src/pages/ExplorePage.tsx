@@ -103,7 +103,7 @@ export function ExplorePage() {
         </div>
       </header>
 
-      <section className="relative z-10 grid min-h-screen grid-cols-[24px_minmax(0,1fr)_24px] items-center py-28 sm:grid-cols-[48px_minmax(0,1fr)_48px] lg:grid-cols-[minmax(48px,1fr)_minmax(0,680px)_88px_minmax(0,920px)_minmax(48px,1fr)] lg:py-32 xl:grid-cols-[minmax(7rem,1fr)_minmax(0,clamp(680px,33vw,860px))_clamp(88px,5vw,144px)_minmax(0,clamp(920px,42vw,1180px))_minmax(7rem,1fr)] [@media_(min-width:2200px)]:py-40">
+      <section className="route-content-transition-target relative z-10 grid min-h-screen grid-cols-[24px_minmax(0,1fr)_24px] items-center py-28 sm:grid-cols-[48px_minmax(0,1fr)_48px] lg:grid-cols-[minmax(48px,1fr)_minmax(0,680px)_88px_minmax(0,920px)_minmax(48px,1fr)] lg:py-32 xl:grid-cols-[minmax(7rem,1fr)_minmax(0,clamp(680px,33vw,860px))_clamp(88px,5vw,144px)_minmax(0,clamp(920px,42vw,1180px))_minmax(7rem,1fr)] [@media_(min-width:2200px)]:py-40">
         <div className="col-start-2 grid gap-y-10">
           <h1 className="text-[4rem] leading-[0.9] font-semibold tracking-normal sm:text-[5rem] lg:text-[6.75rem] xl:text-[7.75rem] 2xl:text-[8.5rem] [@media_(min-width:2200px)]:text-[9.75rem]">
             <span className="relative block" ref={headingRef}>

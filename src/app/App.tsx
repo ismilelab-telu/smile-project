@@ -15,7 +15,7 @@ const LearningPage = lazy(() =>
 );
 
 type RouteTheme = "dark" | "light";
-type RouteDirection = "back" | "forward";
+type RouteTransition = "back" | "content-forward" | "forward";
 type ViewTransitionDocument = Document & {
   startViewTransition?: (callback: () => void) => { finished: Promise<void> };
 };
@@ -44,8 +44,19 @@ function isLearningRoute(pathname: string) {
   );
 }
 
-function getRouteDirection(fromPath: string, toPath: string): RouteDirection {
+function getRouteDirection(
+  fromPath: string,
+  toPath: string,
+): Exclude<RouteTransition, "content-forward"> {
   return getRouteOrder(toPath) >= getRouteOrder(fromPath) ? "forward" : "back";
+}
+
+function getRouteTransition(fromPath: string, toPath: string): RouteTransition {
+  if (fromPath === "/explore" && toPath === "/learn") {
+    return "content-forward";
+  }
+
+  return getRouteDirection(fromPath, toPath);
 }
 
 function getCurrentPath() {
@@ -126,7 +137,7 @@ export function App() {
       const startViewTransition = viewTransitionDocument.startViewTransition?.bind(document);
 
       if (!shouldReduceRouteTransition && startViewTransition) {
-        document.documentElement.dataset.routeTransition = getRouteDirection(
+        document.documentElement.dataset.routeTransition = getRouteTransition(
           currentPath,
           url.pathname,
         );

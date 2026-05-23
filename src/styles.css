@@ -149,6 +149,30 @@
   }
 }
 
+@keyframes route-content-old-forward {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-2rem);
+  }
+}
+
+@keyframes route-content-new-forward {
+  from {
+    opacity: 0;
+    transform: translateY(3rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @layer components {
   .hero-explore-shine {
     animation: hero-button-shine 4.8s linear infinite;
@@ -223,6 +247,52 @@
     animation-name: route-slide-new-back;
   }
 
+  .route-content-transition-target {
+    view-transition-name: none;
+  }
+
+  html[data-route-transition="content-forward"] .route-content-transition-target {
+    view-transition-name: route-content;
+  }
+
+  html[data-route-transition="content-forward"]::view-transition-group(root) {
+    animation-duration: 1ms;
+  }
+
+  html[data-route-transition="content-forward"]::view-transition-old(root) {
+    animation: none;
+    opacity: 0;
+  }
+
+  html[data-route-transition="content-forward"]::view-transition-new(root) {
+    animation: none;
+    opacity: 1;
+  }
+
+  html[data-route-transition="content-forward"]::view-transition-group(route-content) {
+    animation-duration: 640ms;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    z-index: 20;
+  }
+
+  html[data-route-transition="content-forward"]::view-transition-old(route-content),
+  html[data-route-transition="content-forward"]::view-transition-new(route-content) {
+    animation-duration: 640ms;
+    animation-fill-mode: both;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    height: 100%;
+    mix-blend-mode: normal;
+    width: 100%;
+  }
+
+  html[data-route-transition="content-forward"]::view-transition-old(route-content) {
+    animation-name: route-content-old-forward;
+  }
+
+  html[data-route-transition="content-forward"]::view-transition-new(route-content) {
+    animation-name: route-content-new-forward;
+  }
+
   .understand-title-word {
     display: inline-block !important;
     transform-style: preserve-3d;
@@ -238,7 +308,9 @@
   }
 
   html[data-route-transition]::view-transition-old(root),
-  html[data-route-transition]::view-transition-new(root) {
+  html[data-route-transition]::view-transition-new(root),
+  html[data-route-transition]::view-transition-old(route-content),
+  html[data-route-transition]::view-transition-new(route-content) {
     animation-duration: 1ms;
   }
 }

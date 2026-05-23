@@ -58,7 +58,7 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
       <div className="relative z-10">
         <LearningHeader backHref="/explore" backLabel="Back to Explore" />
 
-        <section className="mx-auto grid w-[min(1180px,calc(100%_-_32px))] gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="route-content-transition-target mx-auto grid w-[min(1180px,calc(100%_-_32px))] gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="flex flex-col gap-8">
             <div className="flex flex-col gap-4">
               <div className="max-w-3xl">
