@@ -1,4 +1,12 @@
 import {
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+  type ColumnDef,
+  type SortingState,
+} from "@tanstack/react-table";
+import {
   ArrowDownIcon,
   ArrowUpIcon,
   CheckCircleIcon,
@@ -22,6 +30,8 @@ import {
 } from "../evaluation/evaluate-feature-target";
 import type {
   ColumnRole,
+  DatasetColumn,
+  DatasetRow,
   EvaluationResult,
   Lesson,
   MultipleChoiceExercise,
@@ -330,6 +340,41 @@ function LessonGlassCard({
   );
 }
 
+function formatDatasetCellValue(value: DatasetRow["values"][string]) {
+  return value === null ? "" : String(value);
+}
+
+function compareDatasetCellValues(
+  valueA: DatasetRow["values"][string],
+  valueB: DatasetRow["values"][string],
+  columnType: DatasetColumn["type"],
+) {
+  if (valueA === valueB) {
+    return 0;
+  }
+
+  if (valueA === null) {
+    return -1;
+  }
+
+  if (valueB === null) {
+    return 1;
+  }
+
+  if (columnType === "numeric") {
+    return Number(valueA) - Number(valueB);
+  }
+
+  if (columnType === "boolean") {
+    return Number(valueA) - Number(valueB);
+  }
+
+  return String(valueA).localeCompare(String(valueB), undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
 function DatasetPreview({
   datasetView,
   exercise,
@@ -337,6 +382,48 @@ function DatasetPreview({
   datasetView: NonNullable<ReturnType<typeof getDatasetView>>;
   exercise: TableColumnRoleExercise;
 }) {
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const tableColumns = useMemo<ColumnDef<DatasetRow>[]>(
+    () =>
+      datasetView.columns.map((datasetColumn) => ({
+        accessorFn: (row) => row.values[datasetColumn.id],
+        cell: ({ getValue }) => formatDatasetCellValue(getValue<DatasetRow["values"][string]>()),
+        header: () => (
+          <span className="flex min-w-0 flex-col gap-1 [@media_(min-width:2200px)]:gap-1.5">
+            <span>{datasetColumn.label}</span>
+            {datasetColumn.unit ? (
+              <span className="text-xs font-normal text-muted-foreground [@media_(min-width:2200px)]:text-sm">
+                {datasetColumn.unit}
+              </span>
+            ) : null}
+          </span>
+        ),
+        id: datasetColumn.id,
+        meta: {
+          label: datasetColumn.label,
+        },
+        sortingFn: (rowA, rowB, columnId) =>
+          compareDatasetCellValues(
+            rowA.getValue<DatasetRow["values"][string]>(columnId),
+            rowB.getValue<DatasetRow["values"][string]>(columnId),
+            datasetColumn.type,
+          ),
+      })),
+    [datasetView.columns],
+  );
+  const table = useReactTable({
+    columns: tableColumns,
+    data: datasetView.rows,
+    getCoreRowModel: getCoreRowModel(),
+    getRowId: (row) => row.id,
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
+    sortDescFirst: false,
+    state: {
+      sorting,
+    },
+  });
+
   return (
     <LessonGlassCard aria-labelledby="dataset-preview" className="p-0">
       <div className="flex flex-col gap-2 border-b border-border p-5 [@media_(min-width:2200px)]:gap-3 [@media_(min-width:2200px)]:p-7">
@@ -355,34 +442,65 @@ function DatasetPreview({
           <div className="overflow-x-auto">
             <table className="min-w-full border-separate border-spacing-0 text-left text-sm [@media_(min-width:2200px)]:text-base">
               <thead>
-                <tr className="bg-white/5">
-                  {datasetView.columns.map((column) => (
-                    <th
-                      className="border-b border-border px-4 py-3 font-semibold text-foreground [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-4"
-                      key={column.id}
-                      scope="col"
-                    >
-                      <span className="flex flex-col gap-1 [@media_(min-width:2200px)]:gap-1.5">
-                        <span>{column.label}</span>
-                        {column.unit ? (
-                          <span className="text-xs font-normal text-muted-foreground [@media_(min-width:2200px)]:text-sm">
-                            {column.unit}
-                          </span>
-                        ) : null}
-                      </span>
-                    </th>
-                  ))}
-                </tr>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr className="bg-white/5" key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => {
+                      const sorted = header.column.getIsSorted();
+                      const columnMeta = header.column.columnDef.meta as
+                        | { label?: string }
+                        | undefined;
+                      const sortLabel = columnMeta?.label ?? String(header.column.columnDef.id);
+
+                      return (
+                        <th
+                          aria-sort={
+                            sorted === "asc"
+                              ? "ascending"
+                              : sorted === "desc"
+                                ? "descending"
+                                : "none"
+                          }
+                          className="border-b border-border p-0 font-semibold text-foreground"
+                          key={header.id}
+                          scope="col"
+                        >
+                          <button
+                            aria-label={`Sort by ${sortLabel}`}
+                            className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-emerald-400 [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-4"
+                            onClick={header.column.getToggleSortingHandler()}
+                            type="button"
+                          >
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(header.column.columnDef.header, header.getContext())}
+                            <span
+                              aria-hidden="true"
+                              className="ml-auto inline-flex size-4 shrink-0 items-center justify-center text-muted-foreground [@media_(min-width:2200px)]:size-5"
+                            >
+                              {sorted === "asc" ? (
+                                <ArrowUpIcon className="size-4 text-emerald-300 [@media_(min-width:2200px)]:size-5" />
+                              ) : sorted === "desc" ? (
+                                <ArrowDownIcon className="size-4 text-emerald-300 [@media_(min-width:2200px)]:size-5" />
+                              ) : (
+                                <ChevronDownIcon className="size-4 opacity-45 [@media_(min-width:2200px)]:size-5" />
+                              )}
+                            </span>
+                          </button>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                ))}
               </thead>
               <tbody>
-                {datasetView.rows.map((row) => (
-                  <tr className="odd:bg-transparent even:bg-white/5" key={row.id}>
-                    {datasetView.columns.map((column) => (
+                {table.getRowModel().rows.map((row, rowIndex) => (
+                  <tr className={rowIndex % 2 === 0 ? "bg-transparent" : "bg-white/5"} key={row.id}>
+                    {row.getVisibleCells().map((cell) => (
                       <td
                         className="border-b border-border px-4 py-3 text-muted-foreground [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-4"
-                        key={column.id}
+                        key={cell.id}
                       >
-                        {String(row.values[column.id] ?? "")}
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}
                   </tr>

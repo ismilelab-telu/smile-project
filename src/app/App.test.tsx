@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
@@ -28,6 +28,17 @@ function getStoredCompletedLessonIds() {
 async function chooseColumnRole(columnLabel: string, roleLabel: string) {
   fireEvent.click(screen.getByRole("button", { name: `Role for ${columnLabel}` }));
   fireEvent.click(await screen.findByRole("option", { name: roleLabel }));
+}
+
+function getFirstDatasetRow() {
+  const table = screen.getByRole("table");
+  const rows = within(table).getAllByRole("row");
+
+  if (!rows[1]) {
+    throw new Error("Expected the dataset table to have at least one data row.");
+  }
+
+  return rows[1];
 }
 
 describe("App", () => {
@@ -132,6 +143,33 @@ describe("App", () => {
         'a[href="/learn/track-regression-foundations/lesson-0-3-ml-workflow-order"]',
       ),
     ).toBeNull();
+  });
+
+  it("sorts the dataset preview when a column header is clicked", async () => {
+    window.history.pushState(
+      null,
+      "",
+      "/learn/track-regression-foundations/lesson-0-1-feature-target",
+    );
+    render(<App />);
+
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: "Rows, Columns, Features, and Targets" },
+        lazyRouteTimeout,
+      ),
+    ).toBeInTheDocument();
+
+    const priceHeader = screen.getByRole("button", { name: "Sort by Price" });
+
+    fireEvent.click(priceHeader);
+    expect(within(getFirstDatasetRow()).getByText("HP-INTRO-008")).toBeInTheDocument();
+    expect(within(getFirstDatasetRow()).getByText("620")).toBeInTheDocument();
+
+    fireEvent.click(priceHeader);
+    expect(within(getFirstDatasetRow()).getByText("HP-INTRO-006")).toBeInTheDocument();
+    expect(within(getFirstDatasetRow()).getByText("3900")).toBeInTheDocument();
   });
 
   it("keeps the next lesson locked after an incorrect answer", async () => {
