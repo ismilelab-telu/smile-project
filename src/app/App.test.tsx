@@ -8,6 +8,7 @@ describe("App", () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    window.localStorage.clear();
     window.history.pushState(null, "", "/");
   });
 
@@ -151,5 +152,62 @@ describe("App", () => {
       "/algorithm-lab",
     );
     expect(window.location.pathname).toBe("/explore");
+  });
+
+  it("renders the Learning Mode home", async () => {
+    window.history.pushState(null, "", "/learn");
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Regression Foundations" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Modules" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Mulai lesson/ })).toHaveAttribute(
+      "href",
+      "/learn/track-regression-foundations/lesson-0-1-feature-target",
+    );
+  });
+
+  it("submits the first Learning Mode exercise and persists progress", async () => {
+    window.history.pushState(
+      null,
+      "",
+      "/learn/track-regression-foundations/lesson-0-1-feature-target",
+    );
+    render(<App />);
+
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: "Mengenal Row, Column, Feature, dan Target" },
+        lazyRouteTimeout,
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Role untuk Listing ID"), {
+      target: { value: "metadata" },
+    });
+    fireEvent.change(screen.getByLabelText("Role untuk District"), {
+      target: { value: "safe-feature" },
+    });
+    fireEvent.change(screen.getByLabelText("Role untuk Property Type"), {
+      target: { value: "safe-feature" },
+    });
+    fireEvent.change(screen.getByLabelText("Role untuk Building Area"), {
+      target: { value: "safe-feature" },
+    });
+    fireEvent.change(screen.getByLabelText("Role untuk Bedrooms"), {
+      target: { value: "safe-feature" },
+    });
+    fireEvent.change(screen.getByLabelText("Role untuk Price"), {
+      target: { value: "target" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Kirim jawaban" }));
+
+    expect(await screen.findByRole("heading", { name: "Benar" })).toBeInTheDocument();
+    expect(window.localStorage.getItem("smile-learning-progress-v1")).toContain(
+      "lesson-0-1-feature-target",
+    );
   });
 });

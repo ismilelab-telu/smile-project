@@ -10,6 +10,9 @@ const FuzzyTextPage = lazy(() =>
 const LandingPage = lazy(() =>
   import("../pages/LandingPage").then((module) => ({ default: module.LandingPage })),
 );
+const LearningPage = lazy(() =>
+  import("../pages/LearningPage").then((module) => ({ default: module.LearningPage })),
+);
 
 type RouteTheme = "dark" | "light";
 type RouteDirection = "back" | "forward";
@@ -31,6 +34,14 @@ function getRouteOrder(pathname: string) {
   }
 
   return 2;
+}
+
+function isLearningRoute(pathname: string) {
+  return (
+    pathname === "/learn" ||
+    pathname === "/learn/track-regression-foundations" ||
+    pathname.startsWith("/learn/track-regression-foundations/")
+  );
 }
 
 function getRouteDirection(fromPath: string, toPath: string): RouteDirection {
@@ -168,6 +179,8 @@ export function App() {
         />
       ) : path === "/explore" ? (
         <ExplorePage />
+      ) : isLearningRoute(path) ? (
+        <LearningPage path={path} />
       ) : (
         <FuzzyTextPage path={path} />
       )}
