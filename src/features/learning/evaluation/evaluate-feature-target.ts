@@ -58,8 +58,7 @@ export function evaluateFeatureTargetRoles(
       missedColumnIds,
       message:
         "price_million_idr is the value we want to predict. District, property type, building area, and bedrooms can help the model make that prediction.",
-      nextStep:
-        "This lesson is complete. Continue from Learning Home when the next lesson is available.",
+      nextStep: "This lesson is complete. Continue to the regression vs classification lesson.",
       score: 100,
       status: "correct",
       title: "Correct",

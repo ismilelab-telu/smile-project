@@ -5,11 +5,7 @@ import {
   LockClosedIcon,
 } from "@heroicons/react/24/outline";
 
-import {
-  activeLesson,
-  learningModules,
-  regressionFoundationsTrack,
-} from "../content/learning-content";
+import { learningModules, lessons, regressionFoundationsTrack } from "../content/learning-content";
 import type { LearningProgress } from "../types";
 import { LearningHeader } from "./LearningHeader";
 import { GlassSurface } from "@/components/ui/glass-surface";
@@ -31,10 +27,18 @@ type LearningHomeProps = {
 };
 
 export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
-  const completedLessons = progress.completedLessonIds.length;
-  const totalActiveLessons = 1;
-  const isIntroCompleted = progress.completedLessonIds.includes(activeLesson.id);
-  const progressPercent = Math.round((completedLessons / totalActiveLessons) * 100);
+  const availableLessonIds = new Set(
+    learningModules
+      .filter((module) => module.status === "available")
+      .flatMap((module) => module.lessonIds),
+  );
+  const activeLessons = lessons.filter((lesson) => availableLessonIds.has(lesson.id));
+  const completedLessons = progress.completedLessonIds.filter((lessonId) =>
+    availableLessonIds.has(lessonId),
+  ).length;
+  const totalActiveLessons = activeLessons.length;
+  const progressPercent =
+    totalActiveLessons === 0 ? 0 : Math.round((completedLessons / totalActiveLessons) * 100);
 
   return (
     <main className="relative z-10 isolate min-h-screen overflow-x-hidden text-foreground">
@@ -64,7 +68,14 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
               <div className="grid gap-3">
                 {learningModules.map((module, index) => {
                   const isAvailable = module.status === "available";
-                  const isActiveModule = module.lessonIds.includes(activeLesson.id);
+                  const moduleLessons = module.lessonIds
+                    .map((lessonId) => lessons.find((lesson) => lesson.id === lessonId))
+                    .filter((lesson) => lesson !== undefined);
+                  const isModuleCompleted =
+                    moduleLessons.length > 0 &&
+                    moduleLessons.every((lesson) =>
+                      progress.completedLessonIds.includes(lesson.id),
+                    );
 
                   return (
                     <article
@@ -84,7 +95,7 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                       />
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-4">
-                          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-white/10 text-sm font-semibold text-foreground backdrop-blur-md">
+                          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-white/5 text-sm font-semibold text-foreground backdrop-blur-md">
                             {index}
                           </span>
                           <div className="flex min-h-10 items-center">
@@ -93,10 +104,10 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                             </h3>
                           </div>
                         </div>
-                        <div className="inline-flex w-fit items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-muted-foreground backdrop-blur-md">
+                        <div className="inline-flex w-fit items-center gap-2 rounded-lg bg-white/5 px-3 py-2 text-sm font-medium text-muted-foreground backdrop-blur-md">
                           {isAvailable ? (
                             <>
-                              {isIntroCompleted ? (
+                              {isModuleCompleted ? (
                                 <CheckCircleIcon
                                   aria-hidden="true"
                                   className="size-4 text-emerald-300"
@@ -107,7 +118,7 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                                   className="size-4 text-sky-300"
                                 />
                               )}
-                              {isIntroCompleted ? "Completed" : "Available"}
+                              {isModuleCompleted ? "Completed" : "Available"}
                             </>
                           ) : (
                             <>
@@ -117,21 +128,37 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                           )}
                         </div>
                       </div>
-                      {isAvailable && isActiveModule ? (
-                        <div className="mt-5 flex flex-col gap-4 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <h4 className="text-lg leading-tight font-semibold text-foreground">
-                              {activeLesson.title}
-                            </h4>
-                          </div>
-                          <LiquidLink
-                            className={`${liquidButtonClassName} min-h-11 text-neutral-50 [--liquid-button-color:var(--color-emerald-600)]`}
-                            data-app-link
-                            href={`/learn/${regressionFoundationsTrack.id}/${activeLesson.id}`}
-                          >
-                            {isIntroCompleted ? "Review module" : "Start module"}
-                            <ArrowRightIcon aria-hidden="true" className="size-4" />
-                          </LiquidLink>
+                      {isAvailable && moduleLessons.length > 0 ? (
+                        <div className="mt-5 divide-y divide-border border-t border-border">
+                          {moduleLessons.map((lesson) => {
+                            const isLessonCompleted = progress.completedLessonIds.includes(
+                              lesson.id,
+                            );
+
+                            return (
+                              <div
+                                className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+                                key={lesson.id}
+                              >
+                                <div>
+                                  <p className="text-xs font-medium text-muted-foreground">
+                                    {lesson.numberLabel}
+                                  </p>
+                                  <h4 className="mt-1 text-lg leading-tight font-semibold text-foreground">
+                                    {lesson.title}
+                                  </h4>
+                                </div>
+                                <LiquidLink
+                                  className={`${liquidButtonClassName} min-h-11 text-neutral-50 [--liquid-button-color:var(--color-emerald-600)]`}
+                                  data-app-link
+                                  href={`/learn/${regressionFoundationsTrack.id}/${lesson.id}`}
+                                >
+                                  {isLessonCompleted ? "Review lesson" : "Start lesson"}
+                                  <ArrowRightIcon aria-hidden="true" className="size-4" />
+                                </LiquidLink>
+                              </div>
+                            );
+                          })}
                         </div>
                       ) : null}
                     </article>

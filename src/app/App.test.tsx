@@ -162,7 +162,12 @@ describe("App", () => {
       await screen.findByRole("heading", { name: "Regression Foundations" }, lazyRouteTimeout),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Modules" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Start module/ })).toHaveAttribute(
+    expect(
+      screen.getByRole("heading", { name: "Regression vs Classification" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "ML Workflow Order" })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Start lesson/ })).toHaveLength(3);
+    expect(screen.getAllByRole("link", { name: /Start lesson/ })[0]).toHaveAttribute(
       "href",
       "/learn/track-regression-foundations/lesson-0-1-feature-target",
     );
@@ -208,6 +213,55 @@ describe("App", () => {
     expect(await screen.findByRole("heading", { name: "Correct" })).toBeInTheDocument();
     expect(window.localStorage.getItem("smile-learning-progress-v1")).toContain(
       "lesson-0-1-feature-target",
+    );
+  });
+
+  it("submits the regression vs classification lesson", async () => {
+    window.history.pushState(
+      null,
+      "",
+      "/learn/track-regression-foundations/lesson-0-2-regression-classification",
+    );
+    render(<App />);
+
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: "Regression vs Classification" },
+        lazyRouteTimeout,
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Predict residential property price in million IDR."));
+    fireEvent.click(
+      screen.getByLabelText("Predict how many days it will take for a property to sell."),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
+
+    expect(await screen.findByRole("heading", { name: "Correct" })).toBeInTheDocument();
+    expect(window.localStorage.getItem("smile-learning-progress-v1")).toContain(
+      "lesson-0-2-regression-classification",
+    );
+  });
+
+  it("submits the ML workflow ordering lesson", async () => {
+    window.history.pushState(
+      null,
+      "",
+      "/learn/track-regression-foundations/lesson-0-3-ml-workflow-order",
+    );
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "ML Workflow Order" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Move Baseline up" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
+
+    expect(await screen.findByRole("heading", { name: "Correct" })).toBeInTheDocument();
+    expect(window.localStorage.getItem("smile-learning-progress-v1")).toContain(
+      "lesson-0-3-ml-workflow-order",
     );
   });
 });

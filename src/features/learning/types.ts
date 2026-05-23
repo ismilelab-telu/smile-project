@@ -3,6 +3,7 @@ export type ColumnRole = "target" | "safe-feature" | "metadata" | "ignore";
 export type LearningLessonStatus = "not_started" | "in_progress" | "completed";
 
 export type EvaluationStatus = "correct" | "partial" | "incorrect";
+export type ExerciseType = "multiple-choice" | "ordered-steps" | "table-column-role-assignment";
 
 export type DatasetColumn = {
   id: string;
@@ -34,16 +35,58 @@ export type GeneratedDataset = {
   views: DatasetView[];
 };
 
+type LessonExerciseBase = {
+  id: string;
+  type: ExerciseType;
+  prompt: string;
+  hints: string[];
+};
+
+export type TableColumnRoleExercise = LessonExerciseBase & {
+  type: "table-column-role-assignment";
+  datasetContext: string;
+  instruction: string;
+};
+
+export type ChoiceExerciseOption = {
+  id: string;
+  label: string;
+};
+
+export type MultipleChoiceExercise = LessonExerciseBase & {
+  type: "multiple-choice";
+  options: ChoiceExerciseOption[];
+  correctOptionIds: string[];
+};
+
+export type OrderedStep = {
+  id: string;
+  label: string;
+};
+
+export type OrderedStepsExercise = LessonExerciseBase & {
+  type: "ordered-steps";
+  steps: OrderedStep[];
+  correctStepIds: string[];
+};
+
+export type LessonExercise =
+  | MultipleChoiceExercise
+  | OrderedStepsExercise
+  | TableColumnRoleExercise;
+
 export type Lesson = {
   id: string;
   moduleId: string;
   title: string;
+  numberLabel: string;
   estimatedMinutes: number;
   objective: string;
   summary: string[];
-  datasetId: string;
-  viewId: string;
+  datasetId?: string;
+  viewId?: string;
   exerciseId: string;
+  exercise: LessonExercise;
 };
 
 export type LearningModule = {
