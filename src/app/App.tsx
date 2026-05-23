@@ -1,6 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
+import DotGrid from "@/components/ui/dot-grid";
+
 const ExplorePage = lazy(() =>
   import("../pages/ExplorePage").then((module) => ({ default: module.ExplorePage })),
 );
@@ -15,7 +17,7 @@ const LearningPage = lazy(() =>
 );
 
 type RouteTheme = "dark" | "light";
-type RouteTransition = "back" | "content-forward" | "forward";
+type RouteTransition = "back" | "content-back" | "content-forward" | "forward";
 type ViewTransitionDocument = Document & {
   startViewTransition?: (callback: () => void) => { finished: Promise<void> };
 };
@@ -44,16 +46,24 @@ function isLearningRoute(pathname: string) {
   );
 }
 
+function shouldShowSharedExploreBackground(pathname: string) {
+  return pathname === "/explore" || pathname === "/learn";
+}
+
 function getRouteDirection(
   fromPath: string,
   toPath: string,
-): Exclude<RouteTransition, "content-forward"> {
+): Exclude<RouteTransition, "content-back" | "content-forward"> {
   return getRouteOrder(toPath) >= getRouteOrder(fromPath) ? "forward" : "back";
 }
 
 function getRouteTransition(fromPath: string, toPath: string): RouteTransition {
   if (fromPath === "/explore" && toPath === "/learn") {
     return "content-forward";
+  }
+
+  if (fromPath === "/learn" && toPath === "/explore") {
+    return "content-back";
   }
 
   return getRouteDirection(fromPath, toPath);
@@ -174,27 +184,50 @@ export function App() {
   }, []);
 
   return (
-    <Suspense
-      fallback={
-        <main
-          className={`min-h-screen ${
-            getRouteTheme(path) === "dark" ? "bg-neutral-950" : "bg-background"
-          }`}
-        />
-      }
-    >
-      {path === "/" ? (
-        <LandingPage
-          onRendered={handleLandingRendered}
-          skipIntroAnimation={shouldSkipLandingIntro}
-        />
-      ) : path === "/explore" ? (
-        <ExplorePage />
-      ) : isLearningRoute(path) ? (
-        <LearningPage path={path} />
-      ) : (
-        <FuzzyTextPage path={path} />
-      )}
-    </Suspense>
+    <>
+      {shouldShowSharedExploreBackground(path) ? <SharedExploreBackground /> : null}
+      <Suspense
+        fallback={
+          <main
+            className={`min-h-screen ${
+              getRouteTheme(path) === "dark" ? "bg-neutral-950" : "bg-background"
+            }`}
+          />
+        }
+      >
+        {path === "/" ? (
+          <LandingPage
+            onRendered={handleLandingRendered}
+            skipIntroAnimation={shouldSkipLandingIntro}
+          />
+        ) : path === "/explore" ? (
+          <ExplorePage />
+        ) : isLearningRoute(path) ? (
+          <LearningPage path={path} />
+        ) : (
+          <FuzzyTextPage path={path} />
+        )}
+      </Suspense>
+    </>
+  );
+}
+
+function SharedExploreBackground() {
+  return (
+    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 bg-neutral-950">
+      <DotGrid
+        activeColor="oklch(76.5% 0.177 163.223)"
+        baseColor="oklch(43.9% 0 0)"
+        dotSize={3}
+        gap={26}
+        maxSpeed={4200}
+        proximity={150}
+        resistance={760}
+        returnDuration={1.35}
+        shockRadius={260}
+        shockStrength={4}
+        speedTrigger={120}
+      />
+    </div>
   );
 }

@@ -98,9 +98,6 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
               <h1 className="max-w-3xl text-4xl leading-tight font-semibold tracking-normal text-foreground">
                 {lesson.title}
               </h1>
-              <p className="mt-4 max-w-3xl text-base leading-7 text-muted-foreground">
-                {lesson.objective}
-              </p>
             </div>
           </section>
 

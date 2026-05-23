@@ -12,7 +12,6 @@ import {
 } from "../content/learning-content";
 import type { LearningProgress } from "../types";
 import { LearningHeader } from "./LearningHeader";
-import DotGrid from "@/components/ui/dot-grid";
 import { GlassSurface } from "@/components/ui/glass-surface";
 import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
 
@@ -38,23 +37,7 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
   const progressPercent = Math.round((completedLessons / totalActiveLessons) * 100);
 
   return (
-    <main className="relative isolate min-h-screen overflow-x-hidden bg-neutral-950 text-foreground">
-      <div className="pointer-events-none fixed inset-0 z-0">
-        <DotGrid
-          activeColor="oklch(76.5% 0.177 163.223)"
-          baseColor="oklch(43.9% 0 0)"
-          dotSize={3}
-          gap={26}
-          maxSpeed={4200}
-          proximity={150}
-          resistance={760}
-          returnDuration={1.35}
-          shockRadius={260}
-          shockStrength={4}
-          speedTrigger={120}
-        />
-      </div>
-
+    <main className="relative z-10 isolate min-h-screen overflow-x-hidden text-foreground">
       <div className="relative z-10">
         <LearningHeader backHref="/explore" backLabel="Back to Explore" />
 
@@ -65,9 +48,6 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                 <h1 className="text-4xl leading-tight font-semibold tracking-normal text-foreground sm:text-5xl">
                   {regressionFoundationsTrack.title}
                 </h1>
-                <p className="mt-4 text-base leading-7 text-muted-foreground">
-                  {regressionFoundationsTrack.summary}
-                </p>
               </div>
             </div>
 
@@ -111,9 +91,6 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                             <h3 className="text-base font-semibold text-foreground">
                               {module.title}
                             </h3>
-                            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                              {module.summary}
-                            </p>
                           </div>
                         </div>
                         <div className="inline-flex w-fit items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground">
@@ -146,11 +123,6 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                             <h4 className="text-lg leading-tight font-semibold text-foreground">
                               {activeLesson.title}
                             </h4>
-                            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                              {isIntroCompleted
-                                ? "This module content is complete. You can review it before the next module opens."
-                                : activeLesson.objective}
-                            </p>
                           </div>
                           <LiquidLink
                             className={`${liquidButtonClassName} min-h-11 text-neutral-50 [--liquid-button-color:var(--color-emerald-600)]`}
@@ -200,9 +172,6 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                 >
                   <div className="h-full bg-emerald-400" style={{ width: `${progressPercent}%` }} />
                 </div>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  Progress is saved locally in this browser.
-                </p>
               </div>
               <LiquidButton
                 className={`${liquidButtonClassName} mt-5 w-full cursor-pointer text-neutral-50 [--liquid-button-color:var(--color-rose-600)]`}

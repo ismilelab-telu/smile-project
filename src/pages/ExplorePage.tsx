@@ -12,7 +12,6 @@ import type { ComponentType, SVGProps } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 
-import DotGrid from "@/components/ui/dot-grid";
 import { GlassSurface } from "@/components/ui/glass-surface";
 import VariableProximity from "@/components/ui/variable-proximity";
 import { shouldReduceMotion } from "@/lib/motion";
@@ -69,23 +68,7 @@ export function ExplorePage() {
   const headingRef = useRef<HTMLSpanElement>(null);
 
   return (
-    <main className="relative isolate min-h-screen overflow-hidden bg-neutral-950 text-neutral-50">
-      <div className="pointer-events-none absolute inset-0 z-0">
-        <DotGrid
-          activeColor="oklch(76.5% 0.177 163.223)"
-          baseColor="oklch(43.9% 0 0)"
-          dotSize={3}
-          gap={26}
-          maxSpeed={4200}
-          proximity={150}
-          resistance={760}
-          returnDuration={1.35}
-          shockRadius={260}
-          shockStrength={4}
-          speedTrigger={120}
-        />
-      </div>
-
+    <main className="relative z-10 isolate min-h-screen overflow-hidden text-neutral-50">
       <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-[clamp(1.5rem,3vw,2.5rem)] py-[clamp(1.5rem,3vw,2.5rem)] [@media_(min-width:2200px)]:px-14 [@media_(min-width:2200px)]:py-14">
         <a
           aria-label="Back to home"
