@@ -383,6 +383,8 @@ function DatasetPreview({
   exercise: TableColumnRoleExercise;
 }) {
   const [sorting, setSorting] = useState<SortingState>([]);
+  const tableBodyRef = useRef<HTMLTableSectionElement>(null);
+  const previousRowRectsRef = useRef<Map<string, DOMRectReadOnly>>(new Map());
   const tableColumns = useMemo<ColumnDef<DatasetRow>[]>(
     () =>
       datasetView.columns.map((datasetColumn) => ({
@@ -423,6 +425,67 @@ function DatasetPreview({
       sorting,
     },
   });
+  const sortedRows = table.getRowModel().rows;
+  const sortedRowOrderKey = sortedRows.map((row) => row.id).join("|");
+
+  useGSAP(
+    () => {
+      const tableBody = tableBodyRef.current;
+
+      if (!tableBody) {
+        return;
+      }
+
+      const rows = gsap.utils.toArray<HTMLElement>("[data-dataset-row-id]", tableBody);
+      const nextRowRects = new Map<string, DOMRectReadOnly>();
+      const animatedRows: HTMLElement[] = [];
+
+      rows.forEach((rowElement) => {
+        const rowId = rowElement.dataset.datasetRowId;
+
+        if (!rowId) {
+          return;
+        }
+
+        const nextRect = rowElement.getBoundingClientRect();
+        const previousRect = previousRowRectsRef.current.get(rowId);
+        nextRowRects.set(rowId, nextRect);
+
+        if (!previousRect) {
+          return;
+        }
+
+        const offsetY = previousRect.top - nextRect.top;
+
+        if (Math.abs(offsetY) < 0.5) {
+          return;
+        }
+
+        gsap.set(rowElement, { y: offsetY });
+        animatedRows.push(rowElement);
+      });
+
+      previousRowRectsRef.current = nextRowRects;
+
+      if (animatedRows.length === 0 || shouldReduceMotion()) {
+        gsap.set(animatedRows, { clearProps: "transform" });
+        return;
+      }
+
+      gsap.to(animatedRows, {
+        clearProps: "transform",
+        duration: 0.48,
+        ease: "power3.out",
+        overwrite: true,
+        stagger: {
+          each: 0.012,
+          from: "start",
+        },
+        y: 0,
+      });
+    },
+    { dependencies: [sortedRowOrderKey], revertOnUpdate: true, scope: tableBodyRef },
+  );
 
   return (
     <LessonGlassCard aria-labelledby="dataset-preview" className="p-0">
@@ -492,9 +555,17 @@ function DatasetPreview({
                   </tr>
                 ))}
               </thead>
-              <tbody>
-                {table.getRowModel().rows.map((row, rowIndex) => (
-                  <tr className={rowIndex % 2 === 0 ? "bg-transparent" : "bg-white/5"} key={row.id}>
+              <tbody ref={tableBodyRef}>
+                {sortedRows.map((row, rowIndex) => (
+                  <tr
+                    className={
+                      rowIndex % 2 === 0
+                        ? "bg-transparent will-change-transform"
+                        : "bg-white/5 will-change-transform"
+                    }
+                    data-dataset-row-id={row.id}
+                    key={row.id}
+                  >
                     {row.getVisibleCells().map((cell) => (
                       <td
                         className="border-b border-border px-4 py-3 text-muted-foreground [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-4"
