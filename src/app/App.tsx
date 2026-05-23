@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 
 import LiquidEther from "@/components/ui/liquid-ether";
 
-const liquidEtherColors = ["#5227FF", "#FF9FFC", "#B497CF"];
+const liquidEtherColors = ["#059669", "#10B981", "#38BDF8"];
 
 const ExplorePage = lazy(() =>
   import("../pages/ExplorePage").then((module) => ({ default: module.ExplorePage })),
