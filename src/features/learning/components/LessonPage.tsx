@@ -36,7 +36,7 @@ import { shouldReduceMotion } from "@/lib/motion";
 gsap.registerPlugin(useGSAP);
 
 const liquidButtonClassName =
-  "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-neutral-50 backdrop-blur-xl shadow-[inset_0_1px_0_oklch(100%_0_0_/_0.16),0_12px_32px_oklch(0%_0_0_/_0.22)] [--liquid-button-background-color:oklch(100%_0_0_/_0.08)] [--liquid-button-color:var(--color-emerald-500)]";
+  "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-neutral-50 backdrop-blur-xl shadow-[inset_0_1px_0_oklch(100%_0_0_/_0.16),0_12px_32px_oklch(0%_0_0_/_0.22)] [--liquid-button-background-color:oklch(100%_0_0_/_0.08)] [--liquid-button-color:var(--color-emerald-500)] [@media_(min-width:2200px)]:gap-3 [@media_(min-width:2200px)]:rounded-2xl [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-3 [@media_(min-width:2200px)]:text-base";
 
 const glassCardStyle = {
   inset: 0,
@@ -100,12 +100,18 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
     return (
       <main className="relative z-10 isolate min-h-screen overflow-x-hidden text-foreground">
         <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
-        <LessonGlassCard className="route-content-transition-target mx-auto mt-20 max-w-lg p-6 text-center">
-          <h1 className="text-xl font-semibold text-foreground">Lesson cannot be opened</h1>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+        <LessonGlassCard className="route-content-transition-target mx-auto mt-20 max-w-lg p-6 text-center [@media_(min-width:2200px)]:max-w-2xl [@media_(min-width:2200px)]:p-8">
+          <h1 className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl">
+            Lesson cannot be opened
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7">
             The dataset view for this lesson is not available yet.
           </p>
-          <LiquidLink className={`${liquidButtonClassName} mt-5`} data-app-link href="/learn">
+          <LiquidLink
+            className={`${liquidButtonClassName} mt-5 [@media_(min-width:2200px)]:mt-6 [@media_(min-width:2200px)]:min-h-14`}
+            data-app-link
+            href="/learn"
+          >
             Back to Learning Home
           </LiquidLink>
         </LessonGlassCard>
@@ -170,26 +176,35 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
     <main className="relative z-10 isolate min-h-screen overflow-x-hidden text-foreground">
       <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
 
-      <div className="route-content-transition-target mx-auto grid w-[min(1180px,calc(100%_-_32px))] gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <article className="flex flex-col gap-8">
-          <section className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+      <div className="route-content-transition-target mx-auto grid w-[min(1180px,calc(100%_-_32px))] gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_340px] [@media_(min-width:2200px)]:w-[min(1560px,calc(100%_-_112px))] [@media_(min-width:2200px)]:grid-cols-[minmax(0,1fr)_430px] [@media_(min-width:2200px)]:gap-12 [@media_(min-width:2200px)]:py-16">
+        <article className="flex flex-col gap-8 [@media_(min-width:2200px)]:gap-11">
+          <section className="flex flex-col gap-4 [@media_(min-width:2200px)]:gap-5">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground [@media_(min-width:2200px)]:text-base">
               <span>{lesson.numberLabel}</span>
               <span aria-hidden="true">/</span>
               <span>{lesson.estimatedMinutes} minutes</span>
             </div>
-            <h1 className="max-w-3xl text-4xl leading-tight font-semibold tracking-normal text-foreground">
+            <h1 className="max-w-3xl text-4xl leading-tight font-semibold tracking-normal text-foreground [@media_(min-width:2200px)]:max-w-5xl [@media_(min-width:2200px)]:text-7xl">
               {lesson.title}
             </h1>
           </section>
 
-          <LessonGlassCard aria-labelledby="concept-summary" className="p-5">
-            <h2 className="text-lg font-semibold text-foreground" id="concept-summary">
+          <LessonGlassCard
+            aria-labelledby="concept-summary"
+            className="p-5 [@media_(min-width:2200px)]:p-7"
+          >
+            <h2
+              className="text-lg font-semibold text-foreground [@media_(min-width:2200px)]:text-2xl"
+              id="concept-summary"
+            >
               Concept summary
             </h2>
-            <div className="mt-4 flex flex-col gap-3">
+            <div className="mt-4 flex flex-col gap-3 [@media_(min-width:2200px)]:mt-5 [@media_(min-width:2200px)]:gap-4">
               {lesson.summary.map((paragraph) => (
-                <p className="text-sm leading-6 text-muted-foreground" key={paragraph}>
+                <p
+                  className="text-sm leading-6 text-muted-foreground [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7"
+                  key={paragraph}
+                >
                   {paragraph}
                 </p>
               ))}
@@ -201,9 +216,14 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
           ) : null}
 
           <LessonGlassCard aria-labelledby="exercise" className="p-0">
-            <div className="border-b border-border p-5">
-              <p className="text-sm font-medium text-sky-300">Exercise</p>
-              <h2 className="mt-2 text-lg font-semibold text-foreground" id="exercise">
+            <div className="border-b border-border p-5 [@media_(min-width:2200px)]:p-7">
+              <p className="text-sm font-medium text-sky-300 [@media_(min-width:2200px)]:text-base">
+                Exercise
+              </p>
+              <h2
+                className="mt-2 text-lg font-semibold text-foreground [@media_(min-width:2200px)]:mt-3 [@media_(min-width:2200px)]:text-2xl"
+                id="exercise"
+              >
                 {lesson.exercise.prompt}
               </h2>
             </div>
@@ -233,12 +253,12 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
               />
             ) : null}
 
-            <div className="flex flex-col gap-3 border-t border-border p-5 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm leading-6 text-muted-foreground">
+            <div className="flex flex-col gap-3 border-t border-border p-5 sm:flex-row sm:items-center sm:justify-between [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-7">
+              <p className="text-sm leading-6 text-muted-foreground [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7">
                 Submit will evaluate your answer automatically.
               </p>
               <LiquidButton
-                className={`${liquidButtonClassName} min-h-11 cursor-pointer`}
+                className={`${liquidButtonClassName} min-h-11 cursor-pointer [@media_(min-width:2200px)]:min-h-14`}
                 onClick={submitAnswer}
                 type="button"
               >
@@ -250,22 +270,28 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
           {result ? <LessonResult result={result} /> : null}
         </article>
 
-        <aside className="flex h-fit flex-col gap-4">
-          <LessonGlassCard className="p-5">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-              <LightBulbIcon aria-hidden="true" className="size-5 text-emerald-300" />
+        <aside className="flex h-fit flex-col gap-4 [@media_(min-width:2200px)]:gap-5">
+          <LessonGlassCard className="p-5 [@media_(min-width:2200px)]:p-7">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground [@media_(min-width:2200px)]:gap-3 [@media_(min-width:2200px)]:text-2xl">
+              <LightBulbIcon
+                aria-hidden="true"
+                className="size-5 text-emerald-300 [@media_(min-width:2200px)]:size-6"
+              />
               Hint
             </h2>
-            <ol className="mt-4 grid gap-3 text-sm leading-6 text-muted-foreground">
+            <ol className="mt-4 grid gap-3 text-sm leading-6 text-muted-foreground [@media_(min-width:2200px)]:mt-6 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7">
               {lesson.exercise.hints.slice(0, visibleHintCount).map((hint, index) => (
-                <li className="rounded-lg bg-muted p-3" key={hint}>
+                <li
+                  className="rounded-lg bg-muted p-3 [@media_(min-width:2200px)]:rounded-xl [@media_(min-width:2200px)]:p-4"
+                  key={hint}
+                >
                   {index + 1}. {hint}
                 </li>
               ))}
             </ol>
             {visibleHintCount < lesson.exercise.hints.length ? (
               <LiquidButton
-                className={`${liquidButtonClassName} mt-4 w-full cursor-pointer`}
+                className={`${liquidButtonClassName} mt-4 w-full cursor-pointer [@media_(min-width:2200px)]:mt-6 [@media_(min-width:2200px)]:min-h-14`}
                 onClick={() =>
                   setVisibleHintCount((count) => Math.min(count + 1, lesson.exercise.hints.length))
                 }
@@ -276,13 +302,15 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
             ) : null}
           </LessonGlassCard>
 
-          <LessonGlassCard className="p-5">
-            <h2 className="text-lg font-semibold text-foreground">Completion</h2>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          <LessonGlassCard className="p-5 [@media_(min-width:2200px)]:p-7">
+            <h2 className="text-lg font-semibold text-foreground [@media_(min-width:2200px)]:text-2xl">
+              Completion
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7">
               The lesson is complete when the answer is correct and feedback is shown.
             </p>
             <LiquidLink
-              className={`${liquidButtonClassName} mt-4 w-full`}
+              className={`${liquidButtonClassName} mt-4 w-full [@media_(min-width:2200px)]:mt-6 [@media_(min-width:2200px)]:min-h-14`}
               data-app-link
               href="/learn"
             >
@@ -327,26 +355,31 @@ function DatasetPreview({
 }) {
   return (
     <LessonGlassCard aria-labelledby="dataset-preview" className="p-0">
-      <div className="flex flex-col gap-2 border-b border-border p-5">
-        <h2 className="text-lg font-semibold text-foreground" id="dataset-preview">
+      <div className="flex flex-col gap-2 border-b border-border p-5 [@media_(min-width:2200px)]:gap-3 [@media_(min-width:2200px)]:p-7">
+        <h2
+          className="text-lg font-semibold text-foreground [@media_(min-width:2200px)]:text-2xl"
+          id="dataset-preview"
+        >
           Dataset preview
         </h2>
-        <p className="text-sm leading-6 text-muted-foreground">{exercise.datasetContext}</p>
+        <p className="text-sm leading-6 text-muted-foreground [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7">
+          {exercise.datasetContext}
+        </p>
       </div>
       <div className="overflow-x-auto">
-        <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
+        <table className="min-w-full border-separate border-spacing-0 text-left text-sm [@media_(min-width:2200px)]:text-base">
           <thead>
             <tr className="bg-muted">
               {datasetView.columns.map((column) => (
                 <th
-                  className="border-b border-border px-4 py-3 font-semibold text-foreground"
+                  className="border-b border-border px-4 py-3 font-semibold text-foreground [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-4"
                   key={column.id}
                   scope="col"
                 >
-                  <span className="flex flex-col gap-1">
+                  <span className="flex flex-col gap-1 [@media_(min-width:2200px)]:gap-1.5">
                     <span>{column.label}</span>
                     {column.unit ? (
-                      <span className="text-xs font-normal text-muted-foreground">
+                      <span className="text-xs font-normal text-muted-foreground [@media_(min-width:2200px)]:text-sm">
                         {column.unit}
                       </span>
                     ) : null}
@@ -360,7 +393,7 @@ function DatasetPreview({
               <tr className="odd:bg-surface even:bg-muted/60" key={row.id}>
                 {datasetView.columns.map((column) => (
                   <td
-                    className="border-b border-border px-4 py-3 text-muted-foreground"
+                    className="border-b border-border px-4 py-3 text-muted-foreground [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-4"
                     key={column.id}
                   >
                     {String(row.values[column.id] ?? "")}
@@ -557,14 +590,14 @@ function RoleDropdown({
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         aria-label={`Role for ${columnLabel}`}
-        className="flex min-h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-lg border-2 border-neutral-500 bg-neutral-900 px-5 py-2 text-left text-[0.85rem] font-medium text-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+        className="flex min-h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-xl bg-white/5 px-5 py-2 text-left text-[0.85rem] font-medium text-neutral-50 shadow-[inset_0_1px_0_oklch(100%_0_0_/_0.16),0_12px_32px_oklch(0%_0_0_/_0.22)] backdrop-blur-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 [@media_(min-width:2200px)]:min-h-12 [@media_(min-width:2200px)]:rounded-2xl [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-3 [@media_(min-width:2200px)]:text-base"
         onClick={() => setDropdownOpen(!isOpen)}
         type="button"
       >
         <span className="truncate">{selectedLabel}</span>
         <ChevronDownIcon
           aria-hidden="true"
-          className="block size-3 shrink-0 text-current"
+          className="block size-3 shrink-0 text-current [@media_(min-width:2200px)]:size-4"
           data-role-dropdown-arrow
         />
       </button>
@@ -572,7 +605,7 @@ function RoleDropdown({
       <div
         aria-hidden={!isOpen}
         aria-label={`Role options for ${columnLabel}`}
-        className="invisible absolute top-[calc(100%+8px)] right-0 left-0 z-40 w-full origin-top overflow-hidden rounded-lg border-2 border-neutral-500 bg-neutral-900 text-neutral-300 opacity-0 shadow-[0_18px_50px_oklch(0%_0_0_/_0.34)] will-change-transform"
+        className="invisible absolute top-[calc(100%+8px)] right-0 left-0 z-40 w-full origin-top overflow-hidden rounded-xl border border-white/12 bg-white/5 text-neutral-300 opacity-0 shadow-[0_18px_50px_oklch(0%_0_0_/_0.34)] backdrop-blur-2xl will-change-transform [@media_(min-width:2200px)]:top-[calc(100%+10px)] [@media_(min-width:2200px)]:rounded-2xl"
         data-role-dropdown-menu
         id={menuId}
         role="listbox"
@@ -580,7 +613,7 @@ function RoleDropdown({
         {roleOptions.map((option) => (
           <button
             aria-selected={value === option.value}
-            className="block w-full cursor-pointer border-b border-white/5 px-4 py-[9px] text-left text-[0.82rem] font-medium text-neutral-300 last:border-b-0 hover:bg-emerald-400/10 hover:text-neutral-50 focus-visible:bg-emerald-400/10 focus-visible:text-neutral-50 focus-visible:outline-none"
+            className="block w-full cursor-pointer border-b border-white/5 px-4 py-[9px] text-left text-[0.82rem] font-medium text-neutral-300 last:border-b-0 hover:bg-emerald-600 hover:text-neutral-50 focus-visible:bg-emerald-600 focus-visible:text-neutral-50 focus-visible:outline-none [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-3 [@media_(min-width:2200px)]:text-base"
             data-role-dropdown-item
             key={option.value}
             onClick={() => selectRole(option.value)}
@@ -608,18 +641,20 @@ function ColumnRoleExerciseView({
 }) {
   return (
     <>
-      <p className="border-b border-border px-5 py-4 text-sm leading-6 text-muted-foreground">
+      <p className="border-b border-border px-5 py-4 text-sm leading-6 text-muted-foreground [@media_(min-width:2200px)]:px-7 [@media_(min-width:2200px)]:py-5 [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7">
         {exercise.instruction}
       </p>
-      <div className="grid gap-3 p-5">
+      <div className="grid gap-3 p-5 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:p-7">
         {columns.map((column) => (
           <div
-            className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-[minmax(0,1fr)_220px] sm:items-center"
+            className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-[minmax(0,1fr)_220px] sm:items-center [@media_(min-width:2200px)]:grid-cols-[minmax(0,1fr)_290px] [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:rounded-xl [@media_(min-width:2200px)]:p-5"
             key={column.id}
           >
             <span>
-              <span className="block text-sm font-semibold text-foreground">{column.label}</span>
-              <span className="mt-1 block text-sm text-muted-foreground">
+              <span className="block text-sm font-semibold text-foreground [@media_(min-width:2200px)]:text-base">
+                {column.label}
+              </span>
+              <span className="mt-1 block text-sm text-muted-foreground [@media_(min-width:2200px)]:text-base">
                 Column ID: {column.id}
               </span>
             </span>
@@ -645,19 +680,21 @@ function MultipleChoiceExerciseView({
   selectedOptionIds: string[];
 }) {
   return (
-    <div className="grid gap-3 p-5">
+    <div className="grid gap-3 p-5 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:p-7">
       {exercise.options.map((option) => (
         <label
-          className="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border border-border p-4"
+          className="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border border-border p-4 [@media_(min-width:2200px)]:min-h-16 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:rounded-xl [@media_(min-width:2200px)]:p-5"
           key={option.id}
         >
           <input
             checked={selectedOptionIds.includes(option.id)}
-            className="size-4 accent-emerald-500"
+            className="size-4 accent-emerald-500 [@media_(min-width:2200px)]:size-5"
             onChange={() => onToggleOption(option.id)}
             type="checkbox"
           />
-          <span className="text-sm leading-6 text-foreground">{option.label}</span>
+          <span className="text-sm leading-6 text-foreground [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7">
+            {option.label}
+          </span>
         </label>
       ))}
     </div>
@@ -676,7 +713,7 @@ function OrderedStepsExerciseView({
   const stepById = new Map(exercise.steps.map((step) => [step.id, step]));
 
   return (
-    <ol className="grid gap-3 p-5">
+    <ol className="grid gap-3 p-5 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:p-7">
       {orderedStepIds.map((stepId, index) => {
         const step = stepById.get(stepId);
 
@@ -686,31 +723,39 @@ function OrderedStepsExerciseView({
 
         return (
           <li
-            className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-[3rem_minmax(0,1fr)_auto] sm:items-center"
+            className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-[3rem_minmax(0,1fr)_auto] sm:items-center [@media_(min-width:2200px)]:grid-cols-[3.75rem_minmax(0,1fr)_auto] [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:rounded-xl [@media_(min-width:2200px)]:p-5"
             key={step.id}
           >
-            <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-sm font-semibold text-foreground">
+            <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-sm font-semibold text-foreground [@media_(min-width:2200px)]:size-11 [@media_(min-width:2200px)]:rounded-xl [@media_(min-width:2200px)]:text-base">
               {index + 1}
             </span>
-            <span className="text-sm font-medium text-foreground">{step.label}</span>
-            <span className="flex gap-2">
+            <span className="text-sm font-medium text-foreground [@media_(min-width:2200px)]:text-base">
+              {step.label}
+            </span>
+            <span className="flex gap-2 [@media_(min-width:2200px)]:gap-3">
               <button
                 aria-label={`Move ${step.label} up`}
-                className="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg bg-muted text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg bg-muted text-foreground disabled:cursor-not-allowed disabled:opacity-40 [@media_(min-width:2200px)]:size-11 [@media_(min-width:2200px)]:rounded-xl"
                 disabled={index === 0}
                 onClick={() => onMoveStep(index, -1)}
                 type="button"
               >
-                <ArrowUpIcon aria-hidden="true" className="size-4" />
+                <ArrowUpIcon
+                  aria-hidden="true"
+                  className="size-4 [@media_(min-width:2200px)]:size-5"
+                />
               </button>
               <button
                 aria-label={`Move ${step.label} down`}
-                className="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg bg-muted text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg bg-muted text-foreground disabled:cursor-not-allowed disabled:opacity-40 [@media_(min-width:2200px)]:size-11 [@media_(min-width:2200px)]:rounded-xl"
                 disabled={index === orderedStepIds.length - 1}
                 onClick={() => onMoveStep(index, 1)}
                 type="button"
               >
-                <ArrowDownIcon aria-hidden="true" className="size-4" />
+                <ArrowDownIcon
+                  aria-hidden="true"
+                  className="size-4 [@media_(min-width:2200px)]:size-5"
+                />
               </button>
             </span>
           </li>
@@ -722,21 +767,35 @@ function OrderedStepsExerciseView({
 
 function LessonResult({ result }: { result: EvaluationResult }) {
   return (
-    <LessonGlassCard aria-live="polite" className="p-5">
-      <div className="flex gap-3">
+    <LessonGlassCard aria-live="polite" className="p-5 [@media_(min-width:2200px)]:p-7">
+      <div className="flex gap-3 [@media_(min-width:2200px)]:gap-4">
         {result.status === "correct" ? (
-          <CheckCircleIcon aria-hidden="true" className="size-6 shrink-0 text-emerald-300" />
+          <CheckCircleIcon
+            aria-hidden="true"
+            className="size-6 shrink-0 text-emerald-300 [@media_(min-width:2200px)]:size-7"
+          />
         ) : (
-          <InformationCircleIcon aria-hidden="true" className="size-6 shrink-0 text-sky-300" />
+          <InformationCircleIcon
+            aria-hidden="true"
+            className="size-6 shrink-0 text-sky-300 [@media_(min-width:2200px)]:size-7"
+          />
         )}
         <div>
-          <h2 className="text-lg font-semibold text-foreground">{result.title}</h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">{result.message}</p>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">{result.nextStep}</p>
+          <h2 className="text-lg font-semibold text-foreground [@media_(min-width:2200px)]:text-2xl">
+            {result.title}
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground [@media_(min-width:2200px)]:mt-3 [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7">
+            {result.message}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground [@media_(min-width:2200px)]:mt-3 [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7">
+            {result.nextStep}
+          </p>
           {result.status !== "correct" && result.missedColumnIds.length > 0 ? (
-            <div className="mt-4 rounded-lg bg-muted p-4">
-              <p className="text-sm font-semibold text-foreground">Expected role check</p>
-              <ul className="mt-2 grid gap-1 text-sm leading-6 text-muted-foreground">
+            <div className="mt-4 rounded-lg bg-muted p-4 [@media_(min-width:2200px)]:mt-6 [@media_(min-width:2200px)]:rounded-xl [@media_(min-width:2200px)]:p-5">
+              <p className="text-sm font-semibold text-foreground [@media_(min-width:2200px)]:text-base">
+                Expected role check
+              </p>
+              <ul className="mt-2 grid gap-1 text-sm leading-6 text-muted-foreground [@media_(min-width:2200px)]:mt-3 [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7">
                 {result.missedColumnIds.map((columnId) => (
                   <li key={columnId}>
                     {columnId}: {describeExpectedRole(columnId)}
