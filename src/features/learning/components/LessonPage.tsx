@@ -301,22 +301,6 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
               </LiquidButton>
             ) : null}
           </LessonGlassCard>
-
-          <LessonGlassCard className="p-5 [@media_(min-width:2200px)]:p-7">
-            <h2 className="text-lg font-semibold text-foreground [@media_(min-width:2200px)]:text-2xl">
-              Completion
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7">
-              The lesson is complete when the answer is correct and feedback is shown.
-            </p>
-            <LiquidLink
-              className={`${liquidButtonClassName} mt-4 w-full [@media_(min-width:2200px)]:mt-6 [@media_(min-width:2200px)]:min-h-14`}
-              data-app-link
-              href="/learn"
-            >
-              Back to Learning Home
-            </LiquidLink>
-          </LessonGlassCard>
         </aside>
       </div>
     </main>
@@ -366,43 +350,47 @@ function DatasetPreview({
           {exercise.datasetContext}
         </p>
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full border-separate border-spacing-0 text-left text-sm [@media_(min-width:2200px)]:text-base">
-          <thead>
-            <tr className="bg-muted">
-              {datasetView.columns.map((column) => (
-                <th
-                  className="border-b border-border px-4 py-3 font-semibold text-foreground [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-4"
-                  key={column.id}
-                  scope="col"
-                >
-                  <span className="flex flex-col gap-1 [@media_(min-width:2200px)]:gap-1.5">
-                    <span>{column.label}</span>
-                    {column.unit ? (
-                      <span className="text-xs font-normal text-muted-foreground [@media_(min-width:2200px)]:text-sm">
-                        {column.unit}
+      <div className="p-5 [@media_(min-width:2200px)]:p-7">
+        <div className="overflow-hidden rounded-2xl bg-white/5 shadow-[inset_0_1px_0_oklch(100%_0_0_/_0.16),0_12px_32px_oklch(0%_0_0_/_0.22)] backdrop-blur-xl [@media_(min-width:2200px)]:rounded-3xl">
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-separate border-spacing-0 text-left text-sm [@media_(min-width:2200px)]:text-base">
+              <thead>
+                <tr className="bg-white/5">
+                  {datasetView.columns.map((column) => (
+                    <th
+                      className="border-b border-border px-4 py-3 font-semibold text-foreground [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-4"
+                      key={column.id}
+                      scope="col"
+                    >
+                      <span className="flex flex-col gap-1 [@media_(min-width:2200px)]:gap-1.5">
+                        <span>{column.label}</span>
+                        {column.unit ? (
+                          <span className="text-xs font-normal text-muted-foreground [@media_(min-width:2200px)]:text-sm">
+                            {column.unit}
+                          </span>
+                        ) : null}
                       </span>
-                    ) : null}
-                  </span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {datasetView.rows.map((row) => (
-              <tr className="odd:bg-surface even:bg-muted/60" key={row.id}>
-                {datasetView.columns.map((column) => (
-                  <td
-                    className="border-b border-border px-4 py-3 text-muted-foreground [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-4"
-                    key={column.id}
-                  >
-                    {String(row.values[column.id] ?? "")}
-                  </td>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {datasetView.rows.map((row) => (
+                  <tr className="odd:bg-transparent even:bg-white/5" key={row.id}>
+                    {datasetView.columns.map((column) => (
+                      <td
+                        className="border-b border-border px-4 py-3 text-muted-foreground [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-4"
+                        key={column.id}
+                      >
+                        {String(row.values[column.id] ?? "")}
+                      </td>
+                    ))}
+                  </tr>
                 ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </LessonGlassCard>
   );
@@ -433,9 +421,10 @@ function RoleDropdown({
 
       const menu = root.querySelector<HTMLElement>("[data-role-dropdown-menu]");
       const arrow = root.querySelector<HTMLElement>("[data-role-dropdown-arrow]");
+      const highlight = root.querySelector<HTMLElement>("[data-role-dropdown-highlight]");
       const items = gsap.utils.toArray<HTMLElement>("[data-role-dropdown-item]", root);
 
-      if (!menu || !arrow) {
+      if (!menu || !arrow || !highlight) {
         return;
       }
 
@@ -447,6 +436,7 @@ function RoleDropdown({
         yPercent: -30,
       });
       gsap.set(arrow, { rotation: 0, transformOrigin: "50% 50%" });
+      gsap.set(highlight, { autoAlpha: 0, height: 0, y: 0 });
       gsap.set(items, { opacity: 1, x: 0 });
 
       if (shouldReduceMotion()) {
@@ -516,6 +506,7 @@ function RoleDropdown({
 
     const menu = root.querySelector<HTMLElement>("[data-role-dropdown-menu]");
     const arrow = root.querySelector<HTMLElement>("[data-role-dropdown-arrow]");
+    const highlight = root.querySelector<HTMLElement>("[data-role-dropdown-highlight]");
     const items = gsap.utils.toArray<HTMLElement>("[data-role-dropdown-item]", root);
 
     gsap.set(menu, {
@@ -525,7 +516,43 @@ function RoleDropdown({
       yPercent: 0,
     });
     gsap.set(arrow, { rotation: nextOpen ? 180 : 0 });
+    gsap.set(highlight, { autoAlpha: 0, height: 0, y: 0 });
     gsap.set(items, { opacity: 1, x: 0 });
+  });
+
+  const moveOptionHighlight = contextSafe((target: HTMLElement) => {
+    const root = rootRef.current;
+    const highlight = root?.querySelector<HTMLElement>("[data-role-dropdown-highlight]");
+
+    if (!highlight) {
+      return;
+    }
+
+    const edgeCompensation = 1;
+
+    gsap.to(highlight, {
+      autoAlpha: 1,
+      duration: shouldReduceMotion() ? 0 : 0.28,
+      ease: "power3.out",
+      height: target.offsetHeight + edgeCompensation,
+      overwrite: true,
+      y: Math.max(0, target.offsetTop - edgeCompensation),
+    });
+  });
+
+  const hideOptionHighlight = contextSafe(() => {
+    const highlight = rootRef.current?.querySelector<HTMLElement>("[data-role-dropdown-highlight]");
+
+    if (!highlight) {
+      return;
+    }
+
+    gsap.to(highlight, {
+      autoAlpha: 0,
+      duration: shouldReduceMotion() ? 0 : 0.16,
+      ease: "power2.out",
+      overwrite: true,
+    });
   });
 
   const setDropdownOpen = contextSafe((nextOpen: boolean) => {
@@ -552,6 +579,7 @@ function RoleDropdown({
 
   const selectRole = contextSafe((nextValue: ColumnRole) => {
     onChange(nextValue);
+    hideOptionHighlight();
     setDropdownOpen(false);
   });
 
@@ -608,15 +636,23 @@ function RoleDropdown({
         className="invisible absolute top-[calc(100%+8px)] right-0 left-0 z-40 w-full origin-top overflow-hidden rounded-xl border border-white/12 bg-white/5 text-neutral-300 opacity-0 shadow-[0_18px_50px_oklch(0%_0_0_/_0.34)] backdrop-blur-2xl will-change-transform [@media_(min-width:2200px)]:top-[calc(100%+10px)] [@media_(min-width:2200px)]:rounded-2xl"
         data-role-dropdown-menu
         id={menuId}
+        onPointerLeave={hideOptionHighlight}
         role="listbox"
       >
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute top-0 right-0 left-0 z-0 bg-emerald-600 opacity-0"
+          data-role-dropdown-highlight
+        />
         {roleOptions.map((option) => (
           <button
             aria-selected={value === option.value}
-            className="block w-full cursor-pointer border-b border-white/5 px-4 py-[9px] text-left text-[0.82rem] font-medium text-neutral-300 last:border-b-0 hover:bg-emerald-600 hover:text-neutral-50 focus-visible:bg-emerald-600 focus-visible:text-neutral-50 focus-visible:outline-none [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-3 [@media_(min-width:2200px)]:text-base"
+            className="relative z-10 block w-full cursor-pointer border-b border-white/5 px-4 py-[9px] text-left text-[0.82rem] font-medium text-neutral-300 last:border-b-0 hover:text-neutral-50 focus-visible:text-neutral-50 focus-visible:outline-none [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-3 [@media_(min-width:2200px)]:text-base"
             data-role-dropdown-item
             key={option.value}
+            onFocus={(event) => moveOptionHighlight(event.currentTarget)}
             onClick={() => selectRole(option.value)}
+            onPointerEnter={(event) => moveOptionHighlight(event.currentTarget)}
             role="option"
             type="button"
           >
