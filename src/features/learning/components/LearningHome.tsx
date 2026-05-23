@@ -11,6 +11,7 @@ import {
   regressionFoundationsTrack,
 } from "../content/learning-content";
 import type { LearningProgress } from "../types";
+import type { CSSProperties } from "react";
 import { LearningHeader } from "./LearningHeader";
 import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
 
@@ -42,36 +43,6 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
             </div>
           </div>
 
-          <section
-            aria-labelledby="recommended-lesson"
-            className="rounded-lg border border-border bg-surface p-5"
-          >
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-medium text-sky-300">Recommended lesson</p>
-                <h2
-                  className="mt-2 text-xl leading-tight font-semibold text-foreground"
-                  id="recommended-lesson"
-                >
-                  {activeLesson.title}
-                </h2>
-                {isIntroCompleted ? (
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    The first lesson is complete. You can review it before the next module opens.
-                  </p>
-                ) : null}
-              </div>
-              <LiquidLink
-                className="min-h-11 px-4 py-2"
-                data-app-link
-                href={`/learn/${regressionFoundationsTrack.id}/${activeLesson.id}`}
-              >
-                {isIntroCompleted ? "Review lesson" : "Start lesson"}
-                <ArrowRightIcon aria-hidden="true" className="size-4" />
-              </LiquidLink>
-            </div>
-          </section>
-
           <section aria-labelledby="module-list" className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-4">
               <h2
@@ -85,6 +56,7 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
             <div className="grid gap-3">
               {learningModules.map((module, index) => {
                 const isAvailable = module.status === "available";
+                const isActiveModule = module.lessonIds.includes(activeLesson.id);
 
                 return (
                   <article
@@ -116,7 +88,7 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                             ) : (
                               <AcademicCapIcon aria-hidden="true" className="size-4 text-sky-300" />
                             )}
-                            {isIntroCompleted ? "In progress" : "Available"}
+                            {isIntroCompleted ? "Completed" : "Available"}
                           </>
                         ) : (
                           <>
@@ -126,6 +98,29 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                         )}
                       </div>
                     </div>
+                    {isAvailable && isActiveModule ? (
+                      <div className="mt-5 flex flex-col gap-4 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <h4 className="text-lg leading-tight font-semibold text-foreground">
+                            {activeLesson.title}
+                          </h4>
+                          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                            {isIntroCompleted
+                              ? "This module content is complete. You can review it before the next module opens."
+                              : activeLesson.objective}
+                          </p>
+                        </div>
+                        <LiquidLink
+                          className="min-h-11 border-emerald-500/50 px-4 py-2 text-emerald-100 focus-visible:outline-emerald-500"
+                          data-app-link
+                          href={`/learn/${regressionFoundationsTrack.id}/${activeLesson.id}`}
+                          style={{ "--liquid-button-color": "#10b981" } as CSSProperties}
+                        >
+                          {isIntroCompleted ? "Review module" : "Start module"}
+                          <ArrowRightIcon aria-hidden="true" className="size-4" />
+                        </LiquidLink>
+                      </div>
+                    ) : null}
                   </article>
                 );
               })}
@@ -156,7 +151,12 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
               Progress is saved locally in this browser.
             </p>
           </div>
-          <LiquidButton className="mt-5 w-full" onClick={onResetProgress} type="button">
+          <LiquidButton
+            className="mt-5 w-full cursor-pointer border-rose-600/50 text-rose-100 focus-visible:outline-rose-500"
+            onClick={onResetProgress}
+            style={{ "--liquid-button-color": "#e11d48" } as CSSProperties}
+            type="button"
+          >
             Reset progress
           </LiquidButton>
         </aside>
