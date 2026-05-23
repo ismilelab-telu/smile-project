@@ -2,6 +2,18 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
+import { learningProgressStorageKey } from "@/features/learning/progress/learning-progress";
+
+function seedCompletedLessons(completedLessonIds: string[]) {
+  window.localStorage.setItem(
+    learningProgressStorageKey,
+    JSON.stringify({
+      attempts: {},
+      completedLessonIds,
+      version: 1,
+    }),
+  );
+}
 
 describe("App", () => {
   const lazyRouteTimeout = { timeout: 3000 };
@@ -166,11 +178,12 @@ describe("App", () => {
       screen.getByRole("heading", { name: "Regression vs Classification" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "ML Workflow Order" })).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Start lesson/ })).toHaveLength(3);
-    expect(screen.getAllByRole("link", { name: /Start lesson/ })[0]).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /Start lesson/ })).toHaveLength(1);
+    expect(screen.getByRole("link", { name: /Start lesson/ })).toHaveAttribute(
       "href",
       "/learn/track-regression-foundations/lesson-0-1-feature-target",
     );
+    expect(screen.getAllByText("Locked").length).toBeGreaterThanOrEqual(2);
   });
 
   it("submits the first Learning Mode exercise and persists progress", async () => {
@@ -217,6 +230,7 @@ describe("App", () => {
   });
 
   it("submits the regression vs classification lesson", async () => {
+    seedCompletedLessons(["lesson-0-1-feature-target"]);
     window.history.pushState(
       null,
       "",
@@ -245,6 +259,7 @@ describe("App", () => {
   });
 
   it("submits the ML workflow ordering lesson", async () => {
+    seedCompletedLessons(["lesson-0-1-feature-target", "lesson-0-2-regression-classification"]);
     window.history.pushState(
       null,
       "",
@@ -263,5 +278,20 @@ describe("App", () => {
     expect(window.localStorage.getItem("smile-learning-progress-v1")).toContain(
       "lesson-0-3-ml-workflow-order",
     );
+  });
+
+  it("blocks direct access to locked Learning Mode lessons", async () => {
+    window.history.pushState(
+      null,
+      "",
+      "/learn/track-regression-foundations/lesson-0-2-regression-classification",
+    );
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Lesson locked" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Complete Lesson 0.1 first.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Submit answer" })).not.toBeInTheDocument();
   });
 });

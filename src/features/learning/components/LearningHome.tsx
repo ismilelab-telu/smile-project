@@ -6,6 +6,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 import { learningModules, lessons, regressionFoundationsTrack } from "../content/learning-content";
+import { getLessonLockReason, isLessonUnlocked } from "../progress/lesson-access";
 import type { LearningProgress } from "../types";
 import { LearningHeader } from "./LearningHeader";
 import { GlassSurface } from "@/components/ui/glass-surface";
@@ -134,6 +135,8 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                             const isLessonCompleted = progress.completedLessonIds.includes(
                               lesson.id,
                             );
+                            const isUnlocked = isLessonUnlocked(lesson, progress);
+                            const lockReason = getLessonLockReason(lesson, progress);
 
                             return (
                               <div
@@ -148,14 +151,24 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                                     {lesson.title}
                                   </h4>
                                 </div>
-                                <LiquidLink
-                                  className={`${liquidButtonClassName} min-h-11 text-neutral-50 [--liquid-button-color:var(--color-emerald-600)]`}
-                                  data-app-link
-                                  href={`/learn/${regressionFoundationsTrack.id}/${lesson.id}`}
-                                >
-                                  {isLessonCompleted ? "Review lesson" : "Start lesson"}
-                                  <ArrowRightIcon aria-hidden="true" className="size-4" />
-                                </LiquidLink>
+                                {isUnlocked ? (
+                                  <LiquidLink
+                                    className={`${liquidButtonClassName} min-h-11 text-neutral-50 [--liquid-button-color:var(--color-emerald-600)]`}
+                                    data-app-link
+                                    href={`/learn/${regressionFoundationsTrack.id}/${lesson.id}`}
+                                  >
+                                    {isLessonCompleted ? "Review lesson" : "Start lesson"}
+                                    <ArrowRightIcon aria-hidden="true" className="size-4" />
+                                  </LiquidLink>
+                                ) : (
+                                  <span
+                                    aria-label={lockReason}
+                                    className="inline-flex min-h-11 w-fit items-center justify-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-sm font-semibold text-muted-foreground backdrop-blur-md"
+                                  >
+                                    <LockClosedIcon aria-hidden="true" className="size-4" />
+                                    Locked
+                                  </span>
+                                )}
                               </div>
                             );
                           })}
