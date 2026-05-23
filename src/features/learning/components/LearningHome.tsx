@@ -80,13 +80,13 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
 
                   return (
                     <article
-                      className="relative isolate overflow-hidden rounded-lg p-5"
+                      className="relative isolate overflow-hidden rounded-3xl p-5"
                       key={module.id}
                     >
                       <GlassSurface
                         aria-hidden="true"
                         backgroundOpacity={0.08}
-                        borderRadius={8}
+                        borderRadius={24}
                         brightness={24}
                         height="100%"
                         opacity={0.55}
@@ -182,11 +182,11 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
           </div>
 
           <aside className="h-fit">
-            <section className="relative isolate overflow-hidden rounded-lg p-5">
+            <section className="relative isolate overflow-hidden rounded-3xl p-5">
               <GlassSurface
                 aria-hidden="true"
                 backgroundOpacity={0.08}
-                borderRadius={8}
+                borderRadius={24}
                 brightness={24}
                 height="100%"
                 opacity={0.55}
