@@ -44,11 +44,11 @@ export function evaluateFeatureTargetRoles(
       extraColumnIds,
       missedColumnIds,
       message:
-        "Target adalah nilai yang ingin kita tebak, bukan informasi yang kita pakai untuk menebak.",
-      nextStep: "Cari kolom yang berisi harga properti dan beri role target.",
+        "The target is the value we want to predict, not the information we use to make the prediction.",
+      nextStep: "Find the column that contains the property price and assign it the target role.",
       score: 20,
       status: "incorrect",
-      title: "Belum tepat",
+      title: "Not quite",
     };
   }
 
@@ -57,11 +57,12 @@ export function evaluateFeatureTargetRoles(
       extraColumnIds,
       missedColumnIds,
       message:
-        "price_million_idr adalah nilai yang ingin diprediksi. District, tipe properti, luas bangunan, dan jumlah kamar bisa membantu prediksi.",
-      nextStep: "Lesson ini selesai. Lanjutkan dari Learning Home saat lesson berikutnya tersedia.",
+        "price_million_idr is the value we want to predict. District, property type, building area, and bedrooms can help the model make that prediction.",
+      nextStep:
+        "This lesson is complete. Continue from Learning Home when the next lesson is available.",
       score: 100,
       status: "correct",
-      title: "Benar",
+      title: "Correct",
     };
   }
 
@@ -71,11 +72,11 @@ export function evaluateFeatureTargetRoles(
   return {
     extraColumnIds,
     missedColumnIds,
-    message: "Target sudah mengarah ke harga, tetapi masih ada role kolom yang perlu diperbaiki.",
-    nextStep: "Pastikan feature menjelaskan properti, sedangkan Listing ID hanya menjadi metadata.",
+    message: "The target points to price, but some column roles still need adjustment.",
+    nextStep: "Make sure features describe the property, while Listing ID stays as metadata.",
     score,
     status: "partial",
-    title: "Sebagian benar",
+    title: "Partially correct",
   };
 }
 

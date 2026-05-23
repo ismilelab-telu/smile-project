@@ -1,55 +1,16 @@
-import {
-  AcademicCapIcon,
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  BeakerIcon,
-  ChartBarSquareIcon,
-  HomeIcon,
-  SparklesIcon,
-} from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, ArrowRightIcon, HomeIcon, SparklesIcon } from "@heroicons/react/24/outline";
 import { useEffect, useRef, useState } from "react";
-import type { ComponentType, SVGProps } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 
-import DotGrid from "@/components/ui/dot-grid";
-import { GlassSurface } from "@/components/ui/glass-surface";
-import VariableProximity from "@/components/ui/variable-proximity";
 import { shouldReduceMotion } from "@/lib/motion";
 
 gsap.registerPlugin(useGSAP);
 
-type Mode = {
-  title: string;
-  statusTone: "emerald" | "sky" | "neutral";
-  href: string;
-  actionLabel: string;
-  icon: ComponentType<SVGProps<SVGSVGElement>>;
+type LearningHeaderProps = {
+  backHref: string;
+  backLabel: string;
 };
-
-const modes: Mode[] = [
-  {
-    actionLabel: "Start path",
-    href: "/learn",
-    icon: AcademicCapIcon,
-    statusTone: "emerald",
-    title: "Learning Mode",
-  },
-  {
-    actionLabel: "Coming soon",
-    href: "/playground",
-    icon: BeakerIcon,
-    statusTone: "sky",
-    title: "ML Playground",
-  },
-  {
-    actionLabel: "Coming soon",
-    href: "/algorithm-lab",
-    icon: ChartBarSquareIcon,
-    statusTone: "neutral",
-    title: "Algorithm Lab",
-  },
-];
 
 const menuLinks = [
   { href: "/", label: "Home" },
@@ -59,81 +20,28 @@ const menuLinks = [
   { href: "/algorithm-lab", label: "Algorithm Lab" },
 ];
 
-const iconToneClassName = {
-  emerald: "text-emerald-300",
-  sky: "text-sky-300",
-  neutral: "text-neutral-300",
-} satisfies Record<Mode["statusTone"], string>;
-
-export function ExplorePage() {
-  const headingRef = useRef<HTMLSpanElement>(null);
-
+export function LearningHeader({ backHref, backLabel }: LearningHeaderProps) {
   return (
-    <main className="relative isolate min-h-screen overflow-hidden bg-neutral-950 text-neutral-50">
-      <div className="pointer-events-none absolute inset-0 z-0">
-        <DotGrid
-          activeColor="oklch(76.5% 0.177 163.223)"
-          baseColor="oklch(43.9% 0 0)"
-          dotSize={3}
-          gap={26}
-          maxSpeed={4200}
-          proximity={150}
-          resistance={760}
-          returnDuration={1.35}
-          shockRadius={260}
-          shockStrength={4}
-          speedTrigger={120}
-        />
+    <header className="relative z-20 flex items-center justify-between px-[clamp(1.5rem,3vw,2.5rem)] py-[clamp(1.5rem,3vw,2.5rem)] [@media_(min-width:2200px)]:px-14 [@media_(min-width:2200px)]:py-14">
+      <a
+        aria-label={backLabel}
+        className="inline-flex size-10 items-center justify-center rounded-lg bg-transparent text-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 [@media_(min-width:2200px)]:size-12"
+        data-app-link
+        href={backHref}
+      >
+        <ArrowLeftIcon aria-hidden="true" className="size-5 [@media_(min-width:2200px)]:size-6" />
+      </a>
+      <div className="flex items-center gap-3 [@media_(min-width:2200px)]:gap-4">
+        <p className="text-sm font-medium text-neutral-400 [@media_(min-width:2200px)]:text-base">
+          Smile Project
+        </p>
+        <LearningMenu />
       </div>
-
-      <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-[clamp(1.5rem,3vw,2.5rem)] py-[clamp(1.5rem,3vw,2.5rem)] [@media_(min-width:2200px)]:px-14 [@media_(min-width:2200px)]:py-14">
-        <a
-          aria-label="Back to home"
-          className="inline-flex size-10 items-center justify-center rounded-lg bg-transparent text-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 [@media_(min-width:2200px)]:size-12"
-          data-app-link
-          href="/"
-        >
-          <ArrowLeftIcon aria-hidden="true" className="size-5 [@media_(min-width:2200px)]:size-6" />
-        </a>
-        <div className="flex items-center gap-3 [@media_(min-width:2200px)]:gap-4">
-          <p className="text-sm font-medium text-neutral-400 [@media_(min-width:2200px)]:text-base">
-            Smile Project
-          </p>
-          <ExploreMenu />
-        </div>
-      </header>
-
-      <section className="relative z-10 grid min-h-screen grid-cols-[24px_minmax(0,1fr)_24px] items-center py-28 sm:grid-cols-[48px_minmax(0,1fr)_48px] lg:grid-cols-[minmax(48px,1fr)_minmax(0,680px)_88px_minmax(0,920px)_minmax(48px,1fr)] lg:py-32 xl:grid-cols-[minmax(7rem,1fr)_minmax(0,clamp(680px,33vw,860px))_clamp(88px,5vw,144px)_minmax(0,clamp(920px,42vw,1180px))_minmax(7rem,1fr)] [@media_(min-width:2200px)]:py-40">
-        <div className="col-start-2 grid gap-y-10">
-          <h1 className="text-[4rem] leading-[0.9] font-semibold tracking-normal sm:text-[5rem] lg:text-[6.75rem] xl:text-[7.75rem] 2xl:text-[8.5rem] [@media_(min-width:2200px)]:text-[9.75rem]">
-            <span className="relative block" ref={headingRef}>
-              <VariableProximity
-                className="block text-inherit"
-                containerRef={headingRef}
-                falloff="gaussian"
-                fromFontVariationSettings="'wght' 700, 'opsz' 24"
-                label="Choose a mode."
-                radius={180}
-                toFontVariationSettings="'wght' 1000, 'opsz' 96"
-              />
-            </span>
-          </h1>
-        </div>
-
-        <div
-          className="col-start-2 grid gap-4 lg:col-start-4 [@media_(min-width:2200px)]:gap-5"
-          aria-label="Available modes"
-        >
-          {modes.map((mode) => (
-            <ModeCard key={mode.title} mode={mode} />
-          ))}
-        </div>
-      </section>
-    </main>
+    </header>
   );
 }
 
-function ExploreMenu() {
+function LearningMenu() {
   const rootRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const enterEndTimeRef = useRef(0);
@@ -147,13 +55,13 @@ function ExploreMenu() {
         return;
       }
 
-      const nav = root.querySelector<HTMLElement>("[data-explore-menu-nav]");
-      const backdrop = root.querySelector<HTMLElement>("[data-explore-menu-backdrop]");
-      const panels = gsap.utils.toArray<HTMLElement>("[data-explore-menu-panel]", root);
-      const navItems = gsap.utils.toArray<HTMLElement>("[data-explore-menu-item]", root);
-      const topBar = root.querySelector<HTMLElement>("[data-explore-menu-bar='top']");
-      const middleBar = root.querySelector<HTMLElement>("[data-explore-menu-bar='middle']");
-      const bottomBar = root.querySelector<HTMLElement>("[data-explore-menu-bar='bottom']");
+      const nav = root.querySelector<HTMLElement>("[data-learning-menu-nav]");
+      const backdrop = root.querySelector<HTMLElement>("[data-learning-menu-backdrop]");
+      const panels = gsap.utils.toArray<HTMLElement>("[data-learning-menu-panel]", root);
+      const navItems = gsap.utils.toArray<HTMLElement>("[data-learning-menu-item]", root);
+      const topBar = root.querySelector<HTMLElement>("[data-learning-menu-bar='top']");
+      const middleBar = root.querySelector<HTMLElement>("[data-learning-menu-bar='middle']");
+      const bottomBar = root.querySelector<HTMLElement>("[data-learning-menu-bar='bottom']");
 
       if (!nav || !backdrop || panels.length === 0 || !topBar || !middleBar || !bottomBar) {
         return;
@@ -312,13 +220,13 @@ function ExploreMenu() {
       return;
     }
 
-    const nav = root.querySelector<HTMLElement>("[data-explore-menu-nav]");
-    const backdrop = root.querySelector<HTMLElement>("[data-explore-menu-backdrop]");
-    const panels = gsap.utils.toArray<HTMLElement>("[data-explore-menu-panel]", root);
-    const navItems = gsap.utils.toArray<HTMLElement>("[data-explore-menu-item]", root);
-    const topBar = root.querySelector<HTMLElement>("[data-explore-menu-bar='top']");
-    const middleBar = root.querySelector<HTMLElement>("[data-explore-menu-bar='middle']");
-    const bottomBar = root.querySelector<HTMLElement>("[data-explore-menu-bar='bottom']");
+    const nav = root.querySelector<HTMLElement>("[data-learning-menu-nav]");
+    const backdrop = root.querySelector<HTMLElement>("[data-learning-menu-backdrop]");
+    const panels = gsap.utils.toArray<HTMLElement>("[data-learning-menu-panel]", root);
+    const navItems = gsap.utils.toArray<HTMLElement>("[data-learning-menu-item]", root);
+    const topBar = root.querySelector<HTMLElement>("[data-learning-menu-bar='top']");
+    const middleBar = root.querySelector<HTMLElement>("[data-learning-menu-bar='middle']");
+    const bottomBar = root.querySelector<HTMLElement>("[data-learning-menu-bar='bottom']");
 
     gsap.set(nav, {
       pointerEvents: nextOpen ? "auto" : "none",
@@ -398,16 +306,16 @@ function ExploreMenu() {
           aria-hidden="true"
         >
           <span
-            className="absolute left-[3px] top-[5px] h-0.5 w-3.5 rounded-full bg-current"
-            data-explore-menu-bar="top"
+            className="absolute top-[5px] left-[3px] h-0.5 w-3.5 rounded-full bg-current"
+            data-learning-menu-bar="top"
           />
           <span
-            className="absolute left-[3px] top-[9px] h-0.5 w-3.5 rounded-full bg-current"
-            data-explore-menu-bar="middle"
+            className="absolute top-[9px] left-[3px] h-0.5 w-3.5 rounded-full bg-current"
+            data-learning-menu-bar="middle"
           />
           <span
-            className="absolute left-[3px] top-[13px] h-0.5 w-3.5 rounded-full bg-current"
-            data-explore-menu-bar="bottom"
+            className="absolute top-[13px] left-[3px] h-0.5 w-3.5 rounded-full bg-current"
+            data-learning-menu-bar="bottom"
           />
         </span>
       </button>
@@ -415,26 +323,26 @@ function ExploreMenu() {
       <div
         aria-hidden={!isOpen}
         className="invisible fixed inset-0 z-40 flex flex-col items-end gap-2 p-4 [@media_(min-width:2200px)]:gap-3 [@media_(min-width:2200px)]:p-6"
-        data-explore-menu-nav
+        data-learning-menu-nav
       >
         <button
           aria-label="Close menu"
           className="absolute inset-0 bg-neutral-950/35 opacity-0 will-change-[opacity]"
-          data-explore-menu-backdrop
+          data-learning-menu-backdrop
           onClick={() => setMenuOpen(false)}
           type="button"
         />
 
         <nav
-          aria-label="Explore menu"
+          aria-label="Learning menu"
           className="relative z-10 flex min-h-[420px] w-[min(700px,calc(100vw_-_2rem))] flex-1 transform-gpu flex-col rounded-xl border-2 border-neutral-950 bg-zinc-300 px-7 pt-16 pb-7 text-neutral-950 shadow-2xl will-change-transform [@media_(min-width:2200px)]:min-h-[520px] [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:px-9 [@media_(min-width:2200px)]:pt-20 [@media_(min-width:2200px)]:pb-9"
-          data-explore-menu-panel
+          data-learning-menu-panel
         >
           <ul className="flex flex-1 list-none flex-col justify-center">
             {menuLinks.map((link) => (
               <li
                 className="overflow-hidden will-change-[transform,opacity]"
-                data-explore-menu-item
+                data-learning-menu-item
                 key={link.href}
               >
                 <a
@@ -453,7 +361,7 @@ function ExploreMenu() {
         <section
           aria-label="Learning Mode highlight"
           className="relative z-10 flex min-h-36 w-[min(700px,calc(100vw_-_2rem))] transform-gpu flex-col justify-center rounded-xl border-2 border-emerald-700 bg-gradient-to-br from-emerald-500 via-emerald-300 to-sky-300 p-7 text-neutral-950 shadow-2xl will-change-transform [@media_(min-width:2200px)]:min-h-44 [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:p-9"
-          data-explore-menu-panel
+          data-learning-menu-panel
         >
           <p className="font-mono text-xs font-semibold tracking-[0.12em] text-neutral-700 uppercase [@media_(min-width:2200px)]:text-sm">
             What's new
@@ -489,7 +397,7 @@ function ExploreMenu() {
 
         <div
           className="relative z-10 flex h-28 w-[min(700px,calc(100vw_-_2rem))] transform-gpu items-center rounded-xl border-2 border-neutral-700 bg-neutral-950 px-7 text-neutral-400 shadow-2xl will-change-transform [@media_(min-width:2200px)]:h-36 [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:px-9"
-          data-explore-menu-panel
+          data-learning-menu-panel
         >
           <ul className="flex list-none flex-wrap gap-4 font-mono text-xs font-semibold [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:text-sm">
             <li>
@@ -515,56 +423,5 @@ function ExploreMenu() {
         </div>
       </div>
     </div>
-  );
-}
-
-function ModeCard({ mode }: { mode: Mode }) {
-  const Icon = mode.icon;
-
-  return (
-    <a
-      className="group relative isolate grid gap-5 overflow-hidden rounded-3xl bg-transparent p-5 shadow-[0_18px_54px_oklch(0%_0_0_/_0.24)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_68px_oklch(0%_0_0_/_0.32)] focus-visible:outline-none sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-6 [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-7"
-      data-app-link
-      href={mode.href}
-    >
-      <GlassSurface
-        aria-hidden="true"
-        backgroundOpacity={0.1}
-        borderRadius={24}
-        brightness={24}
-        height="100%"
-        opacity={0.55}
-        saturation={1.6}
-        style={{
-          inset: 0,
-          pointerEvents: "none",
-          position: "absolute",
-          zIndex: -1,
-        }}
-        width="100%"
-      />
-
-      <span
-        className={`inline-flex items-center justify-center ${iconToneClassName[mode.statusTone]}`}
-      >
-        <Icon aria-hidden="true" className="size-6 [@media_(min-width:2200px)]:size-7" />
-      </span>
-
-      <span className="min-w-0">
-        <span className="flex flex-wrap items-center gap-2">
-          <span className="text-xl font-semibold tracking-normal text-neutral-50 [@media_(min-width:2200px)]:text-2xl">
-            {mode.title}
-          </span>
-        </span>
-      </span>
-
-      <span className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-100 transition-colors group-hover:text-emerald-400 [@media_(min-width:2200px)]:text-base">
-        {mode.actionLabel}
-        <ArrowRightIcon
-          aria-hidden="true"
-          className="size-[18px] shrink-0 [@media_(min-width:2200px)]:size-5"
-        />
-      </span>
-    </a>
   );
 }

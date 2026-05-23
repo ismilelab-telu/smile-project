@@ -1,7 +1,9 @@
 import { activeLesson, getLesson } from "@/features/learning/content/learning-content";
 import { LearningHome } from "@/features/learning/components/LearningHome";
+import { LearningHeader } from "@/features/learning/components/LearningHeader";
 import { LessonPage } from "@/features/learning/components/LessonPage";
 import { useLearningProgress } from "@/features/learning/progress/learning-progress";
+import { LiquidLink } from "@/components/ui/liquid-button";
 
 type LearningPageProps = {
   path?: string;
@@ -24,19 +26,16 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
 
   if (lessonId && !lesson) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
-        <section className="max-w-lg rounded-lg border border-border bg-surface p-6 text-center">
-          <h1 className="text-xl font-semibold text-neutral-950">Lesson tidak ditemukan</h1>
-          <p className="mt-3 text-sm leading-6 text-neutral-600">
-            Lesson ID ini belum tersedia di Learning Mode.
+      <main className="min-h-screen bg-background text-foreground">
+        <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
+        <section className="mx-auto mt-20 max-w-lg rounded-lg border border-border bg-surface p-6 text-center">
+          <h1 className="text-xl font-semibold text-foreground">Lesson not found</h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            This lesson ID is not available in Learning Mode yet.
           </p>
-          <a
-            className="mt-5 inline-flex min-h-10 items-center justify-center rounded-lg bg-neutral-950 px-4 py-2 text-sm font-semibold text-white"
-            data-app-link
-            href="/learn"
-          >
-            Kembali ke Learning Home
-          </a>
+          <LiquidLink className="mt-5" data-app-link href="/learn">
+            Back to Learning Home
+          </LiquidLink>
         </section>
       </main>
     );

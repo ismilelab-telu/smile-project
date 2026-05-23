@@ -1,9 +1,4 @@
-import {
-  ArrowLeftIcon,
-  CheckCircleIcon,
-  InformationCircleIcon,
-  LightBulbIcon,
-} from "@heroicons/react/24/outline";
+import { CheckCircleIcon, InformationCircleIcon, LightBulbIcon } from "@heroicons/react/24/outline";
 import { useMemo, useState } from "react";
 
 import { getDatasetView } from "../datasets/registry";
@@ -13,6 +8,8 @@ import {
   getExpectedColumnRoles,
 } from "../evaluation/evaluate-feature-target";
 import type { ColumnRole, EvaluationResult, Lesson } from "../types";
+import { LearningHeader } from "./LearningHeader";
+import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
 
 type LessonPageProps = {
   lesson: Lesson;
@@ -20,7 +17,7 @@ type LessonPageProps = {
 };
 
 const roleOptions: Array<{ label: string; value: ColumnRole }> = [
-  { label: "Ignore / belum dipakai", value: "ignore" },
+  { label: "Ignore / not used yet", value: "ignore" },
   { label: "Target", value: "target" },
   { label: "Safe feature", value: "safe-feature" },
   { label: "Metadata", value: "metadata" },
@@ -43,19 +40,16 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
 
   if (!datasetView) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
-        <section className="max-w-lg rounded-lg border border-border bg-surface p-6 text-center">
-          <h1 className="text-xl font-semibold text-neutral-950">Lesson tidak bisa dibuka</h1>
-          <p className="mt-3 text-sm leading-6 text-neutral-600">
-            Dataset view untuk lesson ini belum tersedia.
+      <main className="min-h-screen bg-background text-foreground">
+        <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
+        <section className="mx-auto mt-20 max-w-lg rounded-lg border border-border bg-surface p-6 text-center">
+          <h1 className="text-xl font-semibold text-foreground">Lesson cannot be opened</h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            The dataset view for this lesson is not available yet.
           </p>
-          <a
-            className="mt-5 inline-flex min-h-10 items-center justify-center rounded-lg bg-neutral-950 px-4 py-2 text-sm font-semibold text-white"
-            data-app-link
-            href="/learn"
-          >
-            Kembali ke Learning Home
-          </a>
+          <LiquidLink className="mt-5" data-app-link href="/learn">
+            Back to Learning Home
+          </LiquidLink>
         </section>
       </main>
     );
@@ -80,26 +74,14 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
   };
 
   const hints = [
-    "Target biasanya menjawab pertanyaan: nilai apa yang ingin diprediksi?",
-    "Feature adalah informasi yang sudah diketahui sebelum prediksi dibuat.",
-    "Kolom ID membantu membedakan baris, tetapi ID bukan alasan sebuah properti menjadi mahal atau murah.",
+    "The target usually answers the question: what value do we want to predict?",
+    "A feature is information that is already known before the prediction is made.",
+    "An ID column helps identify rows, but the ID is not why a property is expensive or cheap.",
   ];
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex w-[min(1180px,calc(100%_-_32px))] items-center justify-between py-5">
-          <a
-            className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
-            data-app-link
-            href="/learn"
-          >
-            <ArrowLeftIcon aria-hidden="true" className="size-4" />
-            Learning Home
-          </a>
-          <p className="text-sm font-semibold text-neutral-500">Module 0</p>
-        </div>
-      </header>
+      <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
 
       <div className="mx-auto grid w-[min(1180px,calc(100%_-_32px))] gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_340px]">
         <article className="flex flex-col gap-8">
@@ -107,13 +89,13 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span>Lesson 0.1</span>
               <span aria-hidden="true">/</span>
-              <span>{lesson.estimatedMinutes} menit</span>
+              <span>{lesson.estimatedMinutes} minutes</span>
             </div>
             <div>
-              <h1 className="max-w-3xl text-4xl leading-tight font-semibold tracking-normal text-neutral-950">
+              <h1 className="max-w-3xl text-4xl leading-tight font-semibold tracking-normal text-foreground">
                 {lesson.title}
               </h1>
-              <p className="mt-4 max-w-3xl text-base leading-7 text-neutral-600">
+              <p className="mt-4 max-w-3xl text-base leading-7 text-muted-foreground">
                 {lesson.objective}
               </p>
             </div>
@@ -123,12 +105,12 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
             aria-labelledby="concept-summary"
             className="rounded-lg border border-border bg-surface p-5"
           >
-            <h2 className="text-lg font-semibold text-neutral-950" id="concept-summary">
-              Konsep singkat
+            <h2 className="text-lg font-semibold text-foreground" id="concept-summary">
+              Concept summary
             </h2>
             <div className="mt-4 flex flex-col gap-3">
               {lesson.summary.map((paragraph) => (
-                <p className="text-sm leading-6 text-neutral-600" key={paragraph}>
+                <p className="text-sm leading-6 text-muted-foreground" key={paragraph}>
                   {paragraph}
                 </p>
               ))}
@@ -140,20 +122,20 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
             className="rounded-lg border border-border bg-surface"
           >
             <div className="flex flex-col gap-2 border-b border-border p-5">
-              <h2 className="text-lg font-semibold text-neutral-950" id="dataset-preview">
+              <h2 className="text-lg font-semibold text-foreground" id="dataset-preview">
                 Dataset preview
               </h2>
-              <p className="text-sm leading-6 text-neutral-600">
-                Tujuannya adalah menyiapkan data untuk model yang memprediksi harga properti.
+              <p className="text-sm leading-6 text-muted-foreground">
+                The goal is to prepare data for a model that predicts property prices.
               </p>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
                 <thead>
-                  <tr className="bg-neutral-50">
+                  <tr className="bg-muted">
                     {datasetView.columns.map((column) => (
                       <th
-                        className="border-b border-border px-4 py-3 font-semibold text-neutral-700"
+                        className="border-b border-border px-4 py-3 font-semibold text-foreground"
                         key={column.id}
                         scope="col"
                       >
@@ -171,10 +153,10 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
                 </thead>
                 <tbody>
                   {datasetView.rows.map((row) => (
-                    <tr className="odd:bg-surface even:bg-neutral-50/70" key={row.id}>
+                    <tr className="odd:bg-surface even:bg-muted/60" key={row.id}>
                       {datasetView.columns.map((column) => (
                         <td
-                          className="border-b border-border px-4 py-3 text-neutral-700"
+                          className="border-b border-border px-4 py-3 text-muted-foreground"
                           key={column.id}
                         >
                           {String(row.values[column.id] ?? "")}
@@ -192,12 +174,12 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
             className="rounded-lg border border-border bg-surface"
           >
             <div className="border-b border-border p-5">
-              <p className="text-sm font-medium text-sky-700">Exercise</p>
-              <h2 className="mt-2 text-lg font-semibold text-neutral-950" id="exercise">
-                Tandai peran setiap kolom
+              <p className="text-sm font-medium text-sky-300">Exercise</p>
+              <h2 className="mt-2 text-lg font-semibold text-foreground" id="exercise">
+                Assign a role to each column
               </h2>
-              <p className="mt-2 text-sm leading-6 text-neutral-600">
-                Pilih satu target, beberapa feature yang aman, dan metadata jika ada.
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Choose one target, several safe features, and metadata when present.
               </p>
             </div>
 
@@ -208,7 +190,7 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
                   key={column.id}
                 >
                   <span>
-                    <span className="block text-sm font-semibold text-neutral-950">
+                    <span className="block text-sm font-semibold text-foreground">
                       {column.label}
                     </span>
                     <span className="mt-1 block text-sm text-muted-foreground">
@@ -216,8 +198,8 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
                     </span>
                   </span>
                   <select
-                    aria-label={`Role untuk ${column.label}`}
-                    className="min-h-10 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-neutral-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+                    aria-label={`Role for ${column.label}`}
+                    className="min-h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
                     onChange={(event) =>
                       updateAssignment(column.id, event.target.value as ColumnRole)
                     }
@@ -235,15 +217,11 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
 
             <div className="flex flex-col gap-3 border-t border-border p-5 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm leading-6 text-muted-foreground">
-                Submit akan mengevaluasi role kolom secara otomatis.
+                Submit will evaluate the column roles automatically.
               </p>
-              <button
-                className="inline-flex min-h-11 items-center justify-center rounded-lg bg-neutral-950 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
-                onClick={submitAnswer}
-                type="button"
-              >
-                Kirim jawaban
-              </button>
+              <LiquidButton className="min-h-11" onClick={submitAnswer} type="button">
+                Submit answer
+              </LiquidButton>
             </div>
           </section>
 
@@ -253,22 +231,22 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
                 {result.status === "correct" ? (
                   <CheckCircleIcon
                     aria-hidden="true"
-                    className="size-6 shrink-0 text-emerald-600"
+                    className="size-6 shrink-0 text-emerald-300"
                   />
                 ) : (
                   <InformationCircleIcon
                     aria-hidden="true"
-                    className="size-6 shrink-0 text-sky-600"
+                    className="size-6 shrink-0 text-sky-300"
                   />
                 )}
                 <div>
-                  <h2 className="text-lg font-semibold text-neutral-950">{result.title}</h2>
-                  <p className="mt-2 text-sm leading-6 text-neutral-600">{result.message}</p>
-                  <p className="mt-2 text-sm leading-6 text-neutral-600">{result.nextStep}</p>
+                  <h2 className="text-lg font-semibold text-foreground">{result.title}</h2>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{result.message}</p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{result.nextStep}</p>
                   {result.status !== "correct" ? (
-                    <div className="mt-4 rounded-lg bg-neutral-50 p-4">
-                      <p className="text-sm font-semibold text-neutral-950">Cek role yang tepat</p>
-                      <ul className="mt-2 grid gap-1 text-sm leading-6 text-neutral-600">
+                    <div className="mt-4 rounded-lg bg-muted p-4">
+                      <p className="text-sm font-semibold text-foreground">Expected role check</p>
+                      <ul className="mt-2 grid gap-1 text-sm leading-6 text-muted-foreground">
                         {result.missedColumnIds.map((columnId) => (
                           <li key={columnId}>
                             {columnId}: {describeExpectedRole(columnId)}
@@ -285,40 +263,36 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
 
         <aside className="flex h-fit flex-col gap-4">
           <section className="rounded-lg border border-border bg-surface p-5">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-neutral-950">
-              <LightBulbIcon aria-hidden="true" className="size-5 text-emerald-600" />
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+              <LightBulbIcon aria-hidden="true" className="size-5 text-emerald-300" />
               Hint
             </h2>
-            <ol className="mt-4 grid gap-3 text-sm leading-6 text-neutral-600">
+            <ol className="mt-4 grid gap-3 text-sm leading-6 text-muted-foreground">
               {hints.slice(0, visibleHintCount).map((hint, index) => (
-                <li className="rounded-lg bg-neutral-50 p-3" key={hint}>
+                <li className="rounded-lg bg-muted p-3" key={hint}>
                   {index + 1}. {hint}
                 </li>
               ))}
             </ol>
             {visibleHintCount < hints.length ? (
-              <button
-                className="mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-border bg-surface px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+              <LiquidButton
+                className="mt-4 w-full"
                 onClick={() => setVisibleHintCount((count) => Math.min(count + 1, hints.length))}
                 type="button"
               >
-                Tampilkan hint lain
-              </button>
+                Show another hint
+              </LiquidButton>
             ) : null}
           </section>
 
           <section className="rounded-lg border border-border bg-surface p-5">
-            <h2 className="text-lg font-semibold text-neutral-950">Completion</h2>
-            <p className="mt-3 text-sm leading-6 text-neutral-600">
-              Lesson selesai jika role kolom benar dan feedback sudah tampil.
+            <h2 className="text-lg font-semibold text-foreground">Completion</h2>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              The lesson is complete when the column roles are correct and feedback is shown.
             </p>
-            <a
-              className="mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-border bg-surface px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
-              data-app-link
-              href="/learn"
-            >
-              Kembali ke Learning Home
-            </a>
+            <LiquidLink className="mt-4 w-full" data-app-link href="/learn">
+              Back to Learning Home
+            </LiquidLink>
           </section>
         </aside>
       </div>

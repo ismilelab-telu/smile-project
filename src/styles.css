@@ -40,6 +40,25 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  html[data-route-theme="dark"] {
+    --background: oklch(10.5% 0 0);
+    --border: oklch(100% 0 0 / 0.12);
+    --foreground: oklch(96.5% 0 0);
+    --ink-soft: oklch(82% 0 0);
+    --kicker: oklch(72% 0 0);
+    --muted: oklch(19% 0 0);
+    --muted-foreground: oklch(70% 0 0);
+    --plot-point: oklch(78% 0.12 220);
+    --primary: oklch(96.5% 0 0);
+    --secondary: oklch(70% 0 0);
+    --surface: oklch(14.5% 0 0);
+    color-scheme: dark;
+  }
+
+  html[data-route-theme="light"] {
+    color-scheme: light;
+  }
+
   body {
     min-width: 320px;
     min-height: 100vh;

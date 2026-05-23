@@ -162,7 +162,7 @@ describe("App", () => {
       await screen.findByRole("heading", { name: "Regression Foundations" }, lazyRouteTimeout),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Modules" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Mulai lesson/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Start lesson/ })).toHaveAttribute(
       "href",
       "/learn/track-regression-foundations/lesson-0-1-feature-target",
     );
@@ -179,33 +179,33 @@ describe("App", () => {
     expect(
       await screen.findByRole(
         "heading",
-        { name: "Mengenal Row, Column, Feature, dan Target" },
+        { name: "Rows, Columns, Features, and Targets" },
         lazyRouteTimeout,
       ),
     ).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Role untuk Listing ID"), {
+    fireEvent.change(screen.getByLabelText("Role for Listing ID"), {
       target: { value: "metadata" },
     });
-    fireEvent.change(screen.getByLabelText("Role untuk District"), {
+    fireEvent.change(screen.getByLabelText("Role for District"), {
       target: { value: "safe-feature" },
     });
-    fireEvent.change(screen.getByLabelText("Role untuk Property Type"), {
+    fireEvent.change(screen.getByLabelText("Role for Property Type"), {
       target: { value: "safe-feature" },
     });
-    fireEvent.change(screen.getByLabelText("Role untuk Building Area"), {
+    fireEvent.change(screen.getByLabelText("Role for Building Area"), {
       target: { value: "safe-feature" },
     });
-    fireEvent.change(screen.getByLabelText("Role untuk Bedrooms"), {
+    fireEvent.change(screen.getByLabelText("Role for Bedrooms"), {
       target: { value: "safe-feature" },
     });
-    fireEvent.change(screen.getByLabelText("Role untuk Price"), {
+    fireEvent.change(screen.getByLabelText("Role for Price"), {
       target: { value: "target" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Kirim jawaban" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
 
-    expect(await screen.findByRole("heading", { name: "Benar" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Correct" })).toBeInTheDocument();
     expect(window.localStorage.getItem("smile-learning-progress-v1")).toContain(
       "lesson-0-1-feature-target",
     );

@@ -4,7 +4,7 @@ export const housePricesIntroDataset: GeneratedDataset = {
   id: "dataset-house-prices-intro",
   version: "1.0.0",
   title: "House Prices Intro",
-  description: "Dataset properti residensial fiktif untuk mengenal feature dan target.",
+  description: "A fictional residential property dataset for learning features and targets.",
   columns: [
     {
       id: "listing_id",

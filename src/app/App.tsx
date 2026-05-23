@@ -21,7 +21,7 @@ type ViewTransitionDocument = Document & {
 };
 
 function getRouteTheme(pathname: string): RouteTheme {
-  return pathname === "/explore" ? "dark" : "light";
+  return pathname === "/" ? "light" : "dark";
 }
 
 function getRouteOrder(pathname: string) {

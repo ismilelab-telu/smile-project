@@ -1,6 +1,7 @@
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 import { FuzzyText } from "@/components/ui/fuzzy-text";
+import { LiquidLink } from "@/components/ui/liquid-button";
 
 const notFoundText = "404 not found.";
 const explorePlaceholderRoutes = new Set(["/playground", "/algorithm-lab"]);
@@ -15,14 +16,14 @@ export function FuzzyTextPage({ path = "/" }: FuzzyTextPageProps) {
     : { href: "/", label: "Home" };
 
   return (
-    <main className="relative flex min-h-screen overflow-hidden bg-neutral-50 text-black">
+    <main className="relative flex min-h-screen overflow-hidden bg-background text-foreground">
       <section className="relative z-10 mx-auto flex min-h-screen w-[min(1120px,calc(100%_-_32px))] flex-col items-center justify-center gap-5 px-4 py-24 text-center">
         <h1 className="sr-only">{notFoundText}</h1>
         <FuzzyText
           baseIntensity={0.14}
           className="max-w-full"
           clickEffect
-          color="oklch(17.7638% 0 0)"
+          color="oklch(96.5% 0 0)"
           direction="horizontal"
           fontSize="clamp(5rem, 18vw, 14rem)"
           fontWeight={900}
@@ -39,7 +40,7 @@ export function FuzzyTextPage({ path = "/" }: FuzzyTextPageProps) {
           baseIntensity={0.16}
           className="max-w-full"
           clickEffect
-          color="oklch(17.7638% 0 0)"
+          color="oklch(96.5% 0 0)"
           direction="horizontal"
           fontSize="clamp(2rem, 7vw, 5rem)"
           fontWeight={900}
@@ -53,14 +54,10 @@ export function FuzzyTextPage({ path = "/" }: FuzzyTextPageProps) {
           not found.
         </FuzzyText>
 
-        <a
-          className="mt-5 inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-foreground transition-opacity hover:opacity-70"
-          data-app-link
-          href={backLink.href}
-        >
+        <LiquidLink className="mt-5 px-5 py-3" data-app-link href={backLink.href}>
           <ArrowLeftIcon aria-hidden="true" className="size-[18px] shrink-0" />
           {backLink.label}
-        </a>
+        </LiquidLink>
       </section>
     </main>
   );
