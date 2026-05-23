@@ -78,9 +78,9 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
 
   if (lesson.exercise.type === "table-column-role-assignment" && !datasetView) {
     return (
-      <main className="min-h-screen bg-background text-foreground">
+      <main className="relative z-10 isolate min-h-screen overflow-x-hidden text-foreground">
         <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
-        <section className="mx-auto mt-20 max-w-lg rounded-lg border border-border bg-surface p-6 text-center">
+        <section className="route-content-transition-target mx-auto mt-20 max-w-lg rounded-lg border border-border bg-surface p-6 text-center">
           <h1 className="text-xl font-semibold text-foreground">Lesson cannot be opened</h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             The dataset view for this lesson is not available yet.
@@ -147,10 +147,10 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
   };
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <main className="relative z-10 isolate min-h-screen overflow-x-hidden text-foreground">
       <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
 
-      <div className="mx-auto grid w-[min(1180px,calc(100%_-_32px))] gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="route-content-transition-target mx-auto grid w-[min(1180px,calc(100%_-_32px))] gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_340px]">
         <article className="flex flex-col gap-8">
           <section className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

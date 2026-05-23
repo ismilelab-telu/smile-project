@@ -30,9 +30,9 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
 
   if (lessonId && !lesson) {
     return (
-      <main className="min-h-screen bg-background text-foreground">
+      <main className="relative z-10 isolate min-h-screen overflow-x-hidden text-foreground">
         <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
-        <section className="mx-auto mt-20 max-w-lg rounded-lg border border-border bg-surface p-6 text-center">
+        <section className="route-content-transition-target mx-auto mt-20 max-w-lg rounded-lg border border-border bg-surface p-6 text-center">
           <h1 className="text-xl font-semibold text-foreground">Lesson not found</h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             This lesson ID is not available in Learning Mode yet.
@@ -48,9 +48,9 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
   if (lesson) {
     if (!isLessonUnlocked(lesson, progress)) {
       return (
-        <main className="min-h-screen bg-background text-foreground">
+        <main className="relative z-10 isolate min-h-screen overflow-x-hidden text-foreground">
           <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
-          <section className="mx-auto mt-20 max-w-lg rounded-lg border border-border bg-surface p-6 text-center">
+          <section className="route-content-transition-target mx-auto mt-20 max-w-lg rounded-lg border border-border bg-surface p-6 text-center">
             <h1 className="text-xl font-semibold text-foreground">Lesson locked</h1>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
               {getLessonLockReason(lesson, progress)}
