@@ -16,7 +16,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { useEffect, useId, useMemo, useRef, useState, type ComponentPropsWithoutRef } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { getDatasetView } from "../datasets/registry";
 import {
@@ -38,22 +38,15 @@ import type {
   OrderedStepsExercise,
   TableColumnRoleExercise,
 } from "../types";
+import { LearningGridCanvas, LearningSheetExtensions } from "./LearningGridCanvas";
 import { LearningHeader } from "./LearningHeader";
-import { GlassSurface } from "@/components/ui/glass-surface";
 import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
 import { shouldReduceMotion } from "@/lib/motion";
 
 gsap.registerPlugin(useGSAP);
 
 const liquidButtonClassName =
-  "inline-flex items-center justify-center gap-3 rounded-2xl px-5 py-3 text-base font-semibold text-neutral-50 backdrop-blur-xl shadow-[inset_0_1px_0_oklch(100%_0_0_/_0.16),0_12px_32px_oklch(0%_0_0_/_0.22)] [--liquid-button-background-color:oklch(100%_0_0_/_0.08)] [--liquid-button-color:var(--color-emerald-500)] [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:rounded-3xl [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg";
-
-const glassCardStyle = {
-  inset: 0,
-  pointerEvents: "none",
-  position: "absolute",
-  zIndex: -1,
-} as const;
+  "inline-flex items-center justify-center gap-3 rounded-none px-5 py-3 text-base font-semibold text-neutral-950 backdrop-blur-xl [--liquid-button-background-color:var(--color-neutral-200)] [--liquid-button-color:var(--color-emerald-500)] [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg";
 
 type LessonPageProps = {
   lesson: Lesson;
@@ -108,24 +101,30 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
 
   if (lesson.exercise.type === "table-column-role-assignment" && !datasetView) {
     return (
-      <main className="relative z-10 isolate min-h-screen overflow-x-hidden text-foreground">
+      <LearningGridCanvas>
         <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
-        <LessonGlassCard className="route-content-transition-target mx-auto mt-20 max-w-xl p-8 text-center [@media_(min-width:2200px)]:max-w-3xl [@media_(min-width:2200px)]:p-10">
-          <h1 className="text-2xl font-semibold text-foreground [@media_(min-width:2200px)]:text-4xl">
-            Lesson cannot be opened
-          </h1>
-          <p className="mt-4 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-5 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+        <section className="learning-sheet route-content-transition-target mx-auto mt-20 grid max-w-xl text-center [@media_(min-width:2200px)]:max-w-3xl">
+          <LearningSheetExtensions />
+
+          <div className="learning-sheet-cell p-6 [@media_(min-width:2200px)]:p-12">
+            <h1 className="text-2xl font-semibold text-foreground [@media_(min-width:2200px)]:text-4xl">
+              Lesson cannot be opened
+            </h1>
+          </div>
+          <div className="learning-sheet-cell p-6 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:p-12 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
             The dataset view for this lesson is not available yet.
-          </p>
-          <LiquidLink
-            className={`${liquidButtonClassName} mt-6 [@media_(min-width:2200px)]:mt-7 [@media_(min-width:2200px)]:min-h-16`}
-            data-app-link
-            href="/learn"
-          >
-            Back to Learning Home
-          </LiquidLink>
-        </LessonGlassCard>
-      </main>
+          </div>
+          <div className="learning-sheet-cell p-6 [@media_(min-width:2200px)]:p-12">
+            <LiquidLink
+              className={`${liquidButtonClassName} [@media_(min-width:2200px)]:min-h-16`}
+              data-app-link
+              href="/learn"
+            >
+              Back to Learning Home
+            </LiquidLink>
+          </div>
+        </section>
+      </LearningGridCanvas>
     );
   }
 
@@ -183,160 +182,129 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
   };
 
   return (
-    <main className="relative z-10 isolate min-h-screen overflow-x-hidden text-foreground">
+    <LearningGridCanvas>
       <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
 
-      <div className="route-content-transition-target mx-auto flex w-[min(1380px,calc(100%_-_48px))] flex-col gap-10 pt-0 pb-12 [@media_(min-width:2200px)]:w-[min(1760px,calc(100%_-_112px))] [@media_(min-width:2200px)]:gap-14 [@media_(min-width:2200px)]:pb-[4.5rem]">
-        <section className="flex flex-col gap-5 [@media_(min-width:2200px)]:gap-6">
-          <div className="flex flex-wrap items-center gap-3 text-base text-muted-foreground [@media_(min-width:2200px)]:text-lg">
-            <span>{lesson.numberLabel}</span>
-            <span aria-hidden="true">/</span>
-            <span>{lesson.estimatedMinutes} minutes</span>
-          </div>
+      <section className="learning-sheet route-content-transition-target mx-auto grid w-[min(1440px,calc(100%_-_48px))] grid-cols-1 [@media_(min-width:1024px)]:grid-cols-12 [@media_(min-width:2200px)]:w-[min(1776px,calc(100%_-_96px))]">
+        <LearningSheetExtensions />
+
+        <div className="learning-sheet-cell flex flex-wrap items-center gap-3 p-6 text-base text-muted-foreground [@media_(min-width:1024px)]:col-span-3 [@media_(min-width:2200px)]:p-12 [@media_(min-width:2200px)]:text-lg">
+          <span>{lesson.numberLabel}</span>
+          <span aria-hidden="true">/</span>
+          <span>{lesson.estimatedMinutes} minutes</span>
+        </div>
+
+        <div className="learning-sheet-cell p-6 [@media_(min-width:1024px)]:col-span-9 [@media_(min-width:2200px)]:p-12">
           <h1 className="max-w-none text-5xl leading-tight font-semibold tracking-normal text-foreground [@media_(min-width:2200px)]:text-8xl">
             {lesson.title}
           </h1>
-        </section>
-
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_400px] [@media_(min-width:2200px)]:grid-cols-[minmax(0,1fr)_500px] [@media_(min-width:2200px)]:gap-14">
-          <LessonGlassCard
-            aria-labelledby="concept-summary"
-            className="p-6 [@media_(min-width:2200px)]:p-8"
-          >
-            <h2
-              className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl"
-              id="concept-summary"
-            >
-              Concept summary
-            </h2>
-            <div className="mt-5 flex flex-col gap-4 [@media_(min-width:2200px)]:mt-6 [@media_(min-width:2200px)]:gap-5">
-              {lesson.summary.map((paragraph) => (
-                <p
-                  className="text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8"
-                  key={paragraph}
-                >
-                  {paragraph}
-                </p>
-              ))}
-            </div>
-          </LessonGlassCard>
-
-          <LessonGlassCard className="h-fit p-6 [@media_(min-width:2200px)]:p-8">
-            <h2 className="flex items-center gap-3 text-xl font-semibold text-foreground [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:text-3xl">
-              <LightBulbIcon
-                aria-hidden="true"
-                className="size-6 text-emerald-300 [@media_(min-width:2200px)]:size-7"
-              />
-              Hint
-            </h2>
-            <ol className="mt-5 grid gap-4 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-7 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
-              {lesson.exercise.hints.slice(0, visibleHintCount).map((hint, index) => (
-                <li
-                  className="rounded-xl bg-muted p-4 [@media_(min-width:2200px)]:rounded-2xl [@media_(min-width:2200px)]:p-5"
-                  key={hint}
-                >
-                  {index + 1}. {hint}
-                </li>
-              ))}
-            </ol>
-            {visibleHintCount < lesson.exercise.hints.length ? (
-              <LiquidButton
-                className={`${liquidButtonClassName} mt-5 w-full cursor-pointer [@media_(min-width:2200px)]:mt-7 [@media_(min-width:2200px)]:min-h-16`}
-                onClick={() =>
-                  setVisibleHintCount((count) => Math.min(count + 1, lesson.exercise.hints.length))
-                }
-                type="button"
-              >
-                Show another hint
-              </LiquidButton>
-            ) : null}
-          </LessonGlassCard>
         </div>
 
-        <article className="flex flex-col gap-10 [@media_(min-width:2200px)]:gap-12">
-          {lesson.exercise.type === "table-column-role-assignment" && datasetView ? (
-            <DatasetPreview exercise={lesson.exercise} datasetView={datasetView} />
+        <section
+          aria-labelledby="concept-summary"
+          className="learning-sheet-cell p-6 [@media_(min-width:1024px)]:col-span-8 [@media_(min-width:2200px)]:p-12"
+        >
+          <h2
+            className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl"
+            id="concept-summary"
+          >
+            Concept summary
+          </h2>
+          <div className="mt-6 grid gap-5 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-8 [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+            {lesson.summary.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
+          </div>
+        </section>
+
+        <aside className="learning-sheet-cell learning-sheet-cell-fill p-6 [@media_(min-width:1024px)]:col-span-4 [@media_(min-width:2200px)]:p-12">
+          <h2 className="flex items-center gap-3 text-xl font-semibold text-foreground [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:text-3xl">
+            <LightBulbIcon
+              aria-hidden="true"
+              className="size-6 text-emerald-500 [@media_(min-width:2200px)]:size-7"
+            />
+            Hint
+          </h2>
+          <ol className="mt-6 grid gap-4 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-8 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+            {lesson.exercise.hints.slice(0, visibleHintCount).map((hint, index) => (
+              <li
+                className="learning-grid-panel-fill p-5 [@media_(min-width:2200px)]:p-6"
+                key={hint}
+              >
+                {index + 1}. {hint}
+              </li>
+            ))}
+          </ol>
+          {visibleHintCount < lesson.exercise.hints.length ? (
+            <LiquidButton
+              className={`${liquidButtonClassName} mt-5 w-full cursor-pointer [@media_(min-width:2200px)]:mt-7 [@media_(min-width:2200px)]:min-h-16`}
+              onClick={() =>
+                setVisibleHintCount((count) => Math.min(count + 1, lesson.exercise.hints.length))
+              }
+              type="button"
+            >
+              Show another hint
+            </LiquidButton>
           ) : null}
+        </aside>
 
-          <LessonGlassCard aria-labelledby="exercise" className="p-0">
-            <div className="border-b border-border p-6 [@media_(min-width:2200px)]:p-8">
-              <p className="text-base font-medium text-sky-300 [@media_(min-width:2200px)]:text-lg">
-                Exercise
-              </p>
-              <h2
-                className="mt-3 text-xl font-semibold text-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-3xl"
-                id="exercise"
-              >
-                {lesson.exercise.prompt}
-              </h2>
-            </div>
+        {lesson.exercise.type === "table-column-role-assignment" && datasetView ? (
+          <DatasetPreview exercise={lesson.exercise} datasetView={datasetView} />
+        ) : null}
 
-            {lesson.exercise.type === "multiple-choice" ? (
-              <MultipleChoiceExerciseView
-                exercise={lesson.exercise}
-                selectedOptionIds={selectedOptionIds}
-                onToggleOption={toggleOption}
-              />
-            ) : null}
+        <div className="learning-sheet-cell col-span-full p-6 [@media_(min-width:2200px)]:p-12">
+          <p className="text-base font-medium text-sky-600 [@media_(min-width:2200px)]:text-lg">
+            Exercise
+          </p>
+          <h2
+            className="mt-3 text-xl font-semibold text-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-3xl"
+            id="exercise"
+          >
+            {lesson.exercise.prompt}
+          </h2>
+        </div>
 
-            {lesson.exercise.type === "ordered-steps" ? (
-              <OrderedStepsExerciseView
-                exercise={lesson.exercise}
-                orderedStepIds={orderedStepIds}
-                onMoveStep={moveStep}
-              />
-            ) : null}
+        {lesson.exercise.type === "multiple-choice" ? (
+          <MultipleChoiceExerciseView
+            exercise={lesson.exercise}
+            selectedOptionIds={selectedOptionIds}
+            onToggleOption={toggleOption}
+          />
+        ) : null}
 
-            {lesson.exercise.type === "table-column-role-assignment" && datasetView ? (
-              <ColumnRoleExerciseView
-                assignments={assignments}
-                columns={datasetView.columns}
-                exercise={lesson.exercise}
-                onUpdateAssignment={updateAssignment}
-              />
-            ) : null}
+        {lesson.exercise.type === "ordered-steps" ? (
+          <OrderedStepsExerciseView
+            exercise={lesson.exercise}
+            orderedStepIds={orderedStepIds}
+            onMoveStep={moveStep}
+          />
+        ) : null}
 
-            <div className="flex flex-col gap-4 border-t border-border p-6 sm:flex-row sm:items-center sm:justify-between [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-8">
-              <p className="text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
-                Submit will evaluate your answer automatically.
-              </p>
-              <LiquidButton
-                className={`${liquidButtonClassName} min-h-12 cursor-pointer [@media_(min-width:2200px)]:min-h-16`}
-                onClick={submitAnswer}
-                type="button"
-              >
-                Submit answer
-              </LiquidButton>
-            </div>
-          </LessonGlassCard>
+        {lesson.exercise.type === "table-column-role-assignment" && datasetView ? (
+          <ColumnRoleExerciseView
+            assignments={assignments}
+            columns={datasetView.columns}
+            exercise={lesson.exercise}
+            onUpdateAssignment={updateAssignment}
+          />
+        ) : null}
 
-          {result ? <LessonResult result={result} /> : null}
-        </article>
-      </div>
-    </main>
-  );
-}
+        <div className="learning-sheet-cell col-span-full flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-12">
+          <p className="text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+            Submit will evaluate your answer automatically.
+          </p>
+          <LiquidButton
+            className={`${liquidButtonClassName} min-h-12 cursor-pointer [@media_(min-width:2200px)]:min-h-16`}
+            onClick={submitAnswer}
+            type="button"
+          >
+            Submit answer
+          </LiquidButton>
+        </div>
 
-function LessonGlassCard({
-  children,
-  className = "",
-  ...props
-}: ComponentPropsWithoutRef<"section">) {
-  return (
-    <section {...props} className={`relative isolate overflow-hidden rounded-3xl ${className}`}>
-      <GlassSurface
-        aria-hidden="true"
-        backgroundOpacity={0.08}
-        borderRadius={24}
-        brightness={24}
-        height="100%"
-        opacity={0.55}
-        saturation={1.6}
-        style={glassCardStyle}
-        width="100%"
-      />
-      {children}
-    </section>
+        {result ? <LessonResult result={result} /> : null}
+      </section>
+    </LearningGridCanvas>
   );
 }
 
@@ -488,8 +456,8 @@ function DatasetPreview({
   );
 
   return (
-    <LessonGlassCard aria-labelledby="dataset-preview" className="p-0">
-      <div className="flex flex-col gap-3 border-b border-border p-6 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:p-8">
+    <>
+      <section className="learning-sheet-cell col-span-full flex flex-col gap-3 p-6 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:p-12">
         <h2
           className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl"
           id="dataset-preview"
@@ -499,89 +467,83 @@ function DatasetPreview({
         <p className="text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
           {exercise.datasetContext}
         </p>
-      </div>
-      <div className="p-6 [@media_(min-width:2200px)]:p-8">
-        <div className="overflow-hidden rounded-2xl bg-white/5 shadow-[inset_0_1px_0_oklch(100%_0_0_/_0.16),0_12px_32px_oklch(0%_0_0_/_0.22)] backdrop-blur-xl [@media_(min-width:2200px)]:rounded-3xl">
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-separate border-spacing-0 text-left text-base [@media_(min-width:2200px)]:text-lg">
-              <thead>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <tr className="bg-white/5" key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      const sorted = header.column.getIsSorted();
-                      const columnMeta = header.column.columnDef.meta as
-                        | { label?: string }
-                        | undefined;
-                      const sortLabel = columnMeta?.label ?? String(header.column.columnDef.id);
+      </section>
+      <div className="learning-sheet-cell col-span-full overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full border-separate border-spacing-0 text-left text-base [@media_(min-width:2200px)]:text-lg">
+            <thead>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr className="learning-sheet-cell-fill-strong" key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => {
+                    const sorted = header.column.getIsSorted();
+                    const columnMeta = header.column.columnDef.meta as
+                      | { label?: string }
+                      | undefined;
+                    const sortLabel = columnMeta?.label ?? String(header.column.columnDef.id);
 
-                      return (
-                        <th
-                          aria-sort={
-                            sorted === "asc"
-                              ? "ascending"
-                              : sorted === "desc"
-                                ? "descending"
-                                : "none"
-                          }
-                          className="border-b border-border p-0 font-semibold text-foreground"
-                          key={header.id}
-                          scope="col"
-                        >
-                          <button
-                            aria-label={`Sort by ${sortLabel}`}
-                            className="flex w-full cursor-pointer items-center gap-4 px-5 py-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-emerald-400 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-5"
-                            onClick={header.column.getToggleSortingHandler()}
-                            type="button"
-                          >
-                            {header.isPlaceholder
-                              ? null
-                              : flexRender(header.column.columnDef.header, header.getContext())}
-                            <span
-                              aria-hidden="true"
-                              className="ml-auto inline-flex size-5 shrink-0 items-center justify-center text-muted-foreground [@media_(min-width:2200px)]:size-6"
-                            >
-                              {sorted === "asc" ? (
-                                <ArrowUpIcon className="size-5 text-emerald-300 [@media_(min-width:2200px)]:size-6" />
-                              ) : sorted === "desc" ? (
-                                <ArrowDownIcon className="size-5 text-emerald-300 [@media_(min-width:2200px)]:size-6" />
-                              ) : (
-                                <ChevronDownIcon className="size-5 opacity-45 [@media_(min-width:2200px)]:size-6" />
-                              )}
-                            </span>
-                          </button>
-                        </th>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </thead>
-              <tbody ref={tableBodyRef}>
-                {sortedRows.map((row, rowIndex) => (
-                  <tr
-                    className={
-                      rowIndex % 2 === 0
-                        ? "bg-transparent will-change-transform"
-                        : "bg-white/5 will-change-transform"
-                    }
-                    data-dataset-row-id={row.id}
-                    key={row.id}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <td
-                        className="border-b border-border px-5 py-4 text-muted-foreground [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-5"
-                        key={cell.id}
+                    return (
+                      <th
+                        aria-sort={
+                          sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : "none"
+                        }
+                        className="border-b learning-grid-border p-0 font-semibold text-foreground"
+                        key={header.id}
+                        scope="col"
                       >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                        <button
+                          aria-label={`Sort by ${sortLabel}`}
+                          className="flex w-full cursor-pointer items-center gap-4 px-5 py-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-emerald-400 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-5"
+                          onClick={header.column.getToggleSortingHandler()}
+                          type="button"
+                        >
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(header.column.columnDef.header, header.getContext())}
+                          <span
+                            aria-hidden="true"
+                            className="ml-auto inline-flex size-5 shrink-0 items-center justify-center text-muted-foreground [@media_(min-width:2200px)]:size-6"
+                          >
+                            {sorted === "asc" ? (
+                              <ArrowUpIcon className="size-5 text-emerald-500 [@media_(min-width:2200px)]:size-6" />
+                            ) : sorted === "desc" ? (
+                              <ArrowDownIcon className="size-5 text-emerald-500 [@media_(min-width:2200px)]:size-6" />
+                            ) : (
+                              <ChevronDownIcon className="size-5 opacity-45 [@media_(min-width:2200px)]:size-6" />
+                            )}
+                          </span>
+                        </button>
+                      </th>
+                    );
+                  })}
+                </tr>
+              ))}
+            </thead>
+            <tbody ref={tableBodyRef}>
+              {sortedRows.map((row, rowIndex) => (
+                <tr
+                  className={
+                    rowIndex % 2 === 0
+                      ? "bg-transparent will-change-transform"
+                      : "learning-sheet-cell-fill will-change-transform"
+                  }
+                  data-dataset-row-id={row.id}
+                  key={row.id}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td
+                      className="border-b learning-grid-border px-5 py-4 text-muted-foreground [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-5"
+                      key={cell.id}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
-    </LessonGlassCard>
+    </>
   );
 }
 
@@ -807,7 +769,7 @@ function RoleDropdown({
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         aria-label={`Role for ${columnLabel}`}
-        className="flex min-h-12 w-full cursor-pointer items-center justify-between gap-3 rounded-2xl bg-white/5 px-6 py-3 text-left text-base font-medium text-neutral-50 shadow-[inset_0_1px_0_oklch(100%_0_0_/_0.16),0_12px_32px_oklch(0%_0_0_/_0.22)] backdrop-blur-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 [@media_(min-width:2200px)]:min-h-14 [@media_(min-width:2200px)]:rounded-3xl [@media_(min-width:2200px)]:px-7 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg"
+        className="learning-grid-control flex min-h-12 w-full cursor-pointer items-center justify-between gap-3 px-6 py-3 text-left text-base font-medium text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 [@media_(min-width:2200px)]:min-h-24 [@media_(min-width:2200px)]:px-7 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg"
         onClick={() => setDropdownOpen(!isOpen)}
         type="button"
       >
@@ -822,7 +784,7 @@ function RoleDropdown({
       <div
         aria-hidden={!isOpen}
         aria-label={`Role options for ${columnLabel}`}
-        className="invisible absolute top-[calc(100%+10px)] right-0 left-0 z-40 w-full origin-top overflow-hidden rounded-2xl border border-white/12 bg-white/5 text-neutral-300 opacity-0 shadow-[0_18px_50px_oklch(0%_0_0_/_0.34)] backdrop-blur-2xl will-change-transform [@media_(min-width:2200px)]:top-[calc(100%+12px)] [@media_(min-width:2200px)]:rounded-3xl"
+        className="learning-grid-control invisible absolute top-[calc(100%+10px)] right-0 left-0 z-40 w-full origin-top overflow-hidden text-neutral-700 opacity-0 will-change-transform [@media_(min-width:2200px)]:top-[calc(100%+12px)]"
         data-role-dropdown-menu
         id={menuId}
         onPointerLeave={hideOptionHighlight}
@@ -830,13 +792,13 @@ function RoleDropdown({
       >
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute top-0 right-0 left-0 z-0 bg-emerald-600 opacity-0"
+          className="pointer-events-none absolute top-0 right-0 left-0 z-0 bg-emerald-500 opacity-0"
           data-role-dropdown-highlight
         />
         {roleOptions.map((option) => (
           <button
             aria-selected={value === option.value}
-            className="relative z-10 block w-full cursor-pointer border-b border-white/5 px-5 py-3 text-left text-base font-medium text-neutral-300 last:border-b-0 hover:text-neutral-50 focus-visible:text-neutral-50 focus-visible:outline-none [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-4 [@media_(min-width:2200px)]:text-lg"
+            className="relative z-10 block w-full cursor-pointer border-b learning-grid-border px-5 py-3 text-left text-base font-medium text-neutral-700 last:border-b-0 hover:text-neutral-50 focus-visible:text-neutral-50 focus-visible:outline-none [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-4 [@media_(min-width:2200px)]:text-lg"
             data-role-dropdown-item
             key={option.value}
             onFocus={(event) => moveOptionHighlight(event.currentTarget)}
@@ -866,13 +828,13 @@ function ColumnRoleExerciseView({
 }) {
   return (
     <>
-      <p className="border-b border-border px-6 py-5 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:px-8 [@media_(min-width:2200px)]:py-6 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+      <div className="learning-sheet-cell col-span-full px-6 py-5 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:px-12 [@media_(min-width:2200px)]:py-8 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
         {exercise.instruction}
-      </p>
-      <div className="grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-8">
+      </div>
+      <div className="learning-sheet-cell col-span-full grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12">
         {columns.map((column) => (
           <div
-            className="grid gap-4 rounded-xl border border-border p-5 sm:grid-cols-[minmax(0,1fr)_280px] sm:items-center [@media_(min-width:2200px)]:grid-cols-[minmax(0,1fr)_340px] [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:rounded-2xl [@media_(min-width:2200px)]:p-6"
+            className="grid gap-4 border learning-grid-border p-5 sm:grid-cols-[minmax(0,1fr)_288px] sm:items-center [@media_(min-width:2200px)]:grid-cols-[minmax(0,1fr)_384px] [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-6"
             key={column.id}
           >
             <span>
@@ -905,10 +867,10 @@ function MultipleChoiceExerciseView({
   selectedOptionIds: string[];
 }) {
   return (
-    <div className="grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-8">
+    <div className="learning-sheet-cell col-span-full grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12">
       {exercise.options.map((option) => (
         <label
-          className="flex min-h-16 cursor-pointer items-center gap-4 rounded-xl border border-border p-5 [@media_(min-width:2200px)]:min-h-[4.5rem] [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:rounded-2xl [@media_(min-width:2200px)]:p-6"
+          className="flex min-h-24 cursor-pointer items-center gap-4 border learning-grid-border p-5 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-6"
           key={option.id}
         >
           <input
@@ -938,7 +900,7 @@ function OrderedStepsExerciseView({
   const stepById = new Map(exercise.steps.map((step) => [step.id, step]));
 
   return (
-    <ol className="grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-8">
+    <ol className="learning-sheet-cell col-span-full grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12">
       {orderedStepIds.map((stepId, index) => {
         const step = stepById.get(stepId);
 
@@ -948,10 +910,10 @@ function OrderedStepsExerciseView({
 
         return (
           <li
-            className="grid gap-4 rounded-xl border border-border p-5 sm:grid-cols-[3.75rem_minmax(0,1fr)_auto] sm:items-center [@media_(min-width:2200px)]:grid-cols-[4.5rem_minmax(0,1fr)_auto] [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:rounded-2xl [@media_(min-width:2200px)]:p-6"
+            className="grid gap-4 border learning-grid-border p-5 sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:items-center [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-6"
             key={step.id}
           >
-            <span className="flex size-11 items-center justify-center rounded-xl bg-muted text-base font-semibold text-foreground [@media_(min-width:2200px)]:size-[3.25rem] [@media_(min-width:2200px)]:rounded-2xl [@media_(min-width:2200px)]:text-lg">
+            <span className="learning-grid-panel-fill flex size-12 items-center justify-center text-base font-semibold text-foreground [@media_(min-width:2200px)]:size-24 [@media_(min-width:2200px)]:text-lg">
               {index + 1}
             </span>
             <span className="text-base font-medium text-foreground [@media_(min-width:2200px)]:text-lg">
@@ -960,7 +922,7 @@ function OrderedStepsExerciseView({
             <span className="flex gap-3 [@media_(min-width:2200px)]:gap-4">
               <button
                 aria-label={`Move ${step.label} up`}
-                className="inline-flex size-11 cursor-pointer items-center justify-center rounded-xl bg-muted text-foreground disabled:cursor-not-allowed disabled:opacity-40 [@media_(min-width:2200px)]:size-[3.25rem] [@media_(min-width:2200px)]:rounded-2xl"
+                className="learning-grid-panel-fill inline-flex size-12 cursor-pointer items-center justify-center text-foreground disabled:cursor-not-allowed disabled:opacity-40 [@media_(min-width:2200px)]:size-24"
                 disabled={index === 0}
                 onClick={() => onMoveStep(index, -1)}
                 type="button"
@@ -972,7 +934,7 @@ function OrderedStepsExerciseView({
               </button>
               <button
                 aria-label={`Move ${step.label} down`}
-                className="inline-flex size-11 cursor-pointer items-center justify-center rounded-xl bg-muted text-foreground disabled:cursor-not-allowed disabled:opacity-40 [@media_(min-width:2200px)]:size-[3.25rem] [@media_(min-width:2200px)]:rounded-2xl"
+                className="learning-grid-panel-fill inline-flex size-12 cursor-pointer items-center justify-center text-foreground disabled:cursor-not-allowed disabled:opacity-40 [@media_(min-width:2200px)]:size-24"
                 disabled={index === orderedStepIds.length - 1}
                 onClick={() => onMoveStep(index, 1)}
                 type="button"
@@ -992,45 +954,46 @@ function OrderedStepsExerciseView({
 
 function LessonResult({ result }: { result: EvaluationResult }) {
   return (
-    <LessonGlassCard aria-live="polite" className="p-6 [@media_(min-width:2200px)]:p-8">
-      <div className="flex gap-4 [@media_(min-width:2200px)]:gap-5">
-        {result.status === "correct" ? (
-          <CheckCircleIcon
-            aria-hidden="true"
-            className="size-7 shrink-0 text-emerald-300 [@media_(min-width:2200px)]:size-8"
-          />
-        ) : (
-          <InformationCircleIcon
-            aria-hidden="true"
-            className="size-7 shrink-0 text-sky-300 [@media_(min-width:2200px)]:size-8"
-          />
-        )}
-        <div>
-          <h2 className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl">
-            {result.title}
-          </h2>
-          <p className="mt-3 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
-            {result.message}
-          </p>
-          <p className="mt-3 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
-            {result.nextStep}
-          </p>
-          {result.status !== "correct" && result.missedColumnIds.length > 0 ? (
-            <div className="mt-5 rounded-xl bg-muted p-5 [@media_(min-width:2200px)]:mt-7 [@media_(min-width:2200px)]:rounded-2xl [@media_(min-width:2200px)]:p-6">
-              <p className="text-base font-semibold text-foreground [@media_(min-width:2200px)]:text-lg">
-                Expected role check
-              </p>
-              <ul className="mt-3 grid gap-1.5 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
-                {result.missedColumnIds.map((columnId) => (
-                  <li key={columnId}>
-                    {columnId}: {describeExpectedRole(columnId)}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
+    <div
+      aria-live="polite"
+      className="learning-sheet-cell col-span-full flex gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12"
+    >
+      {result.status === "correct" ? (
+        <CheckCircleIcon
+          aria-hidden="true"
+          className="size-7 shrink-0 text-emerald-500 [@media_(min-width:2200px)]:size-8"
+        />
+      ) : (
+        <InformationCircleIcon
+          aria-hidden="true"
+          className="size-7 shrink-0 text-sky-600 [@media_(min-width:2200px)]:size-8"
+        />
+      )}
+      <div>
+        <h2 className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl">
+          {result.title}
+        </h2>
+        <p className="mt-3 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+          {result.message}
+        </p>
+        <p className="mt-3 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+          {result.nextStep}
+        </p>
+        {result.status !== "correct" && result.missedColumnIds.length > 0 ? (
+          <div className="learning-grid-panel-fill mt-5 p-5 [@media_(min-width:2200px)]:mt-7 [@media_(min-width:2200px)]:p-6">
+            <p className="text-base font-semibold text-foreground [@media_(min-width:2200px)]:text-lg">
+              Expected role check
+            </p>
+            <ul className="mt-3 grid gap-1.5 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+              {result.missedColumnIds.map((columnId) => (
+                <li key={columnId}>
+                  {columnId}: {describeExpectedRole(columnId)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
-    </LessonGlassCard>
+    </div>
   );
 }

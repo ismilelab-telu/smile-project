@@ -21,7 +21,7 @@ type ViewTransitionDocument = Document & {
 };
 
 function getRouteTheme(pathname: string): RouteTheme {
-  return pathname === "/" ? "light" : "dark";
+  return pathname === "/" || isLearningRoute(pathname) ? "light" : "dark";
 }
 
 function getRouteOrder(pathname: string) {
@@ -49,7 +49,7 @@ function getLearningRouteDepth(pathname: string) {
 }
 
 function shouldShowSharedExploreBackground(pathname: string) {
-  return pathname === "/explore" || isLearningRoute(pathname);
+  return pathname === "/explore";
 }
 
 function getRouteDirection(
