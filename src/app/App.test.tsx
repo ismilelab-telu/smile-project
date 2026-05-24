@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
@@ -95,6 +95,51 @@ describe("App", () => {
       ),
     ).toBeNull();
     expect(screen.getAllByText("Locked").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("requires confirmation before resetting learning progress", async () => {
+    seedCompletedLessons(["lesson-0-1-feature-target", "lesson-0-2-regression-classification"]);
+    window.history.pushState(null, "", "/learn");
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Regression Foundations" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+    expect(screen.getByText("2/32")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset progress" }));
+
+    const firstDialog = await screen.findByRole("alertdialog", {
+      name: "Reset learning progress?",
+    });
+    expect(
+      within(firstDialog).getByText(
+        "This action cannot be undone. It will delete your learning progress.",
+      ),
+    ).toBeInTheDocument();
+    expect(getStoredCompletedLessonIds()).toEqual([
+      "lesson-0-1-feature-target",
+      "lesson-0-2-regression-classification",
+    ]);
+
+    fireEvent.click(within(firstDialog).getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("2/32")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset progress" }));
+
+    const secondDialog = await screen.findByRole("alertdialog", {
+      name: "Reset learning progress?",
+    });
+    fireEvent.click(within(secondDialog).getByRole("button", { name: "Reset progress" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("0/32")).toBeInTheDocument();
+    });
+    expect(getStoredCompletedLessonIds()).toEqual([]);
   });
 
   it("completes the first lesson, persists progress, and unlocks the next lesson", async () => {

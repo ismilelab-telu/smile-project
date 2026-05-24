@@ -435,7 +435,7 @@ function ExploreMenu() {
 
         <section
           aria-label="Learning Mode highlight"
-          className="relative z-10 flex min-h-36 w-[min(700px,calc(100vw_-_2rem))] transform-gpu flex-col justify-center rounded-xl border-2 border-emerald-700 bg-neutral-100 p-7 text-neutral-950 shadow-2xl will-change-transform [@media_(min-width:2200px)]:min-h-44 [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:p-9"
+          className="relative z-10 flex min-h-36 w-[min(700px,calc(100vw_-_2rem))] transform-gpu flex-col justify-center rounded-xl border-2 border-emerald-700 bg-gradient-to-br from-emerald-500 via-emerald-300 to-sky-300 p-7 text-neutral-950 shadow-2xl will-change-transform [@media_(min-width:2200px)]:min-h-44 [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:p-9"
           data-explore-menu-panel
         >
           <p className="font-mono text-xs font-semibold tracking-[0.12em] text-neutral-700 uppercase [@media_(min-width:2200px)]:text-sm">
@@ -458,7 +458,7 @@ function ExploreMenu() {
             </div>
           </div>
           <a
-            className="mt-5 inline-flex w-fit items-center gap-2 rounded-full bg-neutral-950 px-4 py-2 font-mono text-xs font-semibold text-neutral-50 transition-colors hover:bg-neutral-800 [@media_(min-width:2200px)]:mt-6 [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-2.5 [@media_(min-width:2200px)]:text-sm"
+            className="mt-5 inline-flex w-fit items-center gap-2 rounded-full bg-neutral-950 px-4 py-2 font-mono text-xs font-semibold text-emerald-100 transition-colors hover:bg-neutral-800 [@media_(min-width:2200px)]:mt-6 [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-2.5 [@media_(min-width:2200px)]:text-sm"
             data-app-link
             href="/learn"
           >
@@ -471,7 +471,7 @@ function ExploreMenu() {
         </section>
 
         <div
-          className="relative z-10 flex h-28 w-[min(700px,calc(100vw_-_2rem))] transform-gpu items-center rounded-xl border-2 border-neutral-700 bg-neutral-100 px-7 text-neutral-400 shadow-2xl will-change-transform [@media_(min-width:2200px)]:h-36 [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:px-9"
+          className="relative z-10 flex h-28 w-[min(700px,calc(100vw_-_2rem))] transform-gpu items-center rounded-xl border-2 border-neutral-700 bg-neutral-950 px-7 text-neutral-400 shadow-2xl will-change-transform [@media_(min-width:2200px)]:h-36 [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:px-9"
           data-explore-menu-panel
         >
           <ul className="flex list-none flex-wrap gap-4 font-mono text-xs font-semibold [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:text-sm">

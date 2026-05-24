@@ -11,6 +11,17 @@ import { getLessonLockReason, isLessonUnlocked, isModuleUnlocked } from "../prog
 import type { LearningProgress } from "../types";
 import { LearningGridCanvas, LearningSheetExtensions } from "./LearningGridCanvas";
 import { LearningHeader } from "./LearningHeader";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogPopup,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
 
 const liquidButtonClassName =
@@ -74,13 +85,31 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
           >
             <div className="h-full bg-emerald-500" style={{ width: `${progressPercent}%` }} />
           </div>
-          <LiquidButton
-            className={`${liquidButtonClassName} w-full cursor-pointer [--liquid-button-color:var(--color-rose-600)]`}
-            onClick={onResetProgress}
-            type="button"
-          >
-            Reset progress
-          </LiquidButton>
+          <AlertDialog>
+            <AlertDialogTrigger
+              render={(triggerProps) => (
+                <LiquidButton
+                  {...triggerProps}
+                  className={`${liquidButtonClassName} w-full cursor-pointer [--liquid-button-color:var(--color-rose-600)]`}
+                  type="button"
+                >
+                  Reset progress
+                </LiquidButton>
+              )}
+            />
+            <AlertDialogPopup>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Reset learning progress?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. It will delete your learning progress.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={onResetProgress}>Reset progress</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogPopup>
+          </AlertDialog>
         </aside>
 
         <h2

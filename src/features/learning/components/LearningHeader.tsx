@@ -320,7 +320,7 @@ function LearningMenu() {
       >
         <button
           aria-label="Close menu"
-          className="absolute inset-0 bg-neutral-950/25 opacity-0 will-change-[opacity]"
+          className="absolute inset-0 bg-neutral-950/35 opacity-0 will-change-[opacity]"
           data-learning-menu-backdrop
           onClick={() => setMenuOpen(false)}
           type="button"
@@ -328,7 +328,7 @@ function LearningMenu() {
 
         <nav
           aria-label="Learning menu"
-          className="relative z-10 flex min-h-[420px] w-[min(700px,calc(100vw_-_2rem))] flex-1 transform-gpu flex-col rounded-none border-2 border-neutral-950 bg-neutral-100 px-7 pt-16 pb-7 text-neutral-950 will-change-transform [@media_(min-width:2200px)]:min-h-[520px] [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:px-9 [@media_(min-width:2200px)]:pt-20 [@media_(min-width:2200px)]:pb-9"
+          className="relative z-10 flex min-h-[420px] w-[min(700px,calc(100vw_-_2rem))] flex-1 transform-gpu flex-col rounded-none border-2 border-neutral-950 bg-neutral-100 px-7 pt-16 pb-7 text-neutral-950 shadow-2xl will-change-transform [@media_(min-width:2200px)]:min-h-[520px] [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:px-9 [@media_(min-width:2200px)]:pt-20 [@media_(min-width:2200px)]:pb-9"
           data-learning-menu-panel
         >
           <ul className="flex flex-1 list-none flex-col justify-center">
@@ -353,14 +353,14 @@ function LearningMenu() {
 
         <section
           aria-label="Learning Mode highlight"
-          className="relative z-10 flex min-h-36 w-[min(700px,calc(100vw_-_2rem))] transform-gpu flex-col justify-center rounded-none border-2 border-neutral-950 bg-neutral-100 p-7 text-neutral-950 will-change-transform [@media_(min-width:2200px)]:min-h-44 [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:p-9"
+          className="relative z-10 flex min-h-36 w-[min(700px,calc(100vw_-_2rem))] transform-gpu flex-col justify-center rounded-none border-2 border-emerald-700 bg-gradient-to-br from-emerald-500 via-emerald-300 to-sky-300 p-7 text-neutral-950 shadow-2xl will-change-transform [@media_(min-width:2200px)]:min-h-44 [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:p-9"
           data-learning-menu-panel
         >
           <p className="font-mono text-xs font-semibold tracking-[0.12em] text-neutral-700 uppercase [@media_(min-width:2200px)]:text-sm">
             What's new
           </p>
           <div className="mt-4 flex items-center gap-4 [@media_(min-width:2200px)]:mt-5 [@media_(min-width:2200px)]:gap-5">
-            <span className="inline-flex size-12 shrink-0 items-center justify-center bg-neutral-200 text-neutral-950 [@media_(min-width:2200px)]:size-14">
+            <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-none bg-neutral-950/10 text-neutral-950 [@media_(min-width:2200px)]:size-14">
               <SparklesIcon
                 aria-hidden="true"
                 className="size-6 [@media_(min-width:2200px)]:size-7"
@@ -376,7 +376,7 @@ function LearningMenu() {
             </div>
           </div>
           <a
-            className="mt-5 inline-flex w-fit items-center gap-2 rounded-none bg-neutral-200 px-4 py-2 font-mono text-xs font-semibold text-neutral-950 transition-colors hover:bg-neutral-300 [@media_(min-width:2200px)]:mt-6 [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-2.5 [@media_(min-width:2200px)]:text-sm"
+            className="mt-5 inline-flex w-fit items-center gap-2 rounded-none bg-neutral-950 px-4 py-2 font-mono text-xs font-semibold text-emerald-100 transition-colors hover:bg-neutral-800 [@media_(min-width:2200px)]:mt-6 [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-2.5 [@media_(min-width:2200px)]:text-sm"
             data-app-link
             href="/learn"
           >
@@ -389,29 +389,29 @@ function LearningMenu() {
         </section>
 
         <div
-          className="relative z-10 flex h-28 w-[min(700px,calc(100vw_-_2rem))] transform-gpu items-center rounded-none border-2 border-neutral-950 bg-neutral-100 px-7 text-neutral-950 will-change-transform [@media_(min-width:2200px)]:h-36 [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:px-9"
+          className="relative z-10 flex h-28 w-[min(700px,calc(100vw_-_2rem))] transform-gpu items-center rounded-none border-2 border-neutral-700 bg-neutral-950 px-7 text-neutral-400 shadow-2xl will-change-transform [@media_(min-width:2200px)]:h-36 [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:px-9"
           data-learning-menu-panel
         >
           <ul className="flex list-none flex-wrap gap-4 font-mono text-xs font-semibold [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:text-sm">
             <li>
-              <a className="transition-colors hover:text-emerald-500" data-app-link href="/404">
+              <a className="transition-colors hover:text-white" data-app-link href="/404">
                 Contact
               </a>
             </li>
             <li>
-              <a className="transition-colors hover:text-emerald-500" data-app-link href="/404">
+              <a className="transition-colors hover:text-white" data-app-link href="/404">
                 Support
               </a>
             </li>
             <li>
-              <a className="transition-colors hover:text-emerald-500" data-app-link href="/404">
+              <a className="transition-colors hover:text-white" data-app-link href="/404">
                 Changelog
               </a>
             </li>
           </ul>
           <HomeIcon
             aria-hidden="true"
-            className="ml-auto size-10 text-emerald-500 [@media_(min-width:2200px)]:size-12"
+            className="ml-auto size-10 text-emerald-300 [@media_(min-width:2200px)]:size-12"
           />
         </div>
       </div>
