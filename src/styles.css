@@ -255,7 +255,7 @@
 
   .learning-sheet-outer-right {
     height: 100vh;
-    right: 0;
+    right: 1px;
     top: 0;
     transform: translateY(-100%);
     width: 1px;
@@ -278,6 +278,11 @@
 
   .learning-extend-right::after {
     left: calc(100% - 1px);
+    right: -100vw;
+  }
+
+  .learning-extend-left.learning-extend-right::after {
+    left: -100vw;
     right: -100vw;
   }
 
