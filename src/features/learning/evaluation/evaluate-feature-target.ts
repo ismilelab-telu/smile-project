@@ -36,6 +36,16 @@ function formatColumnList(columnIds: string[]) {
   return `${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}`;
 }
 
+function getExpectedRoleColumnIds(role: ColumnRole) {
+  return Object.entries(expectedRoles).flatMap(([columnId, expectedRole]) =>
+    expectedRole === role ? [columnId] : [],
+  );
+}
+
+function getColumnListVerb(columnIds: string[]) {
+  return columnIds.length === 1 ? "is" : "are";
+}
+
 export function evaluateFeatureTargetRoles(
   assignments: Record<string, ColumnRole>,
 ): EvaluationResult {
@@ -43,6 +53,13 @@ export function evaluateFeatureTargetRoles(
   const extraColumnIds: string[] = [];
   const targetRole = assignments.price_million_idr;
   const targetColumnIds = getAssignedColumnIds(assignments, "target");
+  const expectedFeatureColumnIds = getExpectedRoleColumnIds("safe-feature");
+  const featureColumnIdsMarkedMetadata = expectedFeatureColumnIds.filter(
+    (columnId) => assignments[columnId] === "metadata",
+  );
+  const featureColumnIdsMarkedSafe = expectedFeatureColumnIds.filter(
+    (columnId) => assignments[columnId] === "safe-feature",
+  );
 
   for (const [columnId, expectedRole] of Object.entries(expectedRoles)) {
     const actualRole = assignments[columnId] ?? "ignore";
@@ -75,9 +92,19 @@ export function evaluateFeatureTargetRoles(
               }
             : {
                 message:
-                  "No target is selected yet. A supervised regression setup needs one value that the model will predict.",
+                  featureColumnIdsMarkedMetadata.length > 0
+                    ? `${formatColumnList(featureColumnIdsMarkedMetadata)} ${getColumnListVerb(featureColumnIdsMarkedMetadata)} marked as metadata, but metadata is for fields that identify or organize rows.`
+                    : assignments.listing_id === "metadata" && featureColumnIdsMarkedSafe.length > 0
+                      ? "The identifier and some input columns are separated, but no target is selected yet."
+                      : assignments.listing_id === "metadata"
+                        ? "The row identifier is separated as metadata, but no target is selected yet."
+                        : featureColumnIdsMarkedSafe.length > 0
+                          ? `${formatColumnList(featureColumnIdsMarkedSafe)} ${getColumnListVerb(featureColumnIdsMarkedSafe)} selected as input features, but supervised regression still needs one target.`
+                          : "No target is selected yet. A supervised regression setup needs one value that the model will predict.",
                 nextStep:
-                  "Use the hints to identify the output column, then mark exactly one column as Target.",
+                  featureColumnIdsMarkedMetadata.length > 0
+                    ? "First choose the prediction output as Target, then keep metadata for row-reference fields only."
+                    : "Use the hints to identify the output column, then mark exactly one column as Target.",
               };
 
       return {
@@ -107,7 +134,12 @@ export function evaluateFeatureTargetRoles(
     return {
       extraColumnIds,
       missedColumnIds,
-      message: `${formatColumnList(targetColumnIds)} is marked as the target, but it describes the property rather than the value to predict.`,
+      message:
+        targetRole === "safe-feature"
+          ? `${formatColumnList(targetColumnIds)} ${getColumnListVerb(targetColumnIds)} marked as the target while the prediction output is still treated like an input feature.`
+          : targetRole === "metadata"
+            ? `${formatColumnList(targetColumnIds)} ${getColumnListVerb(targetColumnIds)} marked as the target while the prediction output is still treated like metadata.`
+            : `${formatColumnList(targetColumnIds)} ${getColumnListVerb(targetColumnIds)} marked as the target, but it describes the property rather than the value to predict.`,
       nextStep:
         "Keep descriptive property attributes as candidate features and choose the outcome value as the target.",
       score: 20,

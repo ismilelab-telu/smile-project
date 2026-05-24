@@ -79,22 +79,6 @@ const roleDropdownPanelVariants = {
     },
   },
 };
-const roleDropdownOptionVariants = {
-  closed: {
-    opacity: 0,
-    transition: {
-      duration: 0.11,
-      ease: [0.4, 0, 1, 1],
-    },
-  },
-  open: {
-    opacity: 1,
-    transition: {
-      duration: 0.16,
-      ease: [0, 0, 0.2, 1],
-    },
-  },
-};
 type RoleDropdownHighlightRect = {
   height: number;
   y: number;
@@ -624,11 +608,14 @@ function RoleDropdown({
   value: ColumnRole;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const optionRefs = useRef(new Map<ColumnRole, HTMLButtonElement>());
+  const optionRefs = useRef(new Map<ColumnRole, HTMLDivElement>());
+  const closeTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
   const menuId = useId();
   const [isOpen, setIsOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const [activeOptionValue, setActiveOptionValue] = useState<ColumnRole | null>(null);
   const [highlightRect, setHighlightRect] = useState<RoleDropdownHighlightRect | null>(null);
+  const [isHighlightVisible, setIsHighlightVisible] = useState(false);
   const selectedLabel = getRoleOptionLabel(value);
   const highlightedOptionValue = activeOptionValue ?? value;
   const reduceDropdownMotion = shouldReduceMotion();
@@ -654,10 +641,50 @@ function RoleDropdown({
     whileElementsMounted: autoUpdate,
   });
 
+  const closeDropdown = useCallback(() => {
+    setActiveOptionValue(null);
+    setIsClosing(true);
+
+    if (closeTimeoutRef.current !== null) {
+      window.clearTimeout(closeTimeoutRef.current);
+    }
+
+    if (reduceDropdownMotion) {
+      setIsHighlightVisible(false);
+      setIsOpen(false);
+      setIsClosing(false);
+      return;
+    }
+
+    closeTimeoutRef.current = window.setTimeout(() => {
+      setIsOpen(false);
+      setIsClosing(false);
+      closeTimeoutRef.current = null;
+    }, 330);
+  }, [reduceDropdownMotion]);
+
+  const openDropdown = () => {
+    if (closeTimeoutRef.current !== null) {
+      window.clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+
+    setIsClosing(false);
+    setIsOpen(true);
+  };
+
+  const toggleDropdown = () => {
+    if (isOpen) {
+      closeDropdown();
+      return;
+    }
+
+    openDropdown();
+  };
+
   const selectRole = (nextValue: ColumnRole) => {
     onChange(nextValue);
-    setActiveOptionValue(null);
-    setIsOpen(false);
+    closeDropdown();
   };
 
   const syncHighlightToOption = useCallback((nextValue: ColumnRole) => {
@@ -673,7 +700,13 @@ function RoleDropdown({
     });
   }, []);
 
-  const activateOption = (nextValue: ColumnRole, optionElement: HTMLButtonElement) => {
+  const activateOption = (nextValue: ColumnRole) => {
+    const optionElement = optionRefs.current.get(nextValue);
+
+    if (!optionElement) {
+      return;
+    }
+
     setActiveOptionValue(nextValue);
     setHighlightRect({
       height: Math.max(0, optionElement.offsetHeight - 1),
@@ -685,16 +718,28 @@ function RoleDropdown({
     if (!isOpen) {
       setActiveOptionValue(null);
       setHighlightRect(null);
+      setIsHighlightVisible(false);
+      setIsClosing(false);
       return;
     }
 
     const frame = window.requestAnimationFrame(() => {
       void update();
       syncHighlightToOption(value);
+      setIsHighlightVisible(true);
     });
 
     return () => window.cancelAnimationFrame(frame);
   }, [isOpen, syncHighlightToOption, update, value]);
+
+  useEffect(
+    () => () => {
+      if (closeTimeoutRef.current !== null) {
+        window.clearTimeout(closeTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!isOpen) {
@@ -708,12 +753,12 @@ function RoleDropdown({
         return;
       }
 
-      setIsOpen(false);
+      closeDropdown();
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setIsOpen(false);
+        closeDropdown();
       }
     };
 
@@ -724,7 +769,7 @@ function RoleDropdown({
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen]);
+  }, [closeDropdown, isOpen]);
 
   return (
     <div className="relative inline-block w-full" ref={rootRef}>
@@ -734,7 +779,7 @@ function RoleDropdown({
         aria-haspopup="listbox"
         aria-label={`Role for ${columnLabel}`}
         className="learning-grid-control flex min-h-12 w-full cursor-pointer items-center justify-between gap-3 border border-neutral-300 bg-neutral-100/90 px-6 py-3 text-left text-base font-medium text-foreground backdrop-blur-xl supports-[backdrop-filter]:bg-neutral-100/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 [@media_(min-width:2200px)]:min-h-24 [@media_(min-width:2200px)]:px-7 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg"
-        onClick={() => setIsOpen((current) => !current)}
+        onClick={toggleDropdown}
         ref={refs.setReference}
         type="button"
       >
@@ -770,35 +815,45 @@ function RoleDropdown({
                   aria-hidden="true"
                   animate={{
                     height: highlightRect.height,
-                    opacity: 1,
+                    opacity: isHighlightVisible ? 1 : 0,
                     y: highlightRect.y,
                   }}
                   className="pointer-events-none absolute top-0 right-px left-px z-10 transform-gpu bg-cyan-500 will-change-transform"
-                  initial={{
-                    height: highlightRect.height,
-                    opacity: 0,
-                    y: highlightRect.y,
-                  }}
+                  initial={false}
                   transition={
                     reduceDropdownMotion
                       ? { duration: 0 }
-                      : { duration: 0.22, ease: [0.22, 1, 0.36, 1] }
+                      : {
+                          height: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
+                          opacity: isHighlightVisible
+                            ? { duration: 0, ease: [0, 0, 0.2, 1] }
+                            : { duration: 0.08, ease: [0.4, 0, 1, 1] },
+                          y: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
+                        }
                   }
                 />
               ) : null}
-              {roleOptions.map((option) => {
+              {roleOptions.map((option, optionIndex) => {
                 const isHighlighted = highlightedOptionValue === option.value;
+                const optionMotionProps = reduceDropdownMotion
+                  ? {}
+                  : {
+                      animate: { opacity: isClosing ? 0 : 1 },
+                      initial: { opacity: 0 },
+                      transition: {
+                        delay: isClosing
+                          ? 0.08 + (roleOptions.length - 1 - optionIndex) * 0.035
+                          : 0.02 + optionIndex * 0.045,
+                        duration: isClosing ? 0.13 : 0.16,
+                        ease: isClosing ? [0.4, 0, 1, 1] : [0, 0, 0.2, 1],
+                      },
+                    };
 
                 return (
-                  <motion.button
-                    aria-selected={value === option.value}
-                    className={`relative block w-full cursor-pointer overflow-hidden border-x border-b border-x-neutral-300 border-b-neutral-200 bg-neutral-100 px-5 py-3 text-left text-base font-medium first:border-t first:border-t-neutral-300 last:border-b-neutral-300 focus-visible:outline-none [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-4 [@media_(min-width:2200px)]:text-lg ${
-                      isHighlighted ? "text-neutral-50" : "text-neutral-700"
-                    }`}
+                  <div
+                    className="relative"
                     key={option.value}
-                    onClick={() => selectRole(option.value)}
-                    onFocus={(event) => activateOption(option.value, event.currentTarget)}
-                    onPointerEnter={(event) => activateOption(option.value, event.currentTarget)}
+                    onPointerEnter={() => activateOption(option.value)}
                     ref={(node) => {
                       if (node) {
                         optionRefs.current.set(option.value, node);
@@ -806,12 +861,26 @@ function RoleDropdown({
                         optionRefs.current.delete(option.value);
                       }
                     }}
-                    role="option"
-                    type="button"
-                    variants={reduceDropdownMotion ? undefined : roleDropdownOptionVariants}
                   >
-                    <span className="relative z-20">{option.label}</span>
-                  </motion.button>
+                    <motion.span
+                      aria-hidden="true"
+                      className="absolute inset-0 z-0 bg-neutral-100"
+                      {...optionMotionProps}
+                    />
+                    <motion.button
+                      aria-selected={value === option.value}
+                      className={`relative z-20 block w-full cursor-pointer overflow-hidden border-x border-b border-x-neutral-300 border-b-neutral-200 bg-transparent px-5 py-3 text-left text-base font-medium transition-colors duration-150 first:border-t first:border-t-neutral-300 last:border-b-neutral-300 focus-visible:outline-none [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-4 [@media_(min-width:2200px)]:text-lg ${
+                        isHighlighted ? "text-neutral-50" : "text-neutral-700"
+                      }`}
+                      onClick={() => selectRole(option.value)}
+                      onFocus={() => activateOption(option.value)}
+                      role="option"
+                      type="button"
+                      {...optionMotionProps}
+                    >
+                      <span className="relative z-20">{option.label}</span>
+                    </motion.button>
+                  </div>
                 );
               })}
             </motion.div>

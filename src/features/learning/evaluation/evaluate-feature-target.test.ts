@@ -29,6 +29,22 @@ describe("evaluateFeatureTargetRoles", () => {
     expect(result.nextStep).not.toContain("price_million_idr");
   });
 
+  it("responds to role work that is already wrong before a target is selected", () => {
+    const result = evaluateFeatureTargetRoles({
+      bedrooms: "metadata",
+      building_area_m2: "ignore",
+      district: "ignore",
+      listing_id: "ignore",
+      price_million_idr: "ignore",
+      property_type: "ignore",
+    });
+
+    expect(result.status).toBe("incorrect");
+    expect(result.message).toContain("Bedrooms is marked as metadata");
+    expect(result.message).not.toContain("price_million_idr");
+    expect(result.nextStep).toContain("metadata for row-reference fields");
+  });
+
   it("gives a different explanation when a descriptive column is selected as target", () => {
     const result = evaluateFeatureTargetRoles({
       ...correctAssignments,
