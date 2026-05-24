@@ -45,8 +45,10 @@ import { shouldReduceMotion } from "@/lib/motion";
 
 gsap.registerPlugin(useGSAP);
 
-const liquidButtonClassName =
-  "inline-flex items-center justify-center gap-3 rounded-none px-5 py-3 text-base font-semibold text-neutral-950 backdrop-blur-xl hover:text-neutral-50 [--liquid-button-background-color:var(--color-neutral-200)] [--liquid-button-color:var(--color-emerald-500)] [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg";
+const liquidButtonBaseClassName =
+  "inline-flex items-center justify-center gap-3 rounded-none px-5 py-3 text-base font-semibold text-neutral-950 backdrop-blur-xl hover:text-neutral-50 [--liquid-button-background-color:var(--color-neutral-200)] [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg";
+const emeraldLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-button-color:var(--color-emerald-500)]`;
+const amberLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-button-color:var(--color-amber-500)]`;
 
 type LessonPageProps = {
   lesson: Lesson;
@@ -59,8 +61,6 @@ const roleOptions: Array<{ label: string; value: ColumnRole }> = [
   { label: "Safe feature", value: "safe-feature" },
   { label: "Metadata", value: "metadata" },
 ];
-
-const roleDropdownExitTimeScale = 2.5;
 
 function getRoleOptionLabel(value: ColumnRole) {
   return roleOptions.find((option) => option.value === value)?.label ?? roleOptions[0].label;
@@ -85,18 +85,19 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
   const [orderedStepIds, setOrderedStepIds] = useState<string[]>(initialOrderedStepIds);
   const [result, setResult] = useState<EvaluationResult | null>(null);
   const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>([]);
-  const [visibleHintCount, setVisibleHintCount] = useState(1);
+  const [visibleHintCount, setVisibleHintCount] = useState(0);
   const datasetView =
     lesson.exercise.type === "table-column-role-assignment" && lesson.datasetId && lesson.viewId
       ? getDatasetView(lesson.datasetId, lesson.viewId)
       : undefined;
+  const hasNotQuiteResult = result !== null && result.status !== "correct";
 
   useEffect(() => {
     setAssignments(initialAssignments);
     setOrderedStepIds(initialOrderedStepIds);
     setResult(null);
     setSelectedOptionIds([]);
-    setVisibleHintCount(1);
+    setVisibleHintCount(0);
   }, [initialAssignments, initialOrderedStepIds, lesson.id]);
 
   if (lesson.exercise.type === "table-column-role-assignment" && !datasetView) {
@@ -116,7 +117,7 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
           </div>
           <div className="learning-sheet-cell p-6 [@media_(min-width:2200px)]:p-12">
             <LiquidLink
-              className={`${liquidButtonClassName} [@media_(min-width:2200px)]:min-h-16`}
+              className={`${emeraldLiquidButtonClassName} [@media_(min-width:2200px)]:min-h-16`}
               data-app-link
               href="/learn"
             >
@@ -134,6 +135,7 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
       [columnId]: role,
     }));
     setResult(null);
+    setVisibleHintCount(0);
   };
 
   const toggleOption = (optionId: string) => {
@@ -143,6 +145,7 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
         : [...current, optionId],
     );
     setResult(null);
+    setVisibleHintCount(0);
   };
 
   const moveStep = (index: number, direction: -1 | 1) => {
@@ -160,6 +163,7 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
       return next;
     });
     setResult(null);
+    setVisibleHintCount(0);
   };
 
   const submitAnswer = () => {
@@ -176,9 +180,13 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
     setResult(evaluation);
     onSubmitResult(evaluation);
 
-    if (evaluation.status !== "correct") {
-      setVisibleHintCount(2);
-    }
+    setVisibleHintCount(0);
+  };
+
+  const toggleHints = () => {
+    setVisibleHintCount((count) =>
+      count >= lesson.exercise.hints.length ? 0 : Math.min(count + 1, lesson.exercise.hints.length),
+    );
   };
 
   return (
@@ -200,12 +208,12 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
         </div>
         <div
           aria-hidden="true"
-          className="learning-sheet-cell learning-extend-right hidden [@media_(min-width:1024px)]:col-span-4 [@media_(min-width:1024px)]:block"
+          className="learning-sheet-cell learning-extend-right -mr-px hidden [@media_(min-width:1024px)]:col-span-4 [@media_(min-width:1024px)]:block"
         />
 
         <section
           aria-labelledby="concept-summary"
-          className="learning-sheet-cell learning-extend-left p-6 [@media_(min-width:1024px)]:col-span-8 [@media_(min-width:2200px)]:p-12"
+          className="learning-sheet-cell learning-extend-left learning-extend-right col-span-full p-6 [@media_(min-width:2200px)]:p-12"
         >
           <h2
             className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl"
@@ -219,37 +227,6 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
             ))}
           </div>
         </section>
-
-        <aside className="learning-sheet-cell learning-extend-right learning-sheet-cell-fill p-6 [@media_(min-width:1024px)]:col-span-4 [@media_(min-width:2200px)]:p-12">
-          <h2 className="flex items-center gap-3 text-xl font-semibold text-foreground [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:text-3xl">
-            <LightBulbIcon
-              aria-hidden="true"
-              className="size-6 text-emerald-500 [@media_(min-width:2200px)]:size-7"
-            />
-            Hint
-          </h2>
-          <ol className="mt-6 grid gap-4 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-8 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
-            {lesson.exercise.hints.slice(0, visibleHintCount).map((hint, index) => (
-              <li
-                className="learning-grid-panel-fill p-5 [@media_(min-width:2200px)]:p-6"
-                key={hint}
-              >
-                {index + 1}. {hint}
-              </li>
-            ))}
-          </ol>
-          {visibleHintCount < lesson.exercise.hints.length ? (
-            <LiquidButton
-              className={`${liquidButtonClassName} mt-5 w-full cursor-pointer [@media_(min-width:2200px)]:mt-7 [@media_(min-width:2200px)]:min-h-16`}
-              onClick={() =>
-                setVisibleHintCount((count) => Math.min(count + 1, lesson.exercise.hints.length))
-              }
-              type="button"
-            >
-              Show another hint
-            </LiquidButton>
-          ) : null}
-        </aside>
 
         {lesson.exercise.type === "table-column-role-assignment" && datasetView ? (
           <DatasetPreview exercise={lesson.exercise} datasetView={datasetView} />
@@ -297,7 +274,7 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
             Submit will evaluate your answer automatically.
           </p>
           <LiquidButton
-            className={`${liquidButtonClassName} min-h-12 cursor-pointer [@media_(min-width:2200px)]:min-h-16`}
+            className={`${emeraldLiquidButtonClassName} min-h-12 cursor-pointer [@media_(min-width:2200px)]:min-h-16`}
             onClick={submitAnswer}
             type="button"
           >
@@ -305,12 +282,36 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
           </LiquidButton>
         </div>
 
-        {result ? <LessonResult result={result} /> : null}
+        {result ? (
+          <>
+            <LessonResult result={result} />
+            {hasNotQuiteResult ? (
+              <LessonHintPanel
+                hints={lesson.exercise.hints}
+                onToggleHints={toggleHints}
+                visibleHintCount={visibleHintCount}
+              />
+            ) : null}
+          </>
+        ) : null}
 
-        <div
-          aria-hidden="true"
-          className="learning-sheet-cell learning-extend-left learning-extend-right learning-sheet-footer-cell col-span-full"
-        />
+        {hasNotQuiteResult ? (
+          <>
+            <div
+              aria-hidden="true"
+              className="learning-sheet-cell learning-extend-left learning-sheet-footer-cell col-span-full [@media_(min-width:1024px)]:col-span-8"
+            />
+            <div
+              aria-hidden="true"
+              className="learning-sheet-cell learning-extend-right learning-sheet-footer-cell col-span-full -mr-px [@media_(min-width:1024px)]:col-span-4"
+            />
+          </>
+        ) : (
+          <div
+            aria-hidden="true"
+            className="learning-sheet-cell learning-extend-left learning-extend-right learning-sheet-footer-cell col-span-full"
+          />
+        )}
       </section>
     </LearningGridCanvas>
   );
@@ -565,182 +566,14 @@ function RoleDropdown({
   value: ColumnRole;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const menuId = useId();
   const [isOpen, setIsOpen] = useState(false);
   const selectedLabel = getRoleOptionLabel(value);
 
-  const { contextSafe } = useGSAP(
-    () => {
-      const root = rootRef.current;
-
-      if (!root) {
-        return;
-      }
-
-      const menu = root.querySelector<HTMLElement>("[data-role-dropdown-menu]");
-      const arrow = root.querySelector<HTMLElement>("[data-role-dropdown-arrow]");
-      const highlight = root.querySelector<HTMLElement>("[data-role-dropdown-highlight]");
-      const items = gsap.utils.toArray<HTMLElement>("[data-role-dropdown-item]", root);
-
-      if (!menu || !arrow || !highlight) {
-        return;
-      }
-
-      gsap.set(menu, {
-        autoAlpha: 0,
-        pointerEvents: "none",
-        scale: 0.7,
-        transformOrigin: "50% 0%",
-        yPercent: -30,
-      });
-      gsap.set(arrow, { rotation: 0, transformOrigin: "50% 50%" });
-      gsap.set(highlight, { autoAlpha: 0, height: 0, y: 0 });
-      gsap.set(items, { opacity: 1, x: 0 });
-
-      if (shouldReduceMotion()) {
-        timelineRef.current = null;
-        return;
-      }
-
-      const timeline = gsap.timeline({
-        onReverseComplete: () => {
-          gsap.set(menu, { pointerEvents: "none" });
-        },
-        paused: true,
-      });
-
-      timeline
-        .set(menu, { pointerEvents: "auto" }, 0)
-        .to(
-          arrow,
-          {
-            duration: 0.9,
-            ease: "elastic.out(1.2, 0.3)",
-            easeReverse: "power2.inOut",
-            rotation: 180,
-          },
-          0,
-        )
-        .to(
-          menu,
-          {
-            autoAlpha: 1,
-            duration: 1,
-            ease: "elastic.out(1.2, 0.3)",
-            easeReverse: "power3.out",
-            scale: 1,
-            yPercent: 0,
-          },
-          0,
-        )
-        .from(
-          items,
-          {
-            duration: 0.5,
-            ease: "back.out(3)",
-            easeReverse: "power2.out",
-            opacity: 0,
-            stagger: 0.07,
-            x: -20,
-          },
-          0.1,
-        );
-
-      timelineRef.current = timeline;
-
-      return () => {
-        timelineRef.current = null;
-      };
-    },
-    { scope: rootRef },
-  );
-
-  const syncReducedState = contextSafe((nextOpen: boolean) => {
-    const root = rootRef.current;
-
-    if (!root) {
-      return;
-    }
-
-    const menu = root.querySelector<HTMLElement>("[data-role-dropdown-menu]");
-    const arrow = root.querySelector<HTMLElement>("[data-role-dropdown-arrow]");
-    const highlight = root.querySelector<HTMLElement>("[data-role-dropdown-highlight]");
-    const items = gsap.utils.toArray<HTMLElement>("[data-role-dropdown-item]", root);
-
-    gsap.set(menu, {
-      autoAlpha: nextOpen ? 1 : 0,
-      pointerEvents: nextOpen ? "auto" : "none",
-      scale: 1,
-      yPercent: 0,
-    });
-    gsap.set(arrow, { rotation: nextOpen ? 180 : 0 });
-    gsap.set(highlight, { autoAlpha: 0, height: 0, y: 0 });
-    gsap.set(items, { opacity: 1, x: 0 });
-  });
-
-  const moveOptionHighlight = contextSafe((target: HTMLElement) => {
-    const root = rootRef.current;
-    const highlight = root?.querySelector<HTMLElement>("[data-role-dropdown-highlight]");
-
-    if (!highlight) {
-      return;
-    }
-
-    const edgeCompensation = 1;
-
-    gsap.to(highlight, {
-      autoAlpha: 1,
-      duration: shouldReduceMotion() ? 0 : 0.28,
-      ease: "power3.out",
-      height: target.offsetHeight + edgeCompensation,
-      overwrite: true,
-      y: Math.max(0, target.offsetTop - edgeCompensation),
-    });
-  });
-
-  const hideOptionHighlight = contextSafe(() => {
-    const highlight = rootRef.current?.querySelector<HTMLElement>("[data-role-dropdown-highlight]");
-
-    if (!highlight) {
-      return;
-    }
-
-    gsap.to(highlight, {
-      autoAlpha: 0,
-      duration: shouldReduceMotion() ? 0 : 0.16,
-      ease: "power2.out",
-      overwrite: true,
-    });
-  });
-
-  const setDropdownOpen = contextSafe((nextOpen: boolean) => {
-    setIsOpen(nextOpen);
-
-    if (shouldReduceMotion()) {
-      syncReducedState(nextOpen);
-      return;
-    }
-
-    const timeline = timelineRef.current;
-
-    if (!timeline) {
-      return;
-    }
-
-    if (nextOpen) {
-      timeline.timeScale(1).play();
-      return;
-    }
-
-    timeline.timeScale(roleDropdownExitTimeScale).reverse();
-  });
-
-  const selectRole = contextSafe((nextValue: ColumnRole) => {
+  const selectRole = (nextValue: ColumnRole) => {
     onChange(nextValue);
-    hideOptionHighlight();
-    setDropdownOpen(false);
-  });
+    setIsOpen(false);
+  };
 
   useEffect(() => {
     if (!isOpen) {
@@ -752,12 +585,12 @@ function RoleDropdown({
         return;
       }
 
-      setDropdownOpen(false);
+      setIsOpen(false);
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setDropdownOpen(false);
+        setIsOpen(false);
       }
     };
 
@@ -768,7 +601,7 @@ function RoleDropdown({
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, setDropdownOpen]);
+  }, [isOpen]);
 
   return (
     <div className="relative inline-block w-full" ref={rootRef}>
@@ -778,40 +611,33 @@ function RoleDropdown({
         aria-haspopup="listbox"
         aria-label={`Role for ${columnLabel}`}
         className="learning-grid-control flex min-h-12 w-full cursor-pointer items-center justify-between gap-3 bg-neutral-100/90 px-6 py-3 text-left text-base font-medium text-foreground backdrop-blur-xl supports-[backdrop-filter]:bg-neutral-100/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 [@media_(min-width:2200px)]:min-h-24 [@media_(min-width:2200px)]:px-7 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg"
-        onClick={() => setDropdownOpen(!isOpen)}
+        onClick={() => setIsOpen((current) => !current)}
         type="button"
       >
         <span className="truncate">{selectedLabel}</span>
         <ChevronDownIcon
           aria-hidden="true"
-          className="block size-4 shrink-0 text-current [@media_(min-width:2200px)]:size-5"
-          data-role-dropdown-arrow
+          className={`block size-4 shrink-0 text-current transition-transform duration-150 [@media_(min-width:2200px)]:size-5 ${isOpen ? "rotate-180" : ""}`}
         />
       </button>
 
       <div
         aria-hidden={!isOpen}
         aria-label={`Role options for ${columnLabel}`}
-        className="learning-grid-control invisible absolute top-[calc(100%+10px)] right-0 left-0 z-40 w-full origin-top overflow-hidden bg-neutral-100/90 text-neutral-700 opacity-0 backdrop-blur-xl supports-[backdrop-filter]:bg-neutral-100/80 will-change-transform [@media_(min-width:2200px)]:top-[calc(100%+12px)]"
-        data-role-dropdown-menu
+        className={`learning-grid-control absolute top-[calc(100%+10px)] right-0 left-0 z-40 w-full origin-top overflow-hidden bg-neutral-100/90 text-neutral-700 backdrop-blur-xl transition-[opacity,transform,visibility] duration-150 ease-out supports-[backdrop-filter]:bg-neutral-100/80 [@media_(min-width:2200px)]:top-[calc(100%+12px)] ${
+          isOpen
+            ? "visible translate-y-0 scale-100 opacity-100"
+            : "invisible pointer-events-none -translate-y-2 scale-95 opacity-0"
+        }`}
         id={menuId}
-        onPointerLeave={hideOptionHighlight}
         role="listbox"
       >
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute top-0 right-0 left-0 z-0 bg-emerald-500 opacity-0"
-          data-role-dropdown-highlight
-        />
         {roleOptions.map((option) => (
           <button
             aria-selected={value === option.value}
-            className="relative z-10 block w-full cursor-pointer border-b learning-grid-border px-5 py-3 text-left text-base font-medium text-neutral-700 last:border-b-0 hover:text-neutral-50 focus-visible:text-neutral-50 focus-visible:outline-none [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-4 [@media_(min-width:2200px)]:text-lg"
-            data-role-dropdown-item
+            className="block w-full cursor-pointer border-b learning-grid-border px-5 py-3 text-left text-base font-medium text-neutral-700 last:border-b-0 hover:bg-emerald-500 hover:text-neutral-50 focus-visible:bg-emerald-500 focus-visible:text-neutral-50 focus-visible:outline-none aria-selected:bg-emerald-500 aria-selected:text-neutral-50 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-4 [@media_(min-width:2200px)]:text-lg"
             key={option.value}
-            onFocus={(event) => moveOptionHighlight(event.currentTarget)}
             onClick={() => selectRole(option.value)}
-            onPointerEnter={(event) => moveOptionHighlight(event.currentTarget)}
             role="option"
             type="button"
           >
@@ -961,10 +787,15 @@ function OrderedStepsExerciseView({
 }
 
 function LessonResult({ result }: { result: EvaluationResult }) {
+  const resultCellClassName =
+    result.status === "correct"
+      ? "learning-extend-left learning-extend-right col-span-full"
+      : "learning-extend-left col-span-full [@media_(min-width:1024px)]:col-span-8";
+
   return (
     <div
       aria-live="polite"
-      className="learning-sheet-cell learning-extend-left learning-extend-right col-span-full flex gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12"
+      className={`learning-sheet-cell ${resultCellClassName} flex gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12`}
     >
       {result.status === "correct" ? (
         <CheckCircleIcon
@@ -1003,5 +834,51 @@ function LessonResult({ result }: { result: EvaluationResult }) {
         ) : null}
       </div>
     </div>
+  );
+}
+
+function LessonHintPanel({
+  hints,
+  onToggleHints,
+  visibleHintCount,
+}: {
+  hints: string[];
+  onToggleHints: () => void;
+  visibleHintCount: number;
+}) {
+  const areHintsVisible = visibleHintCount > 0;
+  const areAllHintsVisible = visibleHintCount >= hints.length;
+  const buttonLabel = areHintsVisible
+    ? areAllHintsVisible
+      ? "Hide hints"
+      : "Show another hint"
+    : "Show hints";
+
+  return (
+    <aside className="learning-sheet-cell learning-extend-left learning-extend-right learning-sheet-cell-fill col-span-full -mr-px p-6 [@media_(min-width:1024px)]:col-span-4 [@media_(min-width:2200px)]:p-12">
+      <h2 className="flex items-center gap-3 text-xl font-semibold text-foreground [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:text-3xl">
+        <LightBulbIcon
+          aria-hidden="true"
+          className="size-6 text-amber-500 [@media_(min-width:2200px)]:size-7"
+        />
+        Hint
+      </h2>
+      {areHintsVisible ? (
+        <ol className="mt-6 grid gap-4 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-8 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+          {hints.slice(0, visibleHintCount).map((hint, index) => (
+            <li className="learning-grid-panel-fill p-5 [@media_(min-width:2200px)]:p-6" key={hint}>
+              {index + 1}. {hint}
+            </li>
+          ))}
+        </ol>
+      ) : null}
+      <LiquidButton
+        className={`${amberLiquidButtonClassName} mt-5 w-full cursor-pointer [@media_(min-width:2200px)]:mt-7 [@media_(min-width:2200px)]:min-h-16`}
+        onClick={onToggleHints}
+        type="button"
+      >
+        {buttonLabel}
+      </LiquidButton>
+    </aside>
   );
 }

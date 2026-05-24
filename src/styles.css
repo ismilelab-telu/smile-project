@@ -255,7 +255,7 @@
 
   .learning-sheet-outer-right {
     height: 100vh;
-    right: 1px;
+    right: 0;
     top: 0;
     transform: translateY(-100%);
     width: 1px;
