@@ -100,8 +100,8 @@ export type LearningModule = {
 export type LearningTrack = {
   id: string;
   title: string;
-  summary: string;
   moduleIds: string[];
+  status: "available" | "coming-soon";
 };
 
 export type ExerciseAttempt = {

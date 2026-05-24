@@ -4,79 +4,79 @@ import { evaluateFeatureTargetRoles } from "./evaluate-feature-target";
 import type { ColumnRole } from "../types";
 
 const correctAssignments: Record<string, ColumnRole> = {
-  bedrooms: "safe-feature",
-  building_area_m2: "safe-feature",
-  district: "safe-feature",
-  listing_id: "metadata",
-  price_million_idr: "target",
-  property_type: "safe-feature",
+  day_part: "safe-feature",
+  drinks_sold: "target",
+  promo_active: "safe-feature",
+  shift_id: "metadata",
+  temperature_c: "safe-feature",
+  weather: "safe-feature",
 };
 
 describe("evaluateFeatureTargetRoles", () => {
   it("explains when no target is selected without revealing the answer key", () => {
     const result = evaluateFeatureTargetRoles({
-      bedrooms: "ignore",
-      building_area_m2: "ignore",
-      district: "ignore",
-      listing_id: "ignore",
-      price_million_idr: "ignore",
-      property_type: "ignore",
+      day_part: "ignore",
+      drinks_sold: "ignore",
+      promo_active: "ignore",
+      shift_id: "ignore",
+      temperature_c: "ignore",
+      weather: "ignore",
     });
 
     expect(result.status).toBe("incorrect");
     expect(result.message).toContain("No target is selected yet");
-    expect(result.message).not.toContain("price_million_idr");
-    expect(result.nextStep).not.toContain("price_million_idr");
+    expect(result.message).not.toContain("drinks_sold");
+    expect(result.nextStep).not.toContain("drinks_sold");
   });
 
   it("responds to role work that is already wrong before a target is selected", () => {
     const result = evaluateFeatureTargetRoles({
-      bedrooms: "metadata",
-      building_area_m2: "ignore",
-      district: "ignore",
-      listing_id: "ignore",
-      price_million_idr: "ignore",
-      property_type: "ignore",
+      day_part: "metadata",
+      drinks_sold: "ignore",
+      promo_active: "ignore",
+      shift_id: "ignore",
+      temperature_c: "ignore",
+      weather: "ignore",
     });
 
     expect(result.status).toBe("incorrect");
-    expect(result.message).toContain("Bedrooms is marked as metadata");
-    expect(result.message).not.toContain("price_million_idr");
+    expect(result.message).toContain("Day Part is marked as metadata");
+    expect(result.message).not.toContain("drinks_sold");
     expect(result.nextStep).toContain("metadata for row-reference fields");
   });
 
   it("gives a different explanation when a descriptive column is selected as target", () => {
     const result = evaluateFeatureTargetRoles({
       ...correctAssignments,
-      district: "target",
-      price_million_idr: "ignore",
+      weather: "target",
+      drinks_sold: "ignore",
     });
 
     expect(result.status).toBe("incorrect");
-    expect(result.message).toContain("District is marked as the target");
-    expect(result.message).not.toContain("price_million_idr");
+    expect(result.message).toContain("Weather is marked as the target");
+    expect(result.message).not.toContain("drinks_sold");
   });
 
   it("flags identifier-as-feature separately from missing feature work", () => {
     const result = evaluateFeatureTargetRoles({
       ...correctAssignments,
-      listing_id: "safe-feature",
+      shift_id: "safe-feature",
     });
 
     expect(result.status).toBe("partial");
-    expect(result.message).toContain("row identifier is being used as a feature");
+    expect(result.message).toContain("shift identifier is being used as a feature");
     expect(result.nextStep).toContain("keep identifier fields as metadata");
   });
 
-  it("recognizes when property attributes are still missing as safe features", () => {
+  it("recognizes when shift details are still missing as safe features", () => {
     const result = evaluateFeatureTargetRoles({
       ...correctAssignments,
-      bedrooms: "ignore",
-      district: "ignore",
+      weather: "ignore",
+      promo_active: "ignore",
     });
 
     expect(result.status).toBe("partial");
-    expect(result.message).toContain("property attributes");
+    expect(result.message).toContain("shift details");
     expect(result.nextStep).toContain("known before prediction");
   });
 });

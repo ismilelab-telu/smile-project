@@ -1,10 +1,11 @@
-import { activeLesson, getLesson } from "@/features/learning/content/learning-content";
+import { activeLesson, getLesson, getTrack } from "@/features/learning/content/learning-content";
 import {
   LearningGridCanvas,
   LearningSheetExtensions,
 } from "@/features/learning/components/LearningGridCanvas";
 import { LearningHome } from "@/features/learning/components/LearningHome";
 import { LearningHeader } from "@/features/learning/components/LearningHeader";
+import { LearningTrackHub } from "@/features/learning/components/LearningTrackHub";
 import { LessonPage } from "@/features/learning/components/LessonPage";
 import { getLessonLockReason, isLessonUnlocked } from "@/features/learning/progress/lesson-access";
 import { useLearningProgress } from "@/features/learning/progress/learning-progress";
@@ -19,39 +20,59 @@ type LearningPageProps = {
   path?: string;
 };
 
-function getLessonIdFromPath(path: string) {
+type LearningRoute =
+  | { kind: "hub" }
+  | { kind: "track"; trackId: string }
+  | { kind: "lesson"; lessonId: string; trackId: string }
+  | { kind: "not-found"; trackId?: string };
+
+function getLearningRoute(path: string): LearningRoute {
   const parts = path.split("/").filter(Boolean);
 
-  if (parts.length === 3 && parts[0] === "learn" && parts[1] === "track-regression-foundations") {
-    return parts[2];
+  if (parts[0] !== "learn" || parts.length === 1) {
+    return { kind: "hub" };
   }
 
-  return undefined;
+  if (parts.length === 2) {
+    return { kind: "track", trackId: parts[1] };
+  }
+
+  if (parts.length === 3) {
+    return { kind: "lesson", lessonId: parts[2], trackId: parts[1] };
+  }
+
+  return { kind: "not-found", trackId: parts[1] };
 }
 
 export function LearningPage({ path = "/learn" }: LearningPageProps) {
   const { completeLesson, progress, resetProgress } = useLearningProgress();
-  const lessonId = getLessonIdFromPath(path);
-  const lesson = lessonId ? getLesson(lessonId) : undefined;
+  const route = getLearningRoute(path);
 
-  if (lessonId && !lesson) {
+  if (route.kind === "hub") {
+    return <LearningTrackHub progress={progress} />;
+  }
+
+  const track = route.trackId ? getTrack(route.trackId) : undefined;
+  const trackHomeHref = track ? `/learn/${track.id}` : "/learn";
+
+  if (!track || route.kind === "not-found") {
     return (
       <LearningGridCanvas>
-        <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
+        <LearningHeader backHref="/learn" backLabel="Back to Learning Paths" />
         <section
           className={`route-content-transition-target relative isolate mx-auto mt-20 max-w-xl overflow-hidden text-center [@media_(min-width:2200px)]:max-w-3xl ${learningFallbackSurfaceClassName}`}
         >
           <LearningSheetExtensions />
 
           <h1 className="learning-sheet-cell p-8 text-2xl font-semibold text-foreground [@media_(min-width:2200px)]:p-12 [@media_(min-width:2200px)]:text-4xl">
-            Lesson not found
+            Learning path not found
           </h1>
           <p className="learning-sheet-cell p-8 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:p-12 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
-            This lesson ID is not available in Learning Mode yet.
+            This path is not available in Learning Mode yet.
           </p>
           <div className="learning-sheet-cell p-8 [@media_(min-width:2200px)]:p-12">
             <LiquidLink className={liquidButtonClassName} data-app-link href="/learn">
-              Back to Learning Home
+              Back to Learning Paths
             </LiquidLink>
           </div>
         </section>
@@ -59,11 +80,68 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
     );
   }
 
-  if (lesson) {
+  if (track.status !== "available") {
+    return (
+      <LearningGridCanvas>
+        <LearningHeader backHref="/learn" backLabel="Back to Learning Paths" />
+        <section
+          className={`route-content-transition-target relative isolate mx-auto mt-20 max-w-xl overflow-hidden text-center [@media_(min-width:2200px)]:max-w-3xl ${learningFallbackSurfaceClassName}`}
+        >
+          <LearningSheetExtensions />
+
+          <h1 className="learning-sheet-cell p-8 text-2xl font-semibold text-foreground [@media_(min-width:2200px)]:p-12 [@media_(min-width:2200px)]:text-4xl">
+            {track.title} is coming soon
+          </h1>
+          <p className="learning-sheet-cell p-8 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:p-12 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+            Start with Machine Learning Foundations while this path is being prepared.
+          </p>
+          <div className="learning-sheet-cell p-8 [@media_(min-width:2200px)]:p-12">
+            <LiquidLink className={liquidButtonClassName} data-app-link href="/learn">
+              Back to Learning Paths
+            </LiquidLink>
+          </div>
+        </section>
+      </LearningGridCanvas>
+    );
+  }
+
+  if (route.kind === "track") {
+    return <LearningHome onResetProgress={resetProgress} progress={progress} track={track} />;
+  }
+
+  if (route.kind === "lesson") {
+    const lesson = getLesson(route.lessonId);
+    const isLessonInTrack = lesson ? track.moduleIds.includes(lesson.moduleId) : false;
+
+    if (!lesson || !isLessonInTrack) {
+      return (
+        <LearningGridCanvas>
+          <LearningHeader backHref={trackHomeHref} backLabel="Back to Learning Path" />
+          <section
+            className={`route-content-transition-target relative isolate mx-auto mt-20 max-w-xl overflow-hidden text-center [@media_(min-width:2200px)]:max-w-3xl ${learningFallbackSurfaceClassName}`}
+          >
+            <LearningSheetExtensions />
+
+            <h1 className="learning-sheet-cell p-8 text-2xl font-semibold text-foreground [@media_(min-width:2200px)]:p-12 [@media_(min-width:2200px)]:text-4xl">
+              Lesson not found
+            </h1>
+            <p className="learning-sheet-cell p-8 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:p-12 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+              This lesson ID is not available in this learning path yet.
+            </p>
+            <div className="learning-sheet-cell p-8 [@media_(min-width:2200px)]:p-12">
+              <LiquidLink className={liquidButtonClassName} data-app-link href={trackHomeHref}>
+                Back to Learning Path
+              </LiquidLink>
+            </div>
+          </section>
+        </LearningGridCanvas>
+      );
+    }
+
     if (!isLessonUnlocked(lesson, progress)) {
       return (
         <LearningGridCanvas>
-          <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
+          <LearningHeader backHref={trackHomeHref} backLabel="Back to Learning Path" />
           <section
             className={`route-content-transition-target relative isolate mx-auto mt-20 max-w-xl overflow-hidden text-center [@media_(min-width:2200px)]:max-w-3xl ${learningFallbackSurfaceClassName}`}
           >
@@ -76,8 +154,8 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
               {getLessonLockReason(lesson, progress)}
             </p>
             <div className="learning-sheet-cell p-8 [@media_(min-width:2200px)]:p-12">
-              <LiquidLink className={liquidButtonClassName} data-app-link href="/learn">
-                Back to Learning Home
+              <LiquidLink className={liquidButtonClassName} data-app-link href={trackHomeHref}>
+                Back to Learning Path
               </LiquidLink>
             </div>
           </section>
@@ -87,6 +165,8 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
 
     return (
       <LessonPage
+        backHref={trackHomeHref}
+        backLabel="Back to Learning Path"
         lesson={lesson}
         onSubmitResult={(result) => {
           completeLesson({
@@ -99,7 +179,7 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
     );
   }
 
-  return <LearningHome onResetProgress={resetProgress} progress={progress} />;
+  return <LearningTrackHub progress={progress} />;
 }
 
 export const activeLearningLesson = activeLesson;

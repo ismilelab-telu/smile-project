@@ -53,6 +53,8 @@ const emeraldLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-but
 const amberLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-button-color:var(--color-amber-500)]`;
 
 type LessonPageProps = {
+  backHref?: string;
+  backLabel?: string;
   lesson: Lesson;
   onSubmitResult: (result: EvaluationResult) => void;
 };
@@ -88,7 +90,12 @@ function getRoleOptionLabel(value: ColumnRole) {
   return roleOptions.find((option) => option.value === value)?.label ?? roleOptions[0].label;
 }
 
-export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
+export function LessonPage({
+  backHref = "/learn",
+  backLabel = "Back to Learning Home",
+  lesson,
+  onSubmitResult,
+}: LessonPageProps) {
   const expectedRoles = useMemo(() => getExpectedColumnRoles(), []);
   const initialAssignments = useMemo(
     () =>
@@ -126,7 +133,7 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
   if (lesson.exercise.type === "table-column-role-assignment" && !datasetView) {
     return (
       <LearningGridCanvas>
-        <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
+        <LearningHeader backHref={backHref} backLabel={backLabel} />
         <section className="learning-sheet route-content-transition-target mx-auto mt-20 grid max-w-xl text-center [@media_(min-width:2200px)]:max-w-3xl">
           <LearningSheetExtensions />
 
@@ -142,9 +149,9 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
             <LiquidLink
               className={`${emeraldLiquidButtonClassName} [@media_(min-width:2200px)]:min-h-16`}
               data-app-link
-              href="/learn"
+              href={backHref}
             >
-              Back to Learning Home
+              {backLabel}
             </LiquidLink>
           </div>
         </section>
@@ -214,7 +221,7 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
 
   return (
     <LearningGridCanvas>
-      <LearningHeader backHref="/learn" backLabel="Back to Learning Home" />
+      <LearningHeader backHref={backHref} backLabel={backLabel} />
 
       <section className="learning-sheet route-content-transition-target mx-auto grid w-[min(1440px,calc(100%_-_48px))] grid-cols-1 [@media_(min-width:1024px)]:grid-cols-12 [@media_(min-width:2200px)]:w-[min(1776px,calc(100%_-_96px))]">
         <LearningSheetExtensions />

@@ -59,12 +59,32 @@ const moduleLessonIds = {
   ],
 } satisfies Record<(typeof moduleIds)[number], string[]>;
 
-export const regressionFoundationsTrack: LearningTrack = {
-  id: "track-regression-foundations",
+export const machineLearningFoundationsTrack: LearningTrack = {
+  id: "track-machine-learning-foundations",
   moduleIds: [...moduleIds],
-  summary: "Understand supervised regression workflow from data to model evaluation.",
-  title: "Regression Foundations",
+  status: "available",
+  title: "Machine Learning Foundations",
 };
+
+export const regressionTrack: LearningTrack = {
+  id: "track-regression",
+  moduleIds: [],
+  status: "coming-soon",
+  title: "Regression",
+};
+
+export const classificationTrack: LearningTrack = {
+  id: "track-classification",
+  moduleIds: [],
+  status: "coming-soon",
+  title: "Classification",
+};
+
+export const learningTracks: LearningTrack[] = [
+  machineLearningFoundationsTrack,
+  regressionTrack,
+  classificationTrack,
+];
 
 export const learningModules: LearningModule[] = [
   {
@@ -156,15 +176,15 @@ function multipleChoiceLesson(input: MultipleChoiceLessonInput): Lesson {
 }
 
 const lesson01: Lesson = {
-  datasetId: "dataset-house-prices-intro",
+  datasetId: "dataset-smile-cafe-demand-intro",
   estimatedMinutes: 5,
   exercise: {
     datasetContext:
-      "You are preparing listing data for a model that predicts residential property prices.",
+      "You are helping Smile Cafe prepare shift data for a model that forecasts drink demand.",
     hints: [
-      "The target usually answers the question: what value do we want to predict?",
-      "A feature is information that is already known before the prediction is made.",
-      "An ID column helps identify rows, but the ID is not why a property is expensive or cheap.",
+      "The target answers the question: what number should the cafe forecast before a shift starts?",
+      "A safe feature is information the cafe already knows before the shift begins.",
+      "An ID helps the team find a row again, but the ID does not explain demand.",
     ],
     id: "exercise-0-1-select-feature-target",
     instruction: "Choose one target, safe features, and metadata when present.",
@@ -177,22 +197,22 @@ const lesson01: Lesson = {
   numberLabel: "Lesson 0.1",
   objective: "You can identify the target, features, and metadata in a small tabular dataset.",
   summary: [
-    "A tabular dataset is made of rows and columns. One row represents one data example, while one column represents a type of information recorded for every example.",
-    "In supervised learning, the target is the value you want to predict. Features are the information the model uses to make that prediction.",
-    "Metadata columns such as IDs are useful for reading the data, but they are usually not safe signals for a general model.",
+    "A dataframe is a table for analysis. Each row is one example, and each column describes one kind of information about that example.",
+    "In this lesson, each row is one Smile Cafe shift. The columns describe the shift: day part, weather, temperature, promo status, and drinks sold.",
+    "For supervised learning, one column becomes the target: the value we want to predict. Other useful columns can become features, while ID columns stay as metadata because they identify rows but do not explain the prediction.",
   ],
-  title: "Rows, Columns, Features, and Targets",
+  title: "Understanding Dataframes for ML",
   viewId: "intro-table-preview",
 };
 
 const lesson02: Lesson = multipleChoiceLesson({
-  correctOptionIds: ["predict-house-price", "predict-days-on-market"],
+  correctOptionIds: ["predict-drinks-sold", "predict-wait-minutes"],
   estimatedMinutes: 4,
   exerciseId: "exercise-0-2-classify-problem-type",
   hints: [
     "Ask what the model output looks like: number or class?",
-    "House, apartment, and townhouse are categories.",
-    "A property price is a numeric target with many possible values.",
+    "Hot, iced, and blended are categories.",
+    "Drink count and waiting time are numeric targets with many possible values.",
   ],
   id: "lesson-0-2-regression-classification",
   moduleId: "module-0-workflow-foundations",
@@ -200,26 +220,26 @@ const lesson02: Lesson = multipleChoiceLesson({
   objective: "You can distinguish regression problems from classification problems.",
   options: [
     {
-      id: "predict-house-price",
-      label: "Predict residential property price in million IDR.",
+      id: "predict-drinks-sold",
+      label: "Predict how many drinks Smile Cafe will sell in a shift.",
     },
     {
-      id: "predict-property-type",
-      label: "Predict whether a listing is a house, apartment, or townhouse.",
+      id: "predict-drink-category",
+      label: "Predict whether the top-selling drink will be hot, iced, or blended.",
     },
     {
-      id: "predict-days-on-market",
-      label: "Predict how many days it will take for a property to sell.",
+      id: "predict-wait-minutes",
+      label: "Predict the average customer wait time in minutes.",
     },
     {
-      id: "predict-renovated-label",
-      label: "Predict whether a property has been renovated.",
+      id: "predict-stockout-label",
+      label: "Predict whether the shift will run out of oat milk.",
     },
   ],
   prompt: "Which scenarios are regression problems?",
   summary: [
-    "Regression is used when the target is a continuous number, such as price, temperature, or duration.",
-    "Classification is used when the target is a category or label, such as property type or renovated/not renovated.",
+    "Regression is used when the target is a number, such as drinks sold, temperature, or waiting time.",
+    "Classification is used when the target is a category or label, such as drink type or stockout/not stockout.",
     "The important question is the output shape: what should the model predict?",
   ],
   title: "Regression vs Classification",
@@ -290,15 +310,15 @@ const laterLessons: Lesson[] = [
     id: "lesson-1-1-column-types",
     moduleId: "module-1-data-understanding",
     numberLabel: "Lesson 1.1",
-    objective: "You can classify common column types in a small property dataset.",
+    objective: "You can classify common column types in a small cafe shift dataset.",
     options: [
-      { id: "listing-id-text", label: "listing_id is a text identifier." },
-      { id: "district-categorical", label: "district is categorical." },
-      { id: "area-numeric", label: "building_area_m2 is numeric." },
-      { id: "parking-boolean", label: "has_parking is boolean." },
-      { id: "price-numeric-target", label: "price_million_idr is a numeric target." },
-      { id: "district-numeric", label: "district is numeric." },
-      { id: "listing-id-target", label: "listing_id is the target." },
+      { id: "listing-id-text", label: "shift_id is a text identifier." },
+      { id: "district-categorical", label: "branch_area is categorical." },
+      { id: "area-numeric", label: "temperature_c is numeric." },
+      { id: "parking-boolean", label: "promo_active is boolean." },
+      { id: "price-numeric-target", label: "drinks_sold is a numeric target." },
+      { id: "district-numeric", label: "branch_area is numeric." },
+      { id: "listing-id-target", label: "shift_id is the target." },
     ],
     prompt: "Which column type statements are correct?",
     summary: [
@@ -314,20 +334,20 @@ const laterLessons: Lesson[] = [
     hints: [
       "The target answers what we want to predict.",
       "A feature must be known before prediction time.",
-      "Do not feed the final price into a model that predicts final price.",
+      "Do not feed the final demand count into a model that predicts final demand.",
     ],
     id: "lesson-1-2-target-context",
     moduleId: "module-1-data-understanding",
     numberLabel: "Lesson 1.2",
     objective: "You can decide which fields are available at prediction time.",
     options: [
-      { id: "district", label: "District of the property." },
-      { id: "property-type", label: "Property type." },
-      { id: "building-area", label: "Building area." },
-      { id: "bedrooms", label: "Bedroom count." },
-      { id: "price", label: "Final property price." },
+      { id: "district", label: "Branch area." },
+      { id: "property-type", label: "Day part." },
+      { id: "building-area", label: "Weather." },
+      { id: "bedrooms", label: "Promo active." },
+      { id: "price", label: "Final drinks sold." },
     ],
-    prompt: "Which fields are safe features for predicting property price?",
+    prompt: "Which fields are safe features for forecasting drinks sold?",
     summary: [
       "A target must be clearly defined before modeling starts.",
       "Features must be available before the prediction is made. Information only known after the target happens can create leakage.",
@@ -349,10 +369,10 @@ const laterLessons: Lesson[] = [
     objective: "You can spot first-look data quality issues before deeper analysis.",
     options: [
       { id: "missing-value", label: "A feature value is missing." },
-      { id: "negative-area", label: "Building area is negative." },
-      { id: "category-typo", label: "A district label uses inconsistent spelling." },
+      { id: "negative-area", label: "Drinks sold is negative." },
+      { id: "category-typo", label: "A branch area label uses inconsistent spelling." },
       { id: "missing-target", label: "A target value is empty." },
-      { id: "valid-district", label: "A valid district value is present." },
+      { id: "valid-district", label: "A valid branch area value is present." },
     ],
     prompt: "Which items are first-look data quality issues?",
     summary: [
@@ -375,11 +395,11 @@ const laterLessons: Lesson[] = [
     numberLabel: "Lesson 2.1",
     objective: "You can choose charts based on the question and data type.",
     options: [
-      { id: "price-histogram", label: "Use a histogram for the price distribution." },
-      { id: "area-price-scatter", label: "Use a scatter plot for area vs price." },
-      { id: "district-bar", label: "Use a bar chart for listing count by district." },
-      { id: "type-box", label: "Use grouped summaries to compare price by property type." },
-      { id: "id-histogram", label: "Use a histogram of listing IDs to evaluate model quality." },
+      { id: "price-histogram", label: "Use a histogram for the drinks-sold distribution." },
+      { id: "area-price-scatter", label: "Use a scatter plot for temperature vs drinks sold." },
+      { id: "district-bar", label: "Use a bar chart for shift count by branch area." },
+      { id: "type-box", label: "Use grouped summaries to compare demand by day part." },
+      { id: "id-histogram", label: "Use a histogram of shift IDs to evaluate model quality." },
     ],
     prompt: "Which chart choices match the question?",
     summary: [
@@ -402,12 +422,12 @@ const laterLessons: Lesson[] = [
     numberLabel: "Lesson 2.2",
     objective: "You can read a target distribution for range, skew, and extreme values.",
     options: [
-      { id: "right-skew", label: "Prices are right-skewed with a few very high values." },
-      { id: "wide-range", label: "The price range is wide enough that error units matter." },
-      { id: "all-same", label: "All properties have almost identical prices." },
-      { id: "no-extreme", label: "There are no extreme prices worth checking." },
+      { id: "right-skew", label: "Demand is right-skewed with a few very busy shifts." },
+      { id: "wide-range", label: "The demand range is wide enough that error units matter." },
+      { id: "all-same", label: "All shifts sell almost identical drink counts." },
+      { id: "no-extreme", label: "There are no unusually busy shifts worth checking." },
     ],
-    prompt: "Which conclusions are supported by a right-skewed price histogram?",
+    prompt: "Which conclusions are supported by a right-skewed drinks-sold histogram?",
     summary: [
       "A target histogram shows the values the model needs to predict.",
       "Skew and extreme values can make evaluation harder, but they do not automatically mean the data is wrong.",
@@ -428,9 +448,12 @@ const laterLessons: Lesson[] = [
     numberLabel: "Lesson 2.3",
     objective: "You can identify a promising feature-target relationship from a scatter plot.",
     options: [
-      { id: "building-area", label: "building_area_m2, because price tends to rise with area." },
-      { id: "listing-id", label: "listing_id, because it is unique for each row." },
-      { id: "random-order", label: "Random listing order, because it changes every row." },
+      {
+        id: "building-area",
+        label: "temperature_c, because demand tends to rise on warmer shifts.",
+      },
+      { id: "listing-id", label: "shift_id, because it is unique for each row." },
+      { id: "random-order", label: "Random row order, because it changes every row." },
       { id: "source-batch", label: "Source batch, because it is a data collection artifact." },
     ],
     prompt: "Which feature is most promising for a first Linear Regression model?",
@@ -454,9 +477,12 @@ const laterLessons: Lesson[] = [
     numberLabel: "Lesson 2.4",
     objective: "You can identify outlier candidates without deleting them automatically.",
     options: [
-      { id: "investigate-outlier", label: "Mark unusual price-area points for investigation." },
+      {
+        id: "investigate-outlier",
+        label: "Mark unusual temperature-demand points for investigation.",
+      },
       { id: "do-not-auto-delete", label: "Keep context before deciding to remove a point." },
-      { id: "delete-all-high", label: "Delete every expensive property immediately." },
+      { id: "delete-all-high", label: "Delete every unusually busy shift immediately." },
       {
         id: "ignore-outliers",
         label: "Ignore all outliers because models handle them automatically.",
@@ -483,7 +509,7 @@ const laterLessons: Lesson[] = [
     numberLabel: "Lesson 2.5",
     objective: "You can choose EDA conclusions that are supported by evidence.",
     options: [
-      { id: "supported-pattern", label: "Area appears positively related to price." },
+      { id: "supported-pattern", label: "Temperature appears positively related to drinks sold." },
       { id: "state-limits", label: "The chart does not prove causation." },
       { id: "next-step", label: "Investigate extreme points before cleaning or modeling." },
       { id: "perfect-model", label: "The chart proves the model will be perfect." },
@@ -541,9 +567,9 @@ const laterLessons: Lesson[] = [
     numberLabel: "Lesson 3.2",
     objective: "You can identify duplicate rows and explain their impact.",
     options: [
-      { id: "find-duplicate", label: "Flag rows that repeat the same listing record." },
+      { id: "find-duplicate", label: "Flag rows that repeat the same shift record." },
       { id: "avoid-bias", label: "Duplicates can overweight repeated examples." },
-      { id: "same-district", label: "Rows from the same district are always duplicates." },
+      { id: "same-district", label: "Rows from the same branch area are always duplicates." },
       { id: "keep-all", label: "Duplicate rows never affect model evaluation." },
     ],
     prompt: "Which duplicate-row statements are correct?",
@@ -567,13 +593,13 @@ const laterLessons: Lesson[] = [
     numberLabel: "Lesson 3.3",
     objective: "You can separate valid, suspicious, and impossible values.",
     options: [
-      { id: "negative-area", label: "Negative building area is invalid." },
-      { id: "impossible-bedroom", label: "A negative bedroom count is invalid." },
+      { id: "negative-area", label: "Negative drinks sold is invalid." },
+      { id: "impossible-bedroom", label: "A negative customer count is invalid." },
       {
         id: "valid-high-price",
-        label: "A high price can be valid if the property context supports it.",
+        label: "A very high drink count can be valid if the shift context supports it.",
       },
-      { id: "all-expensive-invalid", label: "Every expensive property is invalid." },
+      { id: "all-expensive-invalid", label: "Every unusually busy shift is invalid." },
     ],
     prompt: "Which invalid-value statements are correct?",
     summary: [
@@ -654,7 +680,10 @@ const laterLessons: Lesson[] = [
       { id: "known-before", label: "Use fields known before prediction time." },
       { id: "not-target", label: "Exclude the target from model inputs." },
       { id: "not-id-only", label: "Avoid treating row identifiers as meaningful signals." },
-      { id: "use-final-price", label: "Use final price as a feature to predict final price." },
+      {
+        id: "use-final-price",
+        label: "Use final drinks sold as a feature to predict drinks sold.",
+      },
     ],
     prompt: "Which feature choices are safe?",
     summary: [
@@ -679,8 +708,8 @@ const laterLessons: Lesson[] = [
     options: [
       { id: "future-info", label: "Information only known after the prediction point." },
       { id: "target-derived", label: "A field calculated from the target." },
-      { id: "post-outcome", label: "A post-sale outcome used to predict sale price." },
-      { id: "building-area", label: "Building area known before pricing." },
+      { id: "post-outcome", label: "End-of-shift revenue used to forecast drinks sold." },
+      { id: "building-area", label: "Temperature known before the shift starts." },
     ],
     prompt: "Which fields are leakage risks?",
     summary: [
@@ -732,10 +761,13 @@ const laterLessons: Lesson[] = [
     numberLabel: "Lesson 4.4",
     objective: "You can identify simple safe feature engineering ideas.",
     options: [
-      { id: "area-per-bedroom", label: "Create area per bedroom from existing property fields." },
-      { id: "is-central", label: "Create a central-district flag from district." },
+      {
+        id: "area-per-bedroom",
+        label: "Create a promo-and-event flag from existing shift fields.",
+      },
+      { id: "is-central", label: "Create a central-branch flag from branch area." },
       { id: "row-wise-safe", label: "Use row-wise transformations that do not use the target." },
-      { id: "price-ratio", label: "Create a feature directly from price_million_idr." },
+      { id: "price-ratio", label: "Create a feature directly from drinks_sold." },
     ],
     prompt: "Which feature engineering ideas are safe?",
     summary: [
@@ -873,16 +905,16 @@ const laterLessons: Lesson[] = [
         label: "Train and test should have broadly similar target coverage.",
       },
       { id: "avoid-sorted-split", label: "Avoid splitting after sorting by target." },
-      { id: "check-target-range", label: "Check whether both sets cover realistic price ranges." },
+      { id: "check-target-range", label: "Check whether both sets cover realistic demand ranges." },
       {
         id: "test-only-cheap",
-        label: "Put only cheap properties in test to make evaluation easier.",
+        label: "Put only quiet shifts in test to make evaluation easier.",
       },
     ],
     prompt: "Which split practices support reliable evaluation?",
     summary: [
       "A test set should represent the kind of data the model will face.",
-      "A split that separates data by sorted price or unusual groups can distort evaluation.",
+      "A split that separates data by sorted demand or unusual groups can distort evaluation.",
     ],
     title: "Representative Split",
   }),
@@ -927,14 +959,14 @@ const laterLessons: Lesson[] = [
     objective: "You can interpret a numeric prediction from a regression model.",
     options: [
       { id: "plug-feature", label: "Use feature values as inputs to produce a prediction." },
-      { id: "read-output", label: "Read the output as the predicted price." },
+      { id: "read-output", label: "Read the output as the predicted drinks sold." },
       { id: "same-unit", label: "Interpret the prediction in the target unit." },
-      { id: "class-label", label: "Interpret the prediction as a property type class." },
+      { id: "class-label", label: "Interpret the prediction as a drink type class." },
     ],
     prompt: "Which prediction statements are correct?",
     summary: [
       "A regression model prediction is a numeric output for a row.",
-      "The prediction should be interpreted in the same unit as the target, such as million IDR.",
+      "The prediction should be interpreted in the same unit as the target, such as cups sold.",
     ],
     title: "Prediction",
   }),
@@ -1092,4 +1124,8 @@ export function getLesson(lessonId: string) {
 
 export function getModule(moduleId: string) {
   return learningModules.find((module) => module.id === moduleId);
+}
+
+export function getTrack(trackId: string) {
+  return learningTracks.find((track) => track.id === trackId);
 }

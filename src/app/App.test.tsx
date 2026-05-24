@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { learningProgressStorageKey } from "@/features/learning/progress/learning-progress";
 
+const foundationsTrackPath = "/learn/track-machine-learning-foundations";
+
 function seedCompletedLessons(completedLessonIds: string[]) {
   window.localStorage.setItem(
     learningProgressStorageKey,
@@ -72,38 +74,63 @@ describe("App", () => {
     expect(window.location.pathname).toBe("/explore");
   });
 
-  it("shows only the first Learning Mode lesson as available without progress", async () => {
+  it("shows the Learning Mode track choices before a lesson list", async () => {
     window.history.pushState(null, "", "/learn");
     render(<App />);
 
     expect(
-      await screen.findByRole("heading", { name: "Regression Foundations" }, lazyRouteTimeout),
+      await screen.findByRole("heading", { name: "Choose a learning path" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Machine Learning Foundations" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Start path/ })).toHaveAttribute(
+      "href",
+      foundationsTrackPath,
+    );
+    expect(screen.getByText("Regression")).toBeInTheDocument();
+    expect(screen.getByText("Classification")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Coming soon/ })).toHaveLength(2);
+  });
+
+  it("shows only the first Machine Learning Foundations lesson as available without progress", async () => {
+    window.history.pushState(null, "", foundationsTrackPath);
+    render(<App />);
+
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: "Machine Learning Foundations" },
+        lazyRouteTimeout,
+      ),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Start lesson/ })).toHaveLength(1);
     expect(screen.getByRole("link", { name: /Start lesson/ })).toHaveAttribute(
       "href",
-      "/learn/track-regression-foundations/lesson-0-1-feature-target",
+      `${foundationsTrackPath}/lesson-0-1-feature-target`,
     );
     expect(
       document.querySelector(
-        'a[href="/learn/track-regression-foundations/lesson-0-2-regression-classification"]',
+        `a[href="${foundationsTrackPath}/lesson-0-2-regression-classification"]`,
       ),
     ).toBeNull();
     expect(
-      document.querySelector(
-        'a[href="/learn/track-regression-foundations/lesson-0-3-ml-workflow-order"]',
-      ),
+      document.querySelector(`a[href="${foundationsTrackPath}/lesson-0-3-ml-workflow-order"]`),
     ).toBeNull();
     expect(screen.getAllByText("Locked").length).toBeGreaterThanOrEqual(2);
   });
 
   it("requires confirmation before resetting learning progress", async () => {
     seedCompletedLessons(["lesson-0-1-feature-target", "lesson-0-2-regression-classification"]);
-    window.history.pushState(null, "", "/learn");
+    window.history.pushState(null, "", foundationsTrackPath);
     render(<App />);
 
     expect(
-      await screen.findByRole("heading", { name: "Regression Foundations" }, lazyRouteTimeout),
+      await screen.findByRole(
+        "heading",
+        { name: "Machine Learning Foundations" },
+        lazyRouteTimeout,
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText("2/32")).toBeInTheDocument();
 
@@ -143,92 +170,82 @@ describe("App", () => {
   });
 
   it("completes the first lesson, persists progress, and unlocks the next lesson", async () => {
-    window.history.pushState(
-      null,
-      "",
-      "/learn/track-regression-foundations/lesson-0-1-feature-target",
-    );
+    window.history.pushState(null, "", `${foundationsTrackPath}/lesson-0-1-feature-target`);
     render(<App />);
 
     expect(
       await screen.findByRole(
         "heading",
-        { name: "Rows, Columns, Features, and Targets" },
+        { name: "Understanding Dataframes for ML" },
         lazyRouteTimeout,
       ),
     ).toBeInTheDocument();
 
-    await chooseColumnRole("Listing ID", "Metadata");
-    await chooseColumnRole("District", "Safe feature");
-    await chooseColumnRole("Property Type", "Safe feature");
-    await chooseColumnRole("Building Area", "Safe feature");
-    await chooseColumnRole("Bedrooms", "Safe feature");
-    await chooseColumnRole("Price", "Target");
+    await chooseColumnRole("Shift ID", "Metadata");
+    await chooseColumnRole("Day Part", "Safe feature");
+    await chooseColumnRole("Weather", "Safe feature");
+    await chooseColumnRole("Temperature", "Safe feature");
+    await chooseColumnRole("Promo Active", "Safe feature");
+    await chooseColumnRole("Drinks Sold", "Target");
 
     fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
 
     expect(await screen.findByRole("heading", { name: "Correct" })).toBeInTheDocument();
     expect(getStoredCompletedLessonIds()).toContain("lesson-0-1-feature-target");
 
-    fireEvent.click(screen.getAllByRole("link", { name: "Back to Learning Home" })[0]);
+    fireEvent.click(screen.getAllByRole("link", { name: "Back to Learning Path" })[0]);
 
     expect(
-      await screen.findByRole("heading", { name: "Regression Foundations" }, lazyRouteTimeout),
+      await screen.findByRole(
+        "heading",
+        { name: "Machine Learning Foundations" },
+        lazyRouteTimeout,
+      ),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Review lesson/ })).toHaveAttribute(
       "href",
-      "/learn/track-regression-foundations/lesson-0-1-feature-target",
+      `${foundationsTrackPath}/lesson-0-1-feature-target`,
     );
     expect(screen.getByRole("link", { name: /Start lesson/ })).toHaveAttribute(
       "href",
-      "/learn/track-regression-foundations/lesson-0-2-regression-classification",
+      `${foundationsTrackPath}/lesson-0-2-regression-classification`,
     );
     expect(
-      document.querySelector(
-        'a[href="/learn/track-regression-foundations/lesson-0-3-ml-workflow-order"]',
-      ),
+      document.querySelector(`a[href="${foundationsTrackPath}/lesson-0-3-ml-workflow-order"]`),
     ).toBeNull();
   });
 
   it("sorts the dataset preview when a column header is clicked", async () => {
-    window.history.pushState(
-      null,
-      "",
-      "/learn/track-regression-foundations/lesson-0-1-feature-target",
-    );
+    window.history.pushState(null, "", `${foundationsTrackPath}/lesson-0-1-feature-target`);
     render(<App />);
 
     expect(
       await screen.findByRole(
         "heading",
-        { name: "Rows, Columns, Features, and Targets" },
+        { name: "Understanding Dataframes for ML" },
         lazyRouteTimeout,
       ),
     ).toBeInTheDocument();
 
-    const priceHeader = screen.getByRole("button", { name: "Sort by Price" });
+    const drinksSoldHeader = screen.getByRole("button", { name: "Sort by Drinks Sold" });
 
-    fireEvent.click(priceHeader);
-    expect(within(getFirstDatasetRow()).getByText("HP-INTRO-008")).toBeInTheDocument();
-    expect(within(getFirstDatasetRow()).getByText("620")).toBeInTheDocument();
+    fireEvent.click(drinksSoldHeader);
+    expect(within(getFirstDatasetRow()).getByText("SHIFT-010")).toBeInTheDocument();
+    expect(within(getFirstDatasetRow()).getByText("58")).toBeInTheDocument();
 
-    fireEvent.click(priceHeader);
-    expect(within(getFirstDatasetRow()).getByText("HP-INTRO-006")).toBeInTheDocument();
-    expect(within(getFirstDatasetRow()).getByText("3900")).toBeInTheDocument();
+    fireEvent.click(drinksSoldHeader);
+    expect(within(getFirstDatasetRow()).getByText("SHIFT-012")).toBeInTheDocument();
+    expect(within(getFirstDatasetRow()).getByText("155")).toBeInTheDocument();
   });
 
   it("keeps the next lesson locked after an incorrect answer", async () => {
-    window.history.pushState(
-      null,
-      "",
-      "/learn/track-regression-foundations/lesson-0-1-feature-target",
-    );
+    window.history.pushState(null, "", `${foundationsTrackPath}/lesson-0-1-feature-target`);
     render(<App />);
 
     expect(
       await screen.findByRole(
         "heading",
-        { name: "Rows, Columns, Features, and Targets" },
+        { name: "Understanding Dataframes for ML" },
         lazyRouteTimeout,
       ),
     ).toBeInTheDocument();
@@ -237,21 +254,25 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { name: "Not quite" })).toBeInTheDocument();
     expect(screen.queryByText("Expected role check")).not.toBeInTheDocument();
-    expect(screen.queryByText("price_million_idr: target")).not.toBeInTheDocument();
+    expect(screen.queryByText("drinks_sold: target")).not.toBeInTheDocument();
     expect(getStoredCompletedLessonIds()).not.toContain("lesson-0-1-feature-target");
 
-    fireEvent.click(screen.getAllByRole("link", { name: "Back to Learning Home" })[0]);
+    fireEvent.click(screen.getAllByRole("link", { name: "Back to Learning Path" })[0]);
 
     expect(
-      await screen.findByRole("heading", { name: "Regression Foundations" }, lazyRouteTimeout),
+      await screen.findByRole(
+        "heading",
+        { name: "Machine Learning Foundations" },
+        lazyRouteTimeout,
+      ),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Start lesson/ })).toHaveAttribute(
       "href",
-      "/learn/track-regression-foundations/lesson-0-1-feature-target",
+      `${foundationsTrackPath}/lesson-0-1-feature-target`,
     );
     expect(
       document.querySelector(
-        'a[href="/learn/track-regression-foundations/lesson-0-2-regression-classification"]',
+        `a[href="${foundationsTrackPath}/lesson-0-2-regression-classification"]`,
       ),
     ).toBeNull();
   });
@@ -260,7 +281,7 @@ describe("App", () => {
     window.history.pushState(
       null,
       "",
-      "/learn/track-regression-foundations/lesson-0-2-regression-classification",
+      `${foundationsTrackPath}/lesson-0-2-regression-classification`,
     );
     render(<App />);
 
@@ -276,7 +297,7 @@ describe("App", () => {
     window.history.pushState(
       null,
       "",
-      "/learn/track-regression-foundations/lesson-0-2-regression-classification",
+      `${foundationsTrackPath}/lesson-0-2-regression-classification`,
     );
     render(<App />);
 
@@ -288,10 +309,10 @@ describe("App", () => {
       ),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByLabelText("Predict residential property price in million IDR."));
     fireEvent.click(
-      screen.getByLabelText("Predict how many days it will take for a property to sell."),
+      screen.getByLabelText("Predict how many drinks Smile Cafe will sell in a shift."),
     );
+    fireEvent.click(screen.getByLabelText("Predict the average customer wait time in minutes."));
     fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
 
     expect(await screen.findByRole("heading", { name: "Correct" })).toBeInTheDocument();
@@ -300,11 +321,7 @@ describe("App", () => {
 
   it("submits the ML workflow ordering lesson", async () => {
     seedCompletedLessons(["lesson-0-1-feature-target", "lesson-0-2-regression-classification"]);
-    window.history.pushState(
-      null,
-      "",
-      "/learn/track-regression-foundations/lesson-0-3-ml-workflow-order",
-    );
+    window.history.pushState(null, "", `${foundationsTrackPath}/lesson-0-3-ml-workflow-order`);
     render(<App />);
 
     expect(
@@ -324,11 +341,7 @@ describe("App", () => {
       "lesson-0-2-regression-classification",
       "lesson-0-3-ml-workflow-order",
     ]);
-    window.history.pushState(
-      null,
-      "",
-      "/learn/track-regression-foundations/lesson-1-1-column-types",
-    );
+    window.history.pushState(null, "", `${foundationsTrackPath}/lesson-1-1-column-types`);
     render(<App />);
 
     expect(

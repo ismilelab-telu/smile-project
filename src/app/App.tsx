@@ -37,11 +37,7 @@ function getRouteOrder(pathname: string) {
 }
 
 function isLearningRoute(pathname: string) {
-  return (
-    pathname === "/learn" ||
-    pathname === "/learn/track-regression-foundations" ||
-    pathname.startsWith("/learn/track-regression-foundations/")
-  );
+  return pathname === "/learn" || pathname.startsWith("/learn/");
 }
 
 function shouldShowSharedExploreBackground(pathname: string) {

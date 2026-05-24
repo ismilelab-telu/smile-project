@@ -6,9 +6,9 @@ import {
 } from "@heroicons/react/24/outline";
 import { Fragment } from "react";
 
-import { learningModules, lessons, regressionFoundationsTrack } from "../content/learning-content";
+import { getModule, lessons } from "../content/learning-content";
 import { getLessonLockReason, isLessonUnlocked, isModuleUnlocked } from "../progress/lesson-access";
-import type { LearningProgress } from "../types";
+import type { LearningProgress, LearningTrack } from "../types";
 import { LearningGridCanvas, LearningSheetExtensions } from "./LearningGridCanvas";
 import { LearningHeader } from "./LearningHeader";
 import {
@@ -31,13 +31,17 @@ const disabledButtonClassName =
   "inline-flex min-h-12 w-fit cursor-not-allowed items-center justify-center gap-3 bg-neutral-200 px-5 py-3 text-base font-semibold text-muted-foreground disabled:opacity-100 [@media_(min-width:2200px)]:min-h-16 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg";
 
 type LearningHomeProps = {
+  track: LearningTrack;
   progress: LearningProgress;
   onResetProgress: () => void;
 };
 
-export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
+export function LearningHome({ onResetProgress, progress, track }: LearningHomeProps) {
+  const trackModules = track.moduleIds
+    .map((moduleId) => getModule(moduleId))
+    .filter((module) => module !== undefined);
   const availableLessonIds = new Set(
-    learningModules
+    trackModules
       .filter((module) => module.status === "available")
       .flatMap((module) => module.lessonIds),
   );
@@ -51,7 +55,7 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
 
   return (
     <LearningGridCanvas>
-      <LearningHeader backHref="/explore" backLabel="Back to Explore" />
+      <LearningHeader backHref="/learn" backLabel="Back to Learning Paths" />
 
       <section
         aria-labelledby="module-list"
@@ -61,7 +65,7 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
 
         <div className="learning-sheet-cell learning-extend-left learning-extend-top col-span-3 p-6 sm:col-span-4 lg:col-span-4 [@media_(min-width:2200px)]:p-12">
           <h1 className="text-5xl leading-tight font-semibold tracking-normal text-foreground sm:text-6xl [@media_(min-width:2200px)]:text-8xl">
-            {regressionFoundationsTrack.title}
+            {track.title}
           </h1>
         </div>
 
@@ -119,7 +123,7 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
           Modules
         </h2>
 
-        {learningModules.map((module, index) => {
+        {trackModules.map((module, index) => {
           const isAvailable = module.status === "available";
           const moduleLessons = module.lessonIds
             .map((lessonId) => lessons.find((lesson) => lesson.id === lessonId))
@@ -191,7 +195,7 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                             <LiquidLink
                               className={`${liquidButtonClassName} min-h-12 [--liquid-button-color:var(--color-emerald-500)] [@media_(min-width:2200px)]:min-h-16`}
                               data-app-link
-                              href={`/learn/${regressionFoundationsTrack.id}/${lesson.id}`}
+                              href={`/learn/${track.id}/${lesson.id}`}
                             >
                               {isLessonCompleted ? "Review lesson" : "Start lesson"}
                               <ArrowRightIcon

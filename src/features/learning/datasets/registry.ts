@@ -1,6 +1,6 @@
-import { housePricesIntroDataset } from "./house-prices-intro";
+import { smileCafeDemandIntroDataset } from "./smile-cafe-demand-intro";
 
-const datasets = [housePricesIntroDataset];
+const datasets = [smileCafeDemandIntroDataset];
 
 export function getDataset(datasetId: string) {
   return datasets.find((dataset) => dataset.id === datasetId);

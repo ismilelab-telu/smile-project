@@ -1,21 +1,21 @@
 import type { ColumnRole, EvaluationResult } from "../types";
 
 const expectedRoles: Record<string, ColumnRole> = {
-  bedrooms: "safe-feature",
-  building_area_m2: "safe-feature",
-  district: "safe-feature",
-  listing_id: "metadata",
-  price_million_idr: "target",
-  property_type: "safe-feature",
+  day_part: "safe-feature",
+  drinks_sold: "target",
+  promo_active: "safe-feature",
+  shift_id: "metadata",
+  temperature_c: "safe-feature",
+  weather: "safe-feature",
 };
 
 const columnLabels: Record<string, string> = {
-  bedrooms: "Bedrooms",
-  building_area_m2: "Building Area",
-  district: "District",
-  listing_id: "Listing ID",
-  price_million_idr: "Price",
-  property_type: "Property Type",
+  day_part: "Day Part",
+  drinks_sold: "Drinks Sold",
+  promo_active: "Promo Active",
+  shift_id: "Shift ID",
+  temperature_c: "Temperature",
+  weather: "Weather",
 };
 
 export function getExpectedColumnRoles() {
@@ -51,7 +51,7 @@ export function evaluateFeatureTargetRoles(
 ): EvaluationResult {
   const missedColumnIds: string[] = [];
   const extraColumnIds: string[] = [];
-  const targetRole = assignments.price_million_idr;
+  const targetRole = assignments.drinks_sold;
   const targetColumnIds = getAssignedColumnIds(assignments, "target");
   const expectedFeatureColumnIds = getExpectedRoleColumnIds("safe-feature");
   const featureColumnIdsMarkedMetadata = expectedFeatureColumnIds.filter(
@@ -79,25 +79,25 @@ export function evaluateFeatureTargetRoles(
         targetRole === "safe-feature"
           ? {
               message:
-                "The prediction output is being treated like an input feature. A target is the value the model is trying to estimate.",
+                "The demand outcome is being treated like an input feature. A target is the value the model is trying to forecast.",
               nextStep:
-                "First choose exactly one output column as Target, then check which columns can safely be used as inputs.",
+                "First choose exactly one output column as Target, then check which shift details can safely be used as inputs.",
             }
           : targetRole === "metadata"
             ? {
                 message:
-                  "The prediction output is being treated like metadata. Metadata helps read the dataset, but it is not the model output.",
+                  "The demand outcome is being treated like metadata. Metadata helps read the shift sheet, but it is not the model output.",
                 nextStep:
-                  "Move the output value into the Target role before deciding which fields are metadata or features.",
+                  "Move the demand outcome into the Target role before deciding which fields are metadata or features.",
               }
             : {
                 message:
                   featureColumnIdsMarkedMetadata.length > 0
                     ? `${formatColumnList(featureColumnIdsMarkedMetadata)} ${getColumnListVerb(featureColumnIdsMarkedMetadata)} marked as metadata, but metadata is for fields that identify or organize rows.`
-                    : assignments.listing_id === "metadata" && featureColumnIdsMarkedSafe.length > 0
-                      ? "The identifier and some input columns are separated, but no target is selected yet."
-                      : assignments.listing_id === "metadata"
-                        ? "The row identifier is separated as metadata, but no target is selected yet."
+                    : assignments.shift_id === "metadata" && featureColumnIdsMarkedSafe.length > 0
+                      ? "The shift identifier and some input columns are separated, but no target is selected yet."
+                      : assignments.shift_id === "metadata"
+                        ? "The shift identifier is separated as metadata, but no target is selected yet."
                         : featureColumnIdsMarkedSafe.length > 0
                           ? `${formatColumnList(featureColumnIdsMarkedSafe)} ${getColumnListVerb(featureColumnIdsMarkedSafe)} selected as input features, but supervised regression still needs one target.`
                           : "No target is selected yet. A supervised regression setup needs one value that the model will predict.",
@@ -117,12 +117,12 @@ export function evaluateFeatureTargetRoles(
       };
     }
 
-    if (targetColumnIds.includes("listing_id")) {
+    if (targetColumnIds.includes("shift_id")) {
       return {
         extraColumnIds,
         missedColumnIds,
         message:
-          "A row identifier is marked as the target. Identifiers name records; they are not the outcome this regression task should predict.",
+          "A shift identifier is marked as the target. Identifiers name records; they are not the demand this forecast should predict.",
         nextStep:
           "Look for the column that represents the predicted outcome, and keep identifiers out of the target role.",
         score: 20,
@@ -136,12 +136,12 @@ export function evaluateFeatureTargetRoles(
       missedColumnIds,
       message:
         targetRole === "safe-feature"
-          ? `${formatColumnList(targetColumnIds)} ${getColumnListVerb(targetColumnIds)} marked as the target while the prediction output is still treated like an input feature.`
+          ? `${formatColumnList(targetColumnIds)} ${getColumnListVerb(targetColumnIds)} marked as the target while the demand outcome is still treated like an input feature.`
           : targetRole === "metadata"
-            ? `${formatColumnList(targetColumnIds)} ${getColumnListVerb(targetColumnIds)} marked as the target while the prediction output is still treated like metadata.`
-            : `${formatColumnList(targetColumnIds)} ${getColumnListVerb(targetColumnIds)} marked as the target, but it describes the property rather than the value to predict.`,
+            ? `${formatColumnList(targetColumnIds)} ${getColumnListVerb(targetColumnIds)} marked as the target while the demand outcome is still treated like metadata.`
+            : `${formatColumnList(targetColumnIds)} ${getColumnListVerb(targetColumnIds)} marked as the target, but it describes the shift context rather than the demand to forecast.`,
       nextStep:
-        "Keep descriptive property attributes as candidate features and choose the outcome value as the target.",
+        "Keep shift context as candidate features and choose the demand outcome as the target.",
       score: 20,
       status: "incorrect",
       title: "Not quite",
@@ -153,7 +153,7 @@ export function evaluateFeatureTargetRoles(
       extraColumnIds,
       missedColumnIds,
       message:
-        "price_million_idr is the value we want to predict. District, property type, building area, and bedrooms can help the model make that prediction.",
+        "drinks_sold is the demand value we want to forecast. Day part, weather, temperature, and promos can help the model make that forecast.",
       nextStep: "This lesson is complete. Continue to the regression vs classification lesson.",
       score: 100,
       status: "correct",
@@ -167,31 +167,31 @@ export function evaluateFeatureTargetRoles(
       missedColumnIds,
       message: "The main target is selected, but more than one column is marked as Target.",
       nextStep:
-        "Keep only one target column. Descriptive property columns should be features, while identifiers should stay metadata.",
+        "Keep only one target column. Shift context should be features, while identifiers should stay metadata.",
       score: 55,
       status: "partial",
       title: "Partially correct",
     };
   }
 
-  if (assignments.listing_id === "safe-feature") {
+  if (assignments.shift_id === "safe-feature") {
     return {
       extraColumnIds,
       missedColumnIds,
-      message: "The target is selected, but a row identifier is being used as a feature.",
+      message: "The target is selected, but a shift identifier is being used as a feature.",
       nextStep:
-        "Identifiers help reference rows. Use property attributes as features and keep identifier fields as metadata.",
+        "Identifiers help reference rows. Use shift context as features and keep identifier fields as metadata.",
       score: 50,
       status: "partial",
       title: "Partially correct",
     };
   }
 
-  if (assignments.listing_id !== "metadata") {
+  if (assignments.shift_id !== "metadata") {
     return {
       extraColumnIds,
       missedColumnIds,
-      message: "The target is selected, but the row identifier still needs a metadata role.",
+      message: "The target is selected, but the shift identifier still needs a metadata role.",
       nextStep:
         "Metadata describes how to read or reference rows; it should not be used as model input.",
       score: 65,
@@ -210,9 +210,7 @@ export function evaluateFeatureTargetRoles(
 
   if (missingFeatureColumnIds.length > 0) {
     const countLabel =
-      missingFeatureColumnIds.length === 1
-        ? "one property attribute is"
-        : "some property attributes are";
+      missingFeatureColumnIds.length === 1 ? "one shift detail is" : "some shift details are";
 
     return {
       extraColumnIds,
