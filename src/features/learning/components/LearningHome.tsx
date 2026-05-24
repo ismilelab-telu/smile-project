@@ -14,7 +14,10 @@ import { LearningHeader } from "./LearningHeader";
 import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
 
 const liquidButtonClassName =
-  "inline-flex items-center justify-center gap-3 rounded-none px-5 py-3 text-base font-semibold text-neutral-950 backdrop-blur-xl [--liquid-button-background-color:var(--color-neutral-200)] [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg";
+  "inline-flex items-center justify-center gap-3 rounded-none px-5 py-3 text-base font-semibold text-neutral-950 backdrop-blur-xl [--liquid-button-background-color:var(--color-neutral-200)] [--liquid-button-hover-text-color:var(--color-neutral-50)] [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg";
+
+const disabledButtonClassName =
+  "inline-flex min-h-12 w-fit cursor-not-allowed items-center justify-center gap-3 bg-neutral-200 px-5 py-3 text-base font-semibold text-muted-foreground disabled:opacity-100 [@media_(min-width:2200px)]:min-h-16 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg";
 
 type LearningHomeProps = {
   progress: LearningProgress;
@@ -107,32 +110,35 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                 </h3>
               </div>
               <div className="learning-sheet-cell col-span-2 flex items-center p-5 sm:col-span-1 [@media_(min-width:2200px)]:p-8">
-                <div className="inline-flex w-fit items-center gap-3 text-base font-medium text-muted-foreground [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:text-lg">
-                  {isAvailable ? (
-                    <>
-                      {isModuleCompleted ? (
-                        <CheckCircleIcon
-                          aria-hidden="true"
-                          className="size-5 text-emerald-500 [@media_(min-width:2200px)]:size-6"
-                        />
-                      ) : (
-                        <AcademicCapIcon
-                          aria-hidden="true"
-                          className="size-5 text-sky-600 [@media_(min-width:2200px)]:size-6"
-                        />
-                      )}
-                      {isModuleCompleted ? "Completed" : "Available"}
-                    </>
-                  ) : (
-                    <>
-                      <LockClosedIcon
+                {isAvailable ? (
+                  <div className="inline-flex w-fit items-center gap-3 text-base font-medium text-muted-foreground [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:text-lg">
+                    {isModuleCompleted ? (
+                      <CheckCircleIcon
                         aria-hidden="true"
-                        className="size-5 [@media_(min-width:2200px)]:size-6"
+                        className="size-5 text-emerald-500 [@media_(min-width:2200px)]:size-6"
                       />
-                      Locked
-                    </>
-                  )}
-                </div>
+                    ) : (
+                      <AcademicCapIcon
+                        aria-hidden="true"
+                        className="size-5 text-sky-600 [@media_(min-width:2200px)]:size-6"
+                      />
+                    )}
+                    {isModuleCompleted ? "Completed" : "Available"}
+                  </div>
+                ) : (
+                  <button
+                    aria-label={`${module.title} is locked`}
+                    className={disabledButtonClassName}
+                    disabled
+                    type="button"
+                  >
+                    <LockClosedIcon
+                      aria-hidden="true"
+                      className="size-5 [@media_(min-width:2200px)]:size-6"
+                    />
+                    Locked
+                  </button>
+                )}
               </div>
               <div
                 aria-hidden="true"
@@ -151,7 +157,7 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                           {lesson.numberLabel}
                         </div>
                         <div className="learning-sheet-cell flex min-h-24 items-center p-5 [@media_(min-width:2200px)]:min-h-32 [@media_(min-width:2200px)]:p-8">
-                          <h4 className="text-xl leading-tight font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl">
+                          <h4 className="text-xl leading-tight font-normal text-foreground [@media_(min-width:2200px)]:text-3xl">
                             {lesson.title}
                           </h4>
                         </div>
@@ -169,16 +175,18 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                               />
                             </LiquidLink>
                           ) : (
-                            <span
+                            <button
                               aria-label={lockReason}
-                              className="inline-flex min-h-12 w-fit items-center justify-center gap-3 px-5 py-3 text-base font-semibold text-muted-foreground [@media_(min-width:2200px)]:min-h-24 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg"
+                              className={disabledButtonClassName}
+                              disabled
+                              type="button"
                             >
                               <LockClosedIcon
                                 aria-hidden="true"
                                 className="size-5 [@media_(min-width:2200px)]:size-6"
                               />
                               Locked
-                            </span>
+                            </button>
                           )}
                         </div>
                         <div

@@ -314,7 +314,7 @@
     content: "";
     pointer-events: none;
     position: absolute;
-    right: 0;
+    right: -1px;
     width: 1px;
     z-index: 2;
   }

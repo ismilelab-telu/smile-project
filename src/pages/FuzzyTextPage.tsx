@@ -6,7 +6,7 @@ import { LiquidLink } from "@/components/ui/liquid-button";
 const notFoundText = "404 not found.";
 const explorePlaceholderRoutes = new Set(["/playground", "/algorithm-lab"]);
 const liquidButtonClassName =
-  "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-neutral-50 backdrop-blur-xl shadow-[inset_0_1px_0_oklch(100%_0_0_/_0.16),0_12px_32px_oklch(0%_0_0_/_0.22)] [--liquid-button-background-color:oklch(100%_0_0_/_0.08)] [--liquid-button-color:var(--color-emerald-500)]";
+  "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-neutral-50 backdrop-blur-xl shadow-[inset_0_1px_0_oklch(100%_0_0_/_0.16),0_12px_32px_oklch(0%_0_0_/_0.22)] [--liquid-button-background-color:oklch(100%_0_0_/_0.08)] [--liquid-button-color:var(--color-emerald-500)] [--liquid-button-hover-text-color:var(--color-neutral-50)]";
 
 type FuzzyTextPageProps = {
   path?: string;
