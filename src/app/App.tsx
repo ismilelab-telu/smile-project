@@ -15,7 +15,7 @@ const LandingPage = lazy(() =>
 );
 
 type RouteTheme = "dark" | "light";
-type RouteTransition = "back" | "content-back" | "content-forward" | "forward";
+type RouteTransition = "back" | "content-fade" | "forward";
 type ViewTransitionDocument = Document & {
   startViewTransition?: (callback: () => void) => { finished: Promise<void> };
 };
@@ -44,10 +44,6 @@ function isLearningRoute(pathname: string) {
   );
 }
 
-function getLearningRouteDepth(pathname: string) {
-  return pathname.startsWith("/learn/track-regression-foundations/") ? 1 : 0;
-}
-
 function shouldShowSharedExploreBackground(pathname: string) {
   return pathname === "/explore";
 }
@@ -55,23 +51,13 @@ function shouldShowSharedExploreBackground(pathname: string) {
 function getRouteDirection(
   fromPath: string,
   toPath: string,
-): Exclude<RouteTransition, "content-back" | "content-forward"> {
+): Exclude<RouteTransition, "content-fade"> {
   return getRouteOrder(toPath) >= getRouteOrder(fromPath) ? "forward" : "back";
 }
 
 function getRouteTransition(fromPath: string, toPath: string): RouteTransition {
-  if (fromPath === "/explore" && toPath === "/learn") {
-    return "content-forward";
-  }
-
-  if (fromPath === "/learn" && toPath === "/explore") {
-    return "content-back";
-  }
-
   if (isLearningRoute(fromPath) && isLearningRoute(toPath)) {
-    return getLearningRouteDepth(toPath) >= getLearningRouteDepth(fromPath)
-      ? "content-forward"
-      : "content-back";
+    return "content-fade";
   }
 
   return getRouteDirection(fromPath, toPath);
