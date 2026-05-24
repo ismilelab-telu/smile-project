@@ -10,6 +10,7 @@ import { autoUpdate, flip, offset, shift, size, useFloating } from "@floating-ui
 import {
   ArrowDownIcon,
   ArrowUpIcon,
+  CheckIcon,
   CheckCircleIcon,
   ChevronDownIcon,
   InformationCircleIcon,
@@ -36,6 +37,8 @@ import type {
   DatasetRow,
   EvaluationResult,
   Lesson,
+  LessonAnswer,
+  LessonExercise,
   MultipleChoiceExercise,
   OrderedStepsExercise,
   TableColumnRoleExercise,
@@ -55,8 +58,10 @@ const amberLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-butto
 type LessonPageProps = {
   backHref?: string;
   backLabel?: string;
+  initialAnswer?: LessonAnswer;
+  isCompleted?: boolean;
   lesson: Lesson;
-  onSubmitResult: (result: EvaluationResult) => void;
+  onSubmitResult: (result: EvaluationResult, answer: LessonAnswer) => void;
 };
 
 const roleOptions: Array<{ label: string; value: ColumnRole }> = [
@@ -90,14 +95,122 @@ function getRoleOptionLabel(value: ColumnRole) {
   return roleOptions.find((option) => option.value === value)?.label ?? roleOptions[0].label;
 }
 
+function createCombinedExerciseResult(results: EvaluationResult[]): EvaluationResult {
+  if (results.length === 1) {
+    return results[0];
+  }
+
+  const score = Math.round(
+    results.reduce((totalScore, result) => totalScore + result.score, 0) / results.length,
+  );
+  const missedColumnIds = [...new Set(results.flatMap((result) => result.missedColumnIds))];
+  const extraColumnIds = [...new Set(results.flatMap((result) => result.extraColumnIds))];
+  const correctCount = results.filter((result) => result.status === "correct").length;
+
+  if (correctCount === results.length) {
+    return {
+      extraColumnIds,
+      missedColumnIds,
+      message: "All exercises in this lesson are correct.",
+      nextStep: "This lesson is complete. Continue to the next unlocked lesson.",
+      score,
+      status: "correct",
+      title: "Correct",
+    };
+  }
+
+  if (correctCount > 0 || results.some((result) => result.status === "partial")) {
+    return {
+      extraColumnIds,
+      missedColumnIds,
+      message: `${correctCount}/${results.length} exercises are correct. Review the remaining exercise before continuing.`,
+      nextStep: "Use the feedback and hints, adjust the unfinished answer, then submit again.",
+      score,
+      status: "partial",
+      title: "Partially correct",
+    };
+  }
+
+  return {
+    extraColumnIds,
+    missedColumnIds,
+    message: "The exercises do not match the main ideas this lesson is checking yet.",
+    nextStep: "Use the hints, revisit the concept summary, then try again.",
+    score,
+    status: "incorrect",
+    title: "Not quite",
+  };
+}
+
+function createRestoredCorrectResult(): EvaluationResult {
+  return {
+    extraColumnIds: [],
+    message: "",
+    missedColumnIds: [],
+    nextStep: "",
+    score: 100,
+    status: "correct",
+    title: "Correct",
+  };
+}
+
+function createLessonAnswerSnapshot({
+  assignments,
+  exercises,
+  orderedStepIdsByExerciseId,
+  selectedOptionIdsByExerciseId,
+}: {
+  assignments: Record<string, ColumnRole>;
+  exercises: LessonExercise[];
+  orderedStepIdsByExerciseId: Record<string, string[]>;
+  selectedOptionIdsByExerciseId: Record<string, string[]>;
+}): LessonAnswer {
+  const answer: LessonAnswer = {
+    columnRoleAssignmentsByExerciseId: {},
+    orderedStepIdsByExerciseId: {},
+    selectedOptionIdsByExerciseId: {},
+  };
+
+  for (const exercise of exercises) {
+    if (exercise.type === "multiple-choice") {
+      answer.selectedOptionIdsByExerciseId[exercise.id] = [
+        ...(selectedOptionIdsByExerciseId[exercise.id] ?? []),
+      ];
+    }
+
+    if (exercise.type === "ordered-steps") {
+      answer.orderedStepIdsByExerciseId[exercise.id] = [
+        ...(orderedStepIdsByExerciseId[exercise.id] ?? []),
+      ];
+    }
+
+    if (exercise.type === "table-column-role-assignment") {
+      answer.columnRoleAssignmentsByExerciseId[exercise.id] = { ...assignments };
+    }
+  }
+
+  return answer;
+}
+
 export function LessonPage({
   backHref = "/learn",
   backLabel = "Back to Learning Home",
+  initialAnswer,
+  isCompleted = false,
   lesson,
   onSubmitResult,
 }: LessonPageProps) {
+  const exerciseEntries = useMemo(() => lesson.exercises ?? [lesson.exercise], [lesson]);
+  const tableColumnRoleExercise = useMemo(
+    () =>
+      exerciseEntries.find(
+        (exercise): exercise is TableColumnRoleExercise =>
+          exercise.type === "table-column-role-assignment",
+      ),
+    [exerciseEntries],
+  );
   const expectedRoles = useMemo(() => getExpectedColumnRoles(), []);
-  const initialAssignments = useMemo(
+  const baseInitialAssignments = useMemo(
     () =>
       Object.keys(expectedRoles).reduce<Record<string, ColumnRole>>((assignments, columnId) => {
         assignments[columnId] = "ignore";
@@ -105,32 +218,87 @@ export function LessonPage({
       }, {}),
     [expectedRoles],
   );
+  const initialAssignments = useMemo(() => {
+    const savedAssignments = tableColumnRoleExercise
+      ? initialAnswer?.columnRoleAssignmentsByExerciseId?.[tableColumnRoleExercise.id]
+      : undefined;
+
+    return {
+      ...baseInitialAssignments,
+      ...savedAssignments,
+    };
+  }, [baseInitialAssignments, initialAnswer, tableColumnRoleExercise]);
   const initialOrderedStepIds = useMemo(
     () =>
-      lesson.exercise.type === "ordered-steps" ? lesson.exercise.steps.map((step) => step.id) : [],
-    [lesson.exercise],
+      exerciseEntries.reduce<Record<string, string[]>>((stepIds, exercise) => {
+        if (exercise.type === "ordered-steps") {
+          stepIds[exercise.id] =
+            initialAnswer?.orderedStepIdsByExerciseId?.[exercise.id] ??
+            exercise.steps.map((step) => step.id);
+        }
+
+        return stepIds;
+      }, {}),
+    [exerciseEntries, initialAnswer],
   );
+  const initialSelectedOptionIdsByExerciseId = useMemo(
+    () =>
+      exerciseEntries.reduce<Record<string, string[]>>((selectedOptionIds, exercise) => {
+        if (exercise.type === "multiple-choice") {
+          selectedOptionIds[exercise.id] = [
+            ...(initialAnswer?.selectedOptionIdsByExerciseId?.[exercise.id] ?? []),
+          ];
+        }
+
+        return selectedOptionIds;
+      }, {}),
+    [exerciseEntries, initialAnswer],
+  );
+  const initialResult = useMemo(
+    () => (isCompleted ? createRestoredCorrectResult() : null),
+    [isCompleted],
+  );
+  const mountedLessonIdRef = useRef(lesson.id);
   const [assignments, setAssignments] = useState<Record<string, ColumnRole>>(initialAssignments);
-  const [orderedStepIds, setOrderedStepIds] = useState<string[]>(initialOrderedStepIds);
-  const [result, setResult] = useState<EvaluationResult | null>(null);
-  const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>([]);
+  const [orderedStepIdsByExerciseId, setOrderedStepIdsByExerciseId] =
+    useState<Record<string, string[]>>(initialOrderedStepIds);
+  const [result, setResult] = useState<EvaluationResult | null>(initialResult);
+  const [selectedOptionIdsByExerciseId, setSelectedOptionIdsByExerciseId] = useState<
+    Record<string, string[]>
+  >(initialSelectedOptionIdsByExerciseId);
   const [visibleHintCount, setVisibleHintCount] = useState(0);
+  const allHints = useMemo(
+    () => exerciseEntries.flatMap((exercise) => exercise.hints),
+    [exerciseEntries],
+  );
   const datasetView =
-    lesson.exercise.type === "table-column-role-assignment" && lesson.datasetId && lesson.viewId
+    tableColumnRoleExercise && lesson.datasetId && lesson.viewId
       ? getDatasetView(lesson.datasetId, lesson.viewId)
       : undefined;
   const hasNotQuiteResult = result !== null && result.status !== "correct";
+  const isReviewMode = isCompleted;
   const rightEdgeCompensationClassName = hasNotQuiteResult ? "-mr-px" : "";
 
   useEffect(() => {
-    setAssignments(initialAssignments);
-    setOrderedStepIds(initialOrderedStepIds);
-    setResult(null);
-    setSelectedOptionIds([]);
-    setVisibleHintCount(0);
-  }, [initialAssignments, initialOrderedStepIds, lesson.id]);
+    if (mountedLessonIdRef.current === lesson.id) {
+      return;
+    }
 
-  if (lesson.exercise.type === "table-column-role-assignment" && !datasetView) {
+    mountedLessonIdRef.current = lesson.id;
+    setAssignments(initialAssignments);
+    setOrderedStepIdsByExerciseId(initialOrderedStepIds);
+    setResult(initialResult);
+    setSelectedOptionIdsByExerciseId(initialSelectedOptionIdsByExerciseId);
+    setVisibleHintCount(0);
+  }, [
+    initialAssignments,
+    initialOrderedStepIds,
+    initialResult,
+    initialSelectedOptionIdsByExerciseId,
+    lesson.id,
+  ]);
+
+  if (tableColumnRoleExercise && !datasetView) {
     return (
       <LearningGridCanvas>
         <LearningHeader backHref={backHref} backLabel={backLabel} />
@@ -168,54 +336,79 @@ export function LessonPage({
     setVisibleHintCount(0);
   };
 
-  const toggleOption = (optionId: string) => {
-    setSelectedOptionIds((current) =>
-      current.includes(optionId)
-        ? current.filter((selectedOptionId) => selectedOptionId !== optionId)
-        : [...current, optionId],
-    );
+  const toggleOption = (exerciseId: string, optionId: string) => {
+    const exercise = exerciseEntries.find((entry) => entry.id === exerciseId);
+
+    setSelectedOptionIdsByExerciseId((current) => {
+      const currentExerciseOptionIds = current[exerciseId] ?? [];
+      const isSingleOptionExercise =
+        exercise?.type === "multiple-choice" && exercise.correctOptionIds.length === 1;
+      const nextExerciseOptionIds = isSingleOptionExercise
+        ? [optionId]
+        : currentExerciseOptionIds.includes(optionId)
+          ? currentExerciseOptionIds.filter((selectedOptionId) => selectedOptionId !== optionId)
+          : [...currentExerciseOptionIds, optionId];
+
+      return {
+        ...current,
+        [exerciseId]: nextExerciseOptionIds,
+      };
+    });
     setResult(null);
     setVisibleHintCount(0);
   };
 
-  const moveStep = (index: number, direction: -1 | 1) => {
-    setOrderedStepIds((current) => {
+  const moveStep = (exerciseId: string, index: number, direction: -1 | 1) => {
+    setOrderedStepIdsByExerciseId((current) => {
+      const currentStepIds = current[exerciseId] ?? [];
       const nextIndex = index + direction;
 
-      if (nextIndex < 0 || nextIndex >= current.length) {
+      if (nextIndex < 0 || nextIndex >= currentStepIds.length) {
         return current;
       }
 
-      const next = [...current];
+      const next = [...currentStepIds];
       const [stepId] = next.splice(index, 1);
       next.splice(nextIndex, 0, stepId);
 
-      return next;
+      return {
+        ...current,
+        [exerciseId]: next,
+      };
     });
     setResult(null);
     setVisibleHintCount(0);
   };
 
   const submitAnswer = () => {
-    let evaluation: EvaluationResult;
+    const exerciseResults = exerciseEntries.map((exercise) => {
+      if (exercise.type === "multiple-choice") {
+        return evaluateMultipleChoice(exercise, selectedOptionIdsByExerciseId[exercise.id] ?? []);
+      }
 
-    if (lesson.exercise.type === "multiple-choice") {
-      evaluation = evaluateMultipleChoice(lesson.exercise, selectedOptionIds);
-    } else if (lesson.exercise.type === "ordered-steps") {
-      evaluation = evaluateOrderedSteps(lesson.exercise, orderedStepIds);
-    } else {
-      evaluation = evaluateFeatureTargetRoles(assignments);
-    }
+      if (exercise.type === "ordered-steps") {
+        return evaluateOrderedSteps(exercise, orderedStepIdsByExerciseId[exercise.id] ?? []);
+      }
+
+      return evaluateFeatureTargetRoles(assignments);
+    });
+    const evaluation = createCombinedExerciseResult(exerciseResults);
+    const answer = createLessonAnswerSnapshot({
+      assignments,
+      exercises: exerciseEntries,
+      orderedStepIdsByExerciseId,
+      selectedOptionIdsByExerciseId,
+    });
 
     setResult(evaluation);
-    onSubmitResult(evaluation);
+    onSubmitResult(evaluation, answer);
 
     setVisibleHintCount(0);
   };
 
   const toggleHints = () => {
     setVisibleHintCount((count) =>
-      count >= lesson.exercise.hints.length ? 0 : Math.min(count + 1, lesson.exercise.hints.length),
+      count >= allHints.length ? 0 : Math.min(count + 1, allHints.length),
     );
   };
 
@@ -244,80 +437,44 @@ export function LessonPage({
         </div>
 
         <section
-          aria-labelledby="concept-summary"
           className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} p-6 [@media_(min-width:2200px)]:p-12`}
         >
-          <h2
-            className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl"
-            id="concept-summary"
-          >
-            Concept summary
-          </h2>
-          <div className="mt-5 grid gap-3 text-base leading-6 text-muted-foreground [@media_(min-width:2200px)]:mt-7 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-7">
+          <div className="grid gap-3 text-base leading-6 text-muted-foreground [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-7">
             {lesson.summary.map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
             ))}
           </div>
         </section>
 
-        {lesson.exercise.type === "table-column-role-assignment" && datasetView ? (
-          <DatasetPreview
-            edgeCompensationClassName={rightEdgeCompensationClassName}
-            exercise={lesson.exercise}
-            datasetView={datasetView}
-          />
-        ) : null}
+        {exerciseEntries.map((exercise, exerciseIndex) => {
+          const exerciseLabel =
+            exerciseEntries.length === 1 ? "Exercise" : `Exercise ${exerciseIndex + 1}`;
+
+          return (
+            <ExerciseSection
+              assignments={assignments}
+              datasetView={datasetView}
+              edgeCompensationClassName={rightEdgeCompensationClassName}
+              exercise={exercise}
+              exerciseLabel={exerciseLabel}
+              key={exercise.id}
+              onMoveStep={(index, direction) => moveStep(exercise.id, index, direction)}
+              onToggleOption={(optionId) => toggleOption(exercise.id, optionId)}
+              onUpdateAssignment={updateAssignment}
+              orderedStepIds={orderedStepIdsByExerciseId[exercise.id] ?? []}
+              result={result}
+              isReviewMode={isReviewMode}
+              selectedOptionIds={selectedOptionIdsByExerciseId[exercise.id] ?? []}
+            />
+          );
+        })}
 
         <div
-          className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} p-6 [@media_(min-width:2200px)]:p-12`}
+          className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} flex justify-end p-6 [@media_(min-width:2200px)]:p-12`}
         >
-          <p className="text-base font-medium text-sky-600 [@media_(min-width:2200px)]:text-lg">
-            Exercise
-          </p>
-          <h2
-            className="mt-3 text-xl font-semibold text-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-3xl"
-            id="exercise"
-          >
-            {lesson.exercise.prompt}
-          </h2>
-        </div>
-
-        {lesson.exercise.type === "multiple-choice" ? (
-          <MultipleChoiceExerciseView
-            edgeCompensationClassName={rightEdgeCompensationClassName}
-            exercise={lesson.exercise}
-            selectedOptionIds={selectedOptionIds}
-            onToggleOption={toggleOption}
-          />
-        ) : null}
-
-        {lesson.exercise.type === "ordered-steps" ? (
-          <OrderedStepsExerciseView
-            edgeCompensationClassName={rightEdgeCompensationClassName}
-            exercise={lesson.exercise}
-            orderedStepIds={orderedStepIds}
-            onMoveStep={moveStep}
-          />
-        ) : null}
-
-        {lesson.exercise.type === "table-column-role-assignment" && datasetView ? (
-          <ColumnRoleExerciseView
-            assignments={assignments}
-            columns={datasetView.columns}
-            edgeCompensationClassName={rightEdgeCompensationClassName}
-            exercise={lesson.exercise}
-            onUpdateAssignment={updateAssignment}
-          />
-        ) : null}
-
-        <div
-          className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-12`}
-        >
-          <p className="text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
-            Submit will evaluate your answer automatically.
-          </p>
           <LiquidButton
-            className={`${emeraldLiquidButtonClassName} min-h-12 cursor-pointer [@media_(min-width:2200px)]:min-h-16`}
+            className={`${emeraldLiquidButtonClassName} min-h-12 disabled:hover:text-neutral-950 ${isReviewMode ? "cursor-not-allowed opacity-60" : "cursor-pointer"} [@media_(min-width:2200px)]:min-h-16`}
+            disabled={isReviewMode}
             onClick={submitAnswer}
             type="button"
           >
@@ -325,12 +482,12 @@ export function LessonPage({
           </LiquidButton>
         </div>
 
-        {result ? (
+        {result && result.status !== "correct" ? (
           <>
             <LessonResult result={result} />
             {hasNotQuiteResult ? (
               <LessonHintPanel
-                hints={lesson.exercise.hints}
+                hints={allHints}
                 onToggleHints={toggleHints}
                 visibleHintCount={visibleHintCount}
               />
@@ -357,6 +514,99 @@ export function LessonPage({
         )}
       </section>
     </LearningGridCanvas>
+  );
+}
+
+function ExerciseSection({
+  assignments,
+  datasetView,
+  edgeCompensationClassName,
+  exercise,
+  exerciseLabel,
+  onMoveStep,
+  onToggleOption,
+  onUpdateAssignment,
+  orderedStepIds,
+  result,
+  isReviewMode,
+  selectedOptionIds,
+}: {
+  assignments: Record<string, ColumnRole>;
+  datasetView: ReturnType<typeof getDatasetView>;
+  edgeCompensationClassName: string;
+  exercise: LessonExercise;
+  exerciseLabel: string;
+  onMoveStep: (index: number, direction: -1 | 1) => void;
+  onToggleOption: (optionId: string) => void;
+  onUpdateAssignment: (columnId: string, role: ColumnRole) => void;
+  orderedStepIds: string[];
+  result: EvaluationResult | null;
+  isReviewMode: boolean;
+  selectedOptionIds: string[];
+}) {
+  const choiceModeLabel =
+    exercise.type === "multiple-choice"
+      ? exercise.correctOptionIds.length === 1
+        ? "Single option"
+        : "Multiple options"
+      : null;
+
+  return (
+    <>
+      {exercise.type === "table-column-role-assignment" && datasetView ? (
+        <DatasetPreview
+          edgeCompensationClassName={edgeCompensationClassName}
+          exercise={exercise}
+          datasetView={datasetView}
+        />
+      ) : null}
+
+      <div
+        className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${edgeCompensationClassName} p-6 [@media_(min-width:2200px)]:p-12`}
+      >
+        <p className="text-base font-medium text-sky-600 [@media_(min-width:2200px)]:text-lg">
+          {exerciseLabel}
+        </p>
+        <h2 className="mt-3 text-xl font-semibold text-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-3xl">
+          {exercise.prompt}
+        </h2>
+        {choiceModeLabel ? (
+          <p className="mt-3 text-sm font-medium text-muted-foreground [@media_(min-width:2200px)]:text-base">
+            {choiceModeLabel}
+          </p>
+        ) : null}
+      </div>
+
+      {exercise.type === "multiple-choice" ? (
+        <MultipleChoiceExerciseView
+          edgeCompensationClassName={edgeCompensationClassName}
+          exercise={exercise}
+          isReviewMode={isReviewMode}
+          result={result}
+          selectedOptionIds={selectedOptionIds}
+          onToggleOption={onToggleOption}
+        />
+      ) : null}
+
+      {exercise.type === "ordered-steps" ? (
+        <OrderedStepsExerciseView
+          edgeCompensationClassName={edgeCompensationClassName}
+          exercise={exercise}
+          orderedStepIds={orderedStepIds}
+          onMoveStep={onMoveStep}
+        />
+      ) : null}
+
+      {exercise.type === "table-column-role-assignment" && datasetView ? (
+        <ColumnRoleExerciseView
+          assignments={assignments}
+          columns={datasetView.columns}
+          edgeCompensationClassName={edgeCompensationClassName}
+          exercise={exercise}
+          onUpdateAssignment={onUpdateAssignment}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -950,34 +1200,70 @@ function ColumnRoleExerciseView({
 function MultipleChoiceExerciseView({
   edgeCompensationClassName,
   exercise,
+  isReviewMode,
   onToggleOption,
+  result,
   selectedOptionIds,
 }: {
   edgeCompensationClassName: string;
   exercise: MultipleChoiceExercise;
+  isReviewMode: boolean;
   onToggleOption: (optionId: string) => void;
+  result: EvaluationResult | null;
   selectedOptionIds: string[];
 }) {
+  const shouldShowCorrectIndicator = result?.status === "correct";
+  const isSingleOptionExercise = exercise.correctOptionIds.length === 1;
+  const correctIndicatorOptionId = shouldShowCorrectIndicator
+    ? exercise.options.find((option) => exercise.correctOptionIds.includes(option.id))?.id
+    : undefined;
+
   return (
     <div
       className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${edgeCompensationClassName} grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12`}
     >
-      {exercise.options.map((option) => (
-        <label
-          className="flex min-h-24 cursor-pointer items-center gap-4 border learning-grid-border p-5 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-6"
-          key={option.id}
-        >
-          <input
-            checked={selectedOptionIds.includes(option.id)}
-            className="size-5 accent-emerald-500 [@media_(min-width:2200px)]:size-6"
-            onChange={() => onToggleOption(option.id)}
-            type="checkbox"
-          />
-          <span className="text-base leading-7 text-foreground [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
-            {option.label}
-          </span>
-        </label>
-      ))}
+      {exercise.options.map((option) => {
+        const shouldShowCorrectForOption = option.id === correctIndicatorOptionId;
+
+        return (
+          <div className="grid" key={option.id}>
+            {shouldShowCorrectForOption ? (
+              <div className="flex items-center gap-3 border border-b-0 learning-grid-border p-5 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:p-6">
+                <CheckCircleIcon
+                  aria-hidden="true"
+                  className="size-6 shrink-0 text-emerald-500 [@media_(min-width:2200px)]:size-7"
+                />
+                <h3 className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl">
+                  Correct
+                </h3>
+              </div>
+            ) : null}
+            <label
+              className={`flex min-h-24 items-center gap-4 border learning-grid-border p-5 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-6 ${
+                isReviewMode ? "cursor-not-allowed" : "cursor-pointer"
+              }`}
+            >
+              <input
+                checked={selectedOptionIds.includes(option.id)}
+                className="peer sr-only"
+                disabled={isReviewMode}
+                name={exercise.id}
+                onChange={() => onToggleOption(option.id)}
+                type={isSingleOptionExercise ? "radio" : "checkbox"}
+              />
+              <span className="flex size-5 shrink-0 items-center justify-center border border-neutral-300 bg-white text-transparent transition-colors peer-checked:border-emerald-500 peer-checked:bg-emerald-500 peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-emerald-500 [@media_(min-width:2200px)]:size-6">
+                <CheckIcon
+                  aria-hidden="true"
+                  className="size-4 stroke-[3.25] [@media_(min-width:2200px)]:size-5"
+                />
+              </span>
+              <span className="text-base leading-7 text-foreground [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+                {option.label}
+              </span>
+            </label>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1055,6 +1341,7 @@ function LessonResult({ result }: { result: EvaluationResult }) {
     result.status === "correct"
       ? "learning-extend-left learning-extend-right col-span-full"
       : "learning-extend-left col-span-full [@media_(min-width:1024px)]:col-span-8";
+  const shouldShowResultBody = result.status !== "correct";
 
   return (
     <div
@@ -1076,12 +1363,16 @@ function LessonResult({ result }: { result: EvaluationResult }) {
         <h2 className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl">
           {result.title}
         </h2>
-        <p className="mt-3 text-base leading-6 text-muted-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-7">
-          {result.message}
-        </p>
-        <p className="mt-2 text-base leading-6 text-muted-foreground [@media_(min-width:2200px)]:mt-3 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-7">
-          {result.nextStep}
-        </p>
+        {shouldShowResultBody ? (
+          <>
+            <p className="mt-3 text-base leading-6 text-muted-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-7">
+              {result.message}
+            </p>
+            <p className="mt-2 text-base leading-6 text-muted-foreground [@media_(min-width:2200px)]:mt-3 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-7">
+              {result.nextStep}
+            </p>
+          </>
+        ) : null}
       </div>
     </div>
   );

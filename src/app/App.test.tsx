@@ -5,6 +5,19 @@ import { App } from "./App";
 import { learningProgressStorageKey } from "@/features/learning/progress/learning-progress";
 
 const foundationsTrackPath = "/learn/track-machine-learning-foundations";
+const lesson01Path = `${foundationsTrackPath}/lesson-0-1-what-is-machine-learning`;
+const lesson02Path = `${foundationsTrackPath}/lesson-0-2-machine-learning-in-ai`;
+const lesson03Path = `${foundationsTrackPath}/lesson-0-3-core-components`;
+const lesson04Path = `${foundationsTrackPath}/lesson-0-4-learning-types`;
+const lesson06Path = `${foundationsTrackPath}/lesson-0-6-formulating-ml-problems`;
+const module0LessonIds = [
+  "lesson-0-1-what-is-machine-learning",
+  "lesson-0-2-machine-learning-in-ai",
+  "lesson-0-3-core-components",
+  "lesson-0-4-learning-types",
+  "lesson-0-5-machine-learning-use-cases",
+  "lesson-0-6-formulating-ml-problems",
+];
 
 function seedCompletedLessons(completedLessonIds: string[]) {
   window.localStorage.setItem(
@@ -89,8 +102,9 @@ describe("App", () => {
       foundationsTrackPath,
     );
     expect(screen.getByText("Regression")).toBeInTheDocument();
+    expect(screen.getByText("Clustering")).toBeInTheDocument();
     expect(screen.getByText("Classification")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /Coming soon/ })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: /Coming soon/ })).toHaveLength(3);
   });
 
   it("shows only the first Machine Learning Foundations lesson as available without progress", async () => {
@@ -104,24 +118,15 @@ describe("App", () => {
         lazyRouteTimeout,
       ),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Start lesson/ })).toHaveLength(1);
-    expect(screen.getByRole("link", { name: /Start lesson/ })).toHaveAttribute(
-      "href",
-      `${foundationsTrackPath}/lesson-0-1-feature-target`,
-    );
-    expect(
-      document.querySelector(
-        `a[href="${foundationsTrackPath}/lesson-0-2-regression-classification"]`,
-      ),
-    ).toBeNull();
-    expect(
-      document.querySelector(`a[href="${foundationsTrackPath}/lesson-0-3-ml-workflow-order"]`),
-    ).toBeNull();
+    expect(screen.getAllByRole("link", { name: /^Start$/ })).toHaveLength(1);
+    expect(screen.getByRole("link", { name: /^Start$/ })).toHaveAttribute("href", lesson01Path);
+    expect(document.querySelector(`a[href="${lesson02Path}"]`)).toBeNull();
+    expect(document.querySelector(`a[href="${lesson06Path}"]`)).toBeNull();
     expect(screen.getAllByText("Locked").length).toBeGreaterThanOrEqual(2);
   });
 
   it("requires confirmation before resetting learning progress", async () => {
-    seedCompletedLessons(["lesson-0-1-feature-target", "lesson-0-2-regression-classification"]);
+    seedCompletedLessons(module0LessonIds.slice(0, 2));
     window.history.pushState(null, "", foundationsTrackPath);
     render(<App />);
 
@@ -132,7 +137,7 @@ describe("App", () => {
         lazyRouteTimeout,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText("2/32")).toBeInTheDocument();
+    expect(screen.getByText("2/13")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Reset progress" }));
 
@@ -144,17 +149,14 @@ describe("App", () => {
         "This action cannot be undone. It will delete your learning progress.",
       ),
     ).toBeInTheDocument();
-    expect(getStoredCompletedLessonIds()).toEqual([
-      "lesson-0-1-feature-target",
-      "lesson-0-2-regression-classification",
-    ]);
+    expect(getStoredCompletedLessonIds()).toEqual(module0LessonIds.slice(0, 2));
 
     fireEvent.click(within(firstDialog).getByRole("button", { name: "Cancel" }));
 
     await waitFor(() => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
-    expect(screen.getByText("2/32")).toBeInTheDocument();
+    expect(screen.getByText("2/13")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Reset progress" }));
 
@@ -164,34 +166,36 @@ describe("App", () => {
     fireEvent.click(within(secondDialog).getByRole("button", { name: "Reset progress" }));
 
     await waitFor(() => {
-      expect(screen.getByText("0/32")).toBeInTheDocument();
+      expect(screen.getByText("0/13")).toBeInTheDocument();
     });
     expect(getStoredCompletedLessonIds()).toEqual([]);
   });
 
   it("completes the first lesson, persists progress, and unlocks the next lesson", async () => {
-    window.history.pushState(null, "", `${foundationsTrackPath}/lesson-0-1-feature-target`);
+    window.history.pushState(null, "", lesson01Path);
     render(<App />);
 
     expect(
-      await screen.findByRole(
-        "heading",
-        { name: "Understanding Dataframes for ML" },
-        lazyRouteTimeout,
-      ),
+      await screen.findByRole("heading", { name: "Apa Itu Machine Learning" }, lazyRouteTimeout),
     ).toBeInTheDocument();
 
-    await chooseColumnRole("Shift ID", "Metadata");
-    await chooseColumnRole("Day Part", "Safe feature");
-    await chooseColumnRole("Weather", "Safe feature");
-    await chooseColumnRole("Temperature", "Safe feature");
-    await chooseColumnRole("Promo Active", "Safe feature");
-    await chooseColumnRole("Drinks Sold", "Target");
+    const wrongSingleOption = screen.getByLabelText(
+      "Komputer menjalankan daftar aturan tetap yang ditulis manusia untuk semua kondisi.",
+    );
+    const correctSingleOption = screen.getByLabelText(
+      "Komputer belajar pola dari data agar dapat membuat prediksi, rekomendasi, atau keputusan untuk contoh baru.",
+    );
+
+    fireEvent.click(wrongSingleOption);
+    fireEvent.click(correctSingleOption);
+
+    expect(wrongSingleOption).not.toBeChecked();
+    expect(correctSingleOption).toBeChecked();
 
     fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
 
     expect(await screen.findByRole("heading", { name: "Correct" })).toBeInTheDocument();
-    expect(getStoredCompletedLessonIds()).toContain("lesson-0-1-feature-target");
+    expect(getStoredCompletedLessonIds()).toContain("lesson-0-1-what-is-machine-learning");
 
     fireEvent.click(screen.getAllByRole("link", { name: "Back to Learning Path" })[0]);
 
@@ -202,27 +206,32 @@ describe("App", () => {
         lazyRouteTimeout,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Review lesson/ })).toHaveAttribute(
-      "href",
-      `${foundationsTrackPath}/lesson-0-1-feature-target`,
-    );
-    expect(screen.getByRole("link", { name: /Start lesson/ })).toHaveAttribute(
-      "href",
-      `${foundationsTrackPath}/lesson-0-2-regression-classification`,
-    );
+    expect(screen.getByRole("link", { name: /^Review$/ })).toHaveAttribute("href", lesson01Path);
+    expect(screen.getByRole("link", { name: /^Start$/ })).toHaveAttribute("href", lesson02Path);
+    expect(document.querySelector(`a[href="${lesson03Path}"]`)).toBeNull();
+
+    fireEvent.click(screen.getByRole("link", { name: /^Review$/ }));
+
     expect(
-      document.querySelector(`a[href="${foundationsTrackPath}/lesson-0-3-ml-workflow-order"]`),
-    ).toBeNull();
+      await screen.findByRole("heading", { name: "Apa Itu Machine Learning" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(
+        "Komputer belajar pola dari data agar dapat membuat prediksi, rekomendasi, atau keputusan untuk contoh baru.",
+      ),
+    ).toBeChecked();
+    expect(screen.getByRole("heading", { name: "Correct" })).toBeInTheDocument();
   });
 
   it("sorts the dataset preview when a column header is clicked", async () => {
-    window.history.pushState(null, "", `${foundationsTrackPath}/lesson-0-1-feature-target`);
+    seedCompletedLessons(module0LessonIds.slice(0, 5));
+    window.history.pushState(null, "", lesson06Path);
     render(<App />);
 
     expect(
       await screen.findByRole(
         "heading",
-        { name: "Understanding Dataframes for ML" },
+        { name: "Merumuskan Masalah dalam Machine Learning" },
         lazyRouteTimeout,
       ),
     ).toBeInTheDocument();
@@ -239,15 +248,11 @@ describe("App", () => {
   });
 
   it("keeps the next lesson locked after an incorrect answer", async () => {
-    window.history.pushState(null, "", `${foundationsTrackPath}/lesson-0-1-feature-target`);
+    window.history.pushState(null, "", lesson01Path);
     render(<App />);
 
     expect(
-      await screen.findByRole(
-        "heading",
-        { name: "Understanding Dataframes for ML" },
-        lazyRouteTimeout,
-      ),
+      await screen.findByRole("heading", { name: "Apa Itu Machine Learning" }, lazyRouteTimeout),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
@@ -255,7 +260,7 @@ describe("App", () => {
     expect(await screen.findByRole("heading", { name: "Not quite" })).toBeInTheDocument();
     expect(screen.queryByText("Expected role check")).not.toBeInTheDocument();
     expect(screen.queryByText("drinks_sold: target")).not.toBeInTheDocument();
-    expect(getStoredCompletedLessonIds()).not.toContain("lesson-0-1-feature-target");
+    expect(getStoredCompletedLessonIds()).not.toContain("lesson-0-1-what-is-machine-learning");
 
     fireEvent.click(screen.getAllByRole("link", { name: "Back to Learning Path" })[0]);
 
@@ -266,23 +271,12 @@ describe("App", () => {
         lazyRouteTimeout,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Start lesson/ })).toHaveAttribute(
-      "href",
-      `${foundationsTrackPath}/lesson-0-1-feature-target`,
-    );
-    expect(
-      document.querySelector(
-        `a[href="${foundationsTrackPath}/lesson-0-2-regression-classification"]`,
-      ),
-    ).toBeNull();
+    expect(screen.getByRole("link", { name: /^Start$/ })).toHaveAttribute("href", lesson01Path);
+    expect(document.querySelector(`a[href="${lesson02Path}"]`)).toBeNull();
   });
 
   it("blocks direct access to locked Learning Mode lessons", async () => {
-    window.history.pushState(
-      null,
-      "",
-      `${foundationsTrackPath}/lesson-0-2-regression-classification`,
-    );
+    window.history.pushState(null, "", lesson02Path);
     render(<App />);
 
     expect(
@@ -292,60 +286,84 @@ describe("App", () => {
     expect(screen.queryByRole("button", { name: "Submit answer" })).not.toBeInTheDocument();
   });
 
-  it("submits the regression vs classification lesson", async () => {
-    seedCompletedLessons(["lesson-0-1-feature-target"]);
-    window.history.pushState(
-      null,
-      "",
-      `${foundationsTrackPath}/lesson-0-2-regression-classification`,
-    );
+  it("submits the learning types lesson", async () => {
+    seedCompletedLessons(module0LessonIds.slice(0, 3));
+    window.history.pushState(null, "", lesson04Path);
     render(<App />);
 
     expect(
       await screen.findByRole(
         "heading",
-        { name: "Regression vs Classification" },
+        { name: "Jenis-Jenis Machine Learning" },
+        lazyRouteTimeout,
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Regression memprediksi nilai numerik."));
+    fireEvent.click(screen.getByLabelText("Classification memprediksi kategori."));
+    fireEvent.click(screen.getByLabelText("Clustering mengelompokkan data tanpa label jawaban."));
+    fireEvent.click(
+      screen.getByLabelText("Reinforcement learning belajar dari reward atas tindakan."),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
+
+    expect(await screen.findByRole("heading", { name: "Correct" })).toBeInTheDocument();
+    expect(getStoredCompletedLessonIds()).toContain("lesson-0-4-learning-types");
+  });
+
+  it("submits the problem formulation lesson with both exercises", async () => {
+    seedCompletedLessons(module0LessonIds.slice(0, 5));
+    window.history.pushState(null, "", lesson06Path);
+    render(<App />);
+
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: "Merumuskan Masalah dalam Machine Learning" },
         lazyRouteTimeout,
       ),
     ).toBeInTheDocument();
 
     fireEvent.click(
-      screen.getByLabelText("Predict how many drinks Smile Cafe will sell in a shift."),
+      screen.getByLabelText(
+        "Target yang masuk akal adalah jumlah minuman yang terjual pada shift tersebut.",
+      ),
     );
-    fireEvent.click(screen.getByLabelText("Predict the average customer wait time in minutes."));
+    fireEvent.click(
+      screen.getByLabelText(
+        "Jenis task yang masuk akal adalah regression karena output berupa angka.",
+      ),
+    );
+    fireEvent.click(
+      screen.getByLabelText(
+        "Fitur yang aman bisa mencakup hari, jam shift, cuaca yang diprediksi, dan promo yang sudah diketahui sebelum shift.",
+      ),
+    );
+    fireEvent.click(
+      screen.getByLabelText(
+        "Problem statement yang jelas: memprediksi jumlah minuman terjual sebelum shift dimulai.",
+      ),
+    );
+    await chooseColumnRole("Shift ID", "Metadata");
+    await chooseColumnRole("Day Part", "Safe feature");
+    await chooseColumnRole("Weather", "Safe feature");
+    await chooseColumnRole("Temperature", "Safe feature");
+    await chooseColumnRole("Promo Active", "Safe feature");
+    await chooseColumnRole("Drinks Sold", "Target");
+
     fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
 
     expect(await screen.findByRole("heading", { name: "Correct" })).toBeInTheDocument();
-    expect(getStoredCompletedLessonIds()).toContain("lesson-0-2-regression-classification");
-  });
-
-  it("submits the ML workflow ordering lesson", async () => {
-    seedCompletedLessons(["lesson-0-1-feature-target", "lesson-0-2-regression-classification"]);
-    window.history.pushState(null, "", `${foundationsTrackPath}/lesson-0-3-ml-workflow-order`);
-    render(<App />);
-
-    expect(
-      await screen.findByRole("heading", { name: "ML Workflow Order" }, lazyRouteTimeout),
-    ).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Move Baseline up" }));
-    fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
-
-    expect(await screen.findByRole("heading", { name: "Correct" })).toBeInTheDocument();
-    expect(getStoredCompletedLessonIds()).toContain("lesson-0-3-ml-workflow-order");
+    expect(getStoredCompletedLessonIds()).toContain("lesson-0-6-formulating-ml-problems");
   });
 
   it("unlocks the first lesson in the next module after the previous module is complete", async () => {
-    seedCompletedLessons([
-      "lesson-0-1-feature-target",
-      "lesson-0-2-regression-classification",
-      "lesson-0-3-ml-workflow-order",
-    ]);
-    window.history.pushState(null, "", `${foundationsTrackPath}/lesson-1-1-column-types`);
+    seedCompletedLessons(module0LessonIds);
+    window.history.pushState(null, "", `${foundationsTrackPath}/lesson-1-1-ml-tools-libraries`);
     render(<App />);
 
     expect(
-      await screen.findByRole("heading", { name: "Column Types" }, lazyRouteTimeout),
+      await screen.findByRole("heading", { name: "ML Tools and Libraries" }, lazyRouteTimeout),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Submit answer" })).toBeInTheDocument();
   });

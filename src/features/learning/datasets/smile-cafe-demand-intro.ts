@@ -44,6 +44,13 @@ export const smileCafeDemandIntroDataset: GeneratedDataset = {
       type: "numeric",
       unit: "cups",
     },
+    {
+      id: "end_shift_revenue",
+      label: "End Shift Revenue",
+      role: "ignore",
+      type: "numeric",
+      unit: "idr",
+    },
   ],
   rows: [
     {
@@ -51,6 +58,7 @@ export const smileCafeDemandIntroDataset: GeneratedDataset = {
       values: {
         day_part: "morning",
         drinks_sold: 86,
+        end_shift_revenue: 1720000,
         promo_active: true,
         shift_id: "SHIFT-001",
         temperature_c: 27,
@@ -62,6 +70,7 @@ export const smileCafeDemandIntroDataset: GeneratedDataset = {
       values: {
         day_part: "lunch",
         drinks_sold: 112,
+        end_shift_revenue: 2240000,
         promo_active: false,
         shift_id: "SHIFT-002",
         temperature_c: 31,
@@ -73,6 +82,7 @@ export const smileCafeDemandIntroDataset: GeneratedDataset = {
       values: {
         day_part: "evening",
         drinks_sold: 148,
+        end_shift_revenue: 2960000,
         promo_active: true,
         shift_id: "SHIFT-003",
         temperature_c: 29,
@@ -84,6 +94,7 @@ export const smileCafeDemandIntroDataset: GeneratedDataset = {
       values: {
         day_part: "afternoon",
         drinks_sold: 74,
+        end_shift_revenue: 1480000,
         promo_active: false,
         shift_id: "SHIFT-004",
         temperature_c: 25,
@@ -95,6 +106,7 @@ export const smileCafeDemandIntroDataset: GeneratedDataset = {
       values: {
         day_part: "morning",
         drinks_sold: 132,
+        end_shift_revenue: 2640000,
         promo_active: false,
         shift_id: "SHIFT-005",
         temperature_c: 30,
@@ -106,6 +118,7 @@ export const smileCafeDemandIntroDataset: GeneratedDataset = {
       values: {
         day_part: "night",
         drinks_sold: 96,
+        end_shift_revenue: 1920000,
         promo_active: true,
         shift_id: "SHIFT-006",
         temperature_c: 28,
@@ -117,6 +130,7 @@ export const smileCafeDemandIntroDataset: GeneratedDataset = {
       values: {
         day_part: "afternoon",
         drinks_sold: 69,
+        end_shift_revenue: 1380000,
         promo_active: false,
         shift_id: "SHIFT-007",
         temperature_c: 24,
@@ -128,6 +142,7 @@ export const smileCafeDemandIntroDataset: GeneratedDataset = {
       values: {
         day_part: "evening",
         drinks_sold: 121,
+        end_shift_revenue: 2420000,
         promo_active: true,
         shift_id: "SHIFT-008",
         temperature_c: 32,
@@ -139,6 +154,7 @@ export const smileCafeDemandIntroDataset: GeneratedDataset = {
       values: {
         day_part: "lunch",
         drinks_sold: 104,
+        end_shift_revenue: 2080000,
         promo_active: true,
         shift_id: "SHIFT-009",
         temperature_c: 29,
@@ -150,6 +166,7 @@ export const smileCafeDemandIntroDataset: GeneratedDataset = {
       values: {
         day_part: "afternoon",
         drinks_sold: 58,
+        end_shift_revenue: 1160000,
         promo_active: false,
         shift_id: "SHIFT-010",
         temperature_c: 23,
@@ -161,6 +178,7 @@ export const smileCafeDemandIntroDataset: GeneratedDataset = {
       values: {
         day_part: "morning",
         drinks_sold: 91,
+        end_shift_revenue: 1820000,
         promo_active: false,
         shift_id: "SHIFT-011",
         temperature_c: 26,
@@ -172,6 +190,7 @@ export const smileCafeDemandIntroDataset: GeneratedDataset = {
       values: {
         day_part: "night",
         drinks_sold: 155,
+        end_shift_revenue: 3100000,
         promo_active: true,
         shift_id: "SHIFT-012",
         temperature_c: 31,
@@ -188,6 +207,7 @@ export const smileCafeDemandIntroDataset: GeneratedDataset = {
         "temperature_c",
         "promo_active",
         "drinks_sold",
+        "end_shift_revenue",
       ],
       id: "intro-table-preview",
       rowIds: [

@@ -41,8 +41,9 @@ export function evaluateMultipleChoice(
 
   if (correctSelectedCount === 1 && incorrectSelectedCount === 0) {
     return createResult({
-      message: "One correct option is selected, but another required option is still missing.",
-      nextStep: "Review the prompt and look for another option supported by the lesson concept.",
+      message:
+        "Jawabanmu sudah mengarah ke pilihan yang benar, tapi masih ada pilihan lain yang perlu dipilih.",
+      nextStep: "Baca lagi pertanyaannya, lalu cari pilihan lain yang masih sesuai.",
       score: 60,
       status: "partial",
       title: "Partially correct",
@@ -51,8 +52,8 @@ export function evaluateMultipleChoice(
 
   if (correctSelectedCount === exercise.correctOptionIds.length && incorrectSelectedCount === 1) {
     return createResult({
-      message: "The required options are selected, but one unsupported option is included too.",
-      nextStep: "Remove the option that is not supported by the lesson concept.",
+      message: "Pilihan yang benar sudah ada, tapi ada satu pilihan tambahan yang tidak perlu.",
+      nextStep: "Hapus pilihan yang tidak sesuai, lalu submit lagi.",
       score: 40,
       status: "partial",
       title: "Partially correct",
@@ -60,8 +61,8 @@ export function evaluateMultipleChoice(
   }
 
   return createResult({
-    message: "The selected options do not match the main idea this exercise is checking.",
-    nextStep: "Use the hints, revisit the concept summary, then try again.",
+    message: "Jawabanmu belum tepat.",
+    nextStep: "Coba baca pertanyaannya lagi dan gunakan hint kalau masih ragu.",
     score: 20,
     status: "incorrect",
     title: "Not quite",

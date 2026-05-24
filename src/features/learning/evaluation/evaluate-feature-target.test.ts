@@ -6,6 +6,7 @@ import type { ColumnRole } from "../types";
 const correctAssignments: Record<string, ColumnRole> = {
   day_part: "safe-feature",
   drinks_sold: "target",
+  end_shift_revenue: "ignore",
   promo_active: "safe-feature",
   shift_id: "metadata",
   temperature_c: "safe-feature",
@@ -66,6 +67,17 @@ describe("evaluateFeatureTargetRoles", () => {
     expect(result.status).toBe("partial");
     expect(result.message).toContain("shift identifier is being used as a feature");
     expect(result.nextStep).toContain("keep identifier fields as metadata");
+  });
+
+  it("flags after-shift revenue as leakage when selected as a feature", () => {
+    const result = evaluateFeatureTargetRoles({
+      ...correctAssignments,
+      end_shift_revenue: "safe-feature",
+    });
+
+    expect(result.status).toBe("partial");
+    expect(result.message).toContain("end-shift revenue is after-shift information");
+    expect(result.nextStep).toContain("after-shift information");
   });
 
   it("recognizes when shift details are still missing as safe features", () => {

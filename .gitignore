@@ -20,9 +20,6 @@ models/*
 !data/processed/.gitkeep
 !models/.gitkeep
 
-# Local docs
-docs/
-
 # Local config
 .env
 .env.*

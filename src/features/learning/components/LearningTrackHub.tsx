@@ -73,13 +73,6 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
           </h1>
         </div>
 
-        <div className="learning-sheet-cell learning-extend-left col-span-full p-6 [@media_(min-width:2200px)]:p-12">
-          <p className="max-w-3xl text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:max-w-5xl [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
-            Start with Machine Learning Foundations, then branch into focused paths like Regression
-            and Classification.
-          </p>
-        </div>
-
         {learningTracks.map((track, index) => {
           const Icon = getTrackIcon(track);
           const lessonCount = getTrackLessonCount(track);

@@ -1,4 +1,9 @@
-import { activeLesson, getLesson, getTrack } from "@/features/learning/content/learning-content";
+import {
+  activeLesson,
+  getLesson,
+  getModule,
+  getTrack,
+} from "@/features/learning/content/learning-content";
 import {
   LearningGridCanvas,
   LearningSheetExtensions,
@@ -111,7 +116,12 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
 
   if (route.kind === "lesson") {
     const lesson = getLesson(route.lessonId);
-    const isLessonInTrack = lesson ? track.moduleIds.includes(lesson.moduleId) : false;
+    const lessonModule = lesson ? getModule(lesson.moduleId) : undefined;
+    const isLessonInTrack =
+      lesson !== undefined &&
+      lessonModule !== undefined &&
+      track.moduleIds.includes(lesson.moduleId) &&
+      lessonModule.lessonIds.includes(lesson.id);
 
     if (!lesson || !isLessonInTrack) {
       return (
@@ -167,9 +177,13 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
       <LessonPage
         backHref={trackHomeHref}
         backLabel="Back to Learning Path"
+        initialAnswer={progress.lessonAnswers[lesson.id]}
+        isCompleted={progress.completedLessonIds.includes(lesson.id)}
+        key={lesson.id}
         lesson={lesson}
-        onSubmitResult={(result) => {
+        onSubmitResult={(result, answer) => {
           completeLesson({
+            answer,
             exerciseId: lesson.exerciseId,
             lessonId: lesson.id,
             result,

@@ -87,6 +87,7 @@ export type Lesson = {
   viewId?: string;
   exerciseId: string;
   exercise: LessonExercise;
+  exercises?: LessonExercise[];
 };
 
 export type LearningModule = {
@@ -111,10 +112,17 @@ export type ExerciseAttempt = {
   submittedAt: string;
 };
 
+export type LessonAnswer = {
+  columnRoleAssignmentsByExerciseId?: Record<string, Record<string, ColumnRole>>;
+  orderedStepIdsByExerciseId?: Record<string, string[]>;
+  selectedOptionIdsByExerciseId?: Record<string, string[]>;
+};
+
 export type LearningProgress = {
   version: 1;
   completedLessonIds: string[];
   attempts: Record<string, ExerciseAttempt>;
+  lessonAnswers: Record<string, LessonAnswer>;
   currentLessonId?: string;
 };
 

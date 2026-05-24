@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import type { EvaluationResult, LearningProgress } from "../types";
+import type { EvaluationResult, LearningProgress, LessonAnswer } from "../types";
 
 export const learningProgressStorageKey = "smile-learning-progress-v1";
 
 const initialProgress: LearningProgress = {
   attempts: {},
   completedLessonIds: [],
+  lessonAnswers: {},
   version: 1,
 };
 
@@ -42,6 +43,7 @@ export function readLearningProgress(): LearningProgress {
       attempts: parsed.attempts ?? {},
       completedLessonIds: parsed.completedLessonIds,
       currentLessonId: parsed.currentLessonId,
+      lessonAnswers: parsed.lessonAnswers ?? {},
       version: 1,
     };
   } catch {
@@ -65,7 +67,12 @@ export function useLearningProgress() {
   }, [progress]);
 
   const completeLesson = useCallback(
-    (input: { exerciseId: string; lessonId: string; result: EvaluationResult }) => {
+    (input: {
+      answer: LessonAnswer;
+      exerciseId: string;
+      lessonId: string;
+      result: EvaluationResult;
+    }) => {
       setProgress((current) => {
         const completedLessonIds =
           input.result.status === "correct" && !current.completedLessonIds.includes(input.lessonId)
@@ -85,6 +92,10 @@ export function useLearningProgress() {
           },
           completedLessonIds,
           currentLessonId: input.lessonId,
+          lessonAnswers: {
+            ...current.lessonAnswers,
+            [input.lessonId]: input.answer,
+          },
         };
       });
     },

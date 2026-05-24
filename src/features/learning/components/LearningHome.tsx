@@ -197,7 +197,7 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
                               data-app-link
                               href={`/learn/${track.id}/${lesson.id}`}
                             >
-                              {isLessonCompleted ? "Review lesson" : "Start lesson"}
+                              {isLessonCompleted ? "Review" : "Start"}
                               <ArrowRightIcon
                                 aria-hidden="true"
                                 className="size-5 [@media_(min-width:2200px)]:size-6"

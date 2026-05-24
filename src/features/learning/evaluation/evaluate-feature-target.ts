@@ -3,6 +3,7 @@ import type { ColumnRole, EvaluationResult } from "../types";
 const expectedRoles: Record<string, ColumnRole> = {
   day_part: "safe-feature",
   drinks_sold: "target",
+  end_shift_revenue: "ignore",
   promo_active: "safe-feature",
   shift_id: "metadata",
   temperature_c: "safe-feature",
@@ -12,6 +13,7 @@ const expectedRoles: Record<string, ColumnRole> = {
 const columnLabels: Record<string, string> = {
   day_part: "Day Part",
   drinks_sold: "Drinks Sold",
+  end_shift_revenue: "End Shift Revenue",
   promo_active: "Promo Active",
   shift_id: "Shift ID",
   temperature_c: "Temperature",
@@ -131,6 +133,20 @@ export function evaluateFeatureTargetRoles(
       };
     }
 
+    if (targetColumnIds.includes("end_shift_revenue")) {
+      return {
+        extraColumnIds,
+        missedColumnIds,
+        message:
+          "End-shift revenue is known after the shift is finished. It is not the demand outcome this forecast should predict before the shift starts.",
+        nextStep:
+          "Choose the demand count as the Target and keep after-shift information out of the model inputs.",
+        score: 20,
+        status: "incorrect",
+        title: "Not quite",
+      };
+    }
+
     return {
       extraColumnIds,
       missedColumnIds,
@@ -195,6 +211,20 @@ export function evaluateFeatureTargetRoles(
       nextStep:
         "Metadata describes how to read or reference rows; it should not be used as model input.",
       score: 65,
+      status: "partial",
+      title: "Partially correct",
+    };
+  }
+
+  if (assignments.end_shift_revenue === "safe-feature") {
+    return {
+      extraColumnIds,
+      missedColumnIds,
+      message:
+        "The target and metadata are set, but end-shift revenue is after-shift information. Using it as a feature would leak the answer.",
+      nextStep:
+        "Mark after-shift information as not used yet, then keep only pre-shift details as features.",
+      score: 55,
       status: "partial",
       title: "Partially correct",
     };
