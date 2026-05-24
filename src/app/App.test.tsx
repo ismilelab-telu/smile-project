@@ -270,4 +270,23 @@ describe("App", () => {
     expect(await screen.findByRole("heading", { name: "Correct" })).toBeInTheDocument();
     expect(getStoredCompletedLessonIds()).toContain("lesson-0-3-ml-workflow-order");
   });
+
+  it("unlocks the first lesson in the next module after the previous module is complete", async () => {
+    seedCompletedLessons([
+      "lesson-0-1-feature-target",
+      "lesson-0-2-regression-classification",
+      "lesson-0-3-ml-workflow-order",
+    ]);
+    window.history.pushState(
+      null,
+      "",
+      "/learn/track-regression-foundations/lesson-1-1-column-types",
+    );
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Column Types" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Submit answer" })).toBeInTheDocument();
+  });
 });

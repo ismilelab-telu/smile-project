@@ -1,5 +1,59 @@
-import { getModule, lessons } from "../content/learning-content";
-import type { LearningProgress, Lesson } from "../types";
+import { getModule, learningModules, lessons } from "../content/learning-content";
+import type { LearningModule, LearningProgress, Lesson } from "../types";
+
+function getModuleIndex(moduleId: string) {
+  return learningModules.findIndex((candidate) => candidate.id === moduleId);
+}
+
+function getPreviousLessonId(lesson: Lesson) {
+  const module = getModule(lesson.moduleId);
+
+  if (!module) {
+    return undefined;
+  }
+
+  const lessonIndex = module.lessonIds.indexOf(lesson.id);
+
+  if (lessonIndex === -1) {
+    return undefined;
+  }
+
+  if (lessonIndex > 0) {
+    return module.lessonIds[lessonIndex - 1];
+  }
+
+  const moduleIndex = getModuleIndex(module.id);
+
+  if (moduleIndex <= 0) {
+    return undefined;
+  }
+
+  const previousModule = learningModules[moduleIndex - 1];
+
+  return previousModule?.lessonIds.at(-1);
+}
+
+export function isModuleUnlocked(module: LearningModule, progress: LearningProgress) {
+  if (module.status !== "available") {
+    return false;
+  }
+
+  const moduleIndex = getModuleIndex(module.id);
+
+  if (moduleIndex <= 0) {
+    return moduleIndex === 0;
+  }
+
+  const previousModule = learningModules[moduleIndex - 1];
+
+  if (!previousModule || previousModule.lessonIds.length === 0) {
+    return true;
+  }
+
+  return previousModule.lessonIds.every((lessonId) =>
+    progress.completedLessonIds.includes(lessonId),
+  );
+}
 
 export function isLessonUnlocked(lesson: Lesson, progress: LearningProgress) {
   const module = getModule(lesson.moduleId);
@@ -14,11 +68,11 @@ export function isLessonUnlocked(lesson: Lesson, progress: LearningProgress) {
     return false;
   }
 
-  if (lessonIndex === 0) {
+  const previousLessonId = getPreviousLessonId(lesson);
+
+  if (!previousLessonId) {
     return true;
   }
-
-  const previousLessonId = module.lessonIds[lessonIndex - 1];
 
   return progress.completedLessonIds.includes(previousLessonId);
 }
@@ -32,11 +86,15 @@ export function getLessonLockReason(lesson: Lesson, progress: LearningProgress) 
 
   const lessonIndex = module.lessonIds.indexOf(lesson.id);
 
-  if (lessonIndex <= 0) {
+  if (lessonIndex === -1) {
     return undefined;
   }
 
-  const previousLessonId = module.lessonIds[lessonIndex - 1];
+  const previousLessonId = getPreviousLessonId(lesson);
+
+  if (!previousLessonId) {
+    return undefined;
+  }
 
   if (progress.completedLessonIds.includes(previousLessonId)) {
     return undefined;

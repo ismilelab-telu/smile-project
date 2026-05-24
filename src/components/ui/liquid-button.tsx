@@ -12,20 +12,6 @@ type LiquidMotionProps = {
 type LiquidButtonProps = ComponentProps<typeof motion.button> & LiquidMotionProps;
 type LiquidLinkProps = ComponentProps<typeof motion.a> & LiquidMotionProps;
 
-function toSeconds(time: string) {
-  const value = time.trim();
-
-  if (value.endsWith("ms")) {
-    return Number(value.slice(0, -2)) / 1000;
-  }
-
-  if (value.endsWith("s")) {
-    return Number(value.slice(0, -1));
-  }
-
-  return Number(value);
-}
-
 export function LiquidButton({
   delay = "0.3s",
   fillHeight = "3px",
@@ -33,19 +19,15 @@ export function LiquidButton({
   tapScale = 0.95,
   ...props
 }: LiquidButtonProps) {
-  const delaySeconds = toSeconds(delay);
-
   return (
     <motion.button
       whileTap={{ scale: tapScale }}
       whileHover={{
         scale: hoverScale,
-        color: "var(--liquid-button-hover-text-color, var(--liquid-button-background-color))",
         "--liquid-button-fill-width": "100%",
         "--liquid-button-fill-height": "100%",
         "--liquid-button-delay": delay,
         transition: {
-          color: { delay: delaySeconds, duration: Math.min(delaySeconds, 0.16) },
           "--liquid-button-fill-width": { duration: 0 },
           "--liquid-button-fill-height": { duration: 0 },
           "--liquid-button-delay": { duration: 0 },
@@ -74,19 +56,15 @@ export function LiquidLink({
   tapScale = 0.95,
   ...props
 }: LiquidLinkProps) {
-  const delaySeconds = toSeconds(delay);
-
   return (
     <motion.a
       whileTap={{ scale: tapScale }}
       whileHover={{
         scale: hoverScale,
-        color: "var(--liquid-button-hover-text-color, var(--liquid-button-background-color))",
         "--liquid-button-fill-width": "100%",
         "--liquid-button-fill-height": "100%",
         "--liquid-button-delay": delay,
         transition: {
-          color: { delay: delaySeconds, duration: Math.min(delaySeconds, 0.16) },
           "--liquid-button-fill-width": { duration: 0 },
           "--liquid-button-fill-height": { duration: 0 },
           "--liquid-button-delay": { duration: 0 },

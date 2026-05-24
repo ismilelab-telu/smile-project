@@ -31,9 +31,8 @@ export function evaluateMultipleChoice(
     selected.size === correct.size
   ) {
     return createResult({
-      message:
-        "Price and days on market are numeric targets with many possible values, so both are regression problems.",
-      nextStep: "This lesson is complete. Continue to the workflow ordering lesson.",
+      message: "Your selection matches the concepts this lesson is checking.",
+      nextStep: "This lesson is complete. Continue to the next unlocked lesson.",
       score: 100,
       status: "correct",
       title: "Correct",
@@ -42,8 +41,8 @@ export function evaluateMultipleChoice(
 
   if (correctSelectedCount === 1 && incorrectSelectedCount === 0) {
     return createResult({
-      message: "One regression scenario is selected, but another numeric target is still missing.",
-      nextStep: "Look for another option where the model predicts a number, not a category.",
+      message: "One correct option is selected, but another required option is still missing.",
+      nextStep: "Review the prompt and look for another option supported by the lesson concept.",
       score: 60,
       status: "partial",
       title: "Partially correct",
@@ -52,9 +51,8 @@ export function evaluateMultipleChoice(
 
   if (correctSelectedCount === exercise.correctOptionIds.length && incorrectSelectedCount === 1) {
     return createResult({
-      message:
-        "Both regression scenarios are selected, but one classification scenario is included too.",
-      nextStep: "Remove the option where the model predicts a category or yes/no label.",
+      message: "The required options are selected, but one unsupported option is included too.",
+      nextStep: "Remove the option that is not supported by the lesson concept.",
       score: 40,
       status: "partial",
       title: "Partially correct",
@@ -62,10 +60,8 @@ export function evaluateMultipleChoice(
   }
 
   return createResult({
-    message:
-      "Regression is about predicting numeric values. Classification is about predicting categories or labels.",
-    nextStep:
-      "Focus on the output the model should produce, then choose only numeric-target scenarios.",
+    message: "The selected options do not match the main idea this exercise is checking.",
+    nextStep: "Use the hints, revisit the concept summary, then try again.",
     score: 20,
     status: "incorrect",
     title: "Not quite",
