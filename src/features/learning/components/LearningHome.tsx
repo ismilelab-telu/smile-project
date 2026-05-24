@@ -178,8 +178,8 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
                           aria-hidden="true"
                           className="learning-sheet-cell learning-extend-left learning-sheet-cell-fill"
                         />
-                        <div className="learning-sheet-cell learning-sheet-cell-fill flex items-center justify-center p-4 text-sm font-medium text-muted-foreground [@media_(min-width:2200px)]:p-6 [@media_(min-width:2200px)]:text-base">
-                          {lesson.numberLabel}
+                        <div className="learning-sheet-cell learning-sheet-cell-fill flex items-center justify-center p-4 text-base font-semibold text-neutral-700 [@media_(min-width:2200px)]:p-6 [@media_(min-width:2200px)]:text-2xl">
+                          {lesson.numberLabel.replace("Lesson ", "")}
                         </div>
                         <div className="learning-sheet-cell flex min-h-24 items-center p-5 [@media_(min-width:2200px)]:min-h-32 [@media_(min-width:2200px)]:p-8">
                           <h4 className="text-xl leading-tight font-normal text-foreground [@media_(min-width:2200px)]:text-3xl">
