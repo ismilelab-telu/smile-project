@@ -236,6 +236,8 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
 
     expect(await screen.findByRole("heading", { name: "Not quite" })).toBeInTheDocument();
+    expect(screen.queryByText("Expected role check")).not.toBeInTheDocument();
+    expect(screen.queryByText("price_million_idr: target")).not.toBeInTheDocument();
     expect(getStoredCompletedLessonIds()).not.toContain("lesson-0-1-feature-target");
 
     fireEvent.click(screen.getAllByRole("link", { name: "Back to Learning Home" })[0]);

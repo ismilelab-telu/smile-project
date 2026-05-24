@@ -6,6 +6,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
+import { autoUpdate, flip, offset, shift, size, useFloating } from "@floating-ui/react-dom";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -16,7 +17,9 @@ import {
 } from "@heroicons/react/24/outline";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { getDatasetView } from "../datasets/registry";
 import {
@@ -24,7 +27,6 @@ import {
   evaluateOrderedSteps,
 } from "../evaluation/evaluate-lesson-exercises";
 import {
-  describeExpectedRole,
   evaluateFeatureTargetRoles,
   getExpectedColumnRoles,
 } from "../evaluation/evaluate-feature-target";
@@ -61,6 +63,42 @@ const roleOptions: Array<{ label: string; value: ColumnRole }> = [
   { label: "Safe feature", value: "safe-feature" },
   { label: "Metadata", value: "metadata" },
 ];
+const roleDropdownPanelVariants = {
+  closed: {
+    transition: {
+      staggerChildren: 0.035,
+      staggerDirection: -1,
+      when: "afterChildren",
+    },
+  },
+  open: {
+    transition: {
+      delayChildren: 0.02,
+      staggerChildren: 0.045,
+      when: "beforeChildren",
+    },
+  },
+};
+const roleDropdownOptionVariants = {
+  closed: {
+    opacity: 0,
+    transition: {
+      duration: 0.11,
+      ease: [0.4, 0, 1, 1],
+    },
+  },
+  open: {
+    opacity: 1,
+    transition: {
+      duration: 0.16,
+      ease: [0, 0, 0.2, 1],
+    },
+  },
+};
+type RoleDropdownHighlightRect = {
+  height: number;
+  y: number;
+};
 
 function getRoleOptionLabel(value: ColumnRole) {
   return roleOptions.find((option) => option.value === value)?.label ?? roleOptions[0].label;
@@ -91,6 +129,7 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
       ? getDatasetView(lesson.datasetId, lesson.viewId)
       : undefined;
   const hasNotQuiteResult = result !== null && result.status !== "correct";
+  const rightEdgeCompensationClassName = hasNotQuiteResult ? "-mr-px" : "";
 
   useEffect(() => {
     setAssignments(initialAssignments);
@@ -196,24 +235,26 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
       <section className="learning-sheet route-content-transition-target mx-auto grid w-[min(1440px,calc(100%_-_48px))] grid-cols-1 [@media_(min-width:1024px)]:grid-cols-12 [@media_(min-width:2200px)]:w-[min(1776px,calc(100%_-_96px))]">
         <LearningSheetExtensions />
 
-        <div className="learning-sheet-cell learning-extend-left learning-extend-top p-6 [@media_(min-width:1024px)]:col-span-8 [@media_(min-width:2200px)]:p-12">
-          <div className="mb-8 flex flex-wrap items-center gap-3 text-base text-muted-foreground [@media_(min-width:2200px)]:mb-12 [@media_(min-width:2200px)]:text-lg">
+        <div
+          className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} px-6 py-5 [@media_(min-width:2200px)]:px-12 [@media_(min-width:2200px)]:py-8`}
+        >
+          <div className="flex flex-wrap items-center gap-3 text-base text-muted-foreground [@media_(min-width:2200px)]:text-lg">
             <span>{lesson.numberLabel}</span>
             <span aria-hidden="true">/</span>
             <span>{lesson.estimatedMinutes} minutes</span>
           </div>
+        </div>
+        <div
+          className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} p-6 [@media_(min-width:2200px)]:p-12`}
+        >
           <h1 className="max-w-none text-5xl leading-tight font-semibold tracking-normal text-foreground [@media_(min-width:2200px)]:text-8xl">
             {lesson.title}
           </h1>
         </div>
-        <div
-          aria-hidden="true"
-          className="learning-sheet-cell learning-extend-right -mr-px hidden [@media_(min-width:1024px)]:col-span-4 [@media_(min-width:1024px)]:block"
-        />
 
         <section
           aria-labelledby="concept-summary"
-          className="learning-sheet-cell learning-extend-left learning-extend-right col-span-full p-6 [@media_(min-width:2200px)]:p-12"
+          className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} p-6 [@media_(min-width:2200px)]:p-12`}
         >
           <h2
             className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl"
@@ -221,7 +262,7 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
           >
             Concept summary
           </h2>
-          <div className="mt-6 grid gap-5 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-8 [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+          <div className="mt-5 grid gap-3 text-base leading-6 text-muted-foreground [@media_(min-width:2200px)]:mt-7 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-7">
             {lesson.summary.map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
             ))}
@@ -229,10 +270,16 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
         </section>
 
         {lesson.exercise.type === "table-column-role-assignment" && datasetView ? (
-          <DatasetPreview exercise={lesson.exercise} datasetView={datasetView} />
+          <DatasetPreview
+            edgeCompensationClassName={rightEdgeCompensationClassName}
+            exercise={lesson.exercise}
+            datasetView={datasetView}
+          />
         ) : null}
 
-        <div className="learning-sheet-cell learning-extend-left learning-extend-right col-span-full p-6 [@media_(min-width:2200px)]:p-12">
+        <div
+          className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} p-6 [@media_(min-width:2200px)]:p-12`}
+        >
           <p className="text-base font-medium text-sky-600 [@media_(min-width:2200px)]:text-lg">
             Exercise
           </p>
@@ -246,6 +293,7 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
 
         {lesson.exercise.type === "multiple-choice" ? (
           <MultipleChoiceExerciseView
+            edgeCompensationClassName={rightEdgeCompensationClassName}
             exercise={lesson.exercise}
             selectedOptionIds={selectedOptionIds}
             onToggleOption={toggleOption}
@@ -254,6 +302,7 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
 
         {lesson.exercise.type === "ordered-steps" ? (
           <OrderedStepsExerciseView
+            edgeCompensationClassName={rightEdgeCompensationClassName}
             exercise={lesson.exercise}
             orderedStepIds={orderedStepIds}
             onMoveStep={moveStep}
@@ -264,12 +313,15 @@ export function LessonPage({ lesson, onSubmitResult }: LessonPageProps) {
           <ColumnRoleExerciseView
             assignments={assignments}
             columns={datasetView.columns}
+            edgeCompensationClassName={rightEdgeCompensationClassName}
             exercise={lesson.exercise}
             onUpdateAssignment={updateAssignment}
           />
         ) : null}
 
-        <div className="learning-sheet-cell learning-extend-left learning-extend-right col-span-full flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-12">
+        <div
+          className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-12`}
+        >
           <p className="text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
             Submit will evaluate your answer automatically.
           </p>
@@ -354,9 +406,11 @@ function compareDatasetCellValues(
 
 function DatasetPreview({
   datasetView,
+  edgeCompensationClassName,
   exercise,
 }: {
   datasetView: NonNullable<ReturnType<typeof getDatasetView>>;
+  edgeCompensationClassName: string;
   exercise: TableColumnRoleExercise;
 }) {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -466,7 +520,9 @@ function DatasetPreview({
 
   return (
     <>
-      <section className="learning-sheet-cell learning-extend-left learning-extend-right col-span-full flex flex-col gap-3 p-6 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:p-12">
+      <section
+        className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${edgeCompensationClassName} flex flex-col gap-3 p-6 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:p-12`}
+      >
         <h2
           className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl"
           id="dataset-preview"
@@ -477,7 +533,9 @@ function DatasetPreview({
           {exercise.datasetContext}
         </p>
       </section>
-      <div className="learning-sheet-cell learning-extend-left learning-extend-right col-span-full">
+      <div
+        className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${edgeCompensationClassName}`}
+      >
         <div className="overflow-x-auto overflow-y-clip">
           <table className="min-w-full border-separate border-spacing-0 text-left text-base [@media_(min-width:2200px)]:text-lg">
             <thead>
@@ -566,14 +624,77 @@ function RoleDropdown({
   value: ColumnRole;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const optionRefs = useRef(new Map<ColumnRole, HTMLButtonElement>());
   const menuId = useId();
   const [isOpen, setIsOpen] = useState(false);
+  const [activeOptionValue, setActiveOptionValue] = useState<ColumnRole | null>(null);
+  const [highlightRect, setHighlightRect] = useState<RoleDropdownHighlightRect | null>(null);
   const selectedLabel = getRoleOptionLabel(value);
+  const highlightedOptionValue = activeOptionValue ?? value;
+  const reduceDropdownMotion = shouldReduceMotion();
+  const { floatingStyles, refs, update } = useFloating({
+    middleware: [
+      offset(10),
+      flip({ padding: 16 }),
+      shift({ padding: 16 }),
+      size({
+        apply({ availableHeight, elements, rects }) {
+          Object.assign(elements.floating.style, {
+            maxHeight: `${Math.max(96, availableHeight)}px`,
+            width: `${rects.reference.width}px`,
+          });
+        },
+        padding: 16,
+      }),
+    ],
+    open: isOpen,
+    placement: "bottom-start",
+    strategy: "fixed",
+    transform: false,
+    whileElementsMounted: autoUpdate,
+  });
 
   const selectRole = (nextValue: ColumnRole) => {
     onChange(nextValue);
+    setActiveOptionValue(null);
     setIsOpen(false);
   };
+
+  const syncHighlightToOption = useCallback((nextValue: ColumnRole) => {
+    const optionElement = optionRefs.current.get(nextValue);
+
+    if (!optionElement) {
+      return;
+    }
+
+    setHighlightRect({
+      height: Math.max(0, optionElement.offsetHeight - 1),
+      y: optionElement.offsetTop,
+    });
+  }, []);
+
+  const activateOption = (nextValue: ColumnRole, optionElement: HTMLButtonElement) => {
+    setActiveOptionValue(nextValue);
+    setHighlightRect({
+      height: Math.max(0, optionElement.offsetHeight - 1),
+      y: optionElement.offsetTop,
+    });
+  };
+
+  useEffect(() => {
+    if (!isOpen) {
+      setActiveOptionValue(null);
+      setHighlightRect(null);
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      void update();
+      syncHighlightToOption(value);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [isOpen, syncHighlightToOption, update, value]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -581,7 +702,9 @@ function RoleDropdown({
     }
 
     const handlePointerDown = (event: PointerEvent) => {
-      if (rootRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+
+      if (rootRef.current?.contains(target) || refs.floating.current?.contains(target)) {
         return;
       }
 
@@ -610,8 +733,9 @@ function RoleDropdown({
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         aria-label={`Role for ${columnLabel}`}
-        className="learning-grid-control flex min-h-12 w-full cursor-pointer items-center justify-between gap-3 bg-neutral-100/90 px-6 py-3 text-left text-base font-medium text-foreground backdrop-blur-xl supports-[backdrop-filter]:bg-neutral-100/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 [@media_(min-width:2200px)]:min-h-24 [@media_(min-width:2200px)]:px-7 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg"
+        className="learning-grid-control flex min-h-12 w-full cursor-pointer items-center justify-between gap-3 border border-neutral-300 bg-neutral-100/90 px-6 py-3 text-left text-base font-medium text-foreground backdrop-blur-xl supports-[backdrop-filter]:bg-neutral-100/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 [@media_(min-width:2200px)]:min-h-24 [@media_(min-width:2200px)]:px-7 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg"
         onClick={() => setIsOpen((current) => !current)}
+        ref={refs.setReference}
         type="button"
       >
         <span className="truncate">{selectedLabel}</span>
@@ -621,30 +745,80 @@ function RoleDropdown({
         />
       </button>
 
-      <div
-        aria-hidden={!isOpen}
-        aria-label={`Role options for ${columnLabel}`}
-        className={`learning-grid-control absolute top-[calc(100%+10px)] right-0 left-0 z-40 w-full origin-top overflow-hidden bg-neutral-100/90 text-neutral-700 backdrop-blur-xl transition-[opacity,transform,visibility] duration-150 ease-out supports-[backdrop-filter]:bg-neutral-100/80 [@media_(min-width:2200px)]:top-[calc(100%+12px)] ${
-          isOpen
-            ? "visible translate-y-0 scale-100 opacity-100"
-            : "invisible pointer-events-none -translate-y-2 scale-95 opacity-0"
-        }`}
-        id={menuId}
-        role="listbox"
-      >
-        {roleOptions.map((option) => (
-          <button
-            aria-selected={value === option.value}
-            className="block w-full cursor-pointer border-b learning-grid-border px-5 py-3 text-left text-base font-medium text-neutral-700 last:border-b-0 hover:bg-emerald-500 hover:text-neutral-50 focus-visible:bg-emerald-500 focus-visible:text-neutral-50 focus-visible:outline-none aria-selected:bg-emerald-500 aria-selected:text-neutral-50 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-4 [@media_(min-width:2200px)]:text-lg"
-            key={option.value}
-            onClick={() => selectRole(option.value)}
-            role="option"
-            type="button"
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+      {createPortal(
+        <AnimatePresence>
+          {isOpen ? (
+            <motion.div
+              animate={reduceDropdownMotion ? { opacity: 1 } : "open"}
+              aria-label={`Role options for ${columnLabel}`}
+              className="relative z-[100] origin-top overflow-y-auto bg-transparent text-neutral-700 before:absolute before:top-0 before:right-0 before:left-0 before:z-30 before:h-px before:bg-neutral-300"
+              exit={reduceDropdownMotion ? { opacity: 0 } : "closed"}
+              id={menuId}
+              initial={reduceDropdownMotion ? { opacity: 0 } : "closed"}
+              onPointerLeave={() => {
+                setActiveOptionValue(null);
+                syncHighlightToOption(value);
+              }}
+              ref={refs.setFloating}
+              role="listbox"
+              style={floatingStyles}
+              transition={reduceDropdownMotion ? { duration: 0.08 } : undefined}
+              variants={reduceDropdownMotion ? undefined : roleDropdownPanelVariants}
+            >
+              {highlightRect ? (
+                <motion.span
+                  aria-hidden="true"
+                  animate={{
+                    height: highlightRect.height,
+                    opacity: 1,
+                    y: highlightRect.y,
+                  }}
+                  className="pointer-events-none absolute top-0 right-px left-px z-10 transform-gpu bg-cyan-500 will-change-transform"
+                  initial={{
+                    height: highlightRect.height,
+                    opacity: 0,
+                    y: highlightRect.y,
+                  }}
+                  transition={
+                    reduceDropdownMotion
+                      ? { duration: 0 }
+                      : { duration: 0.22, ease: [0.22, 1, 0.36, 1] }
+                  }
+                />
+              ) : null}
+              {roleOptions.map((option) => {
+                const isHighlighted = highlightedOptionValue === option.value;
+
+                return (
+                  <motion.button
+                    aria-selected={value === option.value}
+                    className={`relative block w-full cursor-pointer overflow-hidden border-x border-b border-x-neutral-300 border-b-neutral-200 bg-neutral-100 px-5 py-3 text-left text-base font-medium first:border-t first:border-t-neutral-300 last:border-b-neutral-300 focus-visible:outline-none [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-4 [@media_(min-width:2200px)]:text-lg ${
+                      isHighlighted ? "text-neutral-50" : "text-neutral-700"
+                    }`}
+                    key={option.value}
+                    onClick={() => selectRole(option.value)}
+                    onFocus={(event) => activateOption(option.value, event.currentTarget)}
+                    onPointerEnter={(event) => activateOption(option.value, event.currentTarget)}
+                    ref={(node) => {
+                      if (node) {
+                        optionRefs.current.set(option.value, node);
+                      } else {
+                        optionRefs.current.delete(option.value);
+                      }
+                    }}
+                    role="option"
+                    type="button"
+                    variants={reduceDropdownMotion ? undefined : roleDropdownOptionVariants}
+                  >
+                    <span className="relative z-20">{option.label}</span>
+                  </motion.button>
+                );
+              })}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>,
+        document.body,
+      )}
     </div>
   );
 }
@@ -652,20 +826,26 @@ function RoleDropdown({
 function ColumnRoleExerciseView({
   assignments,
   columns,
+  edgeCompensationClassName,
   exercise,
   onUpdateAssignment,
 }: {
   assignments: Record<string, ColumnRole>;
   columns: NonNullable<ReturnType<typeof getDatasetView>>["columns"];
+  edgeCompensationClassName: string;
   exercise: TableColumnRoleExercise;
   onUpdateAssignment: (columnId: string, role: ColumnRole) => void;
 }) {
   return (
     <>
-      <div className="learning-sheet-cell learning-extend-left learning-extend-right col-span-full px-6 py-5 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:px-12 [@media_(min-width:2200px)]:py-8 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+      <div
+        className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${edgeCompensationClassName} px-6 py-5 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:px-12 [@media_(min-width:2200px)]:py-8 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8`}
+      >
         {exercise.instruction}
       </div>
-      <div className="learning-sheet-cell learning-extend-left learning-extend-right col-span-full grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12">
+      <div
+        className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${edgeCompensationClassName} grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12`}
+      >
         {columns.map((column) => (
           <div
             className="grid gap-4 border learning-grid-border p-5 sm:grid-cols-[minmax(0,1fr)_288px] sm:items-center [@media_(min-width:2200px)]:grid-cols-[minmax(0,1fr)_384px] [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-6"
@@ -692,16 +872,20 @@ function ColumnRoleExerciseView({
 }
 
 function MultipleChoiceExerciseView({
+  edgeCompensationClassName,
   exercise,
   onToggleOption,
   selectedOptionIds,
 }: {
+  edgeCompensationClassName: string;
   exercise: MultipleChoiceExercise;
   onToggleOption: (optionId: string) => void;
   selectedOptionIds: string[];
 }) {
   return (
-    <div className="learning-sheet-cell learning-extend-left learning-extend-right col-span-full grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12">
+    <div
+      className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${edgeCompensationClassName} grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12`}
+    >
       {exercise.options.map((option) => (
         <label
           className="flex min-h-24 cursor-pointer items-center gap-4 border learning-grid-border p-5 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-6"
@@ -723,10 +907,12 @@ function MultipleChoiceExerciseView({
 }
 
 function OrderedStepsExerciseView({
+  edgeCompensationClassName,
   exercise,
   onMoveStep,
   orderedStepIds,
 }: {
+  edgeCompensationClassName: string;
   exercise: OrderedStepsExercise;
   onMoveStep: (index: number, direction: -1 | 1) => void;
   orderedStepIds: string[];
@@ -734,7 +920,9 @@ function OrderedStepsExerciseView({
   const stepById = new Map(exercise.steps.map((step) => [step.id, step]));
 
   return (
-    <ol className="learning-sheet-cell learning-extend-left learning-extend-right col-span-full grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12">
+    <ol
+      className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${edgeCompensationClassName} grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12`}
+    >
       {orderedStepIds.map((stepId, index) => {
         const step = stepById.get(stepId);
 
@@ -812,26 +1000,12 @@ function LessonResult({ result }: { result: EvaluationResult }) {
         <h2 className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl">
           {result.title}
         </h2>
-        <p className="mt-3 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+        <p className="mt-3 text-base leading-6 text-muted-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-7">
           {result.message}
         </p>
-        <p className="mt-3 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+        <p className="mt-2 text-base leading-6 text-muted-foreground [@media_(min-width:2200px)]:mt-3 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-7">
           {result.nextStep}
         </p>
-        {result.status !== "correct" && result.missedColumnIds.length > 0 ? (
-          <div className="learning-grid-panel-fill mt-5 p-5 [@media_(min-width:2200px)]:mt-7 [@media_(min-width:2200px)]:p-6">
-            <p className="text-base font-semibold text-foreground [@media_(min-width:2200px)]:text-lg">
-              Expected role check
-            </p>
-            <ul className="mt-3 grid gap-1.5 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
-              {result.missedColumnIds.map((columnId) => (
-                <li key={columnId}>
-                  {columnId}: {describeExpectedRole(columnId)}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
       </div>
     </div>
   );
