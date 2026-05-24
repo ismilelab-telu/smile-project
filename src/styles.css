@@ -231,6 +231,7 @@
     --learning-grid-panel-fill-strong: oklch(17.7638% 0 0 / 0.065);
     background: oklch(98.5% 0 0);
     background-attachment: scroll;
+    overflow-x: clip;
   }
 
   .learning-sheet {
@@ -273,16 +274,18 @@
   }
 
   .learning-sheet-outer-left {
-    bottom: -100vh;
+    height: 100vh;
     left: -1px;
-    top: -100vh;
+    top: 0;
+    transform: translateY(-100%);
     width: 1px;
   }
 
   .learning-sheet-outer-right {
-    bottom: -100vh;
+    height: 100vh;
     right: 0;
-    top: -100vh;
+    top: 0;
+    transform: translateY(-100%);
     width: 1px;
   }
 
@@ -306,12 +309,38 @@
     right: -100vw;
   }
 
+  .learning-extend-top::before {
+    background: var(--learning-grid-line);
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    right: 0;
+    width: 1px;
+    z-index: 2;
+  }
+
+  .learning-extend-top::before {
+    height: 100vh;
+    top: 0;
+    transform: translateY(-100%);
+  }
+
   .learning-sheet-cell-fill {
     background: var(--learning-grid-panel-fill);
   }
 
   .learning-sheet-cell-fill-strong {
     background: var(--learning-grid-panel-fill-strong);
+  }
+
+  .learning-sheet-footer-cell {
+    min-height: calc(2.5rem + clamp(1.5rem, 3vw, 2.5rem) + clamp(1.5rem, 3vw, 2.5rem));
+  }
+
+  @media (min-width: 2200px) {
+    .learning-sheet-footer-cell {
+      min-height: 10rem;
+    }
   }
 
   .learning-grid-panel-fill {

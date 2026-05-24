@@ -192,6 +192,20 @@ export function LearningHome({ onResetProgress, progress }: LearningHomeProps) {
             </Fragment>
           );
         })}
+
+        <div
+          aria-hidden="true"
+          className="learning-sheet-cell learning-extend-left learning-sheet-footer-cell"
+        />
+        <div aria-hidden="true" className="learning-sheet-cell learning-sheet-footer-cell" />
+        <div
+          aria-hidden="true"
+          className="learning-sheet-cell learning-sheet-footer-cell hidden sm:block"
+        />
+        <div
+          aria-hidden="true"
+          className="learning-sheet-cell learning-extend-right learning-sheet-footer-cell hidden lg:block"
+        />
       </section>
     </LearningGridCanvas>
   );

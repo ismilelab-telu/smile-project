@@ -10,7 +10,7 @@ export function LearningGridCanvas({
   return (
     <main
       {...props}
-      className={`learning-grid-page relative z-10 isolate min-h-screen overflow-x-hidden text-foreground ${className}`}
+      className={`learning-grid-page relative z-10 isolate min-h-screen text-foreground ${className}`}
     >
       <div className="relative z-10">{children}</div>
     </main>
