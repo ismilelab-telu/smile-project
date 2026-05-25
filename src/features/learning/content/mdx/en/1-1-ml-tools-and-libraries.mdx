@@ -1,27 +1,173 @@
-Machine learning work usually uses several kinds of tools. Each tool has a role in the workflow: writing experiments, loading data, inspecting tables, preparing features, training models, and checking results.
+After understanding the machine learning workflow, we need to know the tools and libraries commonly used in practice. **The goal is not to memorize every library name**, but to understand the role each tool plays in the workflow.
 
-The goal is not to memorize every library name. The important part is understanding what work each tool supports, so we can judge the workflow consciously instead of only pressing run.
+In an ML project, libraries help us:
 
-## Experiment Environment
+- load and inspect data;
+- compute numerical values;
+- create visualizations;
+- train models;
+- evaluate results.
 
-A notebook or code editor is where experiments are written and run. There we can move step by step: load a small sample, inspect columns, try transformations, train a simple model, then compare results.
+Libraries reduce the need to write everything from scratch. More time can be spent understanding the **problem**, **data quality**, and **modeling decisions**.
 
-Tidy experiment habits matter. Cells or scripts should be readable, rerunnable, and still connected to the question being answered. If an experiment cannot be repeated, its result is hard to trust.
+## Python
 
-## Data Tools
+**Python** is popular in machine learning because its syntax is relatively readable and its library ecosystem is large. Many data science workflows use Python because the same language can support data exploration and model experiments.
 
-A dataframe library helps work with tabular data. This tool makes it easier to inspect rows, columns, data types, missing values, duplicates, category values, and summary statistics.
+Python is usually used in two ways:
 
-This role appears early in the workflow because most ML problems start from understanding the dataset. Before modeling, we need to know what one row represents, which columns can be used, and whether the data was loaded correctly.
+- **Script mode**: useful for longer, structured code that should be rerun as a file.
+- **Interactive mode**: useful for trying small pieces of code and seeing the result immediately.
 
-## Modeling Tools
+In ML learning, both modes often appear together. Early exploration can be done interactively, then clearer steps can be organized into a script or notebook that is easier to rerun.
 
-A modeling library provides algorithms, metrics, and utilities for training and evaluation. It can include regression models, classifiers, clustering, preprocessing, and scoring functions.
+## Python Programming Tools
 
-Modeling tools are powerful, but they do not replace problem formulation. If the target is unclear or the features leak future information, the library can still produce a score, but the score is not meaningful.
+A **notebook** is a common environment for ML experiments. In a notebook, code, notes, tables, and charts can live in one place.
 
-## Using Tools Properly
+Common tools include:
 
-Use tools to make the process easier to repeat and inspect. A practical ML workflow usually needs an experiment environment, dataframe tools for data work, and modeling tools for training and evaluation.
+- **Jupyter Notebook**: common for local or browser-based experiments.
+- **Google Colab**: useful for starting quickly because it runs in the browser and needs little local setup.
+- **IBM Watson Studio**: provides a more managed cloud environment for data science projects.
 
-When used well, tools make decisions easier to trace. When used blindly, tools can hide data problems and make weak results look more convincing.
+Notebooks still need discipline:
+
+- cell order should be clear;
+- outputs should be reproducible;
+- notes should explain the _reason for each step_, not only the result;
+- experiments should not depend on old hidden state.
+
+If a notebook is messy, experiment results become hard to trust even when the model produces a score.
+
+## Data Libraries
+
+Early ML work usually starts with **understanding the dataset**. This is where **NumPy** and **Pandas** often appear.
+
+**NumPy** is used for numerical computing:
+
+- arrays;
+- vectors;
+- matrices;
+- mathematical operations;
+- efficient calculations.
+
+**Pandas** is used for tabular data:
+
+- reading files such as `.csv`;
+- inspecting the first few rows;
+- checking column names;
+- inspecting data types;
+- finding _missing values_;
+- filtering rows;
+- creating simple summaries.
+
+At this stage, we usually inspect the dataset _schema_. **Schema** describes the data structure: column names, data types, and what each column means. We also check _missing values_, which are values that are empty or not recorded.
+
+Before modeling, data libraries help answer basic questions:
+
+- what one row represents;
+- which columns might become **features**;
+- which **target** should be predicted;
+- whether there are missing values, duplicates, or wrong data types;
+- whether any column is unsafe because it contains future information.
+
+## Visualization Libraries
+
+Visualization helps us see patterns that are hard to read from raw tables.
+
+**Matplotlib** is useful for basic charts:
+
+- line charts;
+- bar plots;
+- histograms;
+- scatter plots.
+
+**Seaborn** is built on top of Matplotlib and makes statistical visualization easier:
+
+- data distributions;
+- relationships between variables;
+- heatmaps;
+- box plots;
+- category patterns.
+
+The stage of inspecting data with summaries and visualizations is often called **EDA**, or _exploratory data analysis_. In an ML workflow, EDA helps us inspect:
+
+- **target** distribution;
+- outliers;
+- feature-target relationships;
+- category patterns;
+- early signs of data problems.
+
+**EDA should happen before choosing a model**, not only after the score looks bad.
+
+## Machine Learning Libraries
+
+**Scikit-learn** is often the first choice for learning and building classic ML models. It provides:
+
+- classification;
+- regression;
+- clustering;
+- preprocessing;
+- pipelines;
+- cross-validation;
+- evaluation metrics.
+
+In many projects, we start with a **baseline model**. **Baseline** is a simple, reasonable first model used as a comparison before trying a more complex approach.
+
+A baseline is useful because it:
+
+- gives an initial comparison score;
+- shows whether a complex model is actually helpful;
+- makes experiments easier to judge;
+- prevents us from choosing a large model without a clear reason.
+
+For more complex models, especially deep learning, common libraries include:
+
+- **TensorFlow**: widely used in industry.
+- **PyTorch**: popular for research and experimentation.
+- **Keras**: provides a simpler interface for prototyping deep learning models.
+
+Deep learning is not automatically the first choice. **A numeric target** means the output to predict is a number, such as daily demand or revenue. Numeric targets can often start with simple regression in Scikit-learn.
+
+Other libraries appear for specific needs:
+
+- **NLTK** and **SpaCy**: help with natural language processing, such as tokenization, information extraction, and text analysis.
+- **SciPy**: supports scientific computing such as statistics, optimization, and advanced mathematical operations.
+
+## Practical Workflow Example
+
+Imagine receiving a cafe sales `.csv` and being asked to build an initial demand prediction model. **CSV** is a simple table file that usually contains transaction rows or sales summaries.
+
+A sensible workflow:
+
+- Start in a notebook so assumptions, code, and outputs are easy to trace.
+- Use **Pandas** to load the data.
+- Inspect sample rows to understand the data shape.
+- Check the **schema**: column names, data types, and column meanings.
+- Check _missing values_ and unusual data.
+- Do **EDA** with summaries and visualizations.
+- Plot the **target**, such as drinks sold or demand per shift.
+- Inspect important **features** such as weather, shift time, promotion status, or temperature.
+- Train a **baseline** with **Scikit-learn**.
+- Consider more complex models only if the baseline is not enough.
+
+Poor decisions include:
+
+- using **TensorFlow** first only because the target is numeric;
+- delaying **EDA** until the model score looks bad;
+- chasing complex models before understanding the data;
+- using columns that are only known after prediction time.
+
+## Use Each Tool for Its Role
+
+Each tool has a role in the workflow:
+
+- **Notebooks** support experiments.
+- **Pandas** helps understand tabular data.
+- **NumPy** supports numerical computing.
+- **Matplotlib** and **Seaborn** support visualization.
+- **Scikit-learn** supports baselines and classic ML models.
+- **TensorFlow**, **PyTorch**, and **Keras** support deep learning when it is actually needed.
+
+Powerful libraries do not automatically make a model correct. If the **target** is unclear, the data was not inspected, or the **features** leak future information, the model can still produce a score, but that score cannot be trusted.

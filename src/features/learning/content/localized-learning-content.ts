@@ -233,17 +233,20 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
     exerciseCopies: {
       "exercise-1-1-ml-tools-libraries": {
         hints: [
-          "ML work usually needs a place to run experiments.",
-          "A dataframe library helps inspect rows, columns, data types, and missing values.",
-          "A modeling library provides algorithms, metrics, and evaluation utilities.",
+          "Look for choices that make data, assumptions, and early results auditable.",
+          "Use tools by stage: exploration, data checks, visualization, then a model benchmark.",
+          "A large model is not a shortcut around unread data.",
         ],
         options: {
-          "dataframe-library": "Use a dataframe library to inspect and prepare tabular data.",
-          "modeling-library": "Use a modeling library to train and evaluate models.",
-          "notebook-environment": "Use a notebook or code editor to run experiments.",
-          "presentation-only": "Use a slide deck as the main place where the model learns.",
+          "baseline-with-scikit-learn": "Set a simple Scikit-learn benchmark.",
+          "deep-learning-first": "Jump to TensorFlow because the output is numeric.",
+          "inspect-with-pandas": "Audit samples, column types, and blanks with Pandas.",
+          "skip-data-check": "Try modeling first and explore data later.",
+          "start-notebook": "Keep the experiment trail in a notebook.",
+          "visualize-before-modeling": "Read the target pattern with quick charts.",
         },
-        prompt: "Which tools or libraries support a practical ML workflow?",
+        prompt:
+          "A cafe team needs an initial model to estimate next-shift stock from sales data. Which early decisions are healthiest?",
       },
     },
     objective: "You can recognize the role of basic tools in a machine learning workflow.",

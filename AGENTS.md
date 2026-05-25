@@ -49,6 +49,15 @@
 - Follow existing project patterns before adding abstractions.
 - Keep changes scoped to the user request.
 
+# Learning Content Writing
+
+- When writing learning material in `src/features/learning/content/mdx`, use short paragraphs supported by bullets for lists, workflows, comparisons, and decision criteria. Avoid long paragraph-only pages.
+- Use **bold** for important concepts, section-level emphasis, and tool/library names when they need visual weight. Do not bold only one item inside a uniform list unless it is intentionally different.
+- Use *italic* for light emphasis, term introductions, or translated/explained phrases.
+- Use `inline code` only for literal technical tokens such as file extensions, commands, code identifiers, column names, IDs, or short snippets. Do not use `inline code` for normal product/library names like Python, Pandas, or TensorFlow unless referring to an actual import/package token.
+- Keep exercise wording related to the lesson but not copied verbatim from the material. Exercises should test transfer of understanding with different phrasing.
+- When editing a bilingual lesson, keep the Indonesian and English MDX structure aligned unless the user explicitly asks for one language only.
+
 # Visual Design
 
 - The project theme is white, neutral, emerald, and sky.

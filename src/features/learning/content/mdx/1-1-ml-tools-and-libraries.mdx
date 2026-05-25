@@ -1,27 +1,173 @@
-Pekerjaan machine learning biasanya memakai beberapa jenis tool. Setiap tool punya peran dalam alur kerja: menulis eksperimen, memuat data, memeriksa tabel, menyiapkan fitur, melatih model, dan mengecek hasil.
+Setelah memahami alur kerja machine learning, kita perlu mengenal alat dan library yang sering dipakai dalam praktik. **Tujuannya bukan menghafal semua nama library**, tetapi memahami peran setiap alat dalam proses kerja.
 
-Tujuannya bukan menghafal semua nama library. Yang penting adalah memahami pekerjaan apa yang dibantu oleh tiap tool, supaya kita bisa menilai alur kerja dengan sadar dan tidak sekadar menekan tombol run.
+Dalam proyek ML, library membantu kita:
 
-## Lingkungan Eksperimen
+- memuat dan memeriksa data;
+- menghitung nilai numerik;
+- membuat visualisasi;
+- melatih model;
+- mengevaluasi hasil.
 
-Notebook atau editor kode adalah tempat eksperimen ditulis dan dijalankan. Di sana kita bisa bergerak bertahap: memuat sampel kecil, memeriksa kolom, mencoba transformasi, melatih model sederhana, lalu membandingkan hasil.
+Dengan library, kita tidak perlu menulis semua fungsi dari awal. Waktu belajar bisa dipakai untuk memahami **masalah**, **kualitas data**, dan **keputusan modeling**.
 
-Kebiasaan eksperimen yang rapi penting. Cell atau script sebaiknya mudah dibaca, bisa dijalankan ulang, dan tetap terhubung dengan pertanyaan yang sedang dijawab. Kalau eksperimen tidak bisa diulang, hasilnya sulit dipercaya.
+## Python
 
-## Tool Data
+**Python** populer dalam machine learning karena sintaksnya relatif mudah dibaca dan ekosistem library-nya besar. Banyak pekerjaan data science memakai Python karena satu bahasa ini bisa dipakai dari eksplorasi data sampai eksperimen model.
 
-Library dataframe membantu bekerja dengan data tabular. Tool ini memudahkan kita memeriksa baris, kolom, tipe data, missing values, duplikasi, nilai kategori, dan statistik ringkas.
+Python biasanya dipakai lewat dua cara:
 
-Peran ini muncul di awal alur kerja karena kebanyakan masalah ML dimulai dari memahami dataset. Sebelum pemodelan, kita perlu tahu satu baris mewakili apa, kolom mana yang bisa dipakai, dan apakah data sudah termuat dengan benar.
+- **Script mode**: cocok untuk kode yang lebih panjang, terstruktur, dan ingin dijalankan ulang sebagai file.
+- **Interactive mode**: cocok untuk mencoba potongan kode kecil dan langsung melihat hasilnya.
 
-## Tool Pemodelan
+Dalam belajar ML, dua cara ini sering dipakai bersamaan. Eksplorasi awal bisa dilakukan secara interaktif, lalu langkah yang sudah jelas dirapikan menjadi script atau notebook yang mudah diulang.
 
-Library pemodelan menyediakan algoritma, metrik, dan utilitas untuk pelatihan serta evaluasi. Isinya bisa mencakup model regresi, classifier, clustering, preprocessing, dan fungsi scoring.
+## Tools untuk Pemrograman Python
 
-Tool pemodelan memang kuat, tetapi tidak menggantikan perumusan masalah. Jika target tidak jelas atau fitur membocorkan informasi masa depan, library tetap bisa menghasilkan skor, tetapi skor itu tidak bermakna.
+**Notebook** adalah lingkungan kerja yang sering dipakai untuk eksperimen ML. Di dalam notebook, kita bisa menulis kode, menambahkan catatan, melihat tabel, dan menampilkan grafik dalam satu tempat.
 
-## Cara Pakai yang Tepat
+Beberapa tool yang sering dipakai:
 
-Gunakan tool agar proses lebih mudah diulang dan lebih mudah diperiksa. Alur kerja ML praktis biasanya membutuhkan lingkungan eksperimen, tool dataframe untuk kerja data, dan tool pemodelan untuk pelatihan serta evaluasi.
+- **Jupyter Notebook**: umum untuk eksperimen lokal atau berbasis browser.
+- **Google Colab**: cocok untuk mulai cepat karena berjalan di browser dan tidak membutuhkan banyak setup lokal.
+- **IBM Watson Studio**: menyediakan lingkungan cloud yang lebih terkelola untuk proyek data science.
 
-Jika dipakai dengan baik, tool membuat keputusan lebih mudah dilacak. Jika dipakai membabi buta, tool bisa menyembunyikan masalah data dan membuat hasil lemah terlihat lebih meyakinkan.
+Notebook tetap perlu dipakai dengan disiplin:
+
+- urutan cell harus jelas;
+- output sebaiknya bisa diulang;
+- catatan harus menjelaskan _alasan langkah_, bukan hanya hasil;
+- eksperimen jangan bergantung pada cell lama yang tidak terlihat.
+
+Jika notebook berantakan, hasil eksperimen sulit dipercaya walaupun modelnya berhasil menghasilkan skor.
+
+## Library untuk Data
+
+Tahap awal ML biasanya dimulai dari **memahami dataset**. Di sini, **NumPy** dan **Pandas** sering muncul.
+
+**NumPy** dipakai untuk komputasi numerik:
+
+- array;
+- vektor;
+- matriks;
+- operasi matematika;
+- perhitungan yang efisien.
+
+**Pandas** dipakai untuk data berbentuk tabel:
+
+- membaca file seperti `.csv`;
+- melihat beberapa baris pertama;
+- memeriksa nama kolom;
+- mengecek tipe data;
+- mencari _missing value_;
+- memfilter baris;
+- membuat ringkasan sederhana.
+
+Pada tahap ini, kita biasanya memeriksa _schema_ dataset. **Schema** berarti struktur data: nama kolom, tipe data, dan arti tiap kolom. Kita juga perlu mengecek _missing value_, yaitu nilai yang kosong atau tidak tercatat.
+
+Sebelum masuk ke model, library data membantu menjawab pertanyaan dasar:
+
+- satu baris mewakili apa;
+- kolom mana yang mungkin menjadi **fitur**;
+- **target** mana yang ingin diprediksi;
+- apakah ada nilai kosong, duplikasi, atau tipe data yang salah;
+- apakah ada kolom yang tidak aman dipakai karena berisi informasi masa depan.
+
+## Library untuk Visualisasi
+
+Visualisasi membantu kita melihat pola yang sulit dibaca dari tabel mentah.
+
+**Matplotlib** cocok untuk grafik dasar:
+
+- line chart;
+- bar plot;
+- histogram;
+- scatter plot.
+
+**Seaborn** dibangun di atas Matplotlib dan memudahkan visualisasi statistik:
+
+- distribusi data;
+- hubungan antar variabel;
+- heatmap;
+- box plot;
+- pola kategori.
+
+Tahap memeriksa data dengan ringkasan dan visualisasi sering disebut **EDA**, atau _exploratory data analysis_. Dalam alur ML, EDA membantu kita mengecek:
+
+- distribusi **target**;
+- outlier;
+- hubungan **fitur** dengan **target**;
+- pola kategori;
+- tanda awal masalah data.
+
+**EDA sebaiknya dilakukan sebelum memilih model**, bukan hanya setelah skor terlihat buruk.
+
+## Library untuk Machine Learning
+
+**Scikit-learn** sering menjadi pilihan awal untuk belajar dan membuat model ML klasik. Library ini menyediakan:
+
+- klasifikasi;
+- regresi;
+- clustering;
+- preprocessing;
+- pipeline;
+- cross-validation;
+- metrik evaluasi.
+
+Dalam banyak proyek, kita mulai dari **baseline model**. **Baseline** adalah model awal yang sederhana dan masuk akal, dipakai sebagai pembanding sebelum mencoba pendekatan yang lebih kompleks.
+
+Baseline berguna karena:
+
+- memberi skor pembanding awal;
+- membantu melihat apakah model kompleks benar-benar berguna;
+- membuat eksperimen lebih mudah dinilai;
+- mencegah kita langsung memilih model besar tanpa alasan yang jelas.
+
+Untuk model yang lebih kompleks, terutama deep learning, ada beberapa library lain:
+
+- **TensorFlow**: banyak dipakai di industri.
+- **PyTorch**: populer untuk riset dan eksperimen.
+- **Keras**: menyediakan antarmuka yang lebih sederhana untuk membuat prototipe model deep learning.
+
+Deep learning tidak otomatis menjadi pilihan pertama. **Target numerik** berarti output yang ingin diprediksi berupa angka, misalnya permintaan harian atau pendapatan. Target numerik sering bisa dimulai dengan regresi sederhana di Scikit-learn.
+
+Library lain juga muncul untuk kebutuhan khusus:
+
+- **NLTK** dan **SpaCy**: membantu pemrosesan bahasa alami seperti tokenisasi, ekstraksi informasi, dan analisis teks.
+- **SciPy**: mendukung komputasi ilmiah seperti statistik, optimisasi, dan operasi matematika lanjutan.
+
+## Contoh Alur Praktis
+
+Bayangkan kita mendapat file `.csv` penjualan kafe dan diminta membuat model awal prediksi permintaan. **CSV** adalah file tabel sederhana yang biasanya berisi baris transaksi atau ringkasan penjualan.
+
+Alur yang masuk akal:
+
+- Mulai di notebook agar asumsi, kode, dan output mudah dilacak.
+- Gunakan **Pandas** untuk membaca data.
+- Lihat sampel baris agar tahu bentuk datanya.
+- Periksa **schema**: nama kolom, tipe data, dan arti kolom.
+- Cek _missing value_ dan data yang terlihat aneh.
+- Lakukan **EDA** dengan ringkasan dan visualisasi.
+- Plot **target**, misalnya jumlah minuman terjual atau permintaan per shift.
+- Lihat **fitur** penting seperti cuaca, waktu shift, promo, atau suhu.
+- Latih **baseline** dengan **Scikit-learn**.
+- Baru pertimbangkan model yang lebih kompleks jika baseline belum cukup.
+
+Keputusan yang kurang tepat:
+
+- memakai **TensorFlow** sejak awal hanya karena targetnya numerik;
+- menunda **EDA** sampai skor model terlihat buruk;
+- langsung mengejar model kompleks tanpa memahami data;
+- memakai kolom yang baru diketahui setelah prediksi seharusnya dibuat.
+
+## Gunakan Sesuai Peran
+
+Setiap tool punya peran dalam workflow:
+
+- **Notebook** membantu eksperimen.
+- **Pandas** membantu memahami data tabular.
+- **NumPy** membantu komputasi numerik.
+- **Matplotlib** dan **Seaborn** membantu visualisasi.
+- **Scikit-learn** membantu baseline dan model ML klasik.
+- **TensorFlow**, **PyTorch**, dan **Keras** membantu deep learning saat memang dibutuhkan.
+
+Library yang kuat tidak otomatis membuat model menjadi benar. Jika **target** tidak jelas, data belum diperiksa, atau **fitur** membocorkan informasi masa depan, model tetap bisa menghasilkan skor, tetapi skor tersebut tidak dapat dipercaya.

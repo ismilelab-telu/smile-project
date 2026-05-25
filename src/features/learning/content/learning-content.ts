@@ -465,13 +465,18 @@ const lesson06: Lesson = {
 
 const laterLessons: Lesson[] = [
   multipleChoiceLesson({
-    correctOptionIds: ["notebook-environment", "dataframe-library", "modeling-library"],
+    correctOptionIds: [
+      "start-notebook",
+      "inspect-with-pandas",
+      "visualize-before-modeling",
+      "baseline-with-scikit-learn",
+    ],
     estimatedMinutes: 5,
     exerciseId: "exercise-1-1-ml-tools-libraries",
     hints: [
-      "Pekerjaan ML biasanya membutuhkan tempat untuk menjalankan eksperimen.",
-      "Library dataframe membantu memeriksa baris, kolom, tipe data, dan nilai kosong.",
-      "Library modeling menyediakan algoritma, metrik, dan utilitas evaluasi.",
+      "Cari pilihan yang membuat data, asumsi, dan hasil awal mudah diaudit.",
+      "Tool yang tepat dipakai sesuai tahap: eksplorasi, pemeriksaan data, visualisasi, lalu pembanding model.",
+      "Model besar bukan jalan pintas untuk data yang belum dibaca.",
     ],
     id: "lesson-1-1-ml-tools-libraries",
     moduleId: "module-1-data-understanding",
@@ -479,23 +484,32 @@ const laterLessons: Lesson[] = [
     objective: "Kamu bisa mengenali peran tool dasar dalam alur kerja machine learning.",
     options: [
       {
-        id: "notebook-environment",
-        label: "Menggunakan notebook atau editor kode untuk menjalankan eksperimen.",
+        id: "start-notebook",
+        label: "Simpan jejak eksperimen di notebook.",
       },
       {
-        id: "dataframe-library",
-        label: "Menggunakan library dataframe untuk memeriksa dan menyiapkan data tabular.",
+        id: "inspect-with-pandas",
+        label: "Audit sampel, tipe kolom, dan nilai kosong dengan Pandas.",
       },
       {
-        id: "modeling-library",
-        label: "Menggunakan library modeling untuk melatih dan mengevaluasi model.",
+        id: "visualize-before-modeling",
+        label: "Baca pola target lewat grafik ringkas.",
       },
       {
-        id: "presentation-only",
-        label: "Menggunakan slide presentasi sebagai tempat utama model belajar.",
+        id: "baseline-with-scikit-learn",
+        label: "Buat pembanding sederhana di Scikit-learn.",
+      },
+      {
+        id: "deep-learning-first",
+        label: "Langsung pakai TensorFlow karena outputnya angka.",
+      },
+      {
+        id: "skip-data-check",
+        label: "Coba model dulu, eksplorasi data belakangan.",
       },
     ],
-    prompt: "Tool atau library mana yang mendukung alur kerja ML praktis?",
+    prompt:
+      "Tim kafe butuh model awal untuk memperkirakan stok shift berikutnya dari data penjualan. Keputusan awal mana yang paling sehat?",
     summary: [
       "Pekerjaan machine learning biasanya menggabungkan lingkungan eksperimen, tool data, dan tool pemodelan.",
       "Tool tidak menggantikan pemahaman. Tool membantu memuat data, memeriksa data, menyiapkan data, melatih model, dan mengevaluasi hasil secara konsisten.",
