@@ -45,4 +45,16 @@ describe("evaluateMultipleChoice", () => {
     expect(result.message).toBe("Jumlah pilihan sudah sesuai, tapi ada pilihan yang belum tepat.");
     expect(result.nextStep).toBe("Ganti pilihan yang tidak sesuai, lalu kirim ulang.");
   });
+
+  it("supports English feedback", () => {
+    const result = evaluateMultipleChoice(
+      multipleOptionExercise,
+      ["training", "evaluation", "guessing"],
+      "en",
+    );
+
+    expect(result.status).toBe("partial");
+    expect(result.message).toBe("Select 5 options for this question. You currently selected 3.");
+    expect(result.nextStep).toBe("Add 2 more selections, then submit again.");
+  });
 });

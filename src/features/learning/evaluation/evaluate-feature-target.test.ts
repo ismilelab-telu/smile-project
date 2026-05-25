@@ -58,6 +58,22 @@ describe("evaluateFeatureTargetRoles", () => {
     expect(result.message).not.toContain("drinks_sold");
   });
 
+  it("supports English feedback", () => {
+    const result = evaluateFeatureTargetRoles(
+      {
+        ...correctAssignments,
+        day_part: "target",
+        drinks_sold: "metadata",
+      },
+      "en",
+    );
+
+    expect(result.status).toBe("incorrect");
+    expect(result.message).toContain("Day Part is marked as target");
+    expect(result.message).toContain("demand outcome is still being treated like metadata");
+    expect(result.nextStep).toContain("Use shift context as feature candidates");
+  });
+
   it("flags identifier-as-feature separately from missing feature work", () => {
     const result = evaluateFeatureTargetRoles({
       ...correctAssignments,

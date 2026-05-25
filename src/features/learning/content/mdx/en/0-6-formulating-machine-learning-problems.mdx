@@ -1,0 +1,34 @@
+A good machine learning project starts with a clear problem. Many projects fail not because the algorithm is weak, but because the team has not agreed on what should actually be predicted, when the prediction is made, and what data may be used.
+
+Formulating the problem means turning a real need into an ML problem statement that can be worked on. A good problem statement mentions the goal, model output, prediction time, available features, problem type, and how the result will be evaluated.
+
+## Steps to Formulate a Problem
+
+1. **Define the real goal.** For example, a cafe wants to prepare stock better before a shift starts.
+2. **Turn the goal into an ML question.** For example, "how many drinks are likely to be sold in the next shift?"
+3. **Define the model output.** The output can be a number, category, score, recommendation, or group.
+4. **Define the prediction time.** Make it clear when the model will be used: before the shift, when a transaction happens, or after a certain period.
+5. **Define the information available at prediction time.** Features must already be known before the model produces an output.
+6. **Define the problem type.** Numeric output points to regression, category output points to classification, and groups without a target point to clustering.
+7. **Define the evaluation.** The team needs to know how to judge whether the model actually helps.
+
+## Target and Features
+
+In supervised learning, the **target** is the value or category we want to predict. Examples include tomorrow's sales, whether a customer will churn, or a transaction risk category.
+
+**Features** are the information used by the model as input. Features must be available when the prediction is made. If information is only known after the event ends, it is not safe to use as a feature because it can leak the answer.
+
+Cafe example:
+
+- business goal: prepare drink stock before the shift starts;
+- ML problem statement: predict the number of drinks that will be sold in the next shift;
+- target: drinks sold;
+- safe features: day, shift time, weather forecast, active promotion, scheduled staff, and previous demand history;
+- unsafe features: actual drinks sold after the shift ends or final shift revenue;
+- problem type: regression, because the target is a number.
+
+## Why This Matters
+
+A clear problem statement prevents the model from aiming at the wrong thing. Without a clear target, the model does not know what to learn. Without a clear prediction time, features can get mixed with future information. Without clear evaluation, the team does not know whether the model helps or only looks convincing.
+
+In this lesson, the feature and target exercise uses cafe shift data so you can practice distinguishing targets, safe features, metadata, and columns that should not be used yet.

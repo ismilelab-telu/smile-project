@@ -1,0 +1,41 @@
+Modeling is the stage where an algorithm learns patterns from training data. This stage is important, but it should not be the first step in the workflow.
+
+A model only becomes meaningful after the problem, target, features, split, and evaluation idea are clear. Without that foundation, training a model usually only produces numbers that are hard to trust.
+
+## Start from a Baseline
+
+A baseline is a simple comparison point. For regression, a baseline can predict the average value. For classification, a baseline can predict the most common class. For a business process, a baseline can be the manual rule currently being used.
+
+The baseline answers a practical question: does the model add value compared with a simple approach?
+
+Starting from the most complex model can hide weak problem formulation. A baseline keeps evaluation honest.
+
+## Train Candidate Models
+
+After the baseline, train candidate models on training data. The algorithm uses features to learn patterns related to the target.
+
+At this stage, the model is not automatically "good." The model only learns from the examples and goal we give it.
+
+## Evaluate and Inspect Errors
+
+Evaluation checks whether the model helps on held-out data. One score can be useful, but it is rarely enough.
+
+Check:
+
+- whether the model beats the baseline;
+- which examples have large errors;
+- whether errors concentrate in certain groups;
+- whether the model depends on risky or leaky features;
+- whether the result is useful enough for the initial goal.
+
+## Modeling in the Workflow
+
+A practical modeling stage usually includes:
+
+1. choose a simple baseline;
+2. train candidate models on training data;
+3. compare models with the baseline;
+4. inspect errors and limitations;
+5. decide whether the model is helpful enough to continue.
+
+Modeling is not the whole project. Modeling is only one stage in a workflow that starts from problem formulation and ends with evidence-based decisions.

@@ -1,0 +1,33 @@
+Exploratory and explanatory analysis are both part of understanding data, but they have different goals.
+
+Exploratory analysis is the stage of looking around the data. We inspect distributions, relationships between variables, gaps, outliers, and surprising things. Explanatory analysis is the stage of communicating selected findings clearly to other people.
+
+## Exploratory Analysis
+
+Exploration is intentionally open-ended. The goal is to understand what is inside the dataset and find questions worth checking further.
+
+Exploratory checks usually include:
+
+- target distribution;
+- missing values per column;
+- unusual or impossible values;
+- relationships between features and target;
+- amount of data per category and rare categories;
+- outliers that may be valid or may be errors;
+- time patterns, segments, or differences between groups.
+
+Exploration helps find what needs cleaning, what needs investigation, and what risks could affect modeling.
+
+## Explanatory Analysis
+
+Explanatory analysis is more selective. We choose important findings and present them with a clear message.
+
+For example, after exploring many charts, we might explain only one important result: demand tends to be higher on evening shifts when promotions are active.
+
+The goal is not showing every chart. The goal is making claims that are actually supported by evidence.
+
+## Avoid Overclaiming
+
+Charts can support a claim, but they do not automatically prove cause and effect. A chart may show two variables moving together, but that does not prove one variable causes the other.
+
+In an ML workflow, good analysis helps find target behavior, useful feature relationships, data quality issues, and modeling risks. Analysis keeps the team from training a model before understanding the data.

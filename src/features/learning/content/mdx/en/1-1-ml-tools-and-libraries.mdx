@@ -1,0 +1,27 @@
+Machine learning work usually uses several kinds of tools. Each tool has a role in the workflow: writing experiments, loading data, inspecting tables, preparing features, training models, and checking results.
+
+The goal is not to memorize every library name. The important part is understanding what work each tool supports, so we can judge the workflow consciously instead of only pressing run.
+
+## Experiment Environment
+
+A notebook or code editor is where experiments are written and run. There we can move step by step: load a small sample, inspect columns, try transformations, train a simple model, then compare results.
+
+Tidy experiment habits matter. Cells or scripts should be readable, rerunnable, and still connected to the question being answered. If an experiment cannot be repeated, its result is hard to trust.
+
+## Data Tools
+
+A dataframe library helps work with tabular data. This tool makes it easier to inspect rows, columns, data types, missing values, duplicates, category values, and summary statistics.
+
+This role appears early in the workflow because most ML problems start from understanding the dataset. Before modeling, we need to know what one row represents, which columns can be used, and whether the data was loaded correctly.
+
+## Modeling Tools
+
+A modeling library provides algorithms, metrics, and utilities for training and evaluation. It can include regression models, classifiers, clustering, preprocessing, and scoring functions.
+
+Modeling tools are powerful, but they do not replace problem formulation. If the target is unclear or the features leak future information, the library can still produce a score, but the score is not meaningful.
+
+## Using Tools Properly
+
+Use tools to make the process easier to repeat and inspect. A practical ML workflow usually needs an experiment environment, dataframe tools for data work, and modeling tools for training and evaluation.
+
+When used well, tools make decisions easier to trace. When used blindly, tools can hide data problems and make weak results look more convincing.

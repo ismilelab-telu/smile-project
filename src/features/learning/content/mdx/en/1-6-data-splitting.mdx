@@ -1,0 +1,31 @@
+Data splitting keeps evaluation from becoming too optimistic. A model can look strong on examples it has already seen, but the real question is how it works on new examples.
+
+Data splitting gives different roles to different parts of the dataset. Some data is used for learning, and some data is held back to estimate future performance.
+
+## Train, Validation, and Test
+
+Training data is used to fit transformations and train the model. This is where the model learns patterns.
+
+Validation data can be used to compare choices during development, such as model type, feature choices, or hyperparameters.
+
+Test data is saved for the final estimate after major decisions have been made. Test data should act like future unseen data, not a scoreboard checked after every small change.
+
+## Split Before Learning
+
+Data should be split before any fitting process that learns from data. This includes the model and many preprocessing steps.
+
+If a transformation learns from all data before splitting, information from data that should be held back can leak into the training data. Evaluation can look better than real performance.
+
+A safer workflow:
+
+1. split the data;
+2. fit transformations on training data;
+3. apply transformations to validation or test data;
+4. train the model on training data;
+5. evaluate on held-out data.
+
+## Representing the Real Problem
+
+Data splitting should match how the model will be used. If the model predicts future demand, a time-based split can be more realistic than randomly mixing past and future data.
+
+The basic idea is simple: set aside some examples so evaluation feels closer to the real world.

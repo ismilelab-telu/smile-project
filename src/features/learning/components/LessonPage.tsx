@@ -26,7 +26,7 @@ import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } fr
 import { createPortal } from "react-dom";
 
 import { getDatasetView } from "../datasets/registry";
-import { lessonMdxContentById } from "../content/lesson-mdx-content";
+import { lessonMdxContentByLocaleAndId } from "../content/lesson-mdx-content";
 import { localizeDatasetView, localizeLesson } from "../content/localized-learning-content";
 import {
   evaluateMultipleChoice,
@@ -51,7 +51,7 @@ import type {
 import { LearningGridCanvas, LearningSheetExtensions } from "./LearningGridCanvas";
 import { LearningHeader } from "./LearningHeader";
 import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
-import { useLocalization } from "@/features/localization/localization";
+import { useLocalization, type Locale } from "@/features/localization/localization";
 import { shouldReduceMotion } from "@/lib/motion";
 
 gsap.registerPlugin(useGSAP);
@@ -106,7 +106,10 @@ function getRoleOptionLabel(value: ColumnRole, t: ReturnType<typeof useLocalizat
   return labels[value] ?? labels.ignore;
 }
 
-function createCombinedExerciseResult(results: EvaluationResult[]): EvaluationResult {
+function createCombinedExerciseResult(
+  results: EvaluationResult[],
+  locale: Locale,
+): EvaluationResult {
   if (results.length === 1) {
     return results[0];
   }
@@ -122,11 +125,17 @@ function createCombinedExerciseResult(results: EvaluationResult[]): EvaluationRe
     return {
       extraColumnIds,
       missedColumnIds,
-      message: "Semua latihan di lesson ini sudah benar.",
-      nextStep: "Lesson ini selesai. Lanjutkan ke lesson berikutnya yang sudah terbuka.",
+      message:
+        locale === "en"
+          ? "All exercises in this lesson are correct."
+          : "Semua latihan di lesson ini sudah benar.",
+      nextStep:
+        locale === "en"
+          ? "This lesson is complete. Continue to the next unlocked lesson."
+          : "Lesson ini selesai. Lanjutkan ke lesson berikutnya yang sudah terbuka.",
       score,
       status: "correct",
-      title: "Benar",
+      title: locale === "en" ? "Correct" : "Benar",
     };
   }
 
@@ -134,27 +143,38 @@ function createCombinedExerciseResult(results: EvaluationResult[]): EvaluationRe
     return {
       extraColumnIds,
       missedColumnIds,
-      message: `${correctCount}/${results.length} latihan sudah benar. Periksa latihan yang tersisa sebelum lanjut.`,
+      message:
+        locale === "en"
+          ? `${correctCount}/${results.length} exercises are correct. Check the remaining exercises before continuing.`
+          : `${correctCount}/${results.length} latihan sudah benar. Periksa latihan yang tersisa sebelum lanjut.`,
       nextStep:
-        "Gunakan feedback dan petunjuk, perbaiki jawaban yang belum selesai, lalu kirim ulang.",
+        locale === "en"
+          ? "Use the feedback and hints, fix the unfinished answers, then submit again."
+          : "Gunakan feedback dan petunjuk, perbaiki jawaban yang belum selesai, lalu kirim ulang.",
       score,
       status: "partial",
-      title: "Sebagian benar",
+      title: locale === "en" ? "Partially correct" : "Sebagian benar",
     };
   }
 
   return {
     extraColumnIds,
     missedColumnIds,
-    message: "Jawaban latihan belum sesuai dengan konsep utama yang dicek di lesson ini.",
-    nextStep: "Gunakan petunjuk, baca ulang materi, lalu coba lagi.",
+    message:
+      locale === "en"
+        ? "The exercise answer does not match the main concept checked in this lesson yet."
+        : "Jawaban latihan belum sesuai dengan konsep utama yang dicek di lesson ini.",
+    nextStep:
+      locale === "en"
+        ? "Use the hints, review the material, then try again."
+        : "Gunakan petunjuk, baca ulang materi, lalu coba lagi.",
     score,
     status: "incorrect",
-    title: "Belum tepat",
+    title: locale === "en" ? "Not quite" : "Belum tepat",
   };
 }
 
-function createRestoredCorrectResult(): EvaluationResult {
+function createRestoredCorrectResult(locale: Locale): EvaluationResult {
   return {
     extraColumnIds: [],
     message: "",
@@ -162,7 +182,7 @@ function createRestoredCorrectResult(): EvaluationResult {
     nextStep: "",
     score: 100,
     status: "correct",
-    title: "Benar",
+    title: locale === "en" ? "Correct" : "Benar",
   };
 }
 
@@ -292,11 +312,11 @@ export function LessonPage({
     () =>
       isCompleted
         ? exerciseEntries.reduce<Record<string, EvaluationResult>>((results, exercise) => {
-            results[exercise.id] = createRestoredCorrectResult();
+            results[exercise.id] = createRestoredCorrectResult(locale);
             return results;
           }, {})
         : {},
-    [exerciseEntries, isCompleted],
+    [exerciseEntries, isCompleted, locale],
   );
   const mountedLessonIdRef = useRef(lesson.id);
   const [assignments, setAssignments] = useState<Record<string, ColumnRole>>(initialAssignments);
@@ -331,7 +351,7 @@ export function LessonPage({
           locale,
         )
       : undefined;
-  const LessonMdxContent = locale === "id" ? lessonMdxContentById[lesson.id] : undefined;
+  const LessonMdxContent = lessonMdxContentByLocaleAndId[locale][lesson.id];
   const isMultiExerciseLesson = exerciseEntries.length > 1;
   const hasAnswerForExercise = (exercise: LessonExercise) => {
     if (exercise.type === "multiple-choice") {
@@ -402,8 +422,9 @@ export function LessonPage({
       : areAllExerciseResultsCorrect
         ? createCombinedExerciseResult(
             exerciseEntries.map(
-              (exercise) => exerciseResultsById[exercise.id] ?? createRestoredCorrectResult(),
+              (exercise) => exerciseResultsById[exercise.id] ?? createRestoredCorrectResult(locale),
             ),
+            locale,
           )
         : null;
   const isLessonFinished = isCompleted || lessonResult?.status === "correct";
@@ -545,14 +566,18 @@ export function LessonPage({
 
   const evaluateExercise = (exercise: LessonExercise) => {
     if (exercise.type === "multiple-choice") {
-      return evaluateMultipleChoice(exercise, selectedOptionIdsByExerciseId[exercise.id] ?? []);
+      return evaluateMultipleChoice(
+        exercise,
+        selectedOptionIdsByExerciseId[exercise.id] ?? [],
+        locale,
+      );
     }
 
     if (exercise.type === "ordered-steps") {
-      return evaluateOrderedSteps(exercise, orderedStepIdsByExerciseId[exercise.id] ?? []);
+      return evaluateOrderedSteps(exercise, orderedStepIdsByExerciseId[exercise.id] ?? [], locale);
     }
 
-    return evaluateFeatureTargetRoles(assignments);
+    return evaluateFeatureTargetRoles(assignments, locale);
   };
 
   const isLessonCorrectWithResults = (
@@ -592,8 +617,9 @@ export function LessonPage({
           ? createCombinedExerciseResult(
               exerciseEntries.map(
                 (exerciseEntry) =>
-                  nextExerciseResultsById[exerciseEntry.id] ?? createRestoredCorrectResult(),
+                  nextExerciseResultsById[exerciseEntry.id] ?? createRestoredCorrectResult(locale),
               ),
+              locale,
             )
           : null;
 

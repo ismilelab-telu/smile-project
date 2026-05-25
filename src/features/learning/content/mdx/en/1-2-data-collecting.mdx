@@ -1,0 +1,35 @@
+Data collection is not only taking a file. This stage connects a real question with data records that can answer it. If the question is vague, the collected dataset is usually vague too.
+
+Before collecting columns, first define what decision the model should help with. A demand prediction model, churn model, and risk detection model need different rows, fields, time ranges, and labels.
+
+## Start from the Question
+
+Useful data collection starts from a concrete question. For example, "predict drink demand before the next shift starts" is clearer than "analyze cafe data."
+
+A clear question tells the team what one row of data should represent, what target may be needed, and what information must already be available when prediction happens.
+
+## Record Source and Time
+
+A good dataset has context. We need to know where the data came from, when it was recorded, how often it is updated, and whether it describes the same event as the target.
+
+Timing is very important in ML. A column can be valid for reporting, but unsafe for prediction if it is only known after the target happens.
+
+## Check Permission and Purpose
+
+Data must be allowed for the planned purpose. This includes privacy, consent, business rules, and limitations on sensitive fields.
+
+Collecting all columns first and deciding the purpose later is risky. This adds noise, increases privacy risk, and can make the model use unsuitable features.
+
+## Notes to Keep
+
+Record:
+
+- the source of each data item;
+- when the data was recorded;
+- what one row represents;
+- what each field means;
+- whether the field is available at prediction time;
+- whether the data may be used for the intended purpose;
+- which important fields are missing or still unclear.
+
+Good data collection makes modeling easier to trust. Poor data collection forces the team to guess what the dataset means.

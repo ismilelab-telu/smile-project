@@ -1,0 +1,37 @@
+Machine learning has several main types. The difference lies in the available data, the answer we want to produce, and how the model receives feedback.
+
+The problem type matters because it determines the shape of the data, the models that make sense, and the evaluation metrics. Misreading the problem type can make a model look like it works even though it is answering a different question.
+
+## Supervised Learning
+
+Supervised learning uses examples that already have answers. The model learns the relationship between input and output.
+
+There are two common forms:
+
+- **Regression** predicts a numeric value, such as drinks sold, house price, or delivery time estimate.
+- **Classification** predicts a category, such as churn or not churn, spam or not spam, low risk or high risk.
+
+Supervised learning fits when we have historical data that contains features and a target.
+
+## Unsupervised Learning
+
+Unsupervised learning uses data without target answers. The goal is not to predict an existing label, but to find structure in the data.
+
+The most common example is **clustering**, which groups similar examples. For instance, customers can be grouped by purchase patterns without labeling the customers first.
+
+## Reinforcement Learning
+
+Reinforcement learning trains an agent to choose actions based on rewards. The agent tries actions, receives feedback, then learns a strategy that produces better results.
+
+Examples often appear in games, robotics, control systems, or decision simulations. For the foundation level, it is enough to understand that reinforcement learning is different because its feedback is a reward from actions, not a direct answer target like supervised learning.
+
+## How to Tell Them Apart
+
+Look at the output shape and feedback source:
+
+- numeric output usually points to **regression**;
+- category output usually points to **classification**;
+- groups without a target usually point to **clustering**;
+- actions scored by rewards point to **reinforcement learning**.
+
+This map helps us choose an initial approach before going into algorithm details.
