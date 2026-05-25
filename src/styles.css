@@ -291,11 +291,11 @@
     background: repeating-linear-gradient(
       135deg,
       oklch(98.5% 0 0) 0,
-      oklch(98.5% 0 0) 4px,
-      var(--learning-grid-line) 4px,
-      var(--learning-grid-line) 5px,
-      oklch(98.5% 0 0) 5px,
-      oklch(98.5% 0 0) 9px
+      oklch(98.5% 0 0) 6px,
+      var(--learning-grid-line) 6px,
+      var(--learning-grid-line) 7px,
+      oklch(98.5% 0 0) 7px,
+      oklch(98.5% 0 0) 12px
     );
   }
 
