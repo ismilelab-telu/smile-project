@@ -344,6 +344,40 @@ describe("App", () => {
     expect(document.querySelector(`a[href="${lesson02Path}"]`)).toBeNull();
   });
 
+  it("keeps submitted option feedback visible while editing a new draft", async () => {
+    window.history.pushState(null, "", lesson01Path);
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Apa Itu Machine Learning" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+
+    const wrongSingleOption = screen.getByLabelText(
+      "Komputer menjalankan daftar aturan tetap yang ditulis manusia untuk semua kondisi.",
+    );
+    const correctSingleOption = screen.getByLabelText(
+      "Komputer belajar pola dari data agar dapat membuat prediksi, rekomendasi, atau keputusan untuk contoh baru.",
+    );
+
+    fireEvent.click(wrongSingleOption);
+    fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
+
+    expect(await screen.findByRole("heading", { name: "Not quite" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Incorrect" })).toBeInTheDocument();
+
+    fireEvent.click(correctSingleOption);
+
+    expect(correctSingleOption).toBeChecked();
+    expect(wrongSingleOption).not.toBeChecked();
+    expect(screen.getByRole("heading", { name: "Not quite" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Incorrect" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Correct" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
+
+    expect(await screen.findAllByRole("heading", { name: "Correct" })).toHaveLength(1);
+  });
+
   it("blocks direct access to locked Learning Mode lessons", async () => {
     window.history.pushState(null, "", lesson02Path);
     render(<App />);

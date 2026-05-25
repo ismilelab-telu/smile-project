@@ -273,6 +273,7 @@ export function LessonPage({
   const [orderedStepIdsByExerciseId, setOrderedStepIdsByExerciseId] =
     useState<Record<string, string[]>>(initialOrderedStepIds);
   const [result, setResult] = useState<EvaluationResult | null>(initialResult);
+  const [submittedAnswerSnapshot, setSubmittedAnswerSnapshot] = useState<LessonAnswer | null>(null);
   const [selectedOptionIdsByExerciseId, setSelectedOptionIdsByExerciseId] = useState<
     Record<string, string[]>
   >(initialSelectedOptionIdsByExerciseId);
@@ -327,6 +328,7 @@ export function LessonPage({
     setAssignments(initialAssignments);
     setOrderedStepIdsByExerciseId(initialOrderedStepIds);
     setResult(initialResult);
+    setSubmittedAnswerSnapshot(null);
     setSelectedOptionIdsByExerciseId(initialSelectedOptionIdsByExerciseId);
     setVisibleHintCount(0);
   }, [
@@ -382,7 +384,6 @@ export function LessonPage({
       ...current,
       [columnId]: role,
     }));
-    setResult(null);
     setVisibleHintCount(0);
   };
 
@@ -406,7 +407,6 @@ export function LessonPage({
         [exerciseId]: nextExerciseOptionIds,
       };
     });
-    setResult(null);
     setVisibleHintCount(0);
   };
 
@@ -428,7 +428,6 @@ export function LessonPage({
         [exerciseId]: next,
       };
     });
-    setResult(null);
     setVisibleHintCount(0);
   };
 
@@ -447,6 +446,7 @@ export function LessonPage({
     const evaluation = createCombinedExerciseResult(exerciseResults);
 
     setResult(evaluation);
+    setSubmittedAnswerSnapshot(answerSnapshot);
     onSubmitResult(evaluation, answerSnapshot);
 
     setVisibleHintCount(0);
@@ -510,6 +510,9 @@ export function LessonPage({
               orderedStepIds={orderedStepIdsByExerciseId[exercise.id] ?? []}
               result={result}
               isReviewMode={isReviewMode}
+              submittedSelectedOptionIds={
+                submittedAnswerSnapshot?.selectedOptionIdsByExerciseId?.[exercise.id] ?? []
+              }
               selectedOptionIds={selectedOptionIdsByExerciseId[exercise.id] ?? []}
             />
           );
@@ -602,6 +605,7 @@ function ExerciseSection({
   orderedStepIds,
   result,
   isReviewMode,
+  submittedSelectedOptionIds,
   selectedOptionIds,
 }: {
   assignments: Record<string, ColumnRole>;
@@ -615,6 +619,7 @@ function ExerciseSection({
   orderedStepIds: string[];
   result: EvaluationResult | null;
   isReviewMode: boolean;
+  submittedSelectedOptionIds: string[];
   selectedOptionIds: string[];
 }) {
   const choiceModeLabel =
@@ -656,6 +661,7 @@ function ExerciseSection({
           exercise={exercise}
           isReviewMode={isReviewMode}
           result={result}
+          submittedSelectedOptionIds={submittedSelectedOptionIds}
           selectedOptionIds={selectedOptionIds}
           onToggleOption={onToggleOption}
         />
@@ -1276,6 +1282,7 @@ function MultipleChoiceExerciseView({
   isReviewMode,
   onToggleOption,
   result,
+  submittedSelectedOptionIds,
   selectedOptionIds,
 }: {
   edgeCompensationClassName: string;
@@ -1283,6 +1290,7 @@ function MultipleChoiceExerciseView({
   isReviewMode: boolean;
   onToggleOption: (optionId: string) => void;
   result: EvaluationResult | null;
+  submittedSelectedOptionIds: string[];
   selectedOptionIds: string[];
 }) {
   const shouldShowCorrectIndicator = result?.status === "correct";
@@ -1296,9 +1304,10 @@ function MultipleChoiceExerciseView({
       {exercise.options.map((option) => {
         const isCorrectOption = exercise.correctOptionIds.includes(option.id);
         const isSelectedOption = selectedOptionIds.includes(option.id);
+        const isSubmittedOption = submittedSelectedOptionIds.includes(option.id);
         const shouldShowCorrectForOption = shouldShowCorrectIndicator && isCorrectOption;
         const shouldShowSubmittedFeedbackForOption =
-          shouldShowSubmittedOptionFeedback && isSelectedOption;
+          shouldShowSubmittedOptionFeedback && isSubmittedOption;
         const shouldShowOptionFeedback =
           shouldShowCorrectForOption || shouldShowSubmittedFeedbackForOption;
         const isPositiveFeedback = isCorrectOption;
@@ -1315,7 +1324,7 @@ function MultipleChoiceExerciseView({
                 ) : (
                   <XCircleIcon
                     aria-hidden="true"
-                    className="size-6 shrink-0 text-sky-600 [@media_(min-width:2200px)]:size-7"
+                    className="size-6 shrink-0 text-rose-500 [@media_(min-width:2200px)]:size-7"
                   />
                 )}
                 <h3 className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl">
@@ -1329,7 +1338,7 @@ function MultipleChoiceExerciseView({
               }`}
             >
               <input
-                checked={selectedOptionIds.includes(option.id)}
+                checked={isSelectedOption}
                 className="peer sr-only"
                 disabled={isReviewMode}
                 name={exercise.id}
