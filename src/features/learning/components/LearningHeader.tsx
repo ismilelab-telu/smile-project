@@ -31,7 +31,7 @@ const menuLinks = [
 
 export function LearningHeader({ backHref, backLabel }: LearningHeaderProps) {
   return (
-    <header className="relative z-20 flex items-center justify-between px-[clamp(1rem,1.6vw,1.5rem)] py-[clamp(0.875rem,1.6vw,1.25rem)] [@media_(min-width:2200px)]:px-9 [@media_(min-width:2200px)]:py-9">
+    <header className="learning-header sticky top-0 z-30 flex items-center justify-between border-b learning-grid-border bg-background px-[clamp(1rem,1.6vw,1.5rem)] py-[clamp(0.875rem,1.6vw,1.25rem)] [@media_(min-width:2200px)]:px-9 [@media_(min-width:2200px)]:py-9">
       <a
         aria-label={backLabel}
         className="inline-flex size-10 items-center justify-center rounded-none bg-transparent text-neutral-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 [@media_(min-width:2200px)]:size-12"

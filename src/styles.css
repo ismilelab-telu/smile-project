@@ -215,6 +215,14 @@
     position: relative;
   }
 
+  .learning-header + .learning-sheet:not(.mt-20) {
+    border-top: 0;
+  }
+
+  .learning-header + .learning-sheet:not(.mt-20) > .learning-sheet-outer-top {
+    display: none;
+  }
+
   .learning-sheet-cell {
     background: oklch(98.5% 0 0);
     border-bottom: 1px solid var(--learning-grid-line);
