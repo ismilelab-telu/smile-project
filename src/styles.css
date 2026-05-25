@@ -310,6 +310,18 @@
     background: var(--learning-grid-panel-fill-strong);
   }
 
+  .learning-sheet-break-stripes {
+    background: repeating-linear-gradient(
+      135deg,
+      oklch(98.5% 0 0) 0,
+      oklch(98.5% 0 0) 4px,
+      var(--learning-grid-line) 4px,
+      var(--learning-grid-line) 5px,
+      oklch(98.5% 0 0) 5px,
+      oklch(98.5% 0 0) 9px
+    );
+  }
+
   .learning-sheet-footer-cell {
     min-height: calc(2.5rem + clamp(1.5rem, 3vw, 2.5rem) + clamp(1.5rem, 3vw, 2.5rem));
   }

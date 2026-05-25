@@ -692,7 +692,7 @@ export function LessonPage({
               {isMultiExerciseLesson && exerciseIndex > 0 ? (
                 <div
                   aria-hidden="true"
-                  className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} h-12 [@media_(min-width:2200px)]:h-16`}
+                  className={`learning-sheet-cell learning-sheet-break-stripes learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} h-12 [@media_(min-width:2200px)]:h-16`}
                 />
               ) : null}
               <ExerciseSection
