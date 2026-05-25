@@ -174,6 +174,33 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
+  it("switches submitted lesson feedback immediately after changing language", async () => {
+    window.history.pushState(null, "", lesson01Path);
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Apa Itu Machine Learning" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByLabelText(
+        "Komputer menjalankan daftar aturan tetap yang ditulis manusia untuk semua kondisi.",
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Kirim jawaban" }));
+
+    expect(await screen.findByRole("heading", { name: "Belum tepat" })).toBeInTheDocument();
+    expect(screen.getByText("Jawabanmu belum tepat.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Buka menu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pilih bahasa" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gunakan English" }));
+
+    expect(screen.getByRole("heading", { name: "Not quite" })).toBeInTheDocument();
+    expect(screen.getByText("Your answer is not correct yet.")).toBeInTheDocument();
+    expect(screen.queryByText("Jawabanmu belum tepat.")).not.toBeInTheDocument();
+  });
+
   it("shows only the first Machine Learning Foundations lesson as available without progress", async () => {
     window.history.pushState(null, "", foundationsTrackPath);
     render(<App />);

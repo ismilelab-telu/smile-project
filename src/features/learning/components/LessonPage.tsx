@@ -191,6 +191,19 @@ function haveSameValueSet(left: string[], right: string[]) {
   return left.every((value) => rightValues.has(value));
 }
 
+function haveSameEvaluationResult(left: EvaluationResult | undefined, right: EvaluationResult) {
+  return (
+    left !== undefined &&
+    left.status === right.status &&
+    left.score === right.score &&
+    left.title === right.title &&
+    left.message === right.message &&
+    left.nextStep === right.nextStep &&
+    haveSameValueSet(left.missedColumnIds, right.missedColumnIds) &&
+    haveSameValueSet(left.extraColumnIds, right.extraColumnIds)
+  );
+}
+
 function createLessonAnswerSnapshot({
   assignments,
   exercises,
@@ -506,6 +519,38 @@ export function LessonPage({
     initialSubmittedAnswerSnapshotsByExerciseId,
     lesson.id,
   ]);
+
+  useEffect(() => {
+    setExerciseResultsById((currentResults) => {
+      let hasChanges = false;
+      const nextResults = { ...currentResults };
+
+      for (const exercise of exerciseEntries) {
+        if (!currentResults[exercise.id]) {
+          continue;
+        }
+
+        const nextResult = isCompleted
+          ? createRestoredCorrectResult(locale)
+          : submittedAnswerSnapshotsByExerciseId[exercise.id]
+            ? evaluateExerciseAnswerSnapshot(
+                exercise,
+                submittedAnswerSnapshotsByExerciseId[exercise.id],
+                locale,
+              )
+            : undefined;
+
+        if (!nextResult) {
+          continue;
+        }
+
+        nextResults[exercise.id] = nextResult;
+        hasChanges ||= !haveSameEvaluationResult(currentResults[exercise.id], nextResult);
+      }
+
+      return hasChanges ? nextResults : currentResults;
+    });
+  }, [exerciseEntries, isCompleted, locale, submittedAnswerSnapshotsByExerciseId]);
 
   useEffect(() => {
     if (isCompleted) {
