@@ -57,7 +57,7 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
       >
         <LearningSheetExtensions />
 
-        <div className="learning-sheet-cell learning-extend-left learning-extend-top col-span-full p-6 [@media_(min-width:2200px)]:p-12">
+        <div className="learning-sheet-cell learning-extend-left learning-extend-right learning-extend-top col-span-full p-6 [@media_(min-width:2200px)]:p-12">
           <h1
             className="text-5xl leading-tight font-semibold tracking-normal text-foreground sm:text-6xl [@media_(min-width:2200px)]:text-8xl"
             id="learning-track-list"
@@ -65,6 +65,10 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
             {t("learning.trackHub.title")}
           </h1>
         </div>
+        <div
+          aria-hidden="true"
+          className="learning-sheet-cell learning-extend-left learning-extend-right col-span-full h-12 [@media_(min-width:2200px)]:h-16"
+        />
 
         {learningTracks.map((track, index) => {
           const localizedTrack = localizeTrack(track, locale);
@@ -74,10 +78,10 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
 
           return (
             <div className="contents" key={track.id}>
-              <div className="learning-sheet-cell learning-extend-left learning-sheet-cell-fill flex items-center justify-center p-4 text-base font-semibold text-foreground [@media_(min-width:2200px)]:p-6 [@media_(min-width:2200px)]:text-2xl">
+              <div className="learning-sheet-cell learning-extend-left learning-sheet-cell-fill flex items-center justify-center p-3 text-base font-semibold text-foreground [@media_(min-width:2200px)]:p-5 [@media_(min-width:2200px)]:text-2xl">
                 {index}
               </div>
-              <div className="learning-sheet-cell flex min-h-32 items-center gap-5 p-6 [@media_(min-width:2200px)]:min-h-44 [@media_(min-width:2200px)]:gap-7 [@media_(min-width:2200px)]:p-8">
+              <div className="learning-sheet-cell flex min-h-20 items-center gap-5 p-5 [@media_(min-width:2200px)]:min-h-28 [@media_(min-width:2200px)]:gap-7 [@media_(min-width:2200px)]:p-7">
                 <Icon
                   aria-hidden="true"
                   className={`size-7 shrink-0 [@media_(min-width:2200px)]:size-9 ${
@@ -90,7 +94,7 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
                   </h2>
                 </div>
               </div>
-              <div className="learning-sheet-cell learning-extend-right flex items-center p-6 [@media_(min-width:2200px)]:p-8">
+              <div className="learning-sheet-cell learning-extend-right flex items-center p-4 [@media_(min-width:2200px)]:p-6">
                 {isAvailable ? (
                   <LiquidLink
                     className={`${liquidButtonClassName} min-h-12 [@media_(min-width:2200px)]:min-h-16`}

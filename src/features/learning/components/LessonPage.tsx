@@ -65,10 +65,17 @@ type LessonPageProps = {
   backHref?: string;
   backLabel?: string;
   initialAnswer?: LessonAnswer;
+  initialSubmittedAnswersByExerciseId?: Record<string, LessonAnswer>;
   isCompleted?: boolean;
   lesson: Lesson;
   nextLessonHref?: string;
   onAnswerChange?: (input: { answer: LessonAnswer; lessonId: string }) => void;
+  onExerciseSubmitResult?: (input: {
+    answer: LessonAnswer;
+    exerciseId: string;
+    lessonId: string;
+    result: EvaluationResult;
+  }) => void;
   onSubmitResult: (result: EvaluationResult, answer: LessonAnswer) => void;
   previousLessonHref?: string;
 };
@@ -238,14 +245,43 @@ function createLessonAnswerSnapshot({
   return answer;
 }
 
+function evaluateExerciseAnswerSnapshot(
+  exercise: LessonExercise,
+  answer: LessonAnswer,
+  locale: Locale,
+) {
+  if (exercise.type === "multiple-choice") {
+    return evaluateMultipleChoice(
+      exercise,
+      answer.selectedOptionIdsByExerciseId?.[exercise.id] ?? [],
+      locale,
+    );
+  }
+
+  if (exercise.type === "ordered-steps") {
+    return evaluateOrderedSteps(
+      exercise,
+      answer.orderedStepIdsByExerciseId?.[exercise.id] ?? [],
+      locale,
+    );
+  }
+
+  return evaluateFeatureTargetRoles(
+    answer.columnRoleAssignmentsByExerciseId?.[exercise.id] ?? {},
+    locale,
+  );
+}
+
 export function LessonPage({
   backHref = "/learn",
   backLabel = "Kembali ke Beranda Belajar",
   initialAnswer,
+  initialSubmittedAnswersByExerciseId = {},
   isCompleted = false,
   lesson,
   nextLessonHref,
   onAnswerChange,
+  onExerciseSubmitResult,
   onSubmitResult,
   previousLessonHref,
 }: LessonPageProps) {
@@ -308,6 +344,19 @@ export function LessonPage({
       }, {}),
     [exerciseEntries, initialAnswer],
   );
+  const initialSubmittedAnswerSnapshotsByExerciseId = useMemo(
+    () =>
+      exerciseEntries.reduce<Record<string, LessonAnswer>>((submittedAnswers, exercise) => {
+        const submittedAnswer = initialSubmittedAnswersByExerciseId[exercise.id];
+
+        if (submittedAnswer) {
+          submittedAnswers[exercise.id] = submittedAnswer;
+        }
+
+        return submittedAnswers;
+      }, {}),
+    [exerciseEntries, initialSubmittedAnswersByExerciseId],
+  );
   const initialExerciseResultsById = useMemo(
     () =>
       isCompleted
@@ -315,8 +364,20 @@ export function LessonPage({
             results[exercise.id] = createRestoredCorrectResult(locale);
             return results;
           }, {})
-        : {},
-    [exerciseEntries, isCompleted, locale],
+        : exerciseEntries.reduce<Record<string, EvaluationResult>>((results, exercise) => {
+            const submittedAnswer = initialSubmittedAnswerSnapshotsByExerciseId[exercise.id];
+
+            if (submittedAnswer) {
+              results[exercise.id] = evaluateExerciseAnswerSnapshot(
+                exercise,
+                submittedAnswer,
+                locale,
+              );
+            }
+
+            return results;
+          }, {}),
+    [exerciseEntries, initialSubmittedAnswerSnapshotsByExerciseId, isCompleted, locale],
   );
   const mountedLessonIdRef = useRef(lesson.id);
   const [assignments, setAssignments] = useState<Record<string, ColumnRole>>(initialAssignments);
@@ -327,7 +388,7 @@ export function LessonPage({
   );
   const [submittedAnswerSnapshotsByExerciseId, setSubmittedAnswerSnapshotsByExerciseId] = useState<
     Record<string, LessonAnswer>
-  >({});
+  >(initialSubmittedAnswerSnapshotsByExerciseId);
   const [selectedOptionIdsByExerciseId, setSelectedOptionIdsByExerciseId] = useState<
     Record<string, string[]>
   >(initialSelectedOptionIdsByExerciseId);
@@ -450,7 +511,7 @@ export function LessonPage({
     setAssignments(initialAssignments);
     setOrderedStepIdsByExerciseId(initialOrderedStepIds);
     setExerciseResultsById(initialExerciseResultsById);
-    setSubmittedAnswerSnapshotsByExerciseId({});
+    setSubmittedAnswerSnapshotsByExerciseId(initialSubmittedAnswerSnapshotsByExerciseId);
     setSelectedOptionIdsByExerciseId(initialSelectedOptionIdsByExerciseId);
     setVisibleHintCountByExerciseId({});
   }, [
@@ -458,6 +519,7 @@ export function LessonPage({
     initialExerciseResultsById,
     initialOrderedStepIds,
     initialSelectedOptionIdsByExerciseId,
+    initialSubmittedAnswerSnapshotsByExerciseId,
     lesson.id,
   ]);
 
@@ -606,6 +668,12 @@ export function LessonPage({
 
     setExerciseResultsById(nextExerciseResultsById);
     setSubmittedAnswerSnapshotsByExerciseId(nextSubmittedAnswerSnapshotsByExerciseId);
+    onExerciseSubmitResult?.({
+      answer: answerSnapshot,
+      exerciseId: exercise.id,
+      lessonId: lesson.id,
+      result: evaluation,
+    });
 
     const nextLessonResult =
       exerciseEntries.length === 1
@@ -1613,7 +1681,7 @@ function MultipleChoiceExerciseView({
         return (
           <div className="grid" key={option.id}>
             {shouldShowOptionFeedback ? (
-              <div className="flex items-center gap-3 border border-b-0 learning-grid-border p-5 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:p-6">
+              <div className="flex min-h-16 items-center gap-3 border border-b-0 learning-grid-border px-5 py-4 [@media_(min-width:2200px)]:min-h-20 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-5">
                 {isPositiveFeedback ? (
                   <CheckCircleIcon
                     aria-hidden="true"
@@ -1633,7 +1701,7 @@ function MultipleChoiceExerciseView({
               </div>
             ) : null}
             <label
-              className={`flex min-h-24 items-center gap-4 border learning-grid-border p-5 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-6 ${
+              className={`flex min-h-16 items-center gap-4 border learning-grid-border px-5 py-4 [@media_(min-width:2200px)]:min-h-20 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-5 ${
                 isReviewMode ? "cursor-not-allowed" : "cursor-pointer"
               }`}
             >

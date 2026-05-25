@@ -64,7 +64,8 @@ function getLearningRoute(path: string): LearningRoute {
 }
 
 export function LearningPage({ path = "/learn" }: LearningPageProps) {
-  const { completeLesson, progress, resetProgress, saveLessonAnswer } = useLearningProgress();
+  const { completeLesson, progress, resetProgress, saveExerciseSubmission, saveLessonAnswer } =
+    useLearningProgress();
   const route = getLearningRoute(path);
 
   if (route.kind === "hub") {
@@ -208,11 +209,13 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
         backHref={trackHomeHref}
         backLabel="Kembali ke Jalur Belajar"
         initialAnswer={progress.lessonAnswers[lesson.id]}
+        initialSubmittedAnswersByExerciseId={progress.submittedExerciseAnswers}
         isCompleted={progress.completedLessonIds.includes(lesson.id)}
         key={lesson.id}
         lesson={lesson}
         nextLessonHref={nextLessonHref}
         onAnswerChange={saveLessonAnswer}
+        onExerciseSubmitResult={saveExerciseSubmission}
         onSubmitResult={(result, answer) => {
           completeLesson({
             answer,

@@ -123,6 +123,7 @@ export type LearningProgress = {
   completedLessonIds: string[];
   attempts: Record<string, ExerciseAttempt>;
   lessonAnswers: Record<string, LessonAnswer>;
+  submittedExerciseAnswers?: Record<string, LessonAnswer>;
   currentLessonId?: string;
 };
 

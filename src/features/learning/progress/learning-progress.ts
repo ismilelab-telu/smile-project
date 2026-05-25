@@ -8,6 +8,7 @@ const initialProgress: LearningProgress = {
   attempts: {},
   completedLessonIds: [],
   lessonAnswers: {},
+  submittedExerciseAnswers: {},
   version: 1,
 };
 
@@ -44,6 +45,7 @@ export function readLearningProgress(): LearningProgress {
       completedLessonIds: parsed.completedLessonIds,
       currentLessonId: parsed.currentLessonId,
       lessonAnswers: parsed.lessonAnswers ?? {},
+      submittedExerciseAnswers: parsed.submittedExerciseAnswers ?? {},
       version: 1,
     };
   } catch {
@@ -96,8 +98,44 @@ export function useLearningProgress() {
             ...current.lessonAnswers,
             [input.lessonId]: input.answer,
           },
+          submittedExerciseAnswers: {
+            ...current.submittedExerciseAnswers,
+            [input.exerciseId]: input.answer,
+          },
         };
       });
+    },
+    [],
+  );
+
+  const saveExerciseSubmission = useCallback(
+    (input: {
+      answer: LessonAnswer;
+      exerciseId: string;
+      lessonId: string;
+      result: EvaluationResult;
+    }) => {
+      setProgress((current) => ({
+        ...current,
+        attempts: {
+          ...current.attempts,
+          [input.exerciseId]: {
+            exerciseId: input.exerciseId,
+            score: input.result.score,
+            status: input.result.status,
+            submittedAt: new Date().toISOString(),
+          },
+        },
+        currentLessonId: input.lessonId,
+        lessonAnswers: {
+          ...current.lessonAnswers,
+          [input.lessonId]: input.answer,
+        },
+        submittedExerciseAnswers: {
+          ...current.submittedExerciseAnswers,
+          [input.exerciseId]: input.answer,
+        },
+      }));
     },
     [],
   );
@@ -122,8 +160,9 @@ export function useLearningProgress() {
       completeLesson,
       progress,
       resetProgress,
+      saveExerciseSubmission,
       saveLessonAnswer,
     }),
-    [completeLesson, progress, resetProgress, saveLessonAnswer],
+    [completeLesson, progress, resetProgress, saveExerciseSubmission, saveLessonAnswer],
   );
 }

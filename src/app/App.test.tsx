@@ -51,6 +51,12 @@ function getStoredLearningProgress() {
         selectedOptionIdsByExerciseId?: Record<string, string[]>;
       }
     >;
+    submittedExerciseAnswers?: Record<
+      string,
+      {
+        selectedOptionIdsByExerciseId?: Record<string, string[]>;
+      }
+    >;
   };
 }
 
@@ -558,6 +564,72 @@ describe("App", () => {
     expect(await screen.findAllByRole("heading", { name: "Benar" })).toHaveLength(4);
     expect(screen.getByRole("link", { name: /^Lanjut$/ })).toBeInTheDocument();
     expect(getStoredCompletedLessonIds()).toContain("lesson-0-6-formulating-ml-problems");
+  });
+
+  it("keeps submitted multi-exercise state after leaving an unfinished lesson", async () => {
+    seedCompletedLessons(module0LessonIds.slice(0, 5));
+    window.history.pushState(null, "", lesson06Path);
+    render(<App />);
+
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: "Merumuskan Masalah dalam Machine Learning" },
+        lazyRouteTimeout,
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByLabelText(
+        "Target yang masuk akal adalah jumlah minuman yang terjual pada shift tersebut.",
+      ),
+    );
+    fireEvent.click(
+      screen.getByLabelText(
+        "Jenis masalah yang masuk akal adalah regresi karena output berupa angka.",
+      ),
+    );
+    fireEvent.click(
+      screen.getByLabelText(
+        "Fitur yang aman bisa mencakup hari, jam shift, cuaca yang diprediksi, dan promo yang sudah diketahui sebelum shift.",
+      ),
+    );
+    fireEvent.click(
+      screen.getByLabelText(
+        "Pernyataan masalah yang jelas: memprediksi jumlah minuman terjual sebelum shift dimulai.",
+      ),
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Kirim jawaban" })[0]);
+
+    expect(await screen.findByRole("button", { name: "Terkirim" })).toBeDisabled();
+    expect(
+      getStoredLearningProgress().submittedExerciseAnswers?.["exercise-0-6-formulate-problem"]
+        ?.selectedOptionIdsByExerciseId?.["exercise-0-6-formulate-problem"],
+    ).toEqual(["target-demand", "regression-task", "safe-features", "clear-statement"]);
+
+    fireEvent.click(screen.getAllByRole("link", { name: "Kembali ke Jalur Belajar" })[0]);
+
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: "Dasar-Dasar Machine Learning" },
+        lazyRouteTimeout,
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("link", { name: /^Mulai$/ }));
+
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: "Merumuskan Masalah dalam Machine Learning" },
+        lazyRouteTimeout,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Terkirim" })).toBeDisabled();
+    expect(screen.getAllByRole("button", { name: "Kirim jawaban" })).toHaveLength(1);
+    expect(screen.getAllByRole("heading", { name: "Benar" })).toHaveLength(4);
   });
 
   it("unlocks the first lesson in the next module after the previous module is complete", async () => {
