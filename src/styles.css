@@ -245,20 +245,9 @@
     right: -100vw;
   }
 
-  .learning-sheet-outer-left {
-    height: 100vh;
-    left: -1px;
-    top: 0;
-    transform: translateY(-100%);
-    width: 1px;
-  }
-
+  .learning-sheet-outer-left,
   .learning-sheet-outer-right {
-    height: 100vh;
-    right: 0;
-    top: 0;
-    transform: translateY(-100%);
-    width: 1px;
+    display: none;
   }
 
   .learning-extend-left::after,
@@ -287,19 +276,7 @@
   }
 
   .learning-extend-top::before {
-    background: var(--learning-grid-line);
-    content: "";
-    pointer-events: none;
-    position: absolute;
-    right: -1px;
-    width: 1px;
-    z-index: 2;
-  }
-
-  .learning-extend-top::before {
-    height: 100vh;
-    top: 0;
-    transform: translateY(-100%);
+    content: none;
   }
 
   .learning-sheet-cell-fill {
@@ -323,12 +300,12 @@
   }
 
   .learning-sheet-footer-cell {
-    min-height: calc(2.5rem + clamp(1.5rem, 3vw, 2.5rem) + clamp(1.5rem, 3vw, 2.5rem));
+    min-height: calc(1.5rem + clamp(1rem, 2vw, 1.5rem) + clamp(1rem, 2vw, 1.5rem));
   }
 
   @media (min-width: 2200px) {
     .learning-sheet-footer-cell {
-      min-height: 10rem;
+      min-height: 6rem;
     }
   }
 
