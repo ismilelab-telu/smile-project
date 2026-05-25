@@ -389,6 +389,34 @@ describe("App", () => {
     expect(within(getFirstDatasetRow()).getByText("155")).toBeInTheDocument();
   });
 
+  it("marks correct and incorrect column role assignments after submit", async () => {
+    seedCompletedLessons(module0LessonIds.slice(0, 5));
+    window.history.pushState(null, "", lesson06Path);
+    render(<App />);
+
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: "Merumuskan Masalah dalam Machine Learning" },
+        lazyRouteTimeout,
+      ),
+    ).toBeInTheDocument();
+
+    await chooseColumnRole("Waktu Shift", "Target");
+    await chooseColumnRole("Suhu", "Fitur");
+    await chooseColumnRole("Promo Aktif", "Fitur");
+    await chooseColumnRole("Minuman Terjual", "Metadata");
+
+    const submitButtons = screen.getAllByRole("button", { name: "Kirim jawaban" });
+    expect(submitButtons).toHaveLength(2);
+
+    fireEvent.click(submitButtons[1]);
+
+    expect(await screen.findByRole("heading", { name: "Belum tepat" })).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: "Benar" })).toHaveLength(3);
+    expect(screen.getAllByRole("heading", { name: "Salah" })).toHaveLength(4);
+  });
+
   it("keeps the next lesson locked after an incorrect answer", async () => {
     window.history.pushState(null, "", lesson01Path);
     render(<App />);
@@ -588,7 +616,7 @@ describe("App", () => {
 
     fireEvent.click(submitButtons[1]);
 
-    expect(await screen.findAllByRole("heading", { name: "Benar" })).toHaveLength(4);
+    expect(await screen.findAllByRole("heading", { name: "Benar" })).toHaveLength(11);
     expect(screen.getByRole("link", { name: /^Lanjut$/ })).toBeInTheDocument();
     expect(getStoredCompletedLessonIds()).toContain("lesson-0-6-formulating-ml-problems");
   });

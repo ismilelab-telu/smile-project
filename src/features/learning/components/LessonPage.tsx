@@ -804,6 +804,10 @@ export function LessonPage({
                 orderedStepIds={orderedStepIdsByExerciseId[exercise.id] ?? []}
                 result={exerciseResult}
                 isReviewMode={isExerciseReadOnly}
+                submittedColumnRoleAssignments={
+                  submittedAnswerSnapshotsByExerciseId[exercise.id]
+                    ?.columnRoleAssignmentsByExerciseId?.[exercise.id] ?? {}
+                }
                 submittedSelectedOptionIds={
                   submittedAnswerSnapshotsByExerciseId[exercise.id]
                     ?.selectedOptionIdsByExerciseId?.[exercise.id] ?? []
@@ -979,6 +983,7 @@ function ExerciseSection({
   orderedStepIds,
   result,
   isReviewMode,
+  submittedColumnRoleAssignments,
   submittedSelectedOptionIds,
   selectedOptionIds,
 }: {
@@ -993,6 +998,7 @@ function ExerciseSection({
   orderedStepIds: string[];
   result: EvaluationResult | null;
   isReviewMode: boolean;
+  submittedColumnRoleAssignments: Record<string, ColumnRole>;
   submittedSelectedOptionIds: string[];
   selectedOptionIds: string[];
 }) {
@@ -1060,6 +1066,8 @@ function ExerciseSection({
           exercise={exercise}
           isReviewMode={isReviewMode}
           onUpdateAssignment={onUpdateAssignment}
+          result={result}
+          submittedAssignments={submittedColumnRoleAssignments}
         />
       ) : null}
     </>
@@ -1564,6 +1572,8 @@ function ColumnRoleExerciseView({
   exercise,
   isReviewMode,
   onUpdateAssignment,
+  result,
+  submittedAssignments,
 }: {
   assignments: Record<string, ColumnRole>;
   columns: NonNullable<ReturnType<typeof getDatasetView>>["columns"];
@@ -1571,7 +1581,15 @@ function ColumnRoleExerciseView({
   exercise: TableColumnRoleExercise;
   isReviewMode: boolean;
   onUpdateAssignment: (columnId: string, role: ColumnRole) => void;
+  result: EvaluationResult | null;
+  submittedAssignments: Record<string, ColumnRole>;
 }) {
+  const { t } = useLocalization();
+  const expectedRoles = getExpectedColumnRoles();
+  const evaluatedAssignments =
+    Object.keys(submittedAssignments).length > 0 ? submittedAssignments : assignments;
+  const shouldShowColumnFeedback = result !== null;
+
   return (
     <>
       <div
@@ -1582,27 +1600,53 @@ function ColumnRoleExerciseView({
       <div
         className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${edgeCompensationClassName} grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12`}
       >
-        {columns.map((column) => (
-          <div
-            className="grid gap-4 border learning-grid-border p-5 sm:grid-cols-[minmax(0,1fr)_288px] sm:items-center [@media_(min-width:2200px)]:grid-cols-[minmax(0,1fr)_384px] [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-6"
-            key={column.id}
-          >
-            <span>
-              <span className="block text-base font-semibold text-foreground [@media_(min-width:2200px)]:text-lg">
-                {column.label}
-              </span>
-              <span className="mt-1.5 block text-base text-muted-foreground [@media_(min-width:2200px)]:text-lg">
-                {column.id}
-              </span>
-            </span>
-            <RoleDropdown
-              columnLabel={column.label}
-              disabled={isReviewMode}
-              onChange={(role) => onUpdateAssignment(column.id, role)}
-              value={assignments[column.id] ?? "ignore"}
-            />
-          </div>
-        ))}
+        {columns.map((column) => {
+          const expectedRole = expectedRoles[column.id];
+          const evaluatedRole = evaluatedAssignments[column.id] ?? "ignore";
+          const shouldShowFeedback = shouldShowColumnFeedback && expectedRole !== undefined;
+          const isPositiveFeedback = evaluatedRole === expectedRole;
+
+          return (
+            <div className="grid" key={column.id}>
+              {shouldShowFeedback ? (
+                <div className="flex min-h-16 items-center gap-3 border border-b-0 learning-grid-border px-5 py-4 [@media_(min-width:2200px)]:min-h-20 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-5">
+                  {isPositiveFeedback ? (
+                    <CheckCircleIcon
+                      aria-hidden="true"
+                      className="size-6 shrink-0 text-emerald-500 [@media_(min-width:2200px)]:size-7"
+                    />
+                  ) : (
+                    <XCircleIcon
+                      aria-hidden="true"
+                      className="size-6 shrink-0 text-rose-500 [@media_(min-width:2200px)]:size-7"
+                    />
+                  )}
+                  <h3 className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl">
+                    {isPositiveFeedback
+                      ? t("learning.feedback.correct")
+                      : t("learning.feedback.incorrect")}
+                  </h3>
+                </div>
+              ) : null}
+              <div className="grid gap-4 border learning-grid-border p-5 sm:grid-cols-[minmax(0,1fr)_288px] sm:items-center [@media_(min-width:2200px)]:grid-cols-[minmax(0,1fr)_384px] [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-6">
+                <span>
+                  <span className="block text-base font-semibold text-foreground [@media_(min-width:2200px)]:text-lg">
+                    {column.label}
+                  </span>
+                  <span className="mt-1.5 block text-base text-muted-foreground [@media_(min-width:2200px)]:text-lg">
+                    {column.id}
+                  </span>
+                </span>
+                <RoleDropdown
+                  columnLabel={column.label}
+                  disabled={isReviewMode}
+                  onChange={(role) => onUpdateAssignment(column.id, role)}
+                  value={assignments[column.id] ?? "ignore"}
+                />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </>
   );
