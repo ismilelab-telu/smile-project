@@ -31,6 +31,20 @@ type LearningRoute =
   | { kind: "lesson"; lessonId: string; trackId: string }
   | { kind: "not-found"; trackId?: string };
 
+function getTrackLessonIds(trackId: string) {
+  const track = getTrack(trackId);
+
+  if (!track) {
+    return [];
+  }
+
+  return track.moduleIds.flatMap((moduleId) => {
+    const module = getModule(moduleId);
+
+    return module?.status === "available" ? module.lessonIds : [];
+  });
+}
+
 function getLearningRoute(path: string): LearningRoute {
   const parts = path.split("/").filter(Boolean);
 
@@ -50,7 +64,7 @@ function getLearningRoute(path: string): LearningRoute {
 }
 
 export function LearningPage({ path = "/learn" }: LearningPageProps) {
-  const { completeLesson, progress, resetProgress } = useLearningProgress();
+  const { completeLesson, progress, resetProgress, saveLessonAnswer } = useLearningProgress();
   const route = getLearningRoute(path);
 
   if (route.kind === "hub") {
@@ -173,6 +187,22 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
       );
     }
 
+    const trackLessonIds = getTrackLessonIds(track.id);
+    const lessonIndex = trackLessonIds.indexOf(lesson.id);
+    const previousLesson = lessonIndex > 0 ? getLesson(trackLessonIds[lessonIndex - 1]) : undefined;
+    const nextLesson =
+      lessonIndex >= 0 && lessonIndex < trackLessonIds.length - 1
+        ? getLesson(trackLessonIds[lessonIndex + 1])
+        : undefined;
+    const previousLessonHref =
+      previousLesson && isLessonUnlocked(previousLesson, progress)
+        ? `${trackHomeHref}/${previousLesson.id}`
+        : undefined;
+    const nextLessonHref =
+      nextLesson && isLessonUnlocked(nextLesson, progress)
+        ? `${trackHomeHref}/${nextLesson.id}`
+        : undefined;
+
     return (
       <LessonPage
         backHref={trackHomeHref}
@@ -181,6 +211,8 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
         isCompleted={progress.completedLessonIds.includes(lesson.id)}
         key={lesson.id}
         lesson={lesson}
+        nextLessonHref={nextLessonHref}
+        onAnswerChange={saveLessonAnswer}
         onSubmitResult={(result, answer) => {
           completeLesson({
             answer,
@@ -189,6 +221,7 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
             result,
           });
         }}
+        previousLessonHref={previousLessonHref}
       />
     );
   }

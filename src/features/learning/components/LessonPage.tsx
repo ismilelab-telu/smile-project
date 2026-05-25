@@ -9,12 +9,15 @@ import {
 import { autoUpdate, flip, offset, shift, size, useFloating } from "@floating-ui/react-dom";
 import {
   ArrowDownIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
   ArrowUpIcon,
   CheckIcon,
   CheckCircleIcon,
   ChevronDownIcon,
   InformationCircleIcon,
   LightBulbIcon,
+  XCircleIcon,
 } from "@heroicons/react/24/outline";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
@@ -23,6 +26,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom";
 
 import { getDatasetView } from "../datasets/registry";
+import { lessonMdxContentById } from "../content/lesson-mdx-content";
 import {
   evaluateMultipleChoice,
   evaluateOrderedSteps,
@@ -61,7 +65,10 @@ type LessonPageProps = {
   initialAnswer?: LessonAnswer;
   isCompleted?: boolean;
   lesson: Lesson;
+  nextLessonHref?: string;
+  onAnswerChange?: (input: { answer: LessonAnswer; lessonId: string }) => void;
   onSubmitResult: (result: EvaluationResult, answer: LessonAnswer) => void;
+  previousLessonHref?: string;
 };
 
 const roleOptions: Array<{ label: string; value: ColumnRole }> = [
@@ -198,7 +205,10 @@ export function LessonPage({
   initialAnswer,
   isCompleted = false,
   lesson,
+  nextLessonHref,
+  onAnswerChange,
   onSubmitResult,
+  previousLessonHref,
 }: LessonPageProps) {
   const exerciseEntries = useMemo(() => lesson.exercises ?? [lesson.exercise], [lesson]);
   const tableColumnRoleExercise = useMemo(
@@ -267,6 +277,16 @@ export function LessonPage({
     Record<string, string[]>
   >(initialSelectedOptionIdsByExerciseId);
   const [visibleHintCount, setVisibleHintCount] = useState(0);
+  const answerSnapshot = useMemo(
+    () =>
+      createLessonAnswerSnapshot({
+        assignments,
+        exercises: exerciseEntries,
+        orderedStepIdsByExerciseId,
+        selectedOptionIdsByExerciseId,
+      }),
+    [assignments, exerciseEntries, orderedStepIdsByExerciseId, selectedOptionIdsByExerciseId],
+  );
   const allHints = useMemo(
     () => exerciseEntries.flatMap((exercise) => exercise.hints),
     [exerciseEntries],
@@ -275,9 +295,28 @@ export function LessonPage({
     tableColumnRoleExercise && lesson.datasetId && lesson.viewId
       ? getDatasetView(lesson.datasetId, lesson.viewId)
       : undefined;
+  const LessonMdxContent = lessonMdxContentById[lesson.id];
+  const hasAnyAnswer = exerciseEntries.some((exercise) => {
+    if (exercise.type === "multiple-choice") {
+      return (selectedOptionIdsByExerciseId[exercise.id]?.length ?? 0) > 0;
+    }
+
+    if (exercise.type === "table-column-role-assignment") {
+      return Object.values(assignments).some((role) => role !== "ignore");
+    }
+
+    const currentStepIds = orderedStepIdsByExerciseId[exercise.id] ?? [];
+    const initialStepIds = initialOrderedStepIds[exercise.id] ?? [];
+
+    return currentStepIds.some((stepId, index) => stepId !== initialStepIds[index]);
+  });
+  const isLessonFinished = isCompleted || result?.status === "correct";
   const hasNotQuiteResult = result !== null && result.status !== "correct";
-  const isReviewMode = isCompleted;
+  const isReviewMode = isLessonFinished;
+  const isSubmitDisabled = !hasAnyAnswer;
   const rightEdgeCompensationClassName = hasNotQuiteResult ? "-mr-px" : "";
+  const finishedActionHref = nextLessonHref ?? backHref;
+  const finishedActionLabel = nextLessonHref ? "Next" : "Back to path";
 
   useEffect(() => {
     if (mountedLessonIdRef.current === lesson.id) {
@@ -297,6 +336,17 @@ export function LessonPage({
     initialSelectedOptionIdsByExerciseId,
     lesson.id,
   ]);
+
+  useEffect(() => {
+    if (isCompleted) {
+      return;
+    }
+
+    onAnswerChange?.({
+      answer: answerSnapshot,
+      lessonId: lesson.id,
+    });
+  }, [answerSnapshot, isCompleted, lesson.id, onAnswerChange]);
 
   if (tableColumnRoleExercise && !datasetView) {
     return (
@@ -343,11 +393,13 @@ export function LessonPage({
       const currentExerciseOptionIds = current[exerciseId] ?? [];
       const isSingleOptionExercise =
         exercise?.type === "multiple-choice" && exercise.correctOptionIds.length === 1;
+      const optionLimit =
+        exercise?.type === "multiple-choice" ? exercise.correctOptionIds.length : 0;
       const nextExerciseOptionIds = isSingleOptionExercise
         ? [optionId]
         : currentExerciseOptionIds.includes(optionId)
           ? currentExerciseOptionIds.filter((selectedOptionId) => selectedOptionId !== optionId)
-          : [...currentExerciseOptionIds, optionId];
+          : [...currentExerciseOptionIds, optionId].slice(-optionLimit);
 
       return {
         ...current,
@@ -393,15 +445,9 @@ export function LessonPage({
       return evaluateFeatureTargetRoles(assignments);
     });
     const evaluation = createCombinedExerciseResult(exerciseResults);
-    const answer = createLessonAnswerSnapshot({
-      assignments,
-      exercises: exerciseEntries,
-      orderedStepIdsByExerciseId,
-      selectedOptionIdsByExerciseId,
-    });
 
     setResult(evaluation);
-    onSubmitResult(evaluation, answer);
+    onSubmitResult(evaluation, answerSnapshot);
 
     setVisibleHintCount(0);
   };
@@ -424,8 +470,6 @@ export function LessonPage({
         >
           <div className="flex flex-wrap items-center gap-3 text-base text-muted-foreground [@media_(min-width:2200px)]:text-lg">
             <span>{lesson.numberLabel}</span>
-            <span aria-hidden="true">/</span>
-            <span>{lesson.estimatedMinutes} minutes</span>
           </div>
         </div>
         <div
@@ -439,10 +483,12 @@ export function LessonPage({
         <section
           className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} p-6 [@media_(min-width:2200px)]:p-12`}
         >
-          <div className="grid gap-3 text-base leading-6 text-muted-foreground [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-7">
-            {lesson.summary.map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
-            ))}
+          <div className="grid gap-3 text-base leading-6 text-muted-foreground [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-7 [&_li]:pl-1 [&_ol]:grid [&_ol]:list-decimal [&_ol]:gap-2 [&_ol]:pl-6 [&_p]:m-0 [&_strong]:font-semibold [&_strong]:text-foreground [&_ul]:grid [&_ul]:list-disc [&_ul]:gap-2 [&_ul]:pl-6">
+            {LessonMdxContent ? (
+              <LessonMdxContent />
+            ) : (
+              lesson.summary.map((paragraph) => <p key={paragraph}>{paragraph}</p>)
+            )}
           </div>
         </section>
 
@@ -470,16 +516,43 @@ export function LessonPage({
         })}
 
         <div
-          className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} flex justify-end p-6 [@media_(min-width:2200px)]:p-12`}
+          className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} flex items-center gap-4 p-6 [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-12`}
         >
-          <LiquidButton
-            className={`${emeraldLiquidButtonClassName} min-h-12 disabled:hover:text-neutral-950 ${isReviewMode ? "cursor-not-allowed opacity-60" : "cursor-pointer"} [@media_(min-width:2200px)]:min-h-16`}
-            disabled={isReviewMode}
-            onClick={submitAnswer}
-            type="button"
-          >
-            Submit answer
-          </LiquidButton>
+          {previousLessonHref ? (
+            <LiquidLink
+              className={`${emeraldLiquidButtonClassName} min-h-12 [@media_(min-width:2200px)]:min-h-16`}
+              data-app-link
+              href={previousLessonHref}
+            >
+              <ArrowLeftIcon
+                aria-hidden="true"
+                className="size-5 [@media_(min-width:2200px)]:size-6"
+              />
+              Prev
+            </LiquidLink>
+          ) : null}
+          {isLessonFinished ? (
+            <LiquidLink
+              className={`${emeraldLiquidButtonClassName} ml-auto min-h-12 [@media_(min-width:2200px)]:min-h-16`}
+              data-app-link
+              href={finishedActionHref}
+            >
+              {finishedActionLabel}
+              <ArrowRightIcon
+                aria-hidden="true"
+                className="size-5 [@media_(min-width:2200px)]:size-6"
+              />
+            </LiquidLink>
+          ) : (
+            <LiquidButton
+              className={`${emeraldLiquidButtonClassName} ml-auto min-h-12 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-neutral-950 ${isSubmitDisabled ? "" : "cursor-pointer"} [@media_(min-width:2200px)]:min-h-16`}
+              disabled={isSubmitDisabled}
+              onClick={submitAnswer}
+              type="button"
+            >
+              Submit answer
+            </LiquidButton>
+          )}
         </div>
 
         {result && result.status !== "correct" ? (
@@ -548,7 +621,7 @@ function ExerciseSection({
     exercise.type === "multiple-choice"
       ? exercise.correctOptionIds.length === 1
         ? "Single option"
-        : "Multiple options"
+        : `Multiple options: select ${exercise.correctOptionIds.length} options`
       : null;
 
   return (
@@ -1213,28 +1286,40 @@ function MultipleChoiceExerciseView({
   selectedOptionIds: string[];
 }) {
   const shouldShowCorrectIndicator = result?.status === "correct";
+  const shouldShowSubmittedOptionFeedback = result !== null && result.status !== "correct";
   const isSingleOptionExercise = exercise.correctOptionIds.length === 1;
-  const correctIndicatorOptionId = shouldShowCorrectIndicator
-    ? exercise.options.find((option) => exercise.correctOptionIds.includes(option.id))?.id
-    : undefined;
 
   return (
     <div
       className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${edgeCompensationClassName} grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12`}
     >
       {exercise.options.map((option) => {
-        const shouldShowCorrectForOption = option.id === correctIndicatorOptionId;
+        const isCorrectOption = exercise.correctOptionIds.includes(option.id);
+        const isSelectedOption = selectedOptionIds.includes(option.id);
+        const shouldShowCorrectForOption = shouldShowCorrectIndicator && isCorrectOption;
+        const shouldShowSubmittedFeedbackForOption =
+          shouldShowSubmittedOptionFeedback && isSelectedOption;
+        const shouldShowOptionFeedback =
+          shouldShowCorrectForOption || shouldShowSubmittedFeedbackForOption;
+        const isPositiveFeedback = isCorrectOption;
 
         return (
           <div className="grid" key={option.id}>
-            {shouldShowCorrectForOption ? (
+            {shouldShowOptionFeedback ? (
               <div className="flex items-center gap-3 border border-b-0 learning-grid-border p-5 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:p-6">
-                <CheckCircleIcon
-                  aria-hidden="true"
-                  className="size-6 shrink-0 text-emerald-500 [@media_(min-width:2200px)]:size-7"
-                />
+                {isPositiveFeedback ? (
+                  <CheckCircleIcon
+                    aria-hidden="true"
+                    className="size-6 shrink-0 text-emerald-500 [@media_(min-width:2200px)]:size-7"
+                  />
+                ) : (
+                  <XCircleIcon
+                    aria-hidden="true"
+                    className="size-6 shrink-0 text-sky-600 [@media_(min-width:2200px)]:size-7"
+                  />
+                )}
                 <h3 className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl">
-                  Correct
+                  {isPositiveFeedback ? "Correct" : "Incorrect"}
                 </h3>
               </div>
             ) : null}

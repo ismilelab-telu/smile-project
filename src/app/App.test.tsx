@@ -9,6 +9,7 @@ const lesson01Path = `${foundationsTrackPath}/lesson-0-1-what-is-machine-learnin
 const lesson02Path = `${foundationsTrackPath}/lesson-0-2-machine-learning-in-ai`;
 const lesson03Path = `${foundationsTrackPath}/lesson-0-3-core-components`;
 const lesson04Path = `${foundationsTrackPath}/lesson-0-4-learning-types`;
+const lesson05Path = `${foundationsTrackPath}/lesson-0-5-machine-learning-use-cases`;
 const lesson06Path = `${foundationsTrackPath}/lesson-0-6-formulating-ml-problems`;
 const module0LessonIds = [
   "lesson-0-1-what-is-machine-learning",
@@ -31,13 +32,25 @@ function seedCompletedLessons(completedLessonIds: string[]) {
 }
 
 function getStoredCompletedLessonIds() {
+  return getStoredLearningProgress().completedLessonIds;
+}
+
+function getStoredLearningProgress() {
   const stored = window.localStorage.getItem(learningProgressStorageKey);
 
   if (!stored) {
     throw new Error("Expected learning progress to be stored.");
   }
 
-  return (JSON.parse(stored) as { completedLessonIds: string[] }).completedLessonIds;
+  return JSON.parse(stored) as {
+    completedLessonIds: string[];
+    lessonAnswers?: Record<
+      string,
+      {
+        selectedOptionIdsByExerciseId?: Record<string, string[]>;
+      }
+    >;
+  };
 }
 
 async function chooseColumnRole(columnLabel: string, roleLabel: string) {
@@ -194,7 +207,9 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
 
-    expect(await screen.findByRole("heading", { name: "Correct" })).toBeInTheDocument();
+    expect(await screen.findAllByRole("heading", { name: "Correct" })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Submit answer" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Next$/ })).toHaveAttribute("href", lesson02Path);
     expect(getStoredCompletedLessonIds()).toContain("lesson-0-1-what-is-machine-learning");
 
     fireEvent.click(screen.getAllByRole("link", { name: "Back to Learning Path" })[0]);
@@ -221,6 +236,50 @@ describe("App", () => {
       ),
     ).toBeChecked();
     expect(screen.getByRole("heading", { name: "Correct" })).toBeInTheDocument();
+  });
+
+  it("keeps a draft answer when leaving before submit", async () => {
+    window.history.pushState(null, "", lesson01Path);
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Apa Itu Machine Learning" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByLabelText(
+        "Komputer menjalankan daftar aturan tetap yang ditulis manusia untuk semua kondisi.",
+      ),
+    );
+
+    await waitFor(() => {
+      expect(
+        getStoredLearningProgress().lessonAnswers?.["lesson-0-1-what-is-machine-learning"]
+          ?.selectedOptionIdsByExerciseId?.["exercise-0-1-what-is-machine-learning"],
+      ).toEqual(["manual-rules-only"]);
+    });
+
+    fireEvent.click(screen.getAllByRole("link", { name: "Back to Learning Path" })[0]);
+
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: "Machine Learning Foundations" },
+        lazyRouteTimeout,
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("link", { name: /^Start$/ }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Apa Itu Machine Learning" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(
+        "Komputer menjalankan daftar aturan tetap yang ditulis manusia untuk semua kondisi.",
+      ),
+    ).toBeChecked();
+    expect(screen.getByRole("button", { name: "Submit answer" })).not.toBeDisabled();
   });
 
   it("sorts the dataset preview when a column header is clicked", async () => {
@@ -255,7 +314,17 @@ describe("App", () => {
       await screen.findByRole("heading", { name: "Apa Itu Machine Learning" }, lazyRouteTimeout),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
+    const submitButton = screen.getByRole("button", { name: "Submit answer" });
+    expect(submitButton).toBeDisabled();
+
+    fireEvent.click(
+      screen.getByLabelText(
+        "Komputer menjalankan daftar aturan tetap yang ditulis manusia untuk semua kondisi.",
+      ),
+    );
+
+    expect(submitButton).not.toBeDisabled();
+    fireEvent.click(submitButton);
 
     expect(await screen.findByRole("heading", { name: "Not quite" })).toBeInTheDocument();
     expect(screen.queryByText("Expected role check")).not.toBeInTheDocument();
@@ -286,6 +355,43 @@ describe("App", () => {
     expect(screen.queryByRole("button", { name: "Submit answer" })).not.toBeInTheDocument();
   });
 
+  it("keeps multiple-option selections capped at the required count", async () => {
+    seedCompletedLessons(module0LessonIds.slice(0, 2));
+    window.history.pushState(null, "", lesson03Path);
+    render(<App />);
+
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: "Komponen Utama dalam Machine Learning" },
+        lazyRouteTimeout,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Multiple options: select 5 options")).toBeInTheDocument();
+
+    const firstOption = screen.getByLabelText("Masalah atau task yang ingin diselesaikan.");
+
+    fireEvent.click(firstOption);
+    fireEvent.click(screen.getByLabelText("Data sebagai contoh untuk belajar."));
+    fireEvent.click(screen.getByLabelText("Model yang belajar pola dari data."));
+    fireEvent.click(screen.getByLabelText("Training untuk menyesuaikan model."));
+    fireEvent.click(screen.getByLabelText("Evaluation untuk menilai manfaat model."));
+    fireEvent.click(
+      screen.getByLabelText("Menebak hasil tanpa data karena model selalu tahu jawabannya."),
+    );
+
+    expect(firstOption).not.toBeChecked();
+    expect(
+      screen.getAllByRole("checkbox").filter((checkbox) => (checkbox as HTMLInputElement).checked),
+    ).toHaveLength(5);
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
+
+    expect(await screen.findByRole("heading", { name: "Partially correct" })).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: "Correct" })).toHaveLength(4);
+    expect(screen.getByRole("heading", { name: "Incorrect" })).toBeInTheDocument();
+  });
+
   it("submits the learning types lesson", async () => {
     seedCompletedLessons(module0LessonIds.slice(0, 3));
     window.history.pushState(null, "", lesson04Path);
@@ -298,6 +404,7 @@ describe("App", () => {
         lazyRouteTimeout,
       ),
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Prev$/ })).toHaveAttribute("href", lesson03Path);
 
     fireEvent.click(screen.getByLabelText("Regression memprediksi nilai numerik."));
     fireEvent.click(screen.getByLabelText("Classification memprediksi kategori."));
@@ -307,7 +414,8 @@ describe("App", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
 
-    expect(await screen.findByRole("heading", { name: "Correct" })).toBeInTheDocument();
+    expect(await screen.findAllByRole("heading", { name: "Correct" })).toHaveLength(4);
+    expect(screen.getByRole("link", { name: /^Next$/ })).toHaveAttribute("href", lesson05Path);
     expect(getStoredCompletedLessonIds()).toContain("lesson-0-4-learning-types");
   });
 
@@ -353,7 +461,7 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
 
-    expect(await screen.findByRole("heading", { name: "Correct" })).toBeInTheDocument();
+    expect(await screen.findAllByRole("heading", { name: "Correct" })).toHaveLength(4);
     expect(getStoredCompletedLessonIds()).toContain("lesson-0-6-formulating-ml-problems");
   });
 

@@ -6,7 +6,7 @@ import {
   LockClosedIcon,
 } from "@heroicons/react/24/outline";
 
-import { getModule, learningTracks, lessons } from "../content/learning-content";
+import { getModule, learningTracks } from "../content/learning-content";
 import type { LearningProgress, LearningTrack } from "../types";
 import { LearningGridCanvas, LearningSheetExtensions } from "./LearningGridCanvas";
 import { LearningHeader } from "./LearningHeader";
@@ -29,17 +29,6 @@ function getTrackIcon(track: LearningTrack) {
   }
 
   return AcademicCapIcon;
-}
-
-function getTrackLessonCount(track: LearningTrack) {
-  const lessonIds = new Set(
-    track.moduleIds
-      .map((moduleId) => getModule(moduleId))
-      .filter((module) => module !== undefined && module.status === "available")
-      .flatMap((module) => module.lessonIds),
-  );
-
-  return lessons.filter((lesson) => lessonIds.has(lesson.id)).length;
 }
 
 function getCompletedTrackLessonCount(track: LearningTrack, progress: LearningProgress) {
@@ -75,7 +64,6 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
 
         {learningTracks.map((track, index) => {
           const Icon = getTrackIcon(track);
-          const lessonCount = getTrackLessonCount(track);
           const completedLessonCount = getCompletedTrackLessonCount(track, progress);
           const isAvailable = track.status === "available";
 
@@ -105,9 +93,6 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
                     href={`/learn/${track.id}`}
                   >
                     {completedLessonCount > 0 ? "Continue" : "Start path"}
-                    <span className="text-sm font-semibold text-neutral-700 [@media_(min-width:2200px)]:text-base">
-                      {completedLessonCount}/{lessonCount}
-                    </span>
                     <ArrowRightIcon
                       aria-hidden="true"
                       className="size-5 [@media_(min-width:2200px)]:size-6"

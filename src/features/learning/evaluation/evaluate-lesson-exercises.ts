@@ -18,6 +18,9 @@ export function evaluateMultipleChoice(
 ): EvaluationResult {
   const correct = new Set(exercise.correctOptionIds);
   const selected = new Set(selectedOptionIds);
+  const requiredOptionCount = correct.size;
+  const selectedOptionCount = selected.size;
+  const isMultipleOptionExercise = requiredOptionCount > 1;
   const correctSelectedCount = exercise.correctOptionIds.filter((optionId) =>
     selected.has(optionId),
   ).length;
@@ -36,6 +39,32 @@ export function evaluateMultipleChoice(
       score: 100,
       status: "correct",
       title: "Correct",
+    });
+  }
+
+  if (isMultipleOptionExercise && selectedOptionCount !== requiredOptionCount) {
+    const difference = Math.abs(requiredOptionCount - selectedOptionCount);
+    const nextStep =
+      selectedOptionCount < requiredOptionCount
+        ? `Tambahkan ${difference} pilihan lagi, lalu submit ulang.`
+        : `Kurangi ${difference} pilihan, lalu submit ulang.`;
+
+    return createResult({
+      message: `Pilih ${requiredOptionCount} opsi untuk pertanyaan ini. Saat ini kamu memilih ${selectedOptionCount}.`,
+      nextStep,
+      score: correctSelectedCount > 0 ? 45 : 20,
+      status: correctSelectedCount > 0 ? "partial" : "incorrect",
+      title: correctSelectedCount > 0 ? "Partially correct" : "Not quite",
+    });
+  }
+
+  if (isMultipleOptionExercise && incorrectSelectedCount > 0) {
+    return createResult({
+      message: "Jumlah pilihan sudah sesuai, tapi ada pilihan yang belum tepat.",
+      nextStep: "Ganti pilihan yang tidak sesuai, lalu submit ulang.",
+      score: correctSelectedCount > 0 ? 55 : 20,
+      status: correctSelectedCount > 0 ? "partial" : "incorrect",
+      title: correctSelectedCount > 0 ? "Partially correct" : "Not quite",
     });
   }
 

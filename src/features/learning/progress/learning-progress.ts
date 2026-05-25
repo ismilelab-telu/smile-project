@@ -102,6 +102,17 @@ export function useLearningProgress() {
     [],
   );
 
+  const saveLessonAnswer = useCallback((input: { answer: LessonAnswer; lessonId: string }) => {
+    setProgress((current) => ({
+      ...current,
+      currentLessonId: input.lessonId,
+      lessonAnswers: {
+        ...current.lessonAnswers,
+        [input.lessonId]: input.answer,
+      },
+    }));
+  }, []);
+
   const resetProgress = useCallback(() => {
     setProgress(initialProgress);
   }, []);
@@ -111,7 +122,8 @@ export function useLearningProgress() {
       completeLesson,
       progress,
       resetProgress,
+      saveLessonAnswer,
     }),
-    [completeLesson, progress, resetProgress],
+    [completeLesson, progress, resetProgress, saveLessonAnswer],
   );
 }
