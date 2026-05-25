@@ -81,22 +81,6 @@ type LessonPageProps = {
 };
 
 const roleOptions: ColumnRole[] = ["ignore", "target", "safe-feature", "metadata"];
-const roleDropdownPanelVariants = {
-  closed: {
-    transition: {
-      staggerChildren: 0.035,
-      staggerDirection: -1,
-      when: "afterChildren",
-    },
-  },
-  open: {
-    transition: {
-      delayChildren: 0.02,
-      staggerChildren: 0.045,
-      when: "beforeChildren",
-    },
-  },
-};
 type RoleDropdownHighlightRect = {
   height: number;
   y: number;
@@ -1297,13 +1281,10 @@ function RoleDropdown({
   const { t } = useLocalization();
   const rootRef = useRef<HTMLDivElement>(null);
   const optionRefs = useRef(new Map<ColumnRole, HTMLDivElement>());
-  const closeTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
   const menuId = useId();
   const [isOpen, setIsOpen] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
   const [activeOptionValue, setActiveOptionValue] = useState<ColumnRole | null>(null);
   const [highlightRect, setHighlightRect] = useState<RoleDropdownHighlightRect | null>(null);
-  const [isHighlightVisible, setIsHighlightVisible] = useState(false);
   const selectedLabel = getRoleOptionLabel(value, t);
   const highlightedOptionValue = activeOptionValue ?? value;
   const reduceDropdownMotion = shouldReduceMotion();
@@ -1331,37 +1312,14 @@ function RoleDropdown({
 
   const closeDropdown = useCallback(() => {
     setActiveOptionValue(null);
-    setIsClosing(true);
-
-    if (closeTimeoutRef.current !== null) {
-      window.clearTimeout(closeTimeoutRef.current);
-    }
-
-    if (reduceDropdownMotion) {
-      setIsHighlightVisible(false);
-      setIsOpen(false);
-      setIsClosing(false);
-      return;
-    }
-
-    closeTimeoutRef.current = window.setTimeout(() => {
-      setIsOpen(false);
-      setIsClosing(false);
-      closeTimeoutRef.current = null;
-    }, 330);
-  }, [reduceDropdownMotion]);
+    setIsOpen(false);
+  }, []);
 
   const openDropdown = () => {
     if (disabled) {
       return;
     }
 
-    if (closeTimeoutRef.current !== null) {
-      window.clearTimeout(closeTimeoutRef.current);
-      closeTimeoutRef.current = null;
-    }
-
-    setIsClosing(false);
     setIsOpen(true);
   };
 
@@ -1387,55 +1345,39 @@ function RoleDropdown({
     const optionElement = optionRefs.current.get(nextValue);
 
     if (!optionElement) {
-      return;
+      return false;
     }
 
+    const topInset = optionElement.clientTop;
+
     setHighlightRect({
-      height: Math.max(0, optionElement.offsetHeight - 1),
-      y: optionElement.offsetTop,
+      height: optionElement.offsetHeight - topInset,
+      y: optionElement.offsetTop + topInset,
     });
+
+    return true;
   }, []);
 
   const activateOption = (nextValue: ColumnRole) => {
-    const optionElement = optionRefs.current.get(nextValue);
-
-    if (!optionElement) {
-      return;
+    if (syncHighlightToOption(nextValue)) {
+      setActiveOptionValue(nextValue);
     }
-
-    setActiveOptionValue(nextValue);
-    setHighlightRect({
-      height: Math.max(0, optionElement.offsetHeight - 1),
-      y: optionElement.offsetTop,
-    });
   };
 
   useEffect(() => {
     if (!isOpen) {
       setActiveOptionValue(null);
       setHighlightRect(null);
-      setIsHighlightVisible(false);
-      setIsClosing(false);
       return;
     }
 
     const frame = window.requestAnimationFrame(() => {
       void update();
-      syncHighlightToOption(value);
-      setIsHighlightVisible(true);
+      syncHighlightToOption(highlightedOptionValue);
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [isOpen, syncHighlightToOption, update, value]);
-
-  useEffect(
-    () => () => {
-      if (closeTimeoutRef.current !== null) {
-        window.clearTimeout(closeTimeoutRef.current);
-      }
-    },
-    [],
-  );
+  }, [highlightedOptionValue, isOpen, syncHighlightToOption, update]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -1491,12 +1433,12 @@ function RoleDropdown({
         <AnimatePresence>
           {isOpen ? (
             <motion.div
-              animate={reduceDropdownMotion ? { opacity: 1 } : "open"}
+              animate={{ opacity: 1, scaleY: 1, y: 0 }}
               aria-label={t("learning.role.aria", { column: columnLabel })}
-              className="relative z-[100] origin-top overflow-y-auto bg-transparent text-neutral-700 before:absolute before:top-0 before:right-0 before:left-0 before:z-30 before:h-px before:bg-neutral-300"
-              exit={reduceDropdownMotion ? { opacity: 0 } : "closed"}
+              className="relative z-[100] origin-top overflow-y-auto border border-neutral-300 bg-neutral-100 text-neutral-700"
+              exit={{ opacity: 0, scaleY: reduceDropdownMotion ? 1 : 0.98, y: -4 }}
               id={menuId}
-              initial={reduceDropdownMotion ? { opacity: 0 } : "closed"}
+              initial={{ opacity: 0, scaleY: reduceDropdownMotion ? 1 : 0.98, y: -4 }}
               onPointerLeave={() => {
                 setActiveOptionValue(null);
                 syncHighlightToOption(value);
@@ -1504,27 +1446,26 @@ function RoleDropdown({
               ref={refs.setFloating}
               role="listbox"
               style={floatingStyles}
-              transition={reduceDropdownMotion ? { duration: 0.08 } : undefined}
-              variants={reduceDropdownMotion ? undefined : roleDropdownPanelVariants}
+              transition={
+                reduceDropdownMotion
+                  ? { duration: 0.08 }
+                  : { duration: 0.14, ease: [0.22, 1, 0.36, 1] }
+              }
             >
               {highlightRect ? (
                 <motion.span
                   aria-hidden="true"
                   animate={{
                     height: highlightRect.height,
-                    opacity: isHighlightVisible ? 1 : 0,
                     y: highlightRect.y,
                   }}
-                  className="pointer-events-none absolute top-0 right-px left-px z-10 transform-gpu bg-cyan-500 will-change-transform"
+                  className="pointer-events-none absolute top-0 right-0 left-0 z-10 transform-gpu bg-cyan-500 will-change-transform"
                   initial={false}
                   transition={
                     reduceDropdownMotion
                       ? { duration: 0 }
                       : {
                           height: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
-                          opacity: isHighlightVisible
-                            ? { duration: 0, ease: [0, 0, 0.2, 1] }
-                            : { duration: 0.08, ease: [0.4, 0, 1, 1] },
                           y: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
                         }
                   }
@@ -1533,23 +1474,10 @@ function RoleDropdown({
               {roleOptions.map((optionValue, optionIndex) => {
                 const isHighlighted = highlightedOptionValue === optionValue;
                 const optionLabel = getRoleOptionLabel(optionValue, t);
-                const optionMotionProps = reduceDropdownMotion
-                  ? {}
-                  : {
-                      animate: { opacity: isClosing ? 0 : 1 },
-                      initial: { opacity: 0 },
-                      transition: {
-                        delay: isClosing
-                          ? 0.08 + (roleOptions.length - 1 - optionIndex) * 0.035
-                          : 0.02 + optionIndex * 0.045,
-                        duration: isClosing ? 0.13 : 0.16,
-                        ease: isClosing ? [0.4, 0, 1, 1] : [0, 0, 0.2, 1],
-                      },
-                    };
 
                 return (
                   <div
-                    className="relative"
+                    className={`relative ${optionIndex === 0 ? "" : "border-t border-neutral-200"}`}
                     key={optionValue}
                     onPointerEnter={() => activateOption(optionValue)}
                     ref={(node) => {
@@ -1560,24 +1488,18 @@ function RoleDropdown({
                       }
                     }}
                   >
-                    <motion.span
-                      aria-hidden="true"
-                      className="absolute inset-0 z-0 bg-neutral-100"
-                      {...optionMotionProps}
-                    />
-                    <motion.button
+                    <button
                       aria-selected={value === optionValue}
-                      className={`relative z-20 block w-full cursor-pointer overflow-hidden border-x border-b border-x-neutral-300 border-b-neutral-200 bg-transparent px-5 py-3 text-left text-base font-medium transition-colors duration-150 first:border-t first:border-t-neutral-300 last:border-b-neutral-300 focus-visible:outline-none [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-4 [@media_(min-width:2200px)]:text-lg ${
+                      className={`relative z-20 block w-full cursor-pointer overflow-hidden bg-transparent px-5 py-3 text-left text-base font-medium transition-colors duration-150 focus-visible:outline-none [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-4 [@media_(min-width:2200px)]:text-lg ${
                         isHighlighted ? "text-neutral-50" : "text-neutral-700"
                       }`}
                       onClick={() => selectRole(optionValue)}
                       onFocus={() => activateOption(optionValue)}
                       role="option"
                       type="button"
-                      {...optionMotionProps}
                     >
                       <span className="relative z-20">{optionLabel}</span>
-                    </motion.button>
+                    </button>
                   </div>
                 );
               })}
