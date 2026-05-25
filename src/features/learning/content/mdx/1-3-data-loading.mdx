@@ -1,30 +1,30 @@
-Data loading brings raw sources into a shape the project can inspect. The source might be a CSV file, spreadsheet, database table, API response, log export, or data warehouse query.
+Memuat data berarti membawa sumber data mentah ke bentuk yang bisa diperiksa project. Sumbernya bisa berupa file CSV, spreadsheet, tabel database, respons API, export log, atau query dari data warehouse.
 
-Loading is not modeling yet. It is the step where you confirm that the data arrived correctly before cleaning, analysis, feature preparation, or training.
+Memuat data belum masuk ke pemodelan. Ini adalah tahap untuk memastikan data masuk dengan benar sebelum pembersihan, analisis, persiapan fitur, atau pelatihan.
 
-## What Loading Should Produce
+## Output dari Proses Memuat Data
 
-For tabular ML work, loading usually produces a table or dataframe. Rows should represent the examples you want to analyze, and columns should represent fields about each example.
+Untuk pekerjaan ML tabular, proses memuat data biasanya menghasilkan tabel atau dataframe. Baris harus mewakili contoh yang ingin dianalisis, sedangkan kolom harus mewakili field tentang tiap contoh.
 
-If the table shape is wrong, every later step becomes less reliable. A model can train on a malformed table, but that does not mean the result is meaningful.
+Jika bentuk tabel salah, semua tahap setelahnya menjadi kurang bisa dipercaya. Model tetap bisa dilatih pada tabel yang salah bentuk, tetapi hasilnya belum tentu bermakna.
 
-## First Checks After Loading
+## Pengecekan Pertama
 
-Do not train immediately after opening a file. First confirm that the loaded data matches expectations.
+Jangan langsung melatih model setelah membuka file. Pastikan dulu data yang dimuat sesuai ekspektasi.
 
-Check:
+Cek:
 
-- row count and column count;
-- column names and expected fields;
-- data types such as number, text, category, date, or boolean;
-- a small preview of rows;
-- missing values that appear unexpectedly;
-- parsing issues, such as numbers loaded as text or dates loaded incorrectly;
-- duplicated rows caused by joins or exports;
-- units and formats that do not match the project context.
+- jumlah baris dan jumlah kolom;
+- nama kolom dan field yang diharapkan;
+- tipe data seperti angka, teks, kategori, tanggal, atau boolean;
+- preview beberapa baris;
+- missing values yang muncul di tempat tidak terduga;
+- masalah parsing, misalnya angka terbaca sebagai teks atau tanggal terbaca salah;
+- duplikasi baris akibat join atau export;
+- unit dan format yang tidak sesuai konteks project.
 
-## Why This Step Matters
+## Kenapa Ini Penting
 
-Loading mistakes can spread quietly. A decimal separator might turn numbers into text. A date parser might swap day and month. A join might duplicate rows. A header row might be interpreted as data.
+Kesalahan saat memuat data bisa menyebar diam-diam. Pemisah desimal bisa membuat angka terbaca sebagai teks. Parser tanggal bisa menukar hari dan bulan. Join bisa menggandakan baris. Header bisa terbaca sebagai data.
 
-These issues are easier to catch right after loading than after a model has already been trained.
+Masalah seperti ini jauh lebih mudah ditangkap setelah data dimuat daripada setelah model terlanjur dilatih.

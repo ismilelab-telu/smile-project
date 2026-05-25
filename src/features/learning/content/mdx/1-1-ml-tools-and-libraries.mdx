@@ -1,27 +1,27 @@
-Machine learning work usually combines several kinds of tools. Each tool has a role in the workflow: writing experiments, loading data, inspecting tables, preparing features, training models, and checking results.
+Pekerjaan machine learning biasanya memakai beberapa jenis tool. Setiap tool punya peran dalam alur kerja: menulis eksperimen, memuat data, memeriksa tabel, menyiapkan fitur, melatih model, dan mengecek hasil.
 
-The goal is not to memorize every library name. The goal is to understand what job each tool is doing so you can reason about the workflow instead of blindly pressing run.
+Tujuannya bukan menghafal semua nama library. Yang penting adalah memahami pekerjaan apa yang dibantu oleh tiap tool, supaya kita bisa menilai alur kerja dengan sadar dan tidak sekadar menekan tombol run.
 
-## Experiment Environment
+## Lingkungan Eksperimen
 
-A notebook or code editor is where experiments are written and run. It helps you move step by step: load a small sample, inspect columns, try a transformation, train a simple model, then compare results.
+Notebook atau editor kode adalah tempat eksperimen ditulis dan dijalankan. Di sana kita bisa bergerak bertahap: memuat sampel kecil, memeriksa kolom, mencoba transformasi, melatih model sederhana, lalu membandingkan hasil.
 
-Good experiment habits matter. Keep cells or scripts readable, rerunnable, and connected to the question you are answering. If an experiment cannot be repeated, the result is hard to trust.
+Kebiasaan eksperimen yang rapi penting. Cell atau script sebaiknya mudah dibaca, bisa dijalankan ulang, dan tetap terhubung dengan pertanyaan yang sedang dijawab. Kalau eksperimen tidak bisa diulang, hasilnya sulit dipercaya.
 
-## Data Tools
+## Tool Data
 
-A dataframe library helps you work with tabular data. It lets you inspect rows, columns, types, missing values, duplicates, category values, and summary statistics.
+Library dataframe membantu bekerja dengan data tabular. Tool ini memudahkan kita memeriksa baris, kolom, tipe data, missing values, duplikasi, nilai kategori, dan statistik ringkas.
 
-This tool role appears early in the workflow because most ML problems start with understanding the dataset. Before modeling, you need to know what each row represents, which columns are usable, and whether the data loaded correctly.
+Peran ini muncul di awal alur kerja karena kebanyakan masalah ML dimulai dari memahami dataset. Sebelum pemodelan, kita perlu tahu satu baris mewakili apa, kolom mana yang bisa dipakai, dan apakah data sudah termuat dengan benar.
 
-## Modeling Tools
+## Tool Pemodelan
 
-A modeling library provides algorithms, metrics, and utilities for training and evaluation. It may include regression models, classifiers, clustering algorithms, preprocessing utilities, and scoring functions.
+Library pemodelan menyediakan algoritma, metrik, dan utilitas untuk pelatihan serta evaluasi. Isinya bisa mencakup model regresi, classifier, clustering, preprocessing, dan fungsi scoring.
 
-Modeling tools are powerful, but they do not replace problem framing. If the target is unclear or the features leak future information, a modeling library can still produce a score, but the score will not be meaningful.
+Tool pemodelan memang kuat, tetapi tidak menggantikan perumusan masalah. Jika target tidak jelas atau fitur membocorkan informasi masa depan, library tetap bisa menghasilkan skor, tetapi skor itu tidak bermakna.
 
-## Practical Mindset
+## Cara Pakai yang Tepat
 
-Use tools to make the process repeatable and easier to inspect. A practical ML workflow usually needs an environment for experiments, a dataframe tool for data work, and a modeling tool for training and evaluation.
+Gunakan tool agar proses lebih mudah diulang dan lebih mudah diperiksa. Alur kerja ML praktis biasanya membutuhkan lingkungan eksperimen, tool dataframe untuk kerja data, dan tool pemodelan untuk pelatihan serta evaluasi.
 
-When tools are used well, they make decisions traceable. When tools are used blindly, they can hide data problems and make weak results look more trustworthy than they are.
+Jika dipakai dengan baik, tool membuat keputusan lebih mudah dilacak. Jika dipakai membabi buta, tool bisa menyembunyikan masalah data dan membuat hasil lemah terlihat lebih meyakinkan.

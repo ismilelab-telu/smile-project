@@ -1,6 +1,6 @@
 Proyek machine learning yang baik dimulai dari masalah yang jelas. Banyak proyek gagal bukan karena algoritmanya lemah, tetapi karena tim belum sepakat apa yang sebenarnya ingin diprediksi, kapan prediksi dibuat, dan data apa yang boleh dipakai.
 
-Merumuskan masalah berarti mengubah kebutuhan nyata menjadi problem statement ML yang bisa dikerjakan. Problem statement yang baik menyebut tujuan, output model, waktu prediksi, fitur yang tersedia, jenis task, dan cara mengevaluasi hasil.
+Merumuskan masalah berarti mengubah kebutuhan nyata menjadi pernyataan masalah ML yang bisa dikerjakan. Pernyataan masalah yang baik menyebut tujuan, output model, waktu prediksi, fitur yang tersedia, jenis masalah, dan cara mengevaluasi hasil.
 
 ## Langkah Merumuskan Masalah
 
@@ -9,7 +9,7 @@ Merumuskan masalah berarti mengubah kebutuhan nyata menjadi problem statement ML
 3. **Tentukan output model.** Output bisa berupa angka, kategori, skor, rekomendasi, atau kelompok.
 4. **Tentukan waktu prediksi.** Pastikan jelas kapan model akan dipakai: sebelum shift, saat transaksi terjadi, atau setelah periode tertentu.
 5. **Tentukan informasi yang tersedia saat prediksi.** Fitur harus sudah diketahui sebelum model membuat output.
-6. **Tentukan jenis task.** Output angka mengarah ke regression, output kategori mengarah ke classification, dan kelompok tanpa target mengarah ke clustering.
+6. **Tentukan jenis masalah.** Output angka mengarah ke regresi, output kategori mengarah ke klasifikasi, dan kelompok tanpa target mengarah ke clustering.
 7. **Tentukan evaluasi.** Tim perlu tahu bagaimana menilai apakah model benar-benar membantu.
 
 ## Target dan Fitur
@@ -21,14 +21,14 @@ Dalam supervised learning, **target** adalah nilai atau kategori yang ingin dipr
 Contoh pada cafe:
 
 - tujuan bisnis: menyiapkan stok minuman sebelum shift dimulai;
-- problem statement ML: memprediksi jumlah minuman yang akan terjual pada shift berikutnya;
+- pernyataan masalah ML: memprediksi jumlah minuman yang akan terjual pada shift berikutnya;
 - target: jumlah minuman terjual;
 - fitur aman: hari, jam shift, perkiraan cuaca, promo aktif, staff yang dijadwalkan, dan riwayat permintaan sebelumnya;
 - fitur tidak aman: jumlah minuman aktual setelah shift selesai atau pendapatan akhir shift;
-- jenis task: regression, karena target berupa angka.
+- jenis masalah: regresi, karena target berupa angka.
 
 ## Kenapa Ini Penting
 
-Problem statement yang jelas mencegah model salah sasaran. Tanpa target yang jelas, model tidak tahu apa yang harus dipelajari. Tanpa waktu prediksi yang jelas, fitur bisa tercampur dengan informasi masa depan. Tanpa evaluasi yang jelas, tim tidak tahu apakah model membantu atau hanya terlihat meyakinkan.
+Pernyataan masalah yang jelas mencegah model salah sasaran. Tanpa target yang jelas, model tidak tahu apa yang harus dipelajari. Tanpa waktu prediksi yang jelas, fitur bisa tercampur dengan informasi masa depan. Tanpa evaluasi yang jelas, tim tidak tahu apakah model membantu atau hanya terlihat meyakinkan.
 
 Pada lesson ini, latihan fitur dan target memakai data shift cafe agar kamu terbiasa membedakan target, fitur aman, metadata, dan kolom yang sebaiknya belum dipakai.

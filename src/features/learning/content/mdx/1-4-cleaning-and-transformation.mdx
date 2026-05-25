@@ -1,39 +1,39 @@
-Cleaning and transformation prepare data so it can be analyzed and modeled more safely. They are related, but they answer different questions.
+Pembersihan dan transformasi menyiapkan data agar bisa dianalisis dan dimodelkan dengan lebih aman. Keduanya berhubungan, tetapi menjawab pertanyaan yang berbeda.
 
-Cleaning asks whether the data is trustworthy enough to use. Transformation asks whether the representation is useful enough for analysis or modeling.
+Pembersihan bertanya apakah data cukup bisa dipercaya untuk dipakai. Transformasi bertanya apakah representasi datanya cukup berguna untuk analisis atau pemodelan.
 
-## Cleaning
+## Pembersihan
 
-Cleaning handles data quality issues. Common examples include:
+Pembersihan menangani masalah kualitas data. Contohnya:
 
 - missing values;
-- duplicated records;
-- inconsistent labels such as `sunny`, `Sunny`, and `sunny day`;
-- impossible values such as negative demand;
-- invalid dates;
-- category values that do not match the expected list;
-- target values that are empty or impossible to verify.
+- record duplikat;
+- label yang tidak konsisten seperti `cerah`, `Cerah`, dan `cuaca cerah`;
+- nilai mustahil seperti permintaan negatif;
+- tanggal tidak valid;
+- nilai kategori yang tidak sesuai daftar yang diharapkan;
+- nilai target yang kosong atau tidak bisa diverifikasi.
 
-Cleaning should be done with a reason. Removing rows, filling missing values, or changing labels can alter what the model learns.
+Pembersihan harus dilakukan dengan alasan. Menghapus baris, mengisi nilai kosong, atau mengubah label bisa mengubah pola yang dipelajari model.
 
-## Transformation
+## Transformasi
 
-Transformation changes how information is represented. It can make raw data easier to analyze or easier for a model to use.
+Transformasi mengubah cara informasi direpresentasikan. Tujuannya bisa untuk membuat data mentah lebih mudah dianalisis atau lebih mudah dipakai model.
 
-Examples:
+Contoh:
 
-- converting timestamps into day of week or hour of day;
-- standardizing category names;
-- scaling numeric values;
-- grouping rare categories;
-- creating safe derived features from information known before prediction time.
+- mengubah timestamp menjadi hari dalam minggu atau jam;
+- menstandarkan nama kategori;
+- melakukan scaling pada nilai numerik;
+- mengelompokkan kategori yang jarang muncul;
+- membuat fitur turunan dari informasi yang sudah diketahui sebelum prediksi.
 
-Transformation is not automatically good. A new feature is only useful if it is meaningful, available at prediction time, and not just a shortcut to the answer.
+Transformasi tidak otomatis baik. Fitur baru hanya berguna jika bermakna, tersedia saat prediksi, dan bukan shortcut ke jawaban.
 
-## Watch for Leakage
+## Waspadai Kebocoran
 
-The main risk is target leakage. Leakage happens when input features contain information that would not be known when the model is actually used.
+Risiko utama adalah kebocoran target. Kebocoran terjadi ketika fitur input berisi informasi yang belum akan diketahui saat model dipakai di dunia nyata.
 
-For example, if the model predicts drinks sold before a shift starts, end-of-shift revenue is not a safe feature. It is only known after the shift and is closely tied to the target.
+Misalnya, jika model memprediksi minuman terjual sebelum shift dimulai, pendapatan akhir shift bukan fitur yang aman. Kolom itu baru diketahui setelah shift dan sangat dekat dengan target.
 
-Good cleaning and transformation make the dataset clearer without sneaking future information into the inputs.
+Pembersihan dan transformasi yang baik membuat dataset lebih jelas tanpa menyelipkan informasi masa depan ke input model.

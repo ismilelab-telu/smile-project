@@ -25,7 +25,7 @@ describe("evaluateFeatureTargetRoles", () => {
     });
 
     expect(result.status).toBe("incorrect");
-    expect(result.message).toContain("No target is selected yet");
+    expect(result.message).toContain("Belum ada target yang dipilih");
     expect(result.message).not.toContain("drinks_sold");
     expect(result.nextStep).not.toContain("drinks_sold");
   });
@@ -41,9 +41,9 @@ describe("evaluateFeatureTargetRoles", () => {
     });
 
     expect(result.status).toBe("incorrect");
-    expect(result.message).toContain("Day Part is marked as metadata");
+    expect(result.message).toContain("Waktu Shift ditandai sebagai metadata");
     expect(result.message).not.toContain("drinks_sold");
-    expect(result.nextStep).toContain("metadata for row-reference fields");
+    expect(result.nextStep).toContain("metadata hanya untuk kolom referensi baris");
   });
 
   it("gives a different explanation when a descriptive column is selected as target", () => {
@@ -54,7 +54,7 @@ describe("evaluateFeatureTargetRoles", () => {
     });
 
     expect(result.status).toBe("incorrect");
-    expect(result.message).toContain("Weather is marked as the target");
+    expect(result.message).toContain("Cuaca ditandai sebagai target");
     expect(result.message).not.toContain("drinks_sold");
   });
 
@@ -65,8 +65,8 @@ describe("evaluateFeatureTargetRoles", () => {
     });
 
     expect(result.status).toBe("partial");
-    expect(result.message).toContain("shift identifier is being used as a feature");
-    expect(result.nextStep).toContain("keep identifier fields as metadata");
+    expect(result.message).toContain("ID shift masih digunakan sebagai fitur");
+    expect(result.nextStep).toContain("simpan kolom ID sebagai metadata");
   });
 
   it("flags after-shift revenue as leakage when selected as a feature", () => {
@@ -76,8 +76,8 @@ describe("evaluateFeatureTargetRoles", () => {
     });
 
     expect(result.status).toBe("partial");
-    expect(result.message).toContain("end-shift revenue is after-shift information");
-    expect(result.nextStep).toContain("after-shift information");
+    expect(result.message).toContain("pendapatan akhir shift adalah informasi setelah shift");
+    expect(result.nextStep).toContain("informasi setelah shift");
   });
 
   it("recognizes when shift details are still missing as safe features", () => {
@@ -88,7 +88,7 @@ describe("evaluateFeatureTargetRoles", () => {
     });
 
     expect(result.status).toBe("partial");
-    expect(result.message).toContain("shift details");
-    expect(result.nextStep).toContain("known before prediction");
+    expect(result.message).toContain("detail shift");
+    expect(result.nextStep).toContain("sudah diketahui sebelum prediksi");
   });
 });

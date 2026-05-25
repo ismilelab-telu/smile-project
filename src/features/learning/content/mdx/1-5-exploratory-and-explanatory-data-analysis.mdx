@@ -1,33 +1,33 @@
-Exploratory and explanatory analysis are both part of understanding data, but they serve different purposes.
+Analisis eksploratif dan eksplanatori sama-sama bagian dari memahami data, tetapi tujuannya berbeda.
 
-Exploratory data analysis is where you look around. You inspect distributions, relationships, gaps, outliers, and surprises. Explanatory analysis is where you communicate selected findings clearly to someone else.
+Analisis eksploratif adalah tahap melihat-lihat data. Kita memeriksa distribusi, hubungan antar variabel, gap, outlier, dan hal yang mengejutkan. Analisis eksplanatori adalah tahap mengomunikasikan temuan terpilih dengan jelas kepada orang lain.
 
-## Exploratory Analysis
+## Analisis Eksploratif
 
-Exploration is intentionally open-ended. You are trying to learn what the dataset contains and what questions deserve attention.
+Eksplorasi sengaja dibuat terbuka. Tujuannya adalah memahami isi dataset dan menemukan pertanyaan yang layak diperiksa lebih lanjut.
 
-Typical exploratory checks include:
+Pengecekan eksploratif biasanya mencakup:
 
-- distribution of the target;
-- missing values by column;
-- unusual or impossible values;
-- relationship between features and target;
-- category counts and rare categories;
-- outliers that may be valid or may be data errors;
-- time patterns, segments, or changes across groups.
+- distribusi target;
+- missing values per kolom;
+- nilai tidak biasa atau mustahil;
+- hubungan antara fitur dan target;
+- jumlah data per kategori dan kategori langka;
+- outlier yang mungkin valid atau mungkin error;
+- pola waktu, segmen, atau perbedaan antar grup.
 
-Exploration helps you discover what to clean, what to investigate, and what risks might affect modeling.
+Eksplorasi membantu menemukan apa yang perlu dibersihkan, apa yang perlu diselidiki, dan risiko apa yang bisa memengaruhi modeling.
 
-## Explanatory Analysis
+## Analisis Eksplanatori
 
-Explanatory analysis is more selective. You choose the findings that matter and present them with a clear message.
+Analisis eksplanatori lebih selektif. Kita memilih temuan yang penting dan menyajikannya dengan pesan yang jelas.
 
-For example, after exploring many charts, you might explain only one important result: demand is consistently higher during evening shifts when promotion is active.
+Misalnya, setelah mengeksplorasi banyak chart, kita mungkin hanya menjelaskan satu hasil penting: permintaan cenderung lebih tinggi pada shift sore ketika promo aktif.
 
-The goal is not to show every chart. The goal is to make a claim that the evidence actually supports.
+Tujuannya bukan menampilkan semua chart. Tujuannya adalah membuat klaim yang benar-benar didukung bukti.
 
-## Avoid Overclaiming
+## Hindari Klaim Berlebihan
 
-Charts can support a claim, but they do not automatically prove causation. A chart might show that two variables move together, but that does not prove one causes the other.
+Chart bisa mendukung klaim, tetapi tidak otomatis membuktikan sebab-akibat. Chart mungkin menunjukkan dua variabel bergerak bersama, tetapi itu tidak membuktikan satu variabel menyebabkan variabel lain.
 
-For ML workflow, good analysis helps identify target behavior, useful feature relationships, data quality issues, and modeling risks. It keeps the team from training a model before understanding what the data is saying.
+Dalam alur kerja ML, analisis yang baik membantu menemukan perilaku target, hubungan fitur yang berguna, masalah kualitas data, dan risiko pemodelan. Analisis menjaga tim agar tidak melatih model sebelum memahami data.

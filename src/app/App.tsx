@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useSta
 import { flushSync } from "react-dom";
 
 import LiquidEther from "@/components/ui/liquid-ether";
+import { LocalizationProvider } from "@/features/localization/localization";
 import { ExplorePage } from "@/pages/ExplorePage";
 import { LearningPage } from "@/pages/LearningPage";
 
@@ -70,6 +71,14 @@ function isLocalAppLink(element: HTMLAnchorElement) {
 }
 
 export function App() {
+  return (
+    <LocalizationProvider>
+      <AppRoutes />
+    </LocalizationProvider>
+  );
+}
+
+function AppRoutes() {
   const [path, setPath] = useState(getCurrentPath);
   const hasRenderedLandingRef = useRef(false);
   const shouldSkipLandingIntro = path === "/" && hasRenderedLandingRef.current;

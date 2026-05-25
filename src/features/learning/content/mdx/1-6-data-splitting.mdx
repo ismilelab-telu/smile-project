@@ -1,31 +1,31 @@
-Data splitting protects evaluation from becoming too optimistic. A model can look strong on examples it already saw, but the real question is how it behaves on new examples.
+Pembagian data menjaga evaluasi agar tidak terlalu optimistis. Model bisa terlihat kuat pada contoh yang sudah pernah dilihat, tetapi pertanyaan sebenarnya adalah bagaimana model bekerja pada contoh baru.
 
-Splitting creates separate roles for different parts of the dataset. Some data is used for learning, and some data is held back to estimate future performance.
+Pembagian data memberi peran berbeda pada bagian dataset. Sebagian data dipakai untuk belajar, dan sebagian data ditahan untuk memperkirakan performa di masa depan.
 
-## Train, Validation, and Test
+## Latih, Validasi, dan Uji
 
-Training data is used to fit transformations and train the model. This is where the model learns patterns.
+Data latih dipakai untuk fit transformasi dan melatih model. Di sinilah model belajar pola.
 
-Validation data can be used to compare choices during development, such as model type, feature choices, or hyperparameters.
+Data validasi bisa dipakai untuk membandingkan pilihan selama pengembangan, seperti jenis model, pilihan fitur, atau hyperparameter.
 
-Test data is reserved for the final estimate after major choices have been made. It should act like unseen future data, not like a scoreboard checked after every small change.
+Data uji disimpan untuk estimasi akhir setelah keputusan besar dibuat. Data uji sebaiknya berperan seperti data masa depan yang belum pernah dilihat, bukan papan skor yang dicek setiap perubahan kecil.
 
-## Split Before Learning
+## Split Sebelum Belajar
 
-The split should happen before fitting anything that learns from data. This includes models and many preprocessing steps.
+Pembagian data sebaiknya dilakukan sebelum proses fitting apa pun yang belajar dari data. Ini mencakup model dan banyak langkah preprocessing.
 
-If a transformation learns from all data before the split, information from the held-out examples can leak into training. The evaluation may then look better than it would in real use.
+Jika transformasi belajar dari semua data sebelum dibagi, informasi dari data yang seharusnya ditahan bisa bocor ke data latih. Evaluasi bisa terlihat lebih baik daripada performa nyata.
 
-A safer workflow is:
+Alur kerja yang lebih aman:
 
-1. split the data;
-2. fit transformations on training data;
-3. apply those transformations to validation or test data;
-4. train the model on training data;
-5. evaluate on held-out data.
+1. bagi data;
+2. fit transformasi pada data latih;
+3. terapkan transformasi ke data validasi atau data uji;
+4. latih model pada data latih;
+5. evaluasi pada data yang ditahan.
 
-## Represent the Real Problem
+## Mewakili Masalah Nyata
 
-A split should match how the model will be used. If the model predicts future demand, a time-aware split may be more realistic than randomly mixing past and future rows.
+Pembagian data sebaiknya sesuai dengan cara model akan dipakai. Jika model memprediksi permintaan masa depan, pembagian berbasis waktu bisa lebih realistis daripada mencampur data masa lalu dan masa depan secara acak.
 
-The foundation idea is simple: keep some examples unseen so evaluation feels closer to the real world.
+Ide dasarnya sederhana: sisihkan beberapa contoh agar evaluasi terasa lebih dekat dengan dunia nyata.

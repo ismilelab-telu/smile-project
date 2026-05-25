@@ -77,21 +77,21 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
   if (!track || route.kind === "not-found") {
     return (
       <LearningGridCanvas>
-        <LearningHeader backHref="/learn" backLabel="Back to Learning Paths" />
+        <LearningHeader backHref="/learn" backLabel="Kembali ke Jalur Belajar" />
         <section
           className={`route-content-transition-target relative isolate mx-auto mt-20 max-w-xl overflow-hidden text-center [@media_(min-width:2200px)]:max-w-3xl ${learningFallbackSurfaceClassName}`}
         >
           <LearningSheetExtensions />
 
           <h1 className="learning-sheet-cell p-8 text-2xl font-semibold text-foreground [@media_(min-width:2200px)]:p-12 [@media_(min-width:2200px)]:text-4xl">
-            Learning path not found
+            Jalur belajar tidak ditemukan
           </h1>
           <p className="learning-sheet-cell p-8 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:p-12 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
-            This path is not available in Learning Mode yet.
+            Jalur ini belum tersedia di Learning Mode.
           </p>
           <div className="learning-sheet-cell p-8 [@media_(min-width:2200px)]:p-12">
             <LiquidLink className={liquidButtonClassName} data-app-link href="/learn">
-              Back to Learning Paths
+              Kembali ke Jalur Belajar
             </LiquidLink>
           </div>
         </section>
@@ -102,21 +102,21 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
   if (track.status !== "available") {
     return (
       <LearningGridCanvas>
-        <LearningHeader backHref="/learn" backLabel="Back to Learning Paths" />
+        <LearningHeader backHref="/learn" backLabel="Kembali ke Jalur Belajar" />
         <section
           className={`route-content-transition-target relative isolate mx-auto mt-20 max-w-xl overflow-hidden text-center [@media_(min-width:2200px)]:max-w-3xl ${learningFallbackSurfaceClassName}`}
         >
           <LearningSheetExtensions />
 
           <h1 className="learning-sheet-cell p-8 text-2xl font-semibold text-foreground [@media_(min-width:2200px)]:p-12 [@media_(min-width:2200px)]:text-4xl">
-            {track.title} is coming soon
+            {track.title} segera hadir
           </h1>
           <p className="learning-sheet-cell p-8 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:p-12 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
-            Start with Machine Learning Foundations while this path is being prepared.
+            Mulai dari Dasar-Dasar Machine Learning sambil menunggu jalur ini disiapkan.
           </p>
           <div className="learning-sheet-cell p-8 [@media_(min-width:2200px)]:p-12">
             <LiquidLink className={liquidButtonClassName} data-app-link href="/learn">
-              Back to Learning Paths
+              Kembali ke Jalur Belajar
             </LiquidLink>
           </div>
         </section>
@@ -140,21 +140,21 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
     if (!lesson || !isLessonInTrack) {
       return (
         <LearningGridCanvas>
-          <LearningHeader backHref={trackHomeHref} backLabel="Back to Learning Path" />
+          <LearningHeader backHref={trackHomeHref} backLabel="Kembali ke Jalur Belajar" />
           <section
             className={`route-content-transition-target relative isolate mx-auto mt-20 max-w-xl overflow-hidden text-center [@media_(min-width:2200px)]:max-w-3xl ${learningFallbackSurfaceClassName}`}
           >
             <LearningSheetExtensions />
 
             <h1 className="learning-sheet-cell p-8 text-2xl font-semibold text-foreground [@media_(min-width:2200px)]:p-12 [@media_(min-width:2200px)]:text-4xl">
-              Lesson not found
+              Lesson tidak ditemukan
             </h1>
             <p className="learning-sheet-cell p-8 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:p-12 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
-              This lesson ID is not available in this learning path yet.
+              ID lesson ini belum tersedia di jalur belajar ini.
             </p>
             <div className="learning-sheet-cell p-8 [@media_(min-width:2200px)]:p-12">
               <LiquidLink className={liquidButtonClassName} data-app-link href={trackHomeHref}>
-                Back to Learning Path
+                Kembali ke Jalur Belajar
               </LiquidLink>
             </div>
           </section>
@@ -165,21 +165,21 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
     if (!isLessonUnlocked(lesson, progress)) {
       return (
         <LearningGridCanvas>
-          <LearningHeader backHref={trackHomeHref} backLabel="Back to Learning Path" />
+          <LearningHeader backHref={trackHomeHref} backLabel="Kembali ke Jalur Belajar" />
           <section
             className={`route-content-transition-target relative isolate mx-auto mt-20 max-w-xl overflow-hidden text-center [@media_(min-width:2200px)]:max-w-3xl ${learningFallbackSurfaceClassName}`}
           >
             <LearningSheetExtensions />
 
             <h1 className="learning-sheet-cell p-8 text-2xl font-semibold text-foreground [@media_(min-width:2200px)]:p-12 [@media_(min-width:2200px)]:text-4xl">
-              Lesson locked
+              Lesson terkunci
             </h1>
             <p className="learning-sheet-cell p-8 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:p-12 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
               {getLessonLockReason(lesson, progress)}
             </p>
             <div className="learning-sheet-cell p-8 [@media_(min-width:2200px)]:p-12">
               <LiquidLink className={liquidButtonClassName} data-app-link href={trackHomeHref}>
-                Back to Learning Path
+                Kembali ke Jalur Belajar
               </LiquidLink>
             </div>
           </section>
@@ -206,7 +206,7 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
     return (
       <LessonPage
         backHref={trackHomeHref}
-        backLabel="Back to Learning Path"
+        backLabel="Kembali ke Jalur Belajar"
         initialAnswer={progress.lessonAnswers[lesson.id]}
         isCompleted={progress.completedLessonIds.includes(lesson.id)}
         key={lesson.id}

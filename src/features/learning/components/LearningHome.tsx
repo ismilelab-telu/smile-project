@@ -7,6 +7,11 @@ import {
 import { Fragment } from "react";
 
 import { getModule, lessons } from "../content/learning-content";
+import {
+  localizeLesson,
+  localizeModule,
+  localizeTrack,
+} from "../content/localized-learning-content";
 import { getLessonLockReason, isLessonUnlocked, isModuleUnlocked } from "../progress/lesson-access";
 import type { LearningProgress, LearningTrack } from "../types";
 import { LearningGridCanvas, LearningSheetExtensions } from "./LearningGridCanvas";
@@ -23,6 +28,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
+import { useLocalization } from "@/features/localization/localization";
 
 const liquidButtonClassName =
   "inline-flex items-center justify-center gap-3 rounded-none px-5 py-3 text-base font-semibold text-neutral-950 backdrop-blur-xl hover:text-neutral-50 [--liquid-button-background-color:var(--color-neutral-200)] [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg";
@@ -37,6 +43,8 @@ type LearningHomeProps = {
 };
 
 export function LearningHome({ onResetProgress, progress, track }: LearningHomeProps) {
+  const { locale, t } = useLocalization();
+  const localizedTrack = localizeTrack(track, locale);
   const trackModules = track.moduleIds
     .map((moduleId) => getModule(moduleId))
     .filter((module) => module !== undefined);
@@ -55,7 +63,7 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
 
   return (
     <LearningGridCanvas>
-      <LearningHeader backHref="/learn" backLabel="Back to Learning Paths" />
+      <LearningHeader backHref="/learn" backLabel="Kembali ke Jalur Belajar" />
 
       <section
         aria-labelledby="module-list"
@@ -65,22 +73,22 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
 
         <div className="learning-sheet-cell learning-extend-left learning-extend-top col-span-3 p-6 sm:col-span-4 lg:col-span-4 [@media_(min-width:2200px)]:p-12">
           <h1 className="text-5xl leading-tight font-semibold tracking-normal text-foreground sm:text-6xl [@media_(min-width:2200px)]:text-8xl">
-            {track.title}
+            {localizedTrack.title}
           </h1>
         </div>
 
         <aside className="learning-sheet-cell learning-extend-right learning-sheet-cell-fill col-span-3 grid gap-5 p-6 sm:col-span-4 lg:col-span-1 lg:col-start-5 lg:row-span-2 lg:row-start-1 [@media_(min-width:2200px)]:gap-7 [@media_(min-width:2200px)]:p-12">
           <h2 className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl">
-            Progress
+            {t("learning.home.progress")}
           </h2>
           <div className="flex items-center justify-between text-base [@media_(min-width:2200px)]:text-lg">
-            <span className="text-muted-foreground">Active lessons</span>
+            <span className="text-muted-foreground">{t("learning.home.activeLessons")}</span>
             <span className="font-semibold text-foreground">
               {completedLessons}/{totalActiveLessons}
             </span>
           </div>
           <div
-            aria-label={`Learning progress ${progressPercent}%`}
+            aria-label={t("learning.home.progressAria", { percent: progressPercent })}
             className="learning-grid-panel-fill h-3 overflow-hidden rounded-xl [@media_(min-width:2200px)]:h-4 [@media_(min-width:2200px)]:rounded-2xl"
             role="progressbar"
             aria-valuemax={100}
@@ -97,20 +105,22 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
                   className={`${liquidButtonClassName} w-full cursor-pointer [--liquid-button-color:var(--color-rose-600)]`}
                   type="button"
                 >
-                  Reset progress
+                  {t("learning.home.reset")}
                 </LiquidButton>
               )}
             />
             <AlertDialogPopup>
               <AlertDialogHeader>
-                <AlertDialogTitle>Reset learning progress?</AlertDialogTitle>
+                <AlertDialogTitle>{t("learning.home.resetTitle")}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action cannot be undone. It will delete your learning progress.
+                  {t("learning.home.resetDescription")}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={onResetProgress}>Reset progress</AlertDialogAction>
+                <AlertDialogCancel>{t("learning.home.resetCancel")}</AlertDialogCancel>
+                <AlertDialogAction onClick={onResetProgress}>
+                  {t("learning.home.reset")}
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogPopup>
           </AlertDialog>
@@ -120,10 +130,11 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
           className="learning-sheet-cell learning-extend-left col-span-3 p-6 text-3xl font-semibold tracking-normal text-foreground sm:col-span-4 lg:col-span-4 lg:col-start-1 lg:row-start-2 [@media_(min-width:2200px)]:p-12 [@media_(min-width:2200px)]:text-4xl"
           id="module-list"
         >
-          Modules
+          {t("learning.home.module")}
         </h2>
 
         {trackModules.map((module, index) => {
+          const localizedModule = localizeModule(module, locale);
           const isAvailable = module.status === "available";
           const moduleLessons = module.lessonIds
             .map((lessonId) => lessons.find((lesson) => lesson.id === lessonId))
@@ -140,7 +151,7 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
               </div>
               <div className="learning-sheet-cell col-span-2 flex min-h-24 items-center p-5 [@media_(min-width:2200px)]:min-h-32 [@media_(min-width:2200px)]:p-8">
                 <h3 className="text-lg font-semibold text-foreground [@media_(min-width:2200px)]:text-2xl">
-                  {module.title}
+                  {localizedModule.title}
                 </h3>
               </div>
               <div className="learning-sheet-cell col-span-3 flex items-center p-5 sm:col-span-1 [@media_(min-width:2200px)]:p-8">
@@ -157,11 +168,13 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
                         className="size-5 text-sky-600 [@media_(min-width:2200px)]:size-6"
                       />
                     )}
-                    {isModuleCompleted ? "Completed" : "Available"}
+                    {isModuleCompleted
+                      ? t("learning.home.completed")
+                      : t("learning.home.available")}
                   </div>
                 ) : (
                   <div className="inline-flex w-fit items-center text-base font-medium text-muted-foreground [@media_(min-width:2200px)]:text-lg">
-                    Not available
+                    {t("learning.home.notAvailable")}
                   </div>
                 )}
               </div>
@@ -172,6 +185,7 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
 
               {isAvailable && moduleLessons.length > 0
                 ? moduleLessons.map((lesson) => {
+                    const localizedLesson = localizeLesson(lesson, locale);
                     const isLessonCompleted = progress.completedLessonIds.includes(lesson.id);
                     const isUnlocked = isLessonUnlocked(lesson, progress);
                     const lockReason = getLessonLockReason(lesson, progress);
@@ -187,7 +201,7 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
                         </div>
                         <div className="learning-sheet-cell flex min-h-24 items-center p-5 [@media_(min-width:2200px)]:min-h-32 [@media_(min-width:2200px)]:p-8">
                           <h4 className="text-xl leading-tight font-normal text-foreground [@media_(min-width:2200px)]:text-3xl">
-                            {lesson.title}
+                            {localizedLesson.title}
                           </h4>
                         </div>
                         <div className="learning-sheet-cell col-span-3 flex items-center p-5 sm:col-span-1 [@media_(min-width:2200px)]:p-8">
@@ -197,7 +211,9 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
                               data-app-link
                               href={`/learn/${track.id}/${lesson.id}`}
                             >
-                              {isLessonCompleted ? "Review" : "Start"}
+                              {isLessonCompleted
+                                ? t("learning.home.review")
+                                : t("learning.home.start")}
                               <ArrowRightIcon
                                 aria-hidden="true"
                                 className="size-5 [@media_(min-width:2200px)]:size-6"
@@ -214,7 +230,7 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
                                 aria-hidden="true"
                                 className="size-5 [@media_(min-width:2200px)]:size-6"
                               />
-                              Locked
+                              {t("learning.home.locked")}
                             </button>
                           )}
                         </div>

@@ -11,13 +11,13 @@ const expectedRoles: Record<string, ColumnRole> = {
 };
 
 const columnLabels: Record<string, string> = {
-  day_part: "Day Part",
-  drinks_sold: "Drinks Sold",
-  end_shift_revenue: "End Shift Revenue",
-  promo_active: "Promo Active",
-  shift_id: "Shift ID",
-  temperature_c: "Temperature",
-  weather: "Weather",
+  day_part: "Waktu Shift",
+  drinks_sold: "Minuman Terjual",
+  end_shift_revenue: "Pendapatan Akhir Shift",
+  promo_active: "Promo Aktif",
+  shift_id: "ID Shift",
+  temperature_c: "Suhu",
+  weather: "Cuaca",
 };
 
 export function getExpectedColumnRoles() {
@@ -32,10 +32,10 @@ function formatColumnList(columnIds: string[]) {
   const labels = columnIds.map((columnId) => columnLabels[columnId] ?? columnId);
 
   if (labels.length <= 1) {
-    return labels[0] ?? "That column";
+    return labels[0] ?? "Kolom itu";
   }
 
-  return `${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}`;
+  return `${labels.slice(0, -1).join(", ")} dan ${labels.at(-1)}`;
 }
 
 function getExpectedRoleColumnIds(role: ColumnRole) {
@@ -45,7 +45,7 @@ function getExpectedRoleColumnIds(role: ColumnRole) {
 }
 
 function getColumnListVerb(columnIds: string[]) {
-  return columnIds.length === 1 ? "is" : "are";
+  return columnIds.length === 1 ? "ditandai" : "ditandai";
 }
 
 export function evaluateFeatureTargetRoles(
@@ -81,32 +81,32 @@ export function evaluateFeatureTargetRoles(
         targetRole === "safe-feature"
           ? {
               message:
-                "The demand outcome is being treated like an input feature. A target is the value the model is trying to forecast.",
+                "Hasil permintaan sedang diperlakukan seperti fitur input. Target adalah nilai yang ingin diprediksi model.",
               nextStep:
-                "First choose exactly one output column as Target, then check which shift details can safely be used as inputs.",
+                "Pilih tepat satu kolom output sebagai Target, lalu cek detail shift mana yang boleh dipakai sebagai input.",
             }
           : targetRole === "metadata"
             ? {
                 message:
-                  "The demand outcome is being treated like metadata. Metadata helps read the shift sheet, but it is not the model output.",
+                  "Hasil permintaan sedang diperlakukan seperti metadata. Metadata membantu membaca tabel shift, tetapi bukan output model.",
                 nextStep:
-                  "Move the demand outcome into the Target role before deciding which fields are metadata or features.",
+                  "Pindahkan hasil permintaan ke role Target sebelum menentukan mana metadata dan mana fitur.",
               }
             : {
                 message:
                   featureColumnIdsMarkedMetadata.length > 0
-                    ? `${formatColumnList(featureColumnIdsMarkedMetadata)} ${getColumnListVerb(featureColumnIdsMarkedMetadata)} marked as metadata, but metadata is for fields that identify or organize rows.`
+                    ? `${formatColumnList(featureColumnIdsMarkedMetadata)} ${getColumnListVerb(featureColumnIdsMarkedMetadata)} sebagai metadata, padahal metadata dipakai untuk kolom yang mengidentifikasi atau mengatur baris.`
                     : assignments.shift_id === "metadata" && featureColumnIdsMarkedSafe.length > 0
-                      ? "The shift identifier and some input columns are separated, but no target is selected yet."
+                      ? "ID shift dan beberapa kolom input sudah dipisahkan, tetapi target belum dipilih."
                       : assignments.shift_id === "metadata"
-                        ? "The shift identifier is separated as metadata, but no target is selected yet."
+                        ? "ID shift sudah dipisahkan sebagai metadata, tetapi target belum dipilih."
                         : featureColumnIdsMarkedSafe.length > 0
-                          ? `${formatColumnList(featureColumnIdsMarkedSafe)} ${getColumnListVerb(featureColumnIdsMarkedSafe)} selected as input features, but supervised regression still needs one target.`
-                          : "No target is selected yet. A supervised regression setup needs one value that the model will predict.",
+                          ? `${formatColumnList(featureColumnIdsMarkedSafe)} ${getColumnListVerb(featureColumnIdsMarkedSafe)} sebagai fitur input, tetapi supervised regression tetap membutuhkan satu target.`
+                          : "Belum ada target yang dipilih. Setup supervised regression membutuhkan satu nilai yang akan diprediksi model.",
                 nextStep:
                   featureColumnIdsMarkedMetadata.length > 0
-                    ? "First choose the prediction output as Target, then keep metadata for row-reference fields only."
-                    : "Use the hints to identify the output column, then mark exactly one column as Target.",
+                    ? "Pilih output prediksi sebagai Target, lalu gunakan metadata hanya untuk kolom referensi baris."
+                    : "Gunakan petunjuk untuk menemukan kolom output, lalu tandai tepat satu kolom sebagai Target.",
               };
 
       return {
@@ -114,7 +114,7 @@ export function evaluateFeatureTargetRoles(
         missedColumnIds,
         score: 20,
         status: "incorrect",
-        title: "Not quite",
+        title: "Belum tepat",
         ...targetFeedback,
       };
     }
@@ -124,12 +124,11 @@ export function evaluateFeatureTargetRoles(
         extraColumnIds,
         missedColumnIds,
         message:
-          "A shift identifier is marked as the target. Identifiers name records; they are not the demand this forecast should predict.",
-        nextStep:
-          "Look for the column that represents the predicted outcome, and keep identifiers out of the target role.",
+          "ID shift ditandai sebagai target. ID hanya menamai baris, bukan permintaan yang ingin diprediksi.",
+        nextStep: "Cari kolom yang mewakili hasil prediksi, dan jangan gunakan ID sebagai target.",
         score: 20,
         status: "incorrect",
-        title: "Not quite",
+        title: "Belum tepat",
       };
     }
 
@@ -138,12 +137,12 @@ export function evaluateFeatureTargetRoles(
         extraColumnIds,
         missedColumnIds,
         message:
-          "End-shift revenue is known after the shift is finished. It is not the demand outcome this forecast should predict before the shift starts.",
+          "Pendapatan akhir shift baru diketahui setelah shift selesai. Kolom ini bukan output permintaan yang ingin diprediksi sebelum shift dimulai.",
         nextStep:
-          "Choose the demand count as the Target and keep after-shift information out of the model inputs.",
+          "Pilih jumlah permintaan sebagai Target dan keluarkan informasi setelah shift dari input model.",
         score: 20,
         status: "incorrect",
-        title: "Not quite",
+        title: "Belum tepat",
       };
     }
 
@@ -152,15 +151,15 @@ export function evaluateFeatureTargetRoles(
       missedColumnIds,
       message:
         targetRole === "safe-feature"
-          ? `${formatColumnList(targetColumnIds)} ${getColumnListVerb(targetColumnIds)} marked as the target while the demand outcome is still treated like an input feature.`
+          ? `${formatColumnList(targetColumnIds)} ${getColumnListVerb(targetColumnIds)} sebagai target, sementara hasil permintaan masih diperlakukan seperti fitur input.`
           : targetRole === "metadata"
-            ? `${formatColumnList(targetColumnIds)} ${getColumnListVerb(targetColumnIds)} marked as the target while the demand outcome is still treated like metadata.`
-            : `${formatColumnList(targetColumnIds)} ${getColumnListVerb(targetColumnIds)} marked as the target, but it describes the shift context rather than the demand to forecast.`,
+            ? `${formatColumnList(targetColumnIds)} ${getColumnListVerb(targetColumnIds)} sebagai target, sementara hasil permintaan masih diperlakukan seperti metadata.`
+            : `${formatColumnList(targetColumnIds)} ${getColumnListVerb(targetColumnIds)} sebagai target, tetapi kolom itu menjelaskan konteks shift, bukan permintaan yang ingin diprediksi.`,
       nextStep:
-        "Keep shift context as candidate features and choose the demand outcome as the target.",
+        "Gunakan konteks shift sebagai kandidat fitur dan pilih hasil permintaan sebagai target.",
       score: 20,
       status: "incorrect",
-      title: "Not quite",
+      title: "Belum tepat",
     };
   }
 
@@ -169,11 +168,11 @@ export function evaluateFeatureTargetRoles(
       extraColumnIds,
       missedColumnIds,
       message:
-        "drinks_sold is the demand value we want to forecast. Day part, weather, temperature, and promos can help the model make that forecast.",
-      nextStep: "This lesson is complete. Continue to the regression vs classification lesson.",
+        "Minuman Terjual adalah nilai permintaan yang ingin diprediksi. Waktu shift, cuaca, suhu, dan promo bisa membantu model membuat prediksi.",
+      nextStep: "Lesson ini selesai. Lanjutkan ke lesson berikutnya.",
       score: 100,
       status: "correct",
-      title: "Correct",
+      title: "Benar",
     };
   }
 
@@ -181,12 +180,13 @@ export function evaluateFeatureTargetRoles(
     return {
       extraColumnIds,
       missedColumnIds,
-      message: "The main target is selected, but more than one column is marked as Target.",
+      message:
+        "Target utama sudah dipilih, tetapi ada lebih dari satu kolom yang ditandai sebagai Target.",
       nextStep:
-        "Keep only one target column. Shift context should be features, while identifiers should stay metadata.",
+        "Sisakan satu kolom target saja. Konteks shift sebaiknya menjadi fitur, sedangkan ID tetap menjadi metadata.",
       score: 55,
       status: "partial",
-      title: "Partially correct",
+      title: "Sebagian benar",
     };
   }
 
@@ -194,12 +194,12 @@ export function evaluateFeatureTargetRoles(
     return {
       extraColumnIds,
       missedColumnIds,
-      message: "The target is selected, but a shift identifier is being used as a feature.",
+      message: "Target sudah dipilih, tetapi ID shift masih digunakan sebagai fitur.",
       nextStep:
-        "Identifiers help reference rows. Use shift context as features and keep identifier fields as metadata.",
+        "ID membantu mereferensikan baris. Gunakan konteks shift sebagai fitur dan simpan kolom ID sebagai metadata.",
       score: 50,
       status: "partial",
-      title: "Partially correct",
+      title: "Sebagian benar",
     };
   }
 
@@ -207,12 +207,12 @@ export function evaluateFeatureTargetRoles(
     return {
       extraColumnIds,
       missedColumnIds,
-      message: "The target is selected, but the shift identifier still needs a metadata role.",
+      message: "Target sudah dipilih, tetapi ID shift masih perlu diberi role metadata.",
       nextStep:
-        "Metadata describes how to read or reference rows; it should not be used as model input.",
+        "Metadata menjelaskan cara membaca atau mereferensikan baris; metadata tidak dipakai sebagai input model.",
       score: 65,
       status: "partial",
-      title: "Partially correct",
+      title: "Sebagian benar",
     };
   }
 
@@ -221,12 +221,12 @@ export function evaluateFeatureTargetRoles(
       extraColumnIds,
       missedColumnIds,
       message:
-        "The target and metadata are set, but end-shift revenue is after-shift information. Using it as a feature would leak the answer.",
+        "Target dan metadata sudah benar, tetapi pendapatan akhir shift adalah informasi setelah shift selesai. Jika dipakai sebagai fitur, kolom ini membocorkan jawaban.",
       nextStep:
-        "Mark after-shift information as not used yet, then keep only pre-shift details as features.",
+        "Tandai informasi setelah shift sebagai belum dipakai, lalu gunakan hanya detail sebelum shift sebagai fitur.",
       score: 55,
       status: "partial",
-      title: "Partially correct",
+      title: "Sebagian benar",
     };
   }
 
@@ -240,27 +240,30 @@ export function evaluateFeatureTargetRoles(
 
   if (missingFeatureColumnIds.length > 0) {
     const countLabel =
-      missingFeatureColumnIds.length === 1 ? "one shift detail is" : "some shift details are";
+      missingFeatureColumnIds.length === 1
+        ? "satu detail shift belum"
+        : "beberapa detail shift belum";
 
     return {
       extraColumnIds,
       missedColumnIds,
-      message: `The target and metadata are set, but ${countLabel} not yet marked as safe features.`,
+      message: `Target dan metadata sudah benar, tetapi ${countLabel} ditandai sebagai fitur.`,
       nextStep:
-        "A safe feature is information known before prediction that can help explain the target.",
+        "Fitur adalah informasi yang sudah diketahui sebelum prediksi dan bisa membantu menjelaskan target.",
       score: 70,
       status: "partial",
-      title: "Partially correct",
+      title: "Sebagian benar",
     };
   }
 
   return {
     extraColumnIds,
     missedColumnIds,
-    message: "The target is selected, but some column roles still need adjustment.",
-    nextStep: "Use the hints to separate prediction output, usable inputs, and dataset metadata.",
+    message: "Target sudah dipilih, tetapi beberapa role kolom masih perlu disesuaikan.",
+    nextStep:
+      "Gunakan petunjuk untuk memisahkan output prediksi, input yang bisa dipakai, dan metadata dataset.",
     score: 70,
     status: "partial",
-    title: "Partially correct",
+    title: "Sebagian benar",
   };
 }

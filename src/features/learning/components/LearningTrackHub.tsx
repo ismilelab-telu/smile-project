@@ -7,10 +7,12 @@ import {
 } from "@heroicons/react/24/outline";
 
 import { getModule, learningTracks } from "../content/learning-content";
+import { localizeTrack } from "../content/localized-learning-content";
 import type { LearningProgress, LearningTrack } from "../types";
 import { LearningGridCanvas, LearningSheetExtensions } from "./LearningGridCanvas";
 import { LearningHeader } from "./LearningHeader";
 import { LiquidLink } from "@/components/ui/liquid-button";
+import { useLocalization } from "@/features/localization/localization";
 
 const liquidButtonClassName =
   "inline-flex items-center justify-center gap-3 rounded-none px-5 py-3 text-base font-semibold text-neutral-950 backdrop-blur-xl hover:text-neutral-50 [--liquid-button-background-color:var(--color-neutral-200)] [--liquid-button-color:var(--color-emerald-500)] [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg";
@@ -43,9 +45,11 @@ function getCompletedTrackLessonCount(track: LearningTrack, progress: LearningPr
 }
 
 export function LearningTrackHub({ progress }: LearningTrackHubProps) {
+  const { locale, t } = useLocalization();
+
   return (
     <LearningGridCanvas>
-      <LearningHeader backHref="/explore" backLabel="Back to Explore" />
+      <LearningHeader backHref="/explore" backLabel="Kembali ke Explore" />
 
       <section
         aria-labelledby="learning-track-list"
@@ -58,11 +62,12 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
             className="text-5xl leading-tight font-semibold tracking-normal text-foreground sm:text-6xl [@media_(min-width:2200px)]:text-8xl"
             id="learning-track-list"
           >
-            Choose a learning path
+            {t("learning.trackHub.title")}
           </h1>
         </div>
 
         {learningTracks.map((track, index) => {
+          const localizedTrack = localizeTrack(track, locale);
           const Icon = getTrackIcon(track);
           const completedLessonCount = getCompletedTrackLessonCount(track, progress);
           const isAvailable = track.status === "available";
@@ -81,7 +86,7 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
                 />
                 <div className="min-w-0">
                   <h2 className="text-2xl leading-tight font-semibold text-foreground [@media_(min-width:2200px)]:text-4xl">
-                    {track.title}
+                    {localizedTrack.title}
                   </h2>
                 </div>
               </div>
@@ -92,7 +97,9 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
                     data-app-link
                     href={`/learn/${track.id}`}
                   >
-                    {completedLessonCount > 0 ? "Continue" : "Start path"}
+                    {completedLessonCount > 0
+                      ? t("learning.trackHub.continue")
+                      : t("learning.trackHub.startPath")}
                     <ArrowRightIcon
                       aria-hidden="true"
                       className="size-5 [@media_(min-width:2200px)]:size-6"
@@ -108,7 +115,7 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
                       aria-hidden="true"
                       className="size-5 [@media_(min-width:2200px)]:size-6"
                     />
-                    Coming soon
+                    {t("learning.trackHub.comingSoon")}
                   </button>
                 )}
               </div>

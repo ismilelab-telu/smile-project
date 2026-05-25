@@ -22,11 +22,12 @@ import {
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { getDatasetView } from "../datasets/registry";
 import { lessonMdxContentById } from "../content/lesson-mdx-content";
+import { localizeDatasetView, localizeLesson } from "../content/localized-learning-content";
 import {
   evaluateMultipleChoice,
   evaluateOrderedSteps,
@@ -50,6 +51,7 @@ import type {
 import { LearningGridCanvas, LearningSheetExtensions } from "./LearningGridCanvas";
 import { LearningHeader } from "./LearningHeader";
 import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
+import { useLocalization } from "@/features/localization/localization";
 import { shouldReduceMotion } from "@/lib/motion";
 
 gsap.registerPlugin(useGSAP);
@@ -71,12 +73,7 @@ type LessonPageProps = {
   previousLessonHref?: string;
 };
 
-const roleOptions: Array<{ label: string; value: ColumnRole }> = [
-  { label: "Ignore / not used yet", value: "ignore" },
-  { label: "Target", value: "target" },
-  { label: "Safe feature", value: "safe-feature" },
-  { label: "Metadata", value: "metadata" },
-];
+const roleOptions: ColumnRole[] = ["ignore", "target", "safe-feature", "metadata"];
 const roleDropdownPanelVariants = {
   closed: {
     transition: {
@@ -98,8 +95,15 @@ type RoleDropdownHighlightRect = {
   y: number;
 };
 
-function getRoleOptionLabel(value: ColumnRole) {
-  return roleOptions.find((option) => option.value === value)?.label ?? roleOptions[0].label;
+function getRoleOptionLabel(value: ColumnRole, t: ReturnType<typeof useLocalization>["t"]) {
+  const labels: Record<ColumnRole, string> = {
+    ignore: t("learning.role.ignore"),
+    metadata: t("learning.role.metadata"),
+    "safe-feature": t("learning.role.safeFeature"),
+    target: t("learning.role.target"),
+  };
+
+  return labels[value] ?? labels.ignore;
 }
 
 function createCombinedExerciseResult(results: EvaluationResult[]): EvaluationResult {
@@ -118,11 +122,11 @@ function createCombinedExerciseResult(results: EvaluationResult[]): EvaluationRe
     return {
       extraColumnIds,
       missedColumnIds,
-      message: "All exercises in this lesson are correct.",
-      nextStep: "This lesson is complete. Continue to the next unlocked lesson.",
+      message: "Semua latihan di lesson ini sudah benar.",
+      nextStep: "Lesson ini selesai. Lanjutkan ke lesson berikutnya yang sudah terbuka.",
       score,
       status: "correct",
-      title: "Correct",
+      title: "Benar",
     };
   }
 
@@ -130,22 +134,23 @@ function createCombinedExerciseResult(results: EvaluationResult[]): EvaluationRe
     return {
       extraColumnIds,
       missedColumnIds,
-      message: `${correctCount}/${results.length} exercises are correct. Review the remaining exercise before continuing.`,
-      nextStep: "Use the feedback and hints, adjust the unfinished answer, then submit again.",
+      message: `${correctCount}/${results.length} latihan sudah benar. Periksa latihan yang tersisa sebelum lanjut.`,
+      nextStep:
+        "Gunakan feedback dan petunjuk, perbaiki jawaban yang belum selesai, lalu kirim ulang.",
       score,
       status: "partial",
-      title: "Partially correct",
+      title: "Sebagian benar",
     };
   }
 
   return {
     extraColumnIds,
     missedColumnIds,
-    message: "The exercises do not match the main ideas this lesson is checking yet.",
-    nextStep: "Use the hints, revisit the concept summary, then try again.",
+    message: "Jawaban latihan belum sesuai dengan konsep utama yang dicek di lesson ini.",
+    nextStep: "Gunakan petunjuk, baca ulang materi, lalu coba lagi.",
     score,
     status: "incorrect",
-    title: "Not quite",
+    title: "Belum tepat",
   };
 }
 
@@ -157,8 +162,22 @@ function createRestoredCorrectResult(): EvaluationResult {
     nextStep: "",
     score: 100,
     status: "correct",
-    title: "Correct",
+    title: "Benar",
   };
+}
+
+function haveSameOrderedValues(left: string[], right: string[]) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function haveSameValueSet(left: string[], right: string[]) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  const rightValues = new Set(right);
+
+  return left.every((value) => rightValues.has(value));
 }
 
 function createLessonAnswerSnapshot({
@@ -201,7 +220,7 @@ function createLessonAnswerSnapshot({
 
 export function LessonPage({
   backHref = "/learn",
-  backLabel = "Back to Learning Home",
+  backLabel = "Kembali ke Beranda Belajar",
   initialAnswer,
   isCompleted = false,
   lesson,
@@ -210,7 +229,12 @@ export function LessonPage({
   onSubmitResult,
   previousLessonHref,
 }: LessonPageProps) {
-  const exerciseEntries = useMemo(() => lesson.exercises ?? [lesson.exercise], [lesson]);
+  const { locale, t } = useLocalization();
+  const localizedLesson = useMemo(() => localizeLesson(lesson, locale), [lesson, locale]);
+  const exerciseEntries = useMemo(
+    () => localizedLesson.exercises ?? [localizedLesson.exercise],
+    [localizedLesson],
+  );
   const tableColumnRoleExercise = useMemo(
     () =>
       exerciseEntries.find(
@@ -264,20 +288,32 @@ export function LessonPage({
       }, {}),
     [exerciseEntries, initialAnswer],
   );
-  const initialResult = useMemo(
-    () => (isCompleted ? createRestoredCorrectResult() : null),
-    [isCompleted],
+  const initialExerciseResultsById = useMemo(
+    () =>
+      isCompleted
+        ? exerciseEntries.reduce<Record<string, EvaluationResult>>((results, exercise) => {
+            results[exercise.id] = createRestoredCorrectResult();
+            return results;
+          }, {})
+        : {},
+    [exerciseEntries, isCompleted],
   );
   const mountedLessonIdRef = useRef(lesson.id);
   const [assignments, setAssignments] = useState<Record<string, ColumnRole>>(initialAssignments);
   const [orderedStepIdsByExerciseId, setOrderedStepIdsByExerciseId] =
     useState<Record<string, string[]>>(initialOrderedStepIds);
-  const [result, setResult] = useState<EvaluationResult | null>(initialResult);
-  const [submittedAnswerSnapshot, setSubmittedAnswerSnapshot] = useState<LessonAnswer | null>(null);
+  const [exerciseResultsById, setExerciseResultsById] = useState<Record<string, EvaluationResult>>(
+    initialExerciseResultsById,
+  );
+  const [submittedAnswerSnapshotsByExerciseId, setSubmittedAnswerSnapshotsByExerciseId] = useState<
+    Record<string, LessonAnswer>
+  >({});
   const [selectedOptionIdsByExerciseId, setSelectedOptionIdsByExerciseId] = useState<
     Record<string, string[]>
   >(initialSelectedOptionIdsByExerciseId);
-  const [visibleHintCount, setVisibleHintCount] = useState(0);
+  const [visibleHintCountByExerciseId, setVisibleHintCountByExerciseId] = useState<
+    Record<string, number>
+  >({});
   const answerSnapshot = useMemo(
     () =>
       createLessonAnswerSnapshot({
@@ -288,16 +324,16 @@ export function LessonPage({
       }),
     [assignments, exerciseEntries, orderedStepIdsByExerciseId, selectedOptionIdsByExerciseId],
   );
-  const allHints = useMemo(
-    () => exerciseEntries.flatMap((exercise) => exercise.hints),
-    [exerciseEntries],
-  );
   const datasetView =
-    tableColumnRoleExercise && lesson.datasetId && lesson.viewId
-      ? getDatasetView(lesson.datasetId, lesson.viewId)
+    tableColumnRoleExercise && localizedLesson.datasetId && localizedLesson.viewId
+      ? localizeDatasetView(
+          getDatasetView(localizedLesson.datasetId, localizedLesson.viewId),
+          locale,
+        )
       : undefined;
-  const LessonMdxContent = lessonMdxContentById[lesson.id];
-  const hasAnyAnswer = exerciseEntries.some((exercise) => {
+  const LessonMdxContent = locale === "id" ? lessonMdxContentById[lesson.id] : undefined;
+  const isMultiExerciseLesson = exerciseEntries.length > 1;
+  const hasAnswerForExercise = (exercise: LessonExercise) => {
     if (exercise.type === "multiple-choice") {
       return (selectedOptionIdsByExerciseId[exercise.id]?.length ?? 0) > 0;
     }
@@ -310,14 +346,79 @@ export function LessonPage({
     const initialStepIds = initialOrderedStepIds[exercise.id] ?? [];
 
     return currentStepIds.some((stepId, index) => stepId !== initialStepIds[index]);
+  };
+  const isCurrentAnswerSubmittedForExercise = (
+    exercise: LessonExercise,
+    submittedAnswer: LessonAnswer | undefined,
+  ) => {
+    if (!submittedAnswer) {
+      return false;
+    }
+
+    if (exercise.type === "multiple-choice") {
+      return haveSameValueSet(
+        selectedOptionIdsByExerciseId[exercise.id] ?? [],
+        submittedAnswer.selectedOptionIdsByExerciseId?.[exercise.id] ?? [],
+      );
+    }
+
+    if (exercise.type === "ordered-steps") {
+      return haveSameOrderedValues(
+        orderedStepIdsByExerciseId[exercise.id] ?? [],
+        submittedAnswer.orderedStepIdsByExerciseId?.[exercise.id] ?? [],
+      );
+    }
+
+    const submittedAssignments =
+      submittedAnswer.columnRoleAssignmentsByExerciseId?.[exercise.id] ?? {};
+    const assignmentKeys = new Set([
+      ...Object.keys(assignments),
+      ...Object.keys(submittedAssignments),
+    ]);
+
+    return [...assignmentKeys].every(
+      (columnId) =>
+        (assignments[columnId] ?? "ignore") === (submittedAssignments[columnId] ?? "ignore"),
+    );
+  };
+  const hasAnyAnswer = exerciseEntries.some(hasAnswerForExercise);
+  const areAllExerciseResultsCorrect =
+    exerciseEntries.length > 0 &&
+    exerciseEntries.every((exercise) => {
+      const exerciseResult = exerciseResultsById[exercise.id];
+
+      return (
+        exerciseResult?.status === "correct" &&
+        (isCompleted ||
+          isCurrentAnswerSubmittedForExercise(
+            exercise,
+            submittedAnswerSnapshotsByExerciseId[exercise.id],
+          ))
+      );
+    });
+  const lessonResult =
+    exerciseEntries.length === 1
+      ? (exerciseResultsById[exerciseEntries[0]?.id ?? ""] ?? null)
+      : areAllExerciseResultsCorrect
+        ? createCombinedExerciseResult(
+            exerciseEntries.map(
+              (exercise) => exerciseResultsById[exercise.id] ?? createRestoredCorrectResult(),
+            ),
+          )
+        : null;
+  const isLessonFinished = isCompleted || lessonResult?.status === "correct";
+  const hasNotQuiteResult = exerciseEntries.some((exercise) => {
+    const exerciseResult = exerciseResultsById[exercise.id];
+
+    return exerciseResult !== undefined && exerciseResult.status !== "correct";
   });
-  const isLessonFinished = isCompleted || result?.status === "correct";
-  const hasNotQuiteResult = result !== null && result.status !== "correct";
   const isReviewMode = isLessonFinished;
   const isSubmitDisabled = !hasAnyAnswer;
   const rightEdgeCompensationClassName = hasNotQuiteResult ? "-mr-px" : "";
   const finishedActionHref = nextLessonHref ?? backHref;
-  const finishedActionLabel = nextLessonHref ? "Next" : "Back to path";
+  const finishedActionLabel = nextLessonHref
+    ? t("navigation.continue")
+    : t("navigation.back.track");
 
   useEffect(() => {
     if (mountedLessonIdRef.current === lesson.id) {
@@ -327,14 +428,14 @@ export function LessonPage({
     mountedLessonIdRef.current = lesson.id;
     setAssignments(initialAssignments);
     setOrderedStepIdsByExerciseId(initialOrderedStepIds);
-    setResult(initialResult);
-    setSubmittedAnswerSnapshot(null);
+    setExerciseResultsById(initialExerciseResultsById);
+    setSubmittedAnswerSnapshotsByExerciseId({});
     setSelectedOptionIdsByExerciseId(initialSelectedOptionIdsByExerciseId);
-    setVisibleHintCount(0);
+    setVisibleHintCountByExerciseId({});
   }, [
     initialAssignments,
+    initialExerciseResultsById,
     initialOrderedStepIds,
-    initialResult,
     initialSelectedOptionIdsByExerciseId,
     lesson.id,
   ]);
@@ -359,11 +460,11 @@ export function LessonPage({
 
           <div className="learning-sheet-cell p-6 [@media_(min-width:2200px)]:p-12">
             <h1 className="text-2xl font-semibold text-foreground [@media_(min-width:2200px)]:text-4xl">
-              Lesson cannot be opened
+              {t("lesson.openError.title")}
             </h1>
           </div>
           <div className="learning-sheet-cell p-6 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:p-12 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
-            The dataset view for this lesson is not available yet.
+            {t("lesson.openError.body")}
           </div>
           <div className="learning-sheet-cell p-6 [@media_(min-width:2200px)]:p-12">
             <LiquidLink
@@ -384,7 +485,12 @@ export function LessonPage({
       ...current,
       [columnId]: role,
     }));
-    setVisibleHintCount(0);
+    if (tableColumnRoleExercise) {
+      setVisibleHintCountByExerciseId((current) => ({
+        ...current,
+        [tableColumnRoleExercise.id]: 0,
+      }));
+    }
   };
 
   const toggleOption = (exerciseId: string, optionId: string) => {
@@ -407,7 +513,10 @@ export function LessonPage({
         [exerciseId]: nextExerciseOptionIds,
       };
     });
-    setVisibleHintCount(0);
+    setVisibleHintCountByExerciseId((current) => ({
+      ...current,
+      [exerciseId]: 0,
+    }));
   };
 
   const moveStep = (exerciseId: string, index: number, direction: -1 | 1) => {
@@ -428,34 +537,85 @@ export function LessonPage({
         [exerciseId]: next,
       };
     });
-    setVisibleHintCount(0);
+    setVisibleHintCountByExerciseId((current) => ({
+      ...current,
+      [exerciseId]: 0,
+    }));
   };
 
-  const submitAnswer = () => {
-    const exerciseResults = exerciseEntries.map((exercise) => {
-      if (exercise.type === "multiple-choice") {
-        return evaluateMultipleChoice(exercise, selectedOptionIdsByExerciseId[exercise.id] ?? []);
-      }
+  const evaluateExercise = (exercise: LessonExercise) => {
+    if (exercise.type === "multiple-choice") {
+      return evaluateMultipleChoice(exercise, selectedOptionIdsByExerciseId[exercise.id] ?? []);
+    }
 
-      if (exercise.type === "ordered-steps") {
-        return evaluateOrderedSteps(exercise, orderedStepIdsByExerciseId[exercise.id] ?? []);
-      }
+    if (exercise.type === "ordered-steps") {
+      return evaluateOrderedSteps(exercise, orderedStepIdsByExerciseId[exercise.id] ?? []);
+    }
 
-      return evaluateFeatureTargetRoles(assignments);
+    return evaluateFeatureTargetRoles(assignments);
+  };
+
+  const isLessonCorrectWithResults = (
+    resultsById: Record<string, EvaluationResult>,
+    submittedAnswersByExerciseId: Record<string, LessonAnswer>,
+  ) =>
+    exerciseEntries.every((exercise) => {
+      const exerciseResult = resultsById[exercise.id];
+
+      return (
+        exerciseResult?.status === "correct" &&
+        isCurrentAnswerSubmittedForExercise(exercise, submittedAnswersByExerciseId[exercise.id])
+      );
     });
-    const evaluation = createCombinedExerciseResult(exerciseResults);
 
-    setResult(evaluation);
-    setSubmittedAnswerSnapshot(answerSnapshot);
-    onSubmitResult(evaluation, answerSnapshot);
+  const submitExercise = (exercise: LessonExercise) => {
+    const evaluation = evaluateExercise(exercise);
+    const nextExerciseResultsById = {
+      ...exerciseResultsById,
+      [exercise.id]: evaluation,
+    };
+    const nextSubmittedAnswerSnapshotsByExerciseId = {
+      ...submittedAnswerSnapshotsByExerciseId,
+      [exercise.id]: answerSnapshot,
+    };
 
-    setVisibleHintCount(0);
+    setExerciseResultsById(nextExerciseResultsById);
+    setSubmittedAnswerSnapshotsByExerciseId(nextSubmittedAnswerSnapshotsByExerciseId);
+
+    const nextLessonResult =
+      exerciseEntries.length === 1
+        ? evaluation
+        : isLessonCorrectWithResults(
+              nextExerciseResultsById,
+              nextSubmittedAnswerSnapshotsByExerciseId,
+            )
+          ? createCombinedExerciseResult(
+              exerciseEntries.map(
+                (exerciseEntry) =>
+                  nextExerciseResultsById[exerciseEntry.id] ?? createRestoredCorrectResult(),
+              ),
+            )
+          : null;
+
+    if (nextLessonResult) {
+      onSubmitResult(nextLessonResult, answerSnapshot);
+    }
+
+    setVisibleHintCountByExerciseId((current) => ({
+      ...current,
+      [exercise.id]: 0,
+    }));
   };
 
-  const toggleHints = () => {
-    setVisibleHintCount((count) =>
-      count >= allHints.length ? 0 : Math.min(count + 1, allHints.length),
-    );
+  const toggleHints = (exerciseId: string, hintCount: number) => {
+    setVisibleHintCountByExerciseId((current) => {
+      const currentHintCount = current[exerciseId] ?? 0;
+
+      return {
+        ...current,
+        [exerciseId]: currentHintCount >= hintCount ? 0 : Math.min(currentHintCount + 1, hintCount),
+      };
+    });
   };
 
   return (
@@ -469,14 +629,14 @@ export function LessonPage({
           className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} px-6 py-5 [@media_(min-width:2200px)]:px-12 [@media_(min-width:2200px)]:py-8`}
         >
           <div className="flex flex-wrap items-center gap-3 text-base text-muted-foreground [@media_(min-width:2200px)]:text-lg">
-            <span>{lesson.numberLabel}</span>
+            <span>{localizedLesson.numberLabel}</span>
           </div>
         </div>
         <div
           className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} p-6 [@media_(min-width:2200px)]:p-12`}
         >
           <h1 className="max-w-none text-5xl leading-tight font-semibold tracking-normal text-foreground [@media_(min-width:2200px)]:text-8xl">
-            {lesson.title}
+            {localizedLesson.title}
           </h1>
         </div>
 
@@ -487,85 +647,129 @@ export function LessonPage({
             {LessonMdxContent ? (
               <LessonMdxContent />
             ) : (
-              lesson.summary.map((paragraph) => <p key={paragraph}>{paragraph}</p>)
+              localizedLesson.summary.map((paragraph) => <p key={paragraph}>{paragraph}</p>)
             )}
           </div>
         </section>
 
         {exerciseEntries.map((exercise, exerciseIndex) => {
           const exerciseLabel =
-            exerciseEntries.length === 1 ? "Exercise" : `Exercise ${exerciseIndex + 1}`;
+            exerciseEntries.length === 1
+              ? t("learning.exercise")
+              : t("learning.exercise.numbered", { number: exerciseIndex + 1 });
+          const exerciseResult = exerciseResultsById[exercise.id] ?? null;
+          const isExerciseCorrect = exerciseResult?.status === "correct";
+          const isExerciseReadOnly = isReviewMode || isExerciseCorrect;
 
           return (
-            <ExerciseSection
-              assignments={assignments}
-              datasetView={datasetView}
-              edgeCompensationClassName={rightEdgeCompensationClassName}
-              exercise={exercise}
-              exerciseLabel={exerciseLabel}
-              key={exercise.id}
-              onMoveStep={(index, direction) => moveStep(exercise.id, index, direction)}
-              onToggleOption={(optionId) => toggleOption(exercise.id, optionId)}
-              onUpdateAssignment={updateAssignment}
-              orderedStepIds={orderedStepIdsByExerciseId[exercise.id] ?? []}
-              result={result}
-              isReviewMode={isReviewMode}
-              submittedSelectedOptionIds={
-                submittedAnswerSnapshot?.selectedOptionIdsByExerciseId?.[exercise.id] ?? []
-              }
-              selectedOptionIds={selectedOptionIdsByExerciseId[exercise.id] ?? []}
-            />
+            <Fragment key={exercise.id}>
+              <ExerciseSection
+                assignments={assignments}
+                datasetView={datasetView}
+                edgeCompensationClassName={rightEdgeCompensationClassName}
+                exercise={exercise}
+                exerciseLabel={exerciseLabel}
+                onMoveStep={(index, direction) => moveStep(exercise.id, index, direction)}
+                onToggleOption={(optionId) => toggleOption(exercise.id, optionId)}
+                onUpdateAssignment={updateAssignment}
+                orderedStepIds={orderedStepIdsByExerciseId[exercise.id] ?? []}
+                result={exerciseResult}
+                isReviewMode={isExerciseReadOnly}
+                submittedSelectedOptionIds={
+                  submittedAnswerSnapshotsByExerciseId[exercise.id]
+                    ?.selectedOptionIdsByExerciseId?.[exercise.id] ?? []
+                }
+                selectedOptionIds={selectedOptionIdsByExerciseId[exercise.id] ?? []}
+              />
+              {isMultiExerciseLesson && !isLessonFinished ? (
+                <ExerciseSubmitAction
+                  disabled={!hasAnswerForExercise(exercise) || isExerciseCorrect}
+                  edgeCompensationClassName={rightEdgeCompensationClassName}
+                  onSubmit={() => submitExercise(exercise)}
+                  previousLessonHref={
+                    exerciseIndex === exerciseEntries.length - 1 ? previousLessonHref : undefined
+                  }
+                  submitted={isExerciseCorrect}
+                />
+              ) : null}
+              {isMultiExerciseLesson && exerciseResult && exerciseResult.status !== "correct" ? (
+                <>
+                  <LessonResult result={exerciseResult} />
+                  <LessonHintPanel
+                    hints={exercise.hints}
+                    onToggleHints={() => toggleHints(exercise.id, exercise.hints.length)}
+                    visibleHintCount={visibleHintCountByExerciseId[exercise.id] ?? 0}
+                  />
+                </>
+              ) : null}
+            </Fragment>
           );
         })}
 
-        <div
-          className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} flex items-center gap-4 p-6 [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-12`}
-        >
-          {previousLessonHref ? (
-            <LiquidLink
-              className={`${emeraldLiquidButtonClassName} min-h-12 [@media_(min-width:2200px)]:min-h-16`}
-              data-app-link
-              href={previousLessonHref}
-            >
-              <ArrowLeftIcon
-                aria-hidden="true"
-                className="size-5 [@media_(min-width:2200px)]:size-6"
-              />
-              Prev
-            </LiquidLink>
-          ) : null}
-          {isLessonFinished ? (
-            <LiquidLink
-              className={`${emeraldLiquidButtonClassName} ml-auto min-h-12 [@media_(min-width:2200px)]:min-h-16`}
-              data-app-link
-              href={finishedActionHref}
-            >
-              {finishedActionLabel}
-              <ArrowRightIcon
-                aria-hidden="true"
-                className="size-5 [@media_(min-width:2200px)]:size-6"
-              />
-            </LiquidLink>
-          ) : (
-            <LiquidButton
-              className={`${emeraldLiquidButtonClassName} ml-auto min-h-12 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-neutral-950 ${isSubmitDisabled ? "" : "cursor-pointer"} [@media_(min-width:2200px)]:min-h-16`}
-              disabled={isSubmitDisabled}
-              onClick={submitAnswer}
-              type="button"
-            >
-              Submit answer
-            </LiquidButton>
-          )}
-        </div>
+        {!isMultiExerciseLesson || isLessonFinished ? (
+          <div
+            className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} flex items-center gap-4 p-6 [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-12`}
+          >
+            {previousLessonHref ? (
+              <LiquidLink
+                className={`${emeraldLiquidButtonClassName} min-h-12 [@media_(min-width:2200px)]:min-h-16`}
+                data-app-link
+                href={previousLessonHref}
+              >
+                <ArrowLeftIcon
+                  aria-hidden="true"
+                  className="size-5 [@media_(min-width:2200px)]:size-6"
+                />
+                {t("navigation.prev")}
+              </LiquidLink>
+            ) : null}
+            {isLessonFinished ? (
+              <LiquidLink
+                className={`${emeraldLiquidButtonClassName} ml-auto min-h-12 [@media_(min-width:2200px)]:min-h-16`}
+                data-app-link
+                href={finishedActionHref}
+              >
+                {finishedActionLabel}
+                <ArrowRightIcon
+                  aria-hidden="true"
+                  className="size-5 [@media_(min-width:2200px)]:size-6"
+                />
+              </LiquidLink>
+            ) : (
+              <LiquidButton
+                className={`${emeraldLiquidButtonClassName} ml-auto min-h-12 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-neutral-950 ${isSubmitDisabled ? "" : "cursor-pointer"} [@media_(min-width:2200px)]:min-h-16`}
+                disabled={isSubmitDisabled}
+                onClick={() => {
+                  const firstExercise = exerciseEntries[0];
 
-        {result && result.status !== "correct" ? (
+                  if (firstExercise) {
+                    submitExercise(firstExercise);
+                  }
+                }}
+                type="button"
+              >
+                {t("learning.submit")}
+              </LiquidButton>
+            )}
+          </div>
+        ) : null}
+
+        {!isMultiExerciseLesson && lessonResult && lessonResult.status !== "correct" ? (
           <>
-            <LessonResult result={result} />
+            <LessonResult result={lessonResult} />
             {hasNotQuiteResult ? (
               <LessonHintPanel
-                hints={allHints}
-                onToggleHints={toggleHints}
-                visibleHintCount={visibleHintCount}
+                hints={exerciseEntries[0]?.hints ?? []}
+                onToggleHints={() =>
+                  exerciseEntries[0]
+                    ? toggleHints(exerciseEntries[0].id, exerciseEntries[0].hints.length)
+                    : undefined
+                }
+                visibleHintCount={
+                  exerciseEntries[0]
+                    ? (visibleHintCountByExerciseId[exerciseEntries[0].id] ?? 0)
+                    : 0
+                }
               />
             ) : null}
           </>
@@ -590,6 +794,47 @@ export function LessonPage({
         )}
       </section>
     </LearningGridCanvas>
+  );
+}
+
+function ExerciseSubmitAction({
+  disabled,
+  edgeCompensationClassName,
+  onSubmit,
+  previousLessonHref,
+  submitted,
+}: {
+  disabled: boolean;
+  edgeCompensationClassName: string;
+  onSubmit: () => void;
+  previousLessonHref?: string;
+  submitted: boolean;
+}) {
+  const { t } = useLocalization();
+
+  return (
+    <div
+      className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${edgeCompensationClassName} flex items-center gap-4 p-6 [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-12`}
+    >
+      {previousLessonHref ? (
+        <LiquidLink
+          className={`${emeraldLiquidButtonClassName} min-h-12 [@media_(min-width:2200px)]:min-h-16`}
+          data-app-link
+          href={previousLessonHref}
+        >
+          <ArrowLeftIcon aria-hidden="true" className="size-5 [@media_(min-width:2200px)]:size-6" />
+          {t("navigation.prev")}
+        </LiquidLink>
+      ) : null}
+      <LiquidButton
+        className={`${emeraldLiquidButtonClassName} ml-auto min-h-12 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-neutral-950 ${disabled ? "" : "cursor-pointer"} [@media_(min-width:2200px)]:min-h-16`}
+        disabled={disabled}
+        onClick={onSubmit}
+        type="button"
+      >
+        {submitted ? t("learning.submitted") : t("learning.submit")}
+      </LiquidButton>
+    </div>
   );
 }
 
@@ -622,11 +867,12 @@ function ExerciseSection({
   submittedSelectedOptionIds: string[];
   selectedOptionIds: string[];
 }) {
+  const { t } = useLocalization();
   const choiceModeLabel =
     exercise.type === "multiple-choice"
       ? exercise.correctOptionIds.length === 1
-        ? "Single option"
-        : `Multiple options: select ${exercise.correctOptionIds.length} options`
+        ? t("learning.choice.single")
+        : t("learning.choice.multiple", { count: exercise.correctOptionIds.length })
       : null;
 
   return (
@@ -671,6 +917,7 @@ function ExerciseSection({
         <OrderedStepsExerciseView
           edgeCompensationClassName={edgeCompensationClassName}
           exercise={exercise}
+          isReviewMode={isReviewMode}
           orderedStepIds={orderedStepIds}
           onMoveStep={onMoveStep}
         />
@@ -682,6 +929,7 @@ function ExerciseSection({
           columns={datasetView.columns}
           edgeCompensationClassName={edgeCompensationClassName}
           exercise={exercise}
+          isReviewMode={isReviewMode}
           onUpdateAssignment={onUpdateAssignment}
         />
       ) : null}
@@ -733,6 +981,7 @@ function DatasetPreview({
   edgeCompensationClassName: string;
   exercise: TableColumnRoleExercise;
 }) {
+  const { t } = useLocalization();
   const [sorting, setSorting] = useState<SortingState>([]);
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
   const previousRowRectsRef = useRef<Map<string, DOMRectReadOnly>>(new Map());
@@ -847,7 +1096,7 @@ function DatasetPreview({
           className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl"
           id="dataset-preview"
         >
-          Dataset preview
+          {t("learning.dataset.preview")}
         </h2>
         <p className="text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
           {exercise.datasetContext}
@@ -878,7 +1127,7 @@ function DatasetPreview({
                         scope="col"
                       >
                         <button
-                          aria-label={`Sort by ${sortLabel}`}
+                          aria-label={t("learning.sortBy", { label: sortLabel })}
                           className="flex w-full cursor-pointer items-center gap-4 px-5 py-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-emerald-400 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-5"
                           onClick={header.column.getToggleSortingHandler()}
                           type="button"
@@ -936,13 +1185,16 @@ function DatasetPreview({
 
 function RoleDropdown({
   columnLabel,
+  disabled = false,
   onChange,
   value,
 }: {
   columnLabel: string;
+  disabled?: boolean;
   onChange: (role: ColumnRole) => void;
   value: ColumnRole;
 }) {
+  const { t } = useLocalization();
   const rootRef = useRef<HTMLDivElement>(null);
   const optionRefs = useRef(new Map<ColumnRole, HTMLDivElement>());
   const closeTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
@@ -952,7 +1204,7 @@ function RoleDropdown({
   const [activeOptionValue, setActiveOptionValue] = useState<ColumnRole | null>(null);
   const [highlightRect, setHighlightRect] = useState<RoleDropdownHighlightRect | null>(null);
   const [isHighlightVisible, setIsHighlightVisible] = useState(false);
-  const selectedLabel = getRoleOptionLabel(value);
+  const selectedLabel = getRoleOptionLabel(value, t);
   const highlightedOptionValue = activeOptionValue ?? value;
   const reduceDropdownMotion = shouldReduceMotion();
   const { floatingStyles, refs, update } = useFloating({
@@ -1000,6 +1252,10 @@ function RoleDropdown({
   }, [reduceDropdownMotion]);
 
   const openDropdown = () => {
+    if (disabled) {
+      return;
+    }
+
     if (closeTimeoutRef.current !== null) {
       window.clearTimeout(closeTimeoutRef.current);
       closeTimeoutRef.current = null;
@@ -1010,6 +1266,10 @@ function RoleDropdown({
   };
 
   const toggleDropdown = () => {
+    if (disabled) {
+      return;
+    }
+
     if (isOpen) {
       closeDropdown();
       return;
@@ -1113,8 +1373,9 @@ function RoleDropdown({
         aria-controls={menuId}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
-        aria-label={`Role for ${columnLabel}`}
-        className="learning-grid-control flex min-h-12 w-full cursor-pointer items-center justify-between gap-3 border border-neutral-300 bg-neutral-100/90 px-6 py-3 text-left text-base font-medium text-foreground backdrop-blur-xl supports-[backdrop-filter]:bg-neutral-100/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 [@media_(min-width:2200px)]:min-h-24 [@media_(min-width:2200px)]:px-7 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg"
+        aria-label={t("learning.role.aria", { column: columnLabel })}
+        className={`learning-grid-control flex min-h-12 w-full items-center justify-between gap-3 border border-neutral-300 bg-neutral-100/90 px-6 py-3 text-left text-base font-medium text-foreground backdrop-blur-xl supports-[backdrop-filter]:bg-neutral-100/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 disabled:cursor-not-allowed disabled:opacity-70 [@media_(min-width:2200px)]:min-h-24 [@media_(min-width:2200px)]:px-7 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg ${disabled ? "" : "cursor-pointer"}`}
+        disabled={disabled}
         onClick={toggleDropdown}
         ref={refs.setReference}
         type="button"
@@ -1131,7 +1392,7 @@ function RoleDropdown({
           {isOpen ? (
             <motion.div
               animate={reduceDropdownMotion ? { opacity: 1 } : "open"}
-              aria-label={`Role options for ${columnLabel}`}
+              aria-label={t("learning.role.aria", { column: columnLabel })}
               className="relative z-[100] origin-top overflow-y-auto bg-transparent text-neutral-700 before:absolute before:top-0 before:right-0 before:left-0 before:z-30 before:h-px before:bg-neutral-300"
               exit={reduceDropdownMotion ? { opacity: 0 } : "closed"}
               id={menuId}
@@ -1169,8 +1430,9 @@ function RoleDropdown({
                   }
                 />
               ) : null}
-              {roleOptions.map((option, optionIndex) => {
-                const isHighlighted = highlightedOptionValue === option.value;
+              {roleOptions.map((optionValue, optionIndex) => {
+                const isHighlighted = highlightedOptionValue === optionValue;
+                const optionLabel = getRoleOptionLabel(optionValue, t);
                 const optionMotionProps = reduceDropdownMotion
                   ? {}
                   : {
@@ -1188,13 +1450,13 @@ function RoleDropdown({
                 return (
                   <div
                     className="relative"
-                    key={option.value}
-                    onPointerEnter={() => activateOption(option.value)}
+                    key={optionValue}
+                    onPointerEnter={() => activateOption(optionValue)}
                     ref={(node) => {
                       if (node) {
-                        optionRefs.current.set(option.value, node);
+                        optionRefs.current.set(optionValue, node);
                       } else {
-                        optionRefs.current.delete(option.value);
+                        optionRefs.current.delete(optionValue);
                       }
                     }}
                   >
@@ -1204,17 +1466,17 @@ function RoleDropdown({
                       {...optionMotionProps}
                     />
                     <motion.button
-                      aria-selected={value === option.value}
+                      aria-selected={value === optionValue}
                       className={`relative z-20 block w-full cursor-pointer overflow-hidden border-x border-b border-x-neutral-300 border-b-neutral-200 bg-transparent px-5 py-3 text-left text-base font-medium transition-colors duration-150 first:border-t first:border-t-neutral-300 last:border-b-neutral-300 focus-visible:outline-none [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-4 [@media_(min-width:2200px)]:text-lg ${
                         isHighlighted ? "text-neutral-50" : "text-neutral-700"
                       }`}
-                      onClick={() => selectRole(option.value)}
-                      onFocus={() => activateOption(option.value)}
+                      onClick={() => selectRole(optionValue)}
+                      onFocus={() => activateOption(optionValue)}
                       role="option"
                       type="button"
                       {...optionMotionProps}
                     >
-                      <span className="relative z-20">{option.label}</span>
+                      <span className="relative z-20">{optionLabel}</span>
                     </motion.button>
                   </div>
                 );
@@ -1233,12 +1495,14 @@ function ColumnRoleExerciseView({
   columns,
   edgeCompensationClassName,
   exercise,
+  isReviewMode,
   onUpdateAssignment,
 }: {
   assignments: Record<string, ColumnRole>;
   columns: NonNullable<ReturnType<typeof getDatasetView>>["columns"];
   edgeCompensationClassName: string;
   exercise: TableColumnRoleExercise;
+  isReviewMode: boolean;
   onUpdateAssignment: (columnId: string, role: ColumnRole) => void;
 }) {
   return (
@@ -1261,11 +1525,12 @@ function ColumnRoleExerciseView({
                 {column.label}
               </span>
               <span className="mt-1.5 block text-base text-muted-foreground [@media_(min-width:2200px)]:text-lg">
-                Column ID: {column.id}
+                {column.id}
               </span>
             </span>
             <RoleDropdown
               columnLabel={column.label}
+              disabled={isReviewMode}
               onChange={(role) => onUpdateAssignment(column.id, role)}
               value={assignments[column.id] ?? "ignore"}
             />
@@ -1293,6 +1558,7 @@ function MultipleChoiceExerciseView({
   submittedSelectedOptionIds: string[];
   selectedOptionIds: string[];
 }) {
+  const { t } = useLocalization();
   const shouldShowCorrectIndicator = result?.status === "correct";
   const shouldShowSubmittedOptionFeedback = result !== null && result.status !== "correct";
   const isSingleOptionExercise = exercise.correctOptionIds.length === 1;
@@ -1328,7 +1594,9 @@ function MultipleChoiceExerciseView({
                   />
                 )}
                 <h3 className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl">
-                  {isPositiveFeedback ? "Correct" : "Incorrect"}
+                  {isPositiveFeedback
+                    ? t("learning.feedback.correct")
+                    : t("learning.feedback.incorrect")}
                 </h3>
               </div>
             ) : null}
@@ -1365,14 +1633,17 @@ function MultipleChoiceExerciseView({
 function OrderedStepsExerciseView({
   edgeCompensationClassName,
   exercise,
+  isReviewMode,
   onMoveStep,
   orderedStepIds,
 }: {
   edgeCompensationClassName: string;
   exercise: OrderedStepsExercise;
+  isReviewMode: boolean;
   onMoveStep: (index: number, direction: -1 | 1) => void;
   orderedStepIds: string[];
 }) {
+  const { t } = useLocalization();
   const stepById = new Map(exercise.steps.map((step) => [step.id, step]));
 
   return (
@@ -1399,9 +1670,9 @@ function OrderedStepsExerciseView({
             </span>
             <span className="flex gap-3 [@media_(min-width:2200px)]:gap-4">
               <button
-                aria-label={`Move ${step.label} up`}
+                aria-label={t("learning.move.up", { label: step.label })}
                 className="learning-grid-panel-fill inline-flex size-12 cursor-pointer items-center justify-center text-foreground disabled:cursor-not-allowed disabled:opacity-40 [@media_(min-width:2200px)]:size-24"
-                disabled={index === 0}
+                disabled={isReviewMode || index === 0}
                 onClick={() => onMoveStep(index, -1)}
                 type="button"
               >
@@ -1411,9 +1682,9 @@ function OrderedStepsExerciseView({
                 />
               </button>
               <button
-                aria-label={`Move ${step.label} down`}
+                aria-label={t("learning.move.down", { label: step.label })}
                 className="learning-grid-panel-fill inline-flex size-12 cursor-pointer items-center justify-center text-foreground disabled:cursor-not-allowed disabled:opacity-40 [@media_(min-width:2200px)]:size-24"
-                disabled={index === orderedStepIds.length - 1}
+                disabled={isReviewMode || index === orderedStepIds.length - 1}
                 onClick={() => onMoveStep(index, 1)}
                 type="button"
               >
@@ -1431,6 +1702,7 @@ function OrderedStepsExerciseView({
 }
 
 function LessonResult({ result }: { result: EvaluationResult }) {
+  const { t } = useLocalization();
   const resultCellClassName =
     result.status === "correct"
       ? "learning-extend-left learning-extend-right col-span-full"
@@ -1447,6 +1719,11 @@ function LessonResult({ result }: { result: EvaluationResult }) {
           aria-hidden="true"
           className="size-7 shrink-0 text-emerald-500 [@media_(min-width:2200px)]:size-8"
         />
+      ) : result.status === "incorrect" ? (
+        <XCircleIcon
+          aria-hidden="true"
+          className="size-7 shrink-0 text-rose-500 [@media_(min-width:2200px)]:size-8"
+        />
       ) : (
         <InformationCircleIcon
           aria-hidden="true"
@@ -1455,7 +1732,11 @@ function LessonResult({ result }: { result: EvaluationResult }) {
       )}
       <div>
         <h2 className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl">
-          {result.title}
+          {result.status === "correct"
+            ? t("learning.result.correct")
+            : result.status === "partial"
+              ? t("learning.result.partial")
+              : t("learning.result.incorrect")}
         </h2>
         {shouldShowResultBody ? (
           <>
@@ -1481,13 +1762,14 @@ function LessonHintPanel({
   onToggleHints: () => void;
   visibleHintCount: number;
 }) {
+  const { t } = useLocalization();
   const areHintsVisible = visibleHintCount > 0;
   const areAllHintsVisible = visibleHintCount >= hints.length;
   const buttonLabel = areHintsVisible
     ? areAllHintsVisible
-      ? "Hide hints"
-      : "Show another hint"
-    : "Show hints";
+      ? t("learning.hint.hide")
+      : t("learning.hint.showMore")
+    : t("learning.hint.show");
 
   return (
     <aside className="learning-sheet-cell learning-extend-left learning-extend-right learning-sheet-cell-fill col-span-full -mr-px p-6 [@media_(min-width:1024px)]:col-span-4 [@media_(min-width:2200px)]:p-12">
@@ -1496,7 +1778,7 @@ function LessonHintPanel({
           aria-hidden="true"
           className="size-6 text-amber-500 [@media_(min-width:2200px)]:size-7"
         />
-        Hint
+        {t("learning.hint")}
       </h2>
       {areHintsVisible ? (
         <ol className="mt-6 grid gap-4 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-8 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">

@@ -1,35 +1,35 @@
-Data collection is not just grabbing files. It connects a real question with records that can answer it. If the question is vague, the dataset usually becomes vague too.
+Pengumpulan data bukan sekadar mengambil file. Tahap ini menghubungkan pertanyaan nyata dengan catatan data yang bisa menjawabnya. Jika pertanyaannya kabur, dataset yang dikumpulkan biasanya ikut kabur.
 
-Before collecting columns, define what the model should help decide. A demand forecast, a churn model, and a risk detector need different rows, fields, time windows, and labels.
+Sebelum mengumpulkan kolom, tentukan dulu keputusan apa yang ingin dibantu oleh model. Model prediksi permintaan, model churn, dan model deteksi risiko membutuhkan baris, field, rentang waktu, dan label yang berbeda.
 
-## Start from the Question
+## Mulai dari Pertanyaan
 
-A useful collection step begins with a concrete question. For example, "predict drink demand before the next shift starts" is clearer than "analyze cafe data."
+Pengumpulan data yang berguna dimulai dari pertanyaan konkret. Misalnya, "memprediksi permintaan minuman sebelum shift berikutnya dimulai" lebih jelas daripada "menganalisis data cafe".
 
-The clearer question tells the team what each row should represent, what target might be needed, and what information must be known before prediction time.
+Pertanyaan yang jelas memberi tahu tim satu baris data harus mewakili apa, target apa yang mungkin dibutuhkan, dan informasi apa yang harus sudah tersedia saat prediksi dibuat.
 
-## Track Source and Timing
+## Catat Sumber dan Waktu
 
-Good datasets have context. You should know where each source came from, when it was captured, how often it updates, and whether it describes the same event as the target.
+Dataset yang baik punya konteks. Kita perlu tahu sumber data berasal dari mana, kapan data dicatat, seberapa sering data diperbarui, dan apakah data itu menjelaskan kejadian yang sama dengan target.
 
-Timing is especially important in ML. A column may be valid for reporting but unsafe for prediction if it is only known after the target happens.
+Timing sangat penting dalam ML. Sebuah kolom bisa valid untuk laporan, tetapi tidak aman untuk prediksi jika baru diketahui setelah target terjadi.
 
-## Check Permission and Purpose
+## Cek Izin dan Tujuan
 
-Data should be usable for the intended purpose. That includes privacy, consent, business rules, and any restrictions around sensitive fields.
+Data harus boleh digunakan untuk tujuan yang direncanakan. Ini mencakup privasi, persetujuan, aturan bisnis, dan batasan penggunaan field sensitif.
 
-Collecting every possible column first and deciding the purpose later is risky. It creates noise, increases privacy exposure, and can lead to features that are not appropriate for the model.
+Mengumpulkan semua kolom dulu lalu menentukan tujuan belakangan itu berisiko. Cara ini menambah noise, memperbesar risiko privasi, dan bisa membuat model memakai fitur yang tidak sesuai.
 
-## Useful Collection Notes
+## Catatan yang Perlu Disimpan
 
-Record:
+Catat:
 
-- where each source came from;
-- when the data was captured;
-- what each row represents;
-- what each field means;
-- whether the field is available at prediction time;
-- whether the data can be used for the intended purpose;
-- which important fields are missing or uncertain.
+- sumber setiap data;
+- kapan data dicatat;
+- satu baris data mewakili apa;
+- arti setiap field;
+- apakah field tersedia saat prediksi dibuat;
+- apakah data boleh dipakai untuk tujuan tersebut;
+- field penting mana yang hilang atau belum jelas.
 
-Good data collection makes later modeling easier to trust. Bad collection forces the team to guess what the dataset means.
+Pengumpulan data yang baik membuat modeling lebih mudah dipercaya. Pengumpulan data yang buruk memaksa tim menebak-nebak arti dataset.

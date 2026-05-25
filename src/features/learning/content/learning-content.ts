@@ -78,14 +78,14 @@ export const machineLearningFoundationsTrack: LearningTrack = {
   id: "track-machine-learning-foundations",
   moduleIds: ["module-0-workflow-foundations", "module-1-data-understanding"],
   status: "available",
-  title: "Machine Learning Foundations",
+  title: "Dasar-Dasar Machine Learning",
 };
 
 export const regressionTrack: LearningTrack = {
   id: "track-regression",
   moduleIds: [],
   status: "coming-soon",
-  title: "Regression",
+  title: "Regresi",
 };
 
 export const clusteringTrack: LearningTrack = {
@@ -99,7 +99,7 @@ export const classificationTrack: LearningTrack = {
   id: "track-classification",
   moduleIds: [],
   status: "coming-soon",
-  title: "Classification",
+  title: "Klasifikasi",
 };
 
 export const learningTracks: LearningTrack[] = [
@@ -115,16 +115,16 @@ export const learningModules: LearningModule[] = [
     lessonIds: moduleLessonIds["module-0-workflow-foundations"],
     status: "available",
     summary:
-      "Understand what machine learning is, where it fits in AI, and how to frame a useful ML problem.",
-    title: "Hi, Machine Learning!",
+      "Pahami apa itu machine learning, posisinya di AI, dan cara merumuskan masalah ML yang jelas.",
+    title: "Halo, Machine Learning!",
   },
   {
     id: "module-1-data-understanding",
     lessonIds: moduleLessonIds["module-1-data-understanding"],
     status: "available",
     summary:
-      "Move from tools and data collection into loading, cleaning, analysis, splitting, and modeling.",
-    title: "Machine Learning Workflow",
+      "Mulai dari tool dan pengumpulan data, lalu masuk ke memuat data, pembersihan, analisis, pembagian data, dan pemodelan.",
+    title: "Alur Kerja Machine Learning",
   },
   {
     id: "module-2-supervised-classification",
@@ -297,26 +297,26 @@ const lesson03: Lesson = multipleChoiceLesson({
   exerciseId: "exercise-0-3-core-components",
   hints: [
     "Model membutuhkan tujuan dan data.",
-    "Training adalah proses belajar.",
-    "Evaluation memastikan model tidak hanya terlihat bagus di awal.",
+    "Pelatihan adalah proses belajar.",
+    "Evaluasi memastikan model tidak hanya terlihat bagus di awal.",
   ],
   id: "lesson-0-3-core-components",
   moduleId: "module-0-workflow-foundations",
   numberLabel: "Lesson 0.3",
   objective: "Kamu bisa mengenali komponen dasar dalam proyek machine learning.",
   options: [
-    { id: "problem", label: "Masalah atau task yang ingin diselesaikan." },
+    { id: "problem", label: "Masalah atau tugas yang ingin diselesaikan." },
     { id: "data", label: "Data sebagai contoh untuk belajar." },
     { id: "model", label: "Model yang belajar pola dari data." },
-    { id: "training", label: "Training untuk menyesuaikan model." },
-    { id: "evaluation", label: "Evaluation untuk menilai manfaat model." },
+    { id: "training", label: "Pelatihan untuk menyesuaikan model." },
+    { id: "evaluation", label: "Evaluasi untuk menilai manfaat model." },
     { id: "guessing", label: "Menebak hasil tanpa data karena model selalu tahu jawabannya." },
   ],
   prompt: "Mana saja yang termasuk komponen dasar dalam machine learning?",
   summary: [
     "Machine learning bukan hanya memilih algoritma. Proyek ML dimulai dari masalah yang jelas.",
-    "Data memberi contoh, model belajar pola, training menyesuaikan model, dan prediction memakai model untuk contoh baru.",
-    "Evaluation mengecek apakah model benar-benar membantu dan tidak hanya terlihat bagus pada contoh awal.",
+    "Data memberi contoh, model belajar pola, pelatihan menyesuaikan model, dan prediksi memakai model untuk contoh baru.",
+    "Evaluasi mengecek apakah model benar-benar membantu dan tidak hanya terlihat bagus pada contoh awal.",
   ],
   title: "Komponen Utama dalam Machine Learning",
 });
@@ -331,8 +331,8 @@ const lesson04: Lesson = multipleChoiceLesson({
   estimatedMinutes: 5,
   exerciseId: "exercise-0-4-learning-types",
   hints: [
-    "Angka mengarah ke regression.",
-    "Kategori mengarah ke classification.",
+    "Angka mengarah ke regresi.",
+    "Kategori mengarah ke klasifikasi.",
     "Kelompok tanpa label mengarah ke clustering.",
     "Tindakan dan reward mengarah ke reinforcement learning.",
   ],
@@ -341,8 +341,8 @@ const lesson04: Lesson = multipleChoiceLesson({
   numberLabel: "Lesson 0.4",
   objective: "Kamu bisa membedakan jenis-jenis machine learning pada level peta awal.",
   options: [
-    { id: "regression-number", label: "Regression memprediksi nilai numerik." },
-    { id: "classification-category", label: "Classification memprediksi kategori." },
+    { id: "regression-number", label: "Regresi memprediksi nilai numerik." },
+    { id: "classification-category", label: "Klasifikasi memprediksi kategori." },
     { id: "clustering-groups", label: "Clustering mengelompokkan data tanpa label jawaban." },
     { id: "rl-reward", label: "Reinforcement learning belajar dari reward atas tindakan." },
     {
@@ -352,7 +352,7 @@ const lesson04: Lesson = multipleChoiceLesson({
   ],
   prompt: "Pasangan mana yang benar?",
   summary: [
-    "Supervised learning memakai contoh yang sudah memiliki jawaban. Regression memprediksi angka, sedangkan classification memprediksi kategori.",
+    "Supervised learning memakai contoh yang sudah memiliki jawaban. Regresi memprediksi angka, sedangkan klasifikasi memprediksi kategori.",
     "Unsupervised learning memakai data tanpa target untuk mencari struktur, seperti clustering.",
     "Reinforcement learning melatih agen memilih tindakan berdasarkan reward.",
   ],
@@ -382,13 +382,13 @@ const lesson05: Lesson = multipleChoiceLesson({
     { id: "detect-risk", label: "Mendeteksi transaksi berisiko dari pola transaksi sebelumnya." },
     { id: "fixed-alarm", label: "Menyalakan alarm pada jam yang selalu sama setiap hari." },
   ],
-  prompt: "Use case mana yang paling masuk akal untuk machine learning?",
+  prompt: "Kasus penggunaan mana yang paling masuk akal untuk machine learning?",
   summary: [
     "Machine learning kuat ketika masalah memiliki pola yang bisa dipelajari dari contoh.",
-    "Use case ML biasanya membutuhkan prediksi, pengelompokan, rekomendasi, deteksi risiko, atau prioritas.",
+    "Kasus penggunaan ML biasanya membutuhkan prediksi, pengelompokan, rekomendasi, deteksi risiko, atau prioritas.",
     "Jika masalah bisa diselesaikan dengan aturan sederhana yang stabil, machine learning bisa menjadi berlebihan.",
   ],
-  title: "Machine Learning Use Cases",
+  title: "Kasus Penggunaan Machine Learning",
 });
 
 const lesson06ProblemExercise = {
@@ -396,7 +396,7 @@ const lesson06ProblemExercise = {
   hints: [
     "Target adalah output yang ingin diprediksi.",
     "Fitur harus tersedia sebelum waktu prediksi.",
-    "Angka mengarah ke regression.",
+    "Angka mengarah ke regresi.",
   ],
   id: "exercise-0-6-formulate-problem",
   options: [
@@ -406,7 +406,7 @@ const lesson06ProblemExercise = {
     },
     {
       id: "regression-task",
-      label: "Jenis task yang masuk akal adalah regression karena output berupa angka.",
+      label: "Jenis masalah yang masuk akal adalah regresi karena output berupa angka.",
     },
     {
       id: "safe-features",
@@ -421,16 +421,16 @@ const lesson06ProblemExercise = {
     {
       id: "clear-statement",
       label:
-        "Problem statement yang jelas: memprediksi jumlah minuman terjual sebelum shift dimulai.",
+        "Pernyataan masalah yang jelas: memprediksi jumlah minuman terjual sebelum shift dimulai.",
     },
   ],
   prompt:
-    "Sebuah cafe ingin memperkirakan jumlah minuman yang perlu disiapkan sebelum shift dimulai. Pilihan mana yang tepat untuk merumuskan masalah ML-nya?",
+    "Sebuah kafe ingin memperkirakan jumlah minuman yang perlu disiapkan sebelum shift dimulai. Pilihan mana yang tepat untuk merumuskan masalah ML-nya?",
   type: "multiple-choice" as const,
 };
 
 const lesson06ColumnRoleExercise = {
-  datasetContext: "Cafe ingin memprediksi jumlah minuman yang akan terjual sebelum shift dimulai.",
+  datasetContext: "Kafe ingin memprediksi jumlah minuman yang akan terjual sebelum shift dimulai.",
   hints: [
     "Target adalah output yang ingin diprediksi.",
     "Fitur harus tersedia sebelum waktu prediksi.",
@@ -439,7 +439,7 @@ const lesson06ColumnRoleExercise = {
   ],
   id: "exercise-0-6-select-feature-target",
   instruction: "Pilih satu target, fitur yang aman, metadata, dan kolom yang belum dipakai.",
-  prompt: "Pilih target dan fitur dari tabel shift cafe.",
+  prompt: "Pilih target dan fitur dari tabel shift kafe.",
   type: "table-column-role-assignment" as const,
 };
 
@@ -453,7 +453,7 @@ const lesson06: Lesson = {
   moduleId: "module-0-workflow-foundations",
   numberLabel: "Lesson 0.6",
   objective:
-    "Kamu bisa merumuskan masalah ML dengan target, fitur, waktu prediksi, dan jenis task yang jelas.",
+    "Kamu bisa merumuskan masalah ML dengan target, fitur, waktu prediksi, dan jenis masalah yang jelas.",
   summary: [
     "Proyek machine learning yang baik dimulai dari masalah yang jelas dan output yang ingin dihasilkan model.",
     "Dalam supervised learning, target adalah nilai atau kategori yang ingin diprediksi, sedangkan fitur adalah informasi yang dipakai model sebagai input.",
@@ -469,209 +469,238 @@ const laterLessons: Lesson[] = [
     estimatedMinutes: 5,
     exerciseId: "exercise-1-1-ml-tools-libraries",
     hints: [
-      "ML work usually needs an environment for experiments.",
-      "Dataframe libraries help inspect rows and columns.",
-      "Modeling libraries provide algorithms, metrics, and model utilities.",
+      "Pekerjaan ML biasanya membutuhkan tempat untuk menjalankan eksperimen.",
+      "Library dataframe membantu memeriksa baris, kolom, tipe data, dan nilai kosong.",
+      "Library modeling menyediakan algoritma, metrik, dan utilitas evaluasi.",
     ],
     id: "lesson-1-1-ml-tools-libraries",
     moduleId: "module-1-data-understanding",
     numberLabel: "Lesson 1.1",
-    objective: "You can identify the basic tool roles used in a machine learning workflow.",
+    objective: "Kamu bisa mengenali peran tool dasar dalam alur kerja machine learning.",
     options: [
       {
         id: "notebook-environment",
-        label: "Use a notebook or coding environment to run experiments.",
+        label: "Menggunakan notebook atau editor kode untuk menjalankan eksperimen.",
       },
       {
         id: "dataframe-library",
-        label: "Use a dataframe library to inspect and prepare tabular data.",
+        label: "Menggunakan library dataframe untuk memeriksa dan menyiapkan data tabular.",
       },
-      { id: "modeling-library", label: "Use a modeling library to train and evaluate models." },
+      {
+        id: "modeling-library",
+        label: "Menggunakan library modeling untuk melatih dan mengevaluasi model.",
+      },
       {
         id: "presentation-only",
-        label: "Use a slide deck as the main place where the model learns.",
+        label: "Menggunakan slide presentasi sebagai tempat utama model belajar.",
       },
     ],
-    prompt: "Which tools or libraries support a practical ML workflow?",
+    prompt: "Tool atau library mana yang mendukung alur kerja ML praktis?",
     summary: [
-      "Machine learning work usually combines an experiment environment, data tools, and modeling tools.",
-      "The tools do not replace understanding. They help you load data, inspect it, prepare it, train models, and evaluate results consistently.",
+      "Pekerjaan machine learning biasanya menggabungkan lingkungan eksperimen, tool data, dan tool pemodelan.",
+      "Tool tidak menggantikan pemahaman. Tool membantu memuat data, memeriksa data, menyiapkan data, melatih model, dan mengevaluasi hasil secara konsisten.",
     ],
-    title: "ML Tools and Libraries",
+    title: "Tool dan Library ML",
   }),
   multipleChoiceLesson({
     correctOptionIds: ["define-question", "capture-source", "check-permission"],
     estimatedMinutes: 5,
     exerciseId: "exercise-1-2-data-collecting",
     hints: [
-      "Data collection starts from the question the model should help answer.",
-      "A dataset is easier to trust when its source is known.",
-      "Permissions and privacy matter before data reaches a model.",
+      "Pengumpulan data dimulai dari pertanyaan yang ingin dibantu oleh model.",
+      "Dataset lebih mudah dipercaya jika sumbernya jelas.",
+      "Izin penggunaan dan privasi perlu dicek sebelum data masuk ke model.",
     ],
     id: "lesson-1-2-data-collecting",
     moduleId: "module-1-data-understanding",
     numberLabel: "Lesson 1.2",
-    objective: "You can describe responsible data collection before modeling starts.",
+    objective:
+      "Kamu bisa menjelaskan pengumpulan data yang bertanggung jawab sebelum modeling dimulai.",
     options: [
-      { id: "define-question", label: "Define the prediction question before collecting columns." },
-      { id: "capture-source", label: "Record where the data came from and when it was collected." },
+      {
+        id: "define-question",
+        label: "Menentukan pertanyaan prediksi sebelum mengumpulkan kolom.",
+      },
+      { id: "capture-source", label: "Mencatat sumber data dan waktu pengumpulannya." },
       {
         id: "check-permission",
-        label: "Check whether the data can be used for the intended purpose.",
+        label: "Memeriksa apakah data boleh digunakan untuk tujuan yang direncanakan.",
       },
       {
         id: "collect-everything",
-        label: "Collect every possible column first and decide the purpose later.",
+        label: "Mengumpulkan semua kolom dulu, lalu menentukan tujuannya belakangan.",
       },
     ],
-    prompt: "Which choices make data collection useful for ML?",
+    prompt: "Pilihan mana yang membuat pengumpulan data berguna untuk ML?",
     summary: [
-      "Data collection is not just grabbing files. It connects a real question with records that can answer it.",
-      "A useful collection step tracks sources, timing, permissions, and whether the fields make sense for the prediction goal.",
+      "Pengumpulan data bukan sekadar mengambil file. Tahap ini menghubungkan pertanyaan nyata dengan catatan data yang bisa menjawabnya.",
+      "Pengumpulan data yang baik mencatat sumber, waktu, izin penggunaan, dan apakah field-nya sesuai dengan tujuan prediksi.",
     ],
-    title: "Data Collecting",
+    title: "Pengumpulan Data",
   }),
   multipleChoiceLesson({
     correctOptionIds: ["read-into-table", "check-schema", "preview-rows"],
     estimatedMinutes: 5,
     exerciseId: "exercise-1-3-data-loading",
     hints: [
-      "Loading turns raw files, databases, or API responses into a workable table.",
-      "Schema checks catch unexpected column names and types.",
-      "A quick preview can reveal obvious loading problems.",
+      "Memuat data mengubah file mentah, database, atau respons API menjadi tabel yang bisa diperiksa.",
+      "Pengecekan skema membantu menangkap nama kolom dan tipe data yang tidak sesuai.",
+      "Preview singkat bisa menunjukkan masalah saat data dimuat.",
     ],
     id: "lesson-1-3-data-loading",
     moduleId: "module-1-data-understanding",
     numberLabel: "Lesson 1.3",
-    objective: "You can explain what should happen when data is loaded into a project.",
+    objective: "Kamu bisa menjelaskan apa yang perlu dicek saat data dimuat ke project.",
     options: [
-      { id: "read-into-table", label: "Read the source into a table or dataframe." },
-      { id: "check-schema", label: "Check column names, types, and expected fields." },
-      { id: "preview-rows", label: "Preview a few rows before deeper work." },
-      { id: "train-immediately", label: "Train a model immediately after opening the file." },
+      { id: "read-into-table", label: "Membaca sumber data menjadi tabel atau dataframe." },
+      { id: "check-schema", label: "Memeriksa nama kolom, tipe data, dan field yang diharapkan." },
+      { id: "preview-rows", label: "Melihat beberapa baris sebelum bekerja lebih jauh." },
+      { id: "train-immediately", label: "Langsung melatih model setelah membuka file." },
     ],
-    prompt: "Which actions belong in data loading?",
+    prompt: "Aksi mana yang termasuk tahap memuat data?",
     summary: [
-      "Data loading brings raw data into a shape the project can inspect.",
-      "Before cleaning or modeling, check that the table loaded correctly: rows are present, columns match expectations, and types are not surprising.",
+      "Tahap memuat data membawa data mentah ke bentuk yang bisa diperiksa project.",
+      "Sebelum pembersihan atau pemodelan, pastikan tabel termuat dengan benar: baris ada, kolom sesuai ekspektasi, dan tipe data tidak mengejutkan.",
     ],
-    title: "Data Loading",
+    title: "Memuat Data",
   }),
   multipleChoiceLesson({
     correctOptionIds: ["handle-missing", "standardize-values", "create-safe-fields"],
     estimatedMinutes: 6,
     exerciseId: "exercise-1-4-cleaning-transformation",
     hints: [
-      "Cleaning handles problems such as missing values and inconsistent labels.",
-      "Transformation can make raw fields easier for analysis or modeling.",
-      "Target leakage can be introduced during careless transformation.",
+      "Pembersihan menangani masalah seperti missing values dan label yang tidak konsisten.",
+      "Transformasi membuat field mentah lebih mudah dianalisis atau dimodelkan.",
+      "Kebocoran target bisa muncul jika transformasi dilakukan sembarangan.",
     ],
     id: "lesson-1-4-cleaning-transformation",
     moduleId: "module-1-data-understanding",
     numberLabel: "Lesson 1.4",
-    objective: "You can separate cleaning and transformation choices from risky shortcuts.",
+    objective: "Kamu bisa membedakan pembersihan, transformasi, dan shortcut yang berisiko.",
     options: [
-      { id: "handle-missing", label: "Handle missing or impossible values with a clear reason." },
-      { id: "standardize-values", label: "Standardize inconsistent categories or formats." },
+      {
+        id: "handle-missing",
+        label: "Menangani nilai kosong atau nilai mustahil dengan alasan jelas.",
+      },
+      {
+        id: "standardize-values",
+        label: "Menstandarkan kategori atau format yang tidak konsisten.",
+      },
       {
         id: "create-safe-fields",
-        label: "Create transformed fields without using future target information.",
+        label: "Membuat field hasil transformasi tanpa memakai informasi target dari masa depan.",
       },
       {
         id: "change-target-after-model",
-        label: "Change the target definition after seeing which model wins.",
+        label: "Mengubah definisi target setelah melihat model mana yang menang.",
       },
     ],
-    prompt: "Which actions belong in cleaning and transformation?",
+    prompt: "Aksi mana yang termasuk pembersihan dan transformasi data?",
     summary: [
-      "Cleaning makes the dataset more trustworthy by dealing with missing, inconsistent, duplicated, or impossible values.",
-      "Transformation reshapes usable information into safer, clearer fields while avoiding leaks from the target or future data.",
+      "Pembersihan membuat dataset lebih bisa dipercaya dengan menangani nilai kosong, tidak konsisten, duplikat, atau mustahil.",
+      "Transformasi mengubah informasi yang bisa dipakai menjadi field yang lebih jelas sambil menghindari kebocoran target atau data masa depan.",
     ],
-    title: "Data Cleaning and Transformation",
+    title: "Pembersihan dan Transformasi Data",
   }),
   multipleChoiceLesson({
     correctOptionIds: ["explore-patterns", "explain-findings", "avoid-overclaiming"],
     estimatedMinutes: 6,
     exerciseId: "exercise-1-5-exploratory-explanatory-analysis",
     hints: [
-      "Exploratory analysis helps discover patterns and questions.",
-      "Explanatory analysis communicates what was found clearly.",
-      "Charts can support claims, but they do not magically prove every cause.",
+      "Analisis eksploratif membantu menemukan pola, masalah, dan pertanyaan lanjutan.",
+      "Analisis eksplanatori mengomunikasikan temuan dengan jelas.",
+      "Chart bisa mendukung klaim, tetapi tidak otomatis membuktikan sebab-akibat.",
     ],
     id: "lesson-1-5-exploratory-explanatory-analysis",
     moduleId: "module-1-data-understanding",
     numberLabel: "Lesson 1.5",
-    objective: "You can distinguish exploration from explanation in data analysis.",
+    objective: "Kamu bisa membedakan eksplorasi dan eksplanasi dalam analisis data.",
     options: [
       {
         id: "explore-patterns",
-        label: "Use exploratory analysis to look for patterns and issues.",
+        label: "Menggunakan analisis eksploratif untuk mencari pola dan masalah.",
       },
-      { id: "explain-findings", label: "Use explanatory analysis to communicate a clear finding." },
-      { id: "avoid-overclaiming", label: "Avoid claiming more than the evidence supports." },
-      { id: "prove-causation", label: "Use one chart to prove the true cause of every outcome." },
+      {
+        id: "explain-findings",
+        label: "Menggunakan analisis eksplanatori untuk menyampaikan temuan yang jelas.",
+      },
+      { id: "avoid-overclaiming", label: "Tidak membuat klaim yang melebihi bukti." },
+      {
+        id: "prove-causation",
+        label: "Menggunakan satu chart untuk membuktikan penyebab semua outcome.",
+      },
     ],
-    prompt: "Which statements describe exploratory and explanatory analysis?",
+    prompt: "Pernyataan mana yang menggambarkan analisis eksploratif dan eksplanatori?",
     summary: [
-      "Exploratory data analysis is where you inspect distributions, relationships, gaps, and surprises.",
-      "Explanatory analysis turns selected findings into clear communication, with careful claims that match the evidence.",
+      "Analisis eksploratif adalah tahap memeriksa distribusi, hubungan, gap, dan hal yang mengejutkan.",
+      "Analisis eksplanatori mengubah temuan terpilih menjadi komunikasi yang jelas dengan klaim yang sesuai bukti.",
     ],
-    title: "Exploratory and Explanatory Data Analysis",
+    title: "Analisis Eksploratif dan Eksplanatori",
   }),
   multipleChoiceLesson({
     correctOptionIds: ["train-test-holdout", "split-before-learning", "representative-split"],
     estimatedMinutes: 5,
     exerciseId: "exercise-1-6-data-splitting",
     hints: [
-      "The test set should act like unseen future data.",
-      "Preprocessing that learns from data should be fitted on training data only.",
-      "A split should still represent the problem you want to solve.",
+      "Test set sebaiknya berperan seperti data masa depan yang belum pernah dilihat.",
+      "Preprocessing yang belajar dari data sebaiknya di-fit pada training data saja.",
+      "Split tetap harus mewakili masalah yang ingin diselesaikan.",
     ],
     id: "lesson-1-6-data-splitting",
     moduleId: "module-1-data-understanding",
     numberLabel: "Lesson 1.6",
-    objective: "You can explain why and when data should be split.",
+    objective: "Kamu bisa menjelaskan kenapa dan kapan data perlu dibagi.",
     options: [
-      { id: "train-test-holdout", label: "Hold out test data to estimate future performance." },
-      { id: "split-before-learning", label: "Split before fitting transformations or models." },
-      { id: "representative-split", label: "Check that the split represents the real problem." },
-      { id: "tune-on-test", label: "Use test data repeatedly to choose every modeling decision." },
+      {
+        id: "train-test-holdout",
+        label: "Menyisihkan test data untuk memperkirakan performa pada data baru.",
+      },
+      {
+        id: "split-before-learning",
+        label: "Melakukan split sebelum fitting transformasi atau model.",
+      },
+      { id: "representative-split", label: "Memeriksa apakah split masih mewakili masalah nyata." },
+      {
+        id: "tune-on-test",
+        label: "Memakai test data berulang kali untuk memilih semua keputusan modeling.",
+      },
     ],
-    prompt: "Which choices make data splitting useful?",
+    prompt: "Pilihan mana yang membuat pembagian data berguna?",
     summary: [
-      "Data splitting protects evaluation from becoming too optimistic.",
-      "Training data is used to learn. Test data is held back so the final result better reflects how the model might behave on new examples.",
+      "Pembagian data menjaga evaluasi agar tidak terlalu optimistis.",
+      "Data latih dipakai untuk belajar. Data uji ditahan agar hasil akhir lebih menggambarkan perilaku model pada contoh baru.",
     ],
-    title: "Data Splitting",
+    title: "Membagi Data",
   }),
   multipleChoiceLesson({
     correctOptionIds: ["choose-baseline", "train-model", "evaluate-errors"],
     estimatedMinutes: 6,
     exerciseId: "exercise-1-7-modeling",
     hints: [
-      "A baseline gives the model something simple to beat.",
-      "Training fits model behavior from the training data.",
-      "Evaluation checks errors and limitations, not just a single score.",
+      "Baseline memberi pembanding sederhana yang harus dikalahkan model.",
+      "Pelatihan menyesuaikan perilaku model berdasarkan data latih.",
+      "Evaluasi memeriksa error dan batasan model, bukan hanya satu skor.",
     ],
     id: "lesson-1-7-modeling",
     moduleId: "module-1-data-understanding",
     numberLabel: "Lesson 1.7",
-    objective: "You can place modeling as one step inside the wider ML workflow.",
+    objective:
+      "Kamu bisa menempatkan pemodelan sebagai satu tahap dalam alur kerja ML yang lebih luas.",
     options: [
-      { id: "choose-baseline", label: "Compare against a simple baseline." },
-      { id: "train-model", label: "Train a model using the training data." },
+      { id: "choose-baseline", label: "Membandingkan model dengan baseline sederhana." },
+      { id: "train-model", label: "Melatih model menggunakan training data." },
       {
         id: "evaluate-errors",
-        label: "Evaluate errors, limitations, and whether the model helps.",
+        label: "Mengevaluasi error, batasan, dan apakah model benar-benar membantu.",
       },
-      { id: "complex-first", label: "Start with the most complex model and skip the baseline." },
+      { id: "complex-first", label: "Memulai dari model paling kompleks dan melewati baseline." },
     ],
-    prompt: "Which actions belong in modeling?",
+    prompt: "Aksi mana yang termasuk tahap pemodelan?",
     summary: [
-      "Modeling is the step where an algorithm learns patterns from training data.",
-      "A good modeling step starts with a baseline, trains a candidate model, and evaluates whether it is actually useful for the problem.",
+      "Pemodelan adalah tahap ketika algoritma belajar pola dari data latih.",
+      "Tahap pemodelan yang baik dimulai dari baseline, melatih kandidat model, lalu mengevaluasi apakah model benar-benar berguna untuk masalahnya.",
     ],
-    title: "Modeling",
+    title: "Pemodelan",
   }),
   multipleChoiceLesson({
     correctOptionIds: ["fixed-label-set", "category-output", "supervised-examples"],

@@ -34,11 +34,11 @@ export function evaluateMultipleChoice(
     selected.size === correct.size
   ) {
     return createResult({
-      message: "Your selection matches the concepts this lesson is checking.",
-      nextStep: "This lesson is complete. Continue to the next unlocked lesson.",
+      message: "Pilihanmu sudah sesuai dengan konsep yang dicek di lesson ini.",
+      nextStep: "Lesson ini selesai. Lanjutkan ke lesson berikutnya yang sudah terbuka.",
       score: 100,
       status: "correct",
-      title: "Correct",
+      title: "Benar",
     });
   }
 
@@ -46,25 +46,25 @@ export function evaluateMultipleChoice(
     const difference = Math.abs(requiredOptionCount - selectedOptionCount);
     const nextStep =
       selectedOptionCount < requiredOptionCount
-        ? `Tambahkan ${difference} pilihan lagi, lalu submit ulang.`
-        : `Kurangi ${difference} pilihan, lalu submit ulang.`;
+        ? `Tambahkan ${difference} pilihan lagi, lalu kirim ulang.`
+        : `Kurangi ${difference} pilihan, lalu kirim ulang.`;
 
     return createResult({
       message: `Pilih ${requiredOptionCount} opsi untuk pertanyaan ini. Saat ini kamu memilih ${selectedOptionCount}.`,
       nextStep,
       score: correctSelectedCount > 0 ? 45 : 20,
       status: correctSelectedCount > 0 ? "partial" : "incorrect",
-      title: correctSelectedCount > 0 ? "Partially correct" : "Not quite",
+      title: correctSelectedCount > 0 ? "Sebagian benar" : "Belum tepat",
     });
   }
 
   if (isMultipleOptionExercise && incorrectSelectedCount > 0) {
     return createResult({
       message: "Jumlah pilihan sudah sesuai, tapi ada pilihan yang belum tepat.",
-      nextStep: "Ganti pilihan yang tidak sesuai, lalu submit ulang.",
+      nextStep: "Ganti pilihan yang tidak sesuai, lalu kirim ulang.",
       score: correctSelectedCount > 0 ? 55 : 20,
       status: correctSelectedCount > 0 ? "partial" : "incorrect",
-      title: correctSelectedCount > 0 ? "Partially correct" : "Not quite",
+      title: correctSelectedCount > 0 ? "Sebagian benar" : "Belum tepat",
     });
   }
 
@@ -75,7 +75,7 @@ export function evaluateMultipleChoice(
       nextStep: "Baca lagi pertanyaannya, lalu cari pilihan lain yang masih sesuai.",
       score: 60,
       status: "partial",
-      title: "Partially correct",
+      title: "Sebagian benar",
     });
   }
 
@@ -85,16 +85,16 @@ export function evaluateMultipleChoice(
       nextStep: "Hapus pilihan yang tidak sesuai, lalu submit lagi.",
       score: 40,
       status: "partial",
-      title: "Partially correct",
+      title: "Sebagian benar",
     });
   }
 
   return createResult({
     message: "Jawabanmu belum tepat.",
-    nextStep: "Coba baca pertanyaannya lagi dan gunakan hint kalau masih ragu.",
+    nextStep: "Coba baca pertanyaannya lagi dan gunakan petunjuk kalau masih ragu.",
     score: 20,
     status: "incorrect",
-    title: "Not quite",
+    title: "Belum tepat",
   });
 }
 
@@ -129,11 +129,12 @@ export function evaluateOrderedSteps(
   if (sameOrder(orderedStepIds, exercise.correctStepIds)) {
     return createResult({
       message:
-        "This order keeps modeling grounded in data understanding, preparation, and a clear evaluation setup.",
-      nextStep: "Module 0 lessons are complete. Return to Learning Home to review your progress.",
+        "Urutan ini membuat pemodelan tetap didasarkan pada pemahaman data, persiapan data, dan evaluasi yang jelas.",
+      nextStep:
+        "Lesson modul ini selesai. Kamu bisa kembali ke halaman belajar untuk melihat progres.",
       score: 100,
       status: "correct",
-      title: "Correct",
+      title: "Benar",
     });
   }
 
@@ -145,12 +146,12 @@ export function evaluateOrderedSteps(
   if (modelingIndex < dataUnderstandingIndex || modelingIndex < cleaningIndex) {
     return createResult({
       message:
-        "Modeling is happening too early. That can make a model look useful before the data and evaluation setup are ready.",
+        "Pemodelan dilakukan terlalu awal. Ini bisa membuat model terlihat berguna sebelum data dan evaluasinya siap.",
       nextStep:
-        "Move modeling after data understanding, cleaning, feature preparation, and train/test split.",
+        "Pindahkan pemodelan setelah pemahaman data, pembersihan, persiapan fitur, dan pembagian data latih/uji.",
       score: 20,
       status: "incorrect",
-      title: "Not quite",
+      title: "Belum tepat",
     });
   }
 
@@ -159,21 +160,21 @@ export function evaluateOrderedSteps(
     modelingIndex > splitIndex
   ) {
     return createResult({
-      message: "The workflow is nearly correct. Only one neighboring pair is out of order.",
-      nextStep: "Check the local order around the swapped pair, then submit again.",
+      message: "Urutannya hampir benar. Hanya ada satu pasangan langkah yang tertukar.",
+      nextStep: "Periksa urutan di sekitar pasangan yang tertukar, lalu kirim lagi.",
       score: 75,
       status: "partial",
-      title: "Partially correct",
+      title: "Sebagian benar",
     });
   }
 
   return createResult({
     message:
-      "The broad workflow is visible, but the order around split, baseline, modeling, and evaluation still needs work.",
+      "Alur besarnya sudah terlihat, tetapi urutan pembagian data, baseline, pemodelan, dan evaluasi masih perlu diperbaiki.",
     nextStep:
-      "Keep split before baseline, baseline before modeling comparison, and evaluation after modeling.",
+      "Letakkan pembagian data sebelum baseline, baseline sebelum perbandingan model, dan evaluasi setelah pemodelan.",
     score: 50,
     status: "partial",
-    title: "Partially correct",
+    title: "Sebagian benar",
   });
 }

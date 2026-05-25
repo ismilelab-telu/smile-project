@@ -1,41 +1,41 @@
-Modeling is the step where an algorithm learns patterns from training data. It is important, but it should not be the first step in the workflow.
+Pemodelan adalah tahap ketika algoritma belajar pola dari data latih. Tahap ini penting, tetapi tidak seharusnya menjadi langkah pertama dalam alur kerja.
 
-The model only makes sense after the problem, target, features, split, and evaluation idea are clear. Without that foundation, training a model mostly produces a number that is hard to trust.
+Model baru bermakna setelah masalah, target, fitur, split, dan ide evaluasinya jelas. Tanpa fondasi itu, melatih model biasanya hanya menghasilkan angka yang sulit dipercaya.
 
-## Start with a Baseline
+## Mulai dari Baseline
 
-A baseline is a simple reference point. For regression, it might predict the average value. For classification, it might predict the most common class. For a business workflow, it might be the current rule-based process.
+Baseline adalah titik pembanding sederhana. Untuk regresi, baseline bisa memprediksi nilai rata-rata. Untuk klasifikasi, baseline bisa memprediksi kelas paling umum. Untuk proses bisnis, baseline bisa berupa aturan manual yang sedang dipakai.
 
-The baseline asks a practical question: does the model add value beyond a simple approach?
+Baseline menjawab pertanyaan praktis: apakah model memberi nilai lebih dibanding pendekatan sederhana?
 
-Starting with the most complex model can hide weak problem framing. A baseline keeps the evaluation honest.
+Memulai dari model paling kompleks bisa menyembunyikan perumusan masalah yang lemah. Baseline menjaga evaluasi tetap jujur.
 
-## Train a Candidate Model
+## Latih Kandidat Model
 
-After the baseline, train a candidate model on training data. The algorithm uses features to learn patterns related to the target.
+Setelah baseline, latih kandidat model pada data latih. Algoritma memakai fitur untuk belajar pola yang berhubungan dengan target.
 
-At this stage, the model is not automatically "good." It has only learned from the examples and objective you gave it.
+Pada tahap ini, model belum otomatis "bagus". Model hanya belajar dari contoh dan tujuan yang kita berikan.
 
-## Evaluate and Inspect Errors
+## Evaluasi dan Periksa Error
 
-Evaluation checks whether the model helps on held-out data. A single score can be useful, but it is rarely enough.
+Evaluasi memeriksa apakah model membantu pada data yang ditahan. Satu skor bisa berguna, tetapi jarang cukup.
 
-Inspect:
+Periksa:
 
-- whether the model beats the baseline;
-- which examples have large errors;
-- whether errors are concentrated in certain groups;
-- whether the model depends on risky or leaky features;
-- whether the result is useful enough for the original goal.
+- apakah model mengalahkan baseline;
+- contoh mana yang memiliki error besar;
+- apakah error terkonsentrasi pada grup tertentu;
+- apakah model bergantung pada fitur yang berisiko atau bocor;
+- apakah hasilnya cukup berguna untuk tujuan awal.
 
-## Modeling in the Workflow
+## Pemodelan dalam Alur Kerja
 
-A practical modeling step usually includes:
+Tahap pemodelan yang praktis biasanya mencakup:
 
-1. choose a simple baseline;
-2. train a candidate model on training data;
-3. compare the model against the baseline;
-4. inspect errors and limitations;
-5. decide whether the model helps enough to continue.
+1. pilih baseline sederhana;
+2. latih kandidat model pada training data;
+3. bandingkan model dengan baseline;
+4. periksa error dan batasan;
+5. putuskan apakah model cukup membantu untuk dilanjutkan.
 
-Modeling is not the whole project. It is one stage inside a workflow that starts with problem framing and ends with evidence-based decisions.
+Pemodelan bukan keseluruhan project. Pemodelan hanya satu tahap dalam alur kerja yang dimulai dari perumusan masalah dan diakhiri dengan keputusan berbasis bukti.

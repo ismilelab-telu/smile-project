@@ -81,7 +81,7 @@ export function getLessonLockReason(lesson: Lesson, progress: LearningProgress) 
   const module = getModule(lesson.moduleId);
 
   if (!module || module.status !== "available") {
-    return "This module is locked.";
+    return "Modul ini masih terkunci.";
   }
 
   const lessonIndex = module.lessonIds.indexOf(lesson.id);
@@ -102,5 +102,5 @@ export function getLessonLockReason(lesson: Lesson, progress: LearningProgress) 
 
   const previousLesson = lessons.find((candidate) => candidate.id === previousLessonId);
 
-  return `Complete ${previousLesson?.numberLabel ?? "the previous lesson"} first.`;
+  return `Selesaikan ${previousLesson?.numberLabel ?? "lesson sebelumnya"} dulu.`;
 }
