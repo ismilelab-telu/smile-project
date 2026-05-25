@@ -1,35 +1,108 @@
-Pengumpulan data bukan sekadar mengambil file. Tahap ini menghubungkan pertanyaan nyata dengan catatan data yang bisa menjawabnya. Jika pertanyaannya kabur, dataset yang dikumpulkan biasanya ikut kabur.
+**Data collecting** adalah tahap mengumpulkan informasi yang dibutuhkan agar model bisa belajar dari contoh. Tahap ini bukan sekadar mencari file, tetapi memastikan data yang dipakai **relevan**, **cukup**, **aman**, dan **punya konteks**.
 
-Sebelum mengumpulkan kolom, tentukan dulu keputusan apa yang ingin dibantu oleh model. Model prediksi permintaan, model churn, dan model deteksi risiko membutuhkan baris, field, rentang waktu, dan label yang berbeda.
+Prinsip sederhananya: _garbage in, garbage out_. Jika data yang masuk buruk, model biasanya menghasilkan keputusan yang buruk juga, walaupun algoritmanya terlihat canggih.
 
-## Mulai dari Pertanyaan
+## Mengapa Data Collecting Penting
 
-Pengumpulan data yang berguna dimulai dari pertanyaan konkret. Misalnya, "memprediksi permintaan minuman sebelum shift berikutnya dimulai" lebih jelas daripada "menganalisis data cafe".
+Model machine learning belajar dari contoh. Karena itu, kualitas data sangat memengaruhi kualitas model.
 
-Pertanyaan yang jelas memberi tahu tim satu baris data harus mewakili apa, target apa yang mungkin dibutuhkan, dan informasi apa yang harus sudah tersedia saat prediksi dibuat.
+Data collecting penting karena:
 
-## Catat Sumber dan Waktu
+- **Akurasi model** bergantung pada data yang relevan dan cukup.
+- **Bias model** bisa muncul jika data hanya mewakili kelompok atau kondisi tertentu.
+- **Variasi dunia nyata** perlu masuk ke dataset agar model tidak rapuh saat dipakai.
+- **Kepercayaan hasil** meningkat jika sumber, waktu, dan batasan data jelas.
 
-Dataset yang baik punya konteks. Kita perlu tahu sumber data berasal dari mana, kapan data dicatat, seberapa sering data diperbarui, dan apakah data itu menjelaskan kejadian yang sama dengan target.
+Banyak data tidak otomatis berarti bagus. Dataset kecil tetapi relevan dan bersih bisa lebih berguna daripada dataset besar yang tidak jelas asalnya.
 
-Timing sangat penting dalam ML. Sebuah kolom bisa valid untuk laporan, tetapi tidak aman untuk prediksi jika baru diketahui setelah target terjadi.
+## Tentukan Kebutuhan Data
 
-## Cek Izin dan Tujuan
+Sebelum mencari data, tentukan dulu kebutuhan proyek. Pertanyaan yang jelas membantu kita memilih sumber dan field yang tepat.
 
-Data harus boleh digunakan untuk tujuan yang direncanakan. Ini mencakup privasi, persetujuan, aturan bisnis, dan batasan penggunaan field sensitif.
+Hal yang perlu dijawab:
 
-Mengumpulkan semua kolom dulu lalu menentukan tujuan belakangan itu berisiko. Cara ini menambah noise, memperbesar risiko privasi, dan bisa membuat model memakai fitur yang tidak sesuai.
+- Apa keputusan yang ingin dibantu oleh model?
+- Apa **target** yang ingin diprediksi?
+- Satu baris data mewakili apa?
+- Periode waktu apa yang dibutuhkan?
+- Field apa yang harus tersedia sebelum prediksi dibuat?
+- Berapa banyak contoh yang kira-kira dibutuhkan?
 
-## Catatan yang Perlu Disimpan
+Contohnya, "memprediksi harga rumah bulan depan" membutuhkan data yang berbeda dari "mengelompokkan tipe pembeli rumah". Target, sumber, dan bentuk dataset-nya tidak sama.
 
-Catat:
+## Pilih Sumber Data
+
+Data bisa datang dari beberapa sumber. Pilihan sumber harus mengikuti kebutuhan proyek, bukan hanya karena datanya mudah ditemukan.
+
+Sumber data yang umum:
+
+- **Data internal**: data operasional perusahaan, seperti transaksi, pelanggan, log aplikasi, atau histori penjualan.
+- **Data eksternal**: data publik, data pemerintah, data dari penyedia data, atau data yang diambil dari web.
+- **Data sintetis**: data buatan yang meniru karakteristik data nyata, biasanya dipakai saat data asli sulit atau sensitif.
+- **Data dari pengguna**: interaksi, ulasan, perilaku penggunaan aplikasi, atau respons survei.
+
+Setiap sumber punya risiko. Data internal bisa terlalu sempit, data eksternal bisa tidak sesuai konteks, data sintetis bisa tidak realistis, dan data pengguna punya risiko privasi.
+
+## Cara Mengumpulkan Data
+
+Setelah sumber dipilih, barulah tentukan cara pengumpulannya. Cara ini bergantung pada akses, format, izin, dan kebutuhan proyek.
+
+Cara yang sering dipakai:
+
+- **Ekstraksi data** dari web, riset, survei, file publik, atau **API**.
+- **Membuat dataset sendiri** melalui survei, aplikasi internal, observasi, atau penggabungan beberapa sumber.
+- **Menggunakan dataset yang sudah ada** dari repositori publik atau penyedia data.
+
+Dataset yang sudah ada bisa menghemat waktu, tetapi tetap perlu diperiksa. Kita harus tahu siapa pembuatnya, kapan dikumpulkan, boleh dipakai untuk apa, dan apakah datanya cocok dengan masalah yang ingin diselesaikan.
+
+## Simpan Konteks Data
+
+Data yang baik selalu punya catatan konteks. Tanpa konteks, tim akan menebak-nebak arti field dan asal perubahan data.
+
+Catatan yang perlu disimpan:
 
 - sumber setiap data;
-- kapan data dicatat;
+- kapan data dicatat atau diambil;
+- cara data dikumpulkan;
 - satu baris data mewakili apa;
 - arti setiap field;
-- apakah field tersedia saat prediksi dibuat;
-- apakah data boleh dipakai untuk tujuan tersebut;
-- field penting mana yang hilang atau belum jelas.
+- izin dan batasan penggunaan;
+- cakupan populasi atau segmen data;
+- field penting yang hilang atau belum jelas.
 
-Pengumpulan data yang baik membuat modeling lebih mudah dipercaya. Pengumpulan data yang buruk memaksa tim menebak-nebak arti dataset.
+Catatan ini membantu saat dataset digunakan ulang, diaudit, atau dibandingkan dengan hasil model.
+
+## Validasi Awal
+
+Sebelum data masuk ke tahap loading, cleaning, dan modeling, lakukan validasi awal. Tujuannya untuk memastikan data memang layak dilanjutkan.
+
+Cek awal yang penting:
+
+- file atau sumber data bisa diakses;
+- format data dapat dibaca;
+- jumlah baris dan kolom masuk akal;
+- field penting tersedia;
+- nilai kosong tidak terlalu mengganggu;
+- data tidak hanya berasal dari satu segmen sempit;
+- izin penggunaan sudah jelas.
+
+Validasi awal tidak menggantikan data cleaning. Validasi ini hanya memastikan dataset cukup masuk akal sebelum dikerjakan lebih jauh.
+
+## Contoh Kasus
+
+Misalnya kita ingin membuat model untuk **memprediksi harga rumah**. Kita tidak cukup hanya mengambil satu file harga lalu langsung melatih model.
+
+Kita bisa mempertimbangkan beberapa sumber:
+
+- listing properti untuk harga, lokasi, ukuran, jumlah kamar, dan tahun bangunan;
+- data pemerintah untuk kondisi ekonomi, wilayah, atau tren pasar;
+- survei calon pembeli untuk preferensi dan kebutuhan;
+- data internal jika perusahaan punya histori transaksi sendiri.
+
+Setelah data terkumpul, kita perlu mengecek apakah sumbernya jelas, periode datanya sesuai, field penting tersedia, dan variasi rumah cukup terwakili. Jika dataset hanya berisi rumah mewah di satu area, model mungkin buruk saat dipakai untuk rumah sederhana di area lain.
+
+## Pegangan Praktis
+
+Pengumpulan data yang baik dimulai dari kebutuhan, bukan dari file yang kebetulan tersedia. Dataset yang layak untuk ML harus punya sumber yang jelas, cakupan yang masuk akal, izin penggunaan, dan hubungan yang kuat dengan target prediksi.
+
+Jika tahap ini dilakukan asal-asalan, masalahnya biasanya baru terlihat belakangan: model bias, skor tidak stabil, fitur tidak tersedia, atau hasil tidak bisa dipercaya.

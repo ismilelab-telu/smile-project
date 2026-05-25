@@ -260,23 +260,28 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
     exerciseCopies: {
       "exercise-1-2-data-collecting": {
         hints: [
-          "Data collection starts from the question the model should help answer.",
-          "A dataset is easier to trust when its source is clear.",
-          "Usage permission and privacy should be checked before data reaches a model.",
+          "A good dataset serves the model need, not just a large row count.",
+          "Source, period, permission, and coverage determine whether data can be trusted.",
+          "A narrow sample can make the model biased in other conditions.",
         ],
         options: {
-          "capture-source": "Record the data source and when it was collected.",
-          "check-permission": "Check whether the data can be used for the intended purpose.",
-          "collect-everything": "Collect every column first, then decide the purpose later.",
-          "define-question": "Define the prediction question before collecting columns.",
+          "capture-source": "Record source origin, data period, and collection method.",
+          "check-permission": "Check permission, privacy, and field-use limits.",
+          "check-representation": "Make sure location, home type, and price range are represented.",
+          "collect-everything": "Grab as many columns as possible; decide the goal later.",
+          "define-question": "Set the prediction output, row unit, and data coverage.",
+          "single-segment": "Use the easiest source even if its segment is narrow.",
         },
-        prompt: "Which choices make data collection useful for ML?",
+        prompt:
+          "A team wants to build a home price estimation model from several data sources. Which early decisions are healthiest?",
       },
     },
-    objective: "You can explain responsible data collection before modeling begins.",
+    objective:
+      "You can define data needs, sources, permission, and early checks for an ML project.",
     summary: [
-      "Data collection is not just taking a file. It connects a real question with records that can answer it.",
-      "Good data collection tracks source, timing, permission, and whether the fields match the prediction goal.",
+      "Data collection determines whether the model learns from examples that are relevant, sufficient, safe, and contextualized.",
+      "Data sources can be internal, external, synthetic, or user-generated; each source needs permission, coverage, and risk checks.",
+      "Before using data, preserve context and do early validation so bias, missing fields, or usage limits are not found too late.",
     ],
     title: "Data Collecting",
   },

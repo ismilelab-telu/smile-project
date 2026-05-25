@@ -517,38 +517,55 @@ const laterLessons: Lesson[] = [
     title: "Tool dan Library ML",
   }),
   multipleChoiceLesson({
-    correctOptionIds: ["define-question", "capture-source", "check-permission"],
-    estimatedMinutes: 5,
+    correctOptionIds: [
+      "define-question",
+      "capture-source",
+      "check-permission",
+      "check-representation",
+    ],
+    estimatedMinutes: 7,
     exerciseId: "exercise-1-2-data-collecting",
     hints: [
-      "Pengumpulan data dimulai dari pertanyaan yang ingin dibantu oleh model.",
-      "Dataset lebih mudah dipercaya jika sumbernya jelas.",
-      "Izin penggunaan dan privasi perlu dicek sebelum data masuk ke model.",
+      "Dataset yang baik menjawab kebutuhan model, bukan sekadar berukuran besar.",
+      "Sumber, periode, izin, dan cakupan menentukan apakah data bisa dipercaya.",
+      "Sampel yang terlalu sempit bisa membuat model bias saat dipakai di kondisi lain.",
     ],
     id: "lesson-1-2-data-collecting",
     moduleId: "module-1-data-understanding",
     numberLabel: "Lesson 1.2",
-    objective:
-      "Kamu bisa menjelaskan pengumpulan data yang bertanggung jawab sebelum modeling dimulai.",
+    objective: "Kamu bisa menentukan kebutuhan, sumber, izin, dan cek awal data untuk proyek ML.",
     options: [
       {
         id: "define-question",
-        label: "Menentukan pertanyaan prediksi sebelum mengumpulkan kolom.",
+        label: "Tetapkan output prediksi, unit baris, dan cakupan data.",
       },
-      { id: "capture-source", label: "Mencatat sumber data dan waktu pengumpulannya." },
+      {
+        id: "capture-source",
+        label: "Catat asal sumber, periode data, dan cara pengambilannya.",
+      },
       {
         id: "check-permission",
-        label: "Memeriksa apakah data boleh digunakan untuk tujuan yang direncanakan.",
+        label: "Cek izin, privasi, dan batasan pemakaian field.",
+      },
+      {
+        id: "check-representation",
+        label: "Pastikan variasi lokasi, tipe rumah, dan rentang harga terwakili.",
       },
       {
         id: "collect-everything",
-        label: "Mengumpulkan semua kolom dulu, lalu menentukan tujuannya belakangan.",
+        label: "Ambil kolom sebanyak mungkin; tujuan bisa diputuskan nanti.",
+      },
+      {
+        id: "single-segment",
+        label: "Pakai satu sumber termudah meski segmennya sempit.",
       },
     ],
-    prompt: "Pilihan mana yang membuat pengumpulan data berguna untuk ML?",
+    prompt:
+      "Tim ingin membangun model estimasi harga rumah dari beberapa sumber data. Keputusan awal mana yang paling sehat?",
     summary: [
-      "Pengumpulan data bukan sekadar mengambil file. Tahap ini menghubungkan pertanyaan nyata dengan catatan data yang bisa menjawabnya.",
-      "Pengumpulan data yang baik mencatat sumber, waktu, izin penggunaan, dan apakah field-nya sesuai dengan tujuan prediksi.",
+      "Pengumpulan data menentukan apakah model belajar dari contoh yang relevan, cukup, aman, dan punya konteks.",
+      "Sumber data bisa internal, eksternal, sintetis, atau berasal dari pengguna; tiap sumber perlu dicek izin, cakupan, dan risikonya.",
+      "Sebelum data dipakai, catat konteks dan lakukan validasi awal agar bias, field hilang, atau batasan penggunaan tidak terlambat ditemukan.",
     ],
     title: "Pengumpulan Data",
   }),
