@@ -1,3 +1,41 @@
-Modeling is the step where an algorithm learns patterns from training data.
+Modeling is the step where an algorithm learns patterns from training data. It is important, but it should not be the first step in the workflow.
 
-A good modeling step starts with a baseline, trains a candidate model, and evaluates whether it is actually useful for the problem.
+The model only makes sense after the problem, target, features, split, and evaluation idea are clear. Without that foundation, training a model mostly produces a number that is hard to trust.
+
+## Start with a Baseline
+
+A baseline is a simple reference point. For regression, it might predict the average value. For classification, it might predict the most common class. For a business workflow, it might be the current rule-based process.
+
+The baseline asks a practical question: does the model add value beyond a simple approach?
+
+Starting with the most complex model can hide weak problem framing. A baseline keeps the evaluation honest.
+
+## Train a Candidate Model
+
+After the baseline, train a candidate model on training data. The algorithm uses features to learn patterns related to the target.
+
+At this stage, the model is not automatically "good." It has only learned from the examples and objective you gave it.
+
+## Evaluate and Inspect Errors
+
+Evaluation checks whether the model helps on held-out data. A single score can be useful, but it is rarely enough.
+
+Inspect:
+
+- whether the model beats the baseline;
+- which examples have large errors;
+- whether errors are concentrated in certain groups;
+- whether the model depends on risky or leaky features;
+- whether the result is useful enough for the original goal.
+
+## Modeling in the Workflow
+
+A practical modeling step usually includes:
+
+1. choose a simple baseline;
+2. train a candidate model on training data;
+3. compare the model against the baseline;
+4. inspect errors and limitations;
+5. decide whether the model helps enough to continue.
+
+Modeling is not the whole project. It is one stage inside a workflow that starts with problem framing and ends with evidence-based decisions.

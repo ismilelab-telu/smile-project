@@ -1,3 +1,39 @@
-Cleaning makes the dataset more trustworthy by dealing with missing, inconsistent, duplicated, or impossible values.
+Cleaning and transformation prepare data so it can be analyzed and modeled more safely. They are related, but they answer different questions.
 
-Transformation reshapes usable information into safer, clearer fields while avoiding leaks from the target or future data.
+Cleaning asks whether the data is trustworthy enough to use. Transformation asks whether the representation is useful enough for analysis or modeling.
+
+## Cleaning
+
+Cleaning handles data quality issues. Common examples include:
+
+- missing values;
+- duplicated records;
+- inconsistent labels such as `sunny`, `Sunny`, and `sunny day`;
+- impossible values such as negative demand;
+- invalid dates;
+- category values that do not match the expected list;
+- target values that are empty or impossible to verify.
+
+Cleaning should be done with a reason. Removing rows, filling missing values, or changing labels can alter what the model learns.
+
+## Transformation
+
+Transformation changes how information is represented. It can make raw data easier to analyze or easier for a model to use.
+
+Examples:
+
+- converting timestamps into day of week or hour of day;
+- standardizing category names;
+- scaling numeric values;
+- grouping rare categories;
+- creating safe derived features from information known before prediction time.
+
+Transformation is not automatically good. A new feature is only useful if it is meaningful, available at prediction time, and not just a shortcut to the answer.
+
+## Watch for Leakage
+
+The main risk is target leakage. Leakage happens when input features contain information that would not be known when the model is actually used.
+
+For example, if the model predicts drinks sold before a shift starts, end-of-shift revenue is not a safe feature. It is only known after the shift and is closely tied to the target.
+
+Good cleaning and transformation make the dataset clearer without sneaking future information into the inputs.

@@ -1,3 +1,30 @@
-Data loading brings raw data into a shape the project can inspect.
+Data loading brings raw sources into a shape the project can inspect. The source might be a CSV file, spreadsheet, database table, API response, log export, or data warehouse query.
 
-Before cleaning or modeling, check that the table loaded correctly: rows are present, columns match expectations, and types are not surprising.
+Loading is not modeling yet. It is the step where you confirm that the data arrived correctly before cleaning, analysis, feature preparation, or training.
+
+## What Loading Should Produce
+
+For tabular ML work, loading usually produces a table or dataframe. Rows should represent the examples you want to analyze, and columns should represent fields about each example.
+
+If the table shape is wrong, every later step becomes less reliable. A model can train on a malformed table, but that does not mean the result is meaningful.
+
+## First Checks After Loading
+
+Do not train immediately after opening a file. First confirm that the loaded data matches expectations.
+
+Check:
+
+- row count and column count;
+- column names and expected fields;
+- data types such as number, text, category, date, or boolean;
+- a small preview of rows;
+- missing values that appear unexpectedly;
+- parsing issues, such as numbers loaded as text or dates loaded incorrectly;
+- duplicated rows caused by joins or exports;
+- units and formats that do not match the project context.
+
+## Why This Step Matters
+
+Loading mistakes can spread quietly. A decimal separator might turn numbers into text. A date parser might swap day and month. A join might duplicate rows. A header row might be interpreted as data.
+
+These issues are easier to catch right after loading than after a model has already been trained.

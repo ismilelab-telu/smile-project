@@ -1,5 +1,39 @@
-Machine learning kuat ketika masalah memiliki pola yang bisa dipelajari dari contoh.
+Machine learning kuat ketika sebuah masalah memiliki pola yang bisa dipelajari dari contoh. Karena itu, pertanyaan pertama sebelum memakai ML bukan "model apa yang paling keren?", tetapi "apakah ada pola dari data masa lalu yang bisa membantu keputusan untuk contoh baru?"
 
-Use case ML biasanya membutuhkan prediksi, pengelompokan, rekomendasi, deteksi risiko, atau prioritas.
+Use case ML biasanya berhubungan dengan prediksi, pengelompokan, rekomendasi, deteksi risiko, atau prioritas. Semua use case itu membutuhkan data dan cara evaluasi yang jelas.
 
-Jika masalah bisa diselesaikan dengan aturan sederhana yang stabil, machine learning bisa menjadi berlebihan.
+## Use Case yang Cocok
+
+ML cenderung masuk akal ketika:
+
+- ada riwayat data atau contoh yang cukup;
+- pola sulit ditulis sebagai aturan manual lengkap;
+- keputusan perlu dibuat berulang untuk banyak kasus;
+- output model bisa diperiksa kualitasnya;
+- kesalahan model bisa dipahami dan dikelola.
+
+Contoh use case yang cocok:
+
+- memprediksi jumlah pesanan besok dari riwayat penjualan, cuaca, dan promosi;
+- mengelompokkan pelanggan berdasarkan pola pembelian;
+- mendeteksi transaksi berisiko dari pola transaksi sebelumnya;
+- merekomendasikan produk dari riwayat interaksi;
+- mengklasifikasikan email sebagai spam atau bukan spam.
+
+## Use Case yang Tidak Perlu ML
+
+Tidak semua masalah perlu machine learning. Jika masalah bisa diselesaikan dengan aturan sederhana yang stabil, ML bisa menjadi berlebihan.
+
+Contohnya:
+
+- menghitung total belanja dengan rumus harga dikali jumlah;
+- menghitung pajak dari formula yang sudah pasti;
+- menyalakan alarm pada jam yang sama setiap hari;
+- validasi format sederhana seperti memastikan email memiliki tanda `@`;
+- memberi diskon tetap 10 persen untuk semua pelanggan.
+
+Pada contoh seperti itu, aturan biasa lebih jelas, lebih mudah diuji, dan lebih mudah dijelaskan.
+
+## Pertanyaan Awal
+
+Sebelum memakai ML, cek tiga hal: apakah ada data yang relevan, apakah pola perlu dipelajari dari contoh, dan apakah hasilnya bisa dievaluasi. Kalau jawabannya tidak jelas, masalahnya perlu dirapikan dulu sebelum masuk ke model.

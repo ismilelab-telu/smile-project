@@ -1,5 +1,37 @@
-Supervised learning memakai contoh yang sudah memiliki jawaban. Regression memprediksi angka, sedangkan classification memprediksi kategori.
+Machine learning punya beberapa jenis utama. Perbedaannya terletak pada data yang tersedia, jawaban yang ingin dihasilkan, dan cara model mendapatkan feedback.
 
-Unsupervised learning memakai data tanpa target untuk mencari struktur, seperti clustering.
+Jenis task penting karena menentukan bentuk data, model yang masuk akal, serta metrik evaluasi. Salah mengenali jenis task bisa membuat model terlihat bekerja, padahal sebenarnya menjawab pertanyaan yang berbeda.
 
-Reinforcement learning melatih agen memilih tindakan berdasarkan reward.
+## Supervised Learning
+
+Supervised learning memakai contoh yang sudah memiliki jawaban. Model belajar hubungan antara input dan output.
+
+Ada dua bentuk yang paling sering ditemui:
+
+- **Regression** memprediksi nilai numerik, misalnya jumlah minuman terjual, harga rumah, atau estimasi waktu pengiriman.
+- **Classification** memprediksi kategori, misalnya churn atau tidak churn, spam atau bukan spam, risiko rendah atau risiko tinggi.
+
+Supervised learning cocok ketika kita punya riwayat data yang berisi fitur dan target.
+
+## Unsupervised Learning
+
+Unsupervised learning memakai data tanpa target jawaban. Tujuannya bukan memprediksi label yang sudah tersedia, tetapi mencari struktur dalam data.
+
+Contoh paling umum adalah **clustering**, yaitu mengelompokkan contoh yang mirip. Misalnya, pelanggan bisa dikelompokkan berdasarkan pola pembelian tanpa memberi label pelanggan terlebih dahulu.
+
+## Reinforcement Learning
+
+Reinforcement learning melatih agen untuk memilih tindakan berdasarkan reward. Agen mencoba aksi, menerima feedback, lalu belajar strategi yang memberi hasil lebih baik.
+
+Contohnya sering muncul pada game, robotik, sistem kontrol, atau simulasi keputusan. Untuk foundation, cukup pahami bahwa reinforcement learning berbeda karena feedback-nya berupa reward dari tindakan, bukan target jawaban langsung seperti supervised learning.
+
+## Cara Membedakannya
+
+Lihat bentuk output dan sumber feedback-nya:
+
+- output angka biasanya mengarah ke **regression**;
+- output kategori biasanya mengarah ke **classification**;
+- kelompok tanpa target biasanya mengarah ke **clustering**;
+- tindakan yang dinilai dengan reward mengarah ke **reinforcement learning**.
+
+Peta ini membantu kita memilih pendekatan awal sebelum masuk ke detail algoritma.
