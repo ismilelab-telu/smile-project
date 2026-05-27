@@ -296,15 +296,10 @@
   }
 
   .learning-sheet-break-stripes {
-    background: repeating-linear-gradient(
-      135deg,
-      oklch(98.5% 0 0) 0,
-      oklch(98.5% 0 0) 6px,
-      var(--learning-grid-line) 6px,
-      var(--learning-grid-line) 7px,
-      oklch(98.5% 0 0) 7px,
-      oklch(98.5% 0 0) 12px
-    );
+    background-color: oklch(98.5% 0 0);
+    background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-6 6L6 -6M-6 18L18 -6M6 18L18 6' stroke='%23cfd4d9' stroke-width='1' stroke-opacity='.72' stroke-linecap='square'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 12px 12px;
   }
 
   .learning-sheet-footer-cell {
