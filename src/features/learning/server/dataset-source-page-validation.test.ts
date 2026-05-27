@@ -52,4 +52,47 @@ describe("validateDatasetSourcePage", () => {
     expect(result.signals).toContain("sinyal sumber Kaggle");
     expect(result.signals).toContain("sinyal domain kafe");
   });
+
+  it("returns structured dataset evidence from Kaggle JSON-LD", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          `<!doctype html>
+          <html>
+            <head>
+              <meta name="description" content="Full Cycle of Coffee Shop Management">
+              <script type="application/ld+json">
+                {
+                  "@context": "http://schema.org/",
+                  "@type": "Dataset",
+                  "name": "Coffee Shop Sales/Inventory/Staff",
+                  "description": "The Coffee Shop Data dataset is a comprehensive collection designed for a wide array of data analysis, providing a deep dive into the operations of a coffee shop.",
+                  "license": {
+                    "@type": "CreativeWork",
+                    "name": "CC0: Public Domain"
+                  }
+                }
+              </script>
+            </head>
+            <body>About Dataset</body>
+          </html>`,
+          {
+            headers: { "content-type": "text/html; charset=utf-8" },
+            status: 200,
+          },
+        ),
+      ),
+    );
+
+    const result = await validateDatasetSourcePage(
+      { id: "demand-source", url: "https://www.kaggle.com/datasets/example/coffee-shop" },
+      "id",
+    );
+
+    expect(result.status).toBe("valid");
+    expect(result.title).toBe("Coffee Shop Sales/Inventory/Staff");
+    expect(result.evidenceExcerpt).toContain("comprehensive collection");
+    expect(result.license).toBe("CC0: Public Domain");
+  });
 });

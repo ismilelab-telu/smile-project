@@ -24,6 +24,7 @@ type DatasetSourcePageValidationResponseBody = {
 const maxRequestCharacters = 16_384;
 const maxSourcesPerRequest = 5;
 const maxResponseBytes = 96_000;
+const maxEvidenceCharacters = 320;
 const fetchTimeoutMs = 8_000;
 
 const signalPatterns = [
@@ -189,11 +190,15 @@ function extractFirstMatch(html: string, patterns: RegExp[]) {
     const match = pattern.exec(html);
 
     if (match?.[1]) {
-      return decodeHtmlEntities(match[1].replaceAll(/\s+/g, " ").trim());
+      return normalizeReadableText(match[1]);
     }
   }
 
   return undefined;
+}
+
+function normalizeReadableText(value: string) {
+  return decodeHtmlEntities(value).replaceAll(/\s+/g, " ").trim();
 }
 
 function extractPageText(html: string) {
@@ -221,6 +226,121 @@ function extractMetadata(html: string) {
       /<title[^>]*>([^<]+)<\/title>/i,
     ]),
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function getString(value: unknown) {
+  return typeof value === "string" && value.trim() !== "" ? value : undefined;
+}
+
+function getStringArray(value: unknown) {
+  if (typeof value === "string") {
+    return [value];
+  }
+
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((entry): entry is string => typeof entry === "string");
+}
+
+function getTypeNames(value: unknown) {
+  return getStringArray(value).map((typeName) => typeName.toLowerCase());
+}
+
+function findDatasetStructuredObject(value: unknown): Record<string, unknown> | undefined {
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const dataset = findDatasetStructuredObject(entry);
+
+      if (dataset) {
+        return dataset;
+      }
+    }
+
+    return undefined;
+  }
+
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  if (getTypeNames(value["@type"]).includes("dataset")) {
+    return value;
+  }
+
+  return (
+    findDatasetStructuredObject(value["@graph"]) ??
+    findDatasetStructuredObject(value.mainEntity) ??
+    findDatasetStructuredObject(value.about)
+  );
+}
+
+function getStructuredLicense(value: unknown) {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (isRecord(value)) {
+    return getString(value.name) ?? getString(value.url);
+  }
+
+  return undefined;
+}
+
+function extractDatasetStructuredMetadata(html: string) {
+  const scriptPattern =
+    /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+
+  for (const match of html.matchAll(scriptPattern)) {
+    const rawJson = match[1]?.trim();
+
+    if (!rawJson) {
+      continue;
+    }
+
+    try {
+      const dataset = findDatasetStructuredObject(JSON.parse(rawJson));
+
+      if (!dataset) {
+        continue;
+      }
+
+      return {
+        alternateName: getString(dataset.alternateName),
+        description: getString(dataset.description),
+        keywords: getStringArray(dataset.keywords),
+        license: getStructuredLicense(dataset.license),
+        name: getString(dataset.name),
+      };
+    } catch {
+      continue;
+    }
+  }
+
+  return {};
+}
+
+function createEvidenceExcerpt(...candidates: Array<string | undefined>) {
+  const source = candidates.find((candidate) => candidate && candidate.trim() !== "");
+
+  if (!source) {
+    return undefined;
+  }
+
+  const normalized = normalizeReadableText(source);
+
+  if (normalized.length <= maxEvidenceCharacters) {
+    return normalized;
+  }
+
+  const trimmed = normalized.slice(0, maxEvidenceCharacters).replace(/\s+\S*$/, "");
+
+  return `${trimmed}...`;
 }
 
 async function readTextSnippet(response: Response) {
@@ -264,8 +384,10 @@ function collectSignals(content: string, locale: ValidationLocale) {
 function createResult(input: {
   checkedAt?: string;
   description?: string;
+  evidenceExcerpt?: string;
   httpStatus?: number;
   issues?: string[];
+  license?: string;
   signals?: string[];
   sourceId: string;
   status: DatasetSourcePageValidationStatus;
@@ -275,8 +397,10 @@ function createResult(input: {
   return {
     checkedAt: input.checkedAt ?? new Date().toISOString(),
     description: input.description,
+    evidenceExcerpt: input.evidenceExcerpt,
     httpStatus: input.httpStatus,
     issues: input.issues ?? [],
+    license: input.license,
     signals: input.signals ?? [],
     sourceId: input.sourceId,
     status: input.status,
@@ -345,18 +469,32 @@ export async function validateDatasetSourcePage(
 
     const html = await readTextSnippet(response);
     const metadata = extractMetadata(html);
+    const structuredMetadata = extractDatasetStructuredMetadata(html);
     const pageText = extractPageText(html);
-    const combinedContent = `${metadata.title ?? ""} ${metadata.description ?? ""} ${pageText}`;
+    const title = structuredMetadata.name ?? metadata.title;
+    const description =
+      metadata.description ?? structuredMetadata.alternateName ?? structuredMetadata.description;
+    const evidenceExcerpt = createEvidenceExcerpt(structuredMetadata.description, pageText);
+    const combinedContent = [
+      title,
+      description,
+      structuredMetadata.description,
+      structuredMetadata.license,
+      structuredMetadata.keywords?.join(" "),
+      pageText,
+    ].join(" ");
     const signals = collectSignals(combinedContent, locale);
 
     return createResult({
-      description: metadata.description,
+      description,
+      evidenceExcerpt,
       httpStatus: response.status,
       issues: signals.length >= 2 ? [] : [copy.weakDatasetSignal],
+      license: structuredMetadata.license,
       signals,
       sourceId: source.id,
       status: signals.length >= 2 ? "valid" : "partial",
-      title: metadata.title,
+      title,
       url: parsedUrl.toString(),
     });
   } catch {

@@ -1818,6 +1818,19 @@ function DatasetSourceValidationSummary({
           {result.description ? (
             <p className="mt-1 line-clamp-2 text-sm opacity-85">{result.description}</p>
           ) : null}
+          {result.evidenceExcerpt ? (
+            <p className="mt-3 border-l-2 border-current/30 pl-3 text-sm leading-6 opacity-90">
+              <span className="font-semibold">
+                {locale === "en" ? "Readable evidence: " : "Bukti terbaca: "}
+              </span>
+              {result.evidenceExcerpt}
+            </p>
+          ) : null}
+          {result.license ? (
+            <p className="mt-2 text-sm opacity-85">
+              {(locale === "en" ? "License: " : "Lisensi: ") + result.license}
+            </p>
+          ) : null}
           {result.signals.length > 0 ? (
             <p className="mt-2 text-sm opacity-85">
               {(locale === "en" ? "Signals: " : "Sinyal: ") + result.signals.join(", ")}

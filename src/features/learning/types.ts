@@ -99,8 +99,10 @@ export type DatasetSourcePageValidationStatus = "invalid" | "partial" | "unreach
 export type DatasetSourcePageValidationResult = {
   checkedAt: string;
   description?: string;
+  evidenceExcerpt?: string;
   httpStatus?: number;
   issues: string[];
+  license?: string;
   signals: string[];
   sourceId: string;
   status: DatasetSourcePageValidationStatus;
