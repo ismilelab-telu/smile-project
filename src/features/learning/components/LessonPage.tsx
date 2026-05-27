@@ -22,7 +22,16 @@ import {
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { AnimatePresence, motion } from "motion/react";
-import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 
 import { getDatasetView } from "../datasets/registry";
@@ -60,6 +69,9 @@ const liquidButtonBaseClassName =
   "inline-flex items-center justify-center gap-3 rounded-none px-5 py-3 text-base font-semibold text-neutral-950 backdrop-blur-xl hover:text-neutral-50 [--liquid-button-background-color:var(--color-neutral-200)] [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-3.5 [@media_(min-width:2200px)]:text-lg";
 const emeraldLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-button-color:var(--color-emerald-500)]`;
 const amberLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-button-color:var(--color-amber-500)]`;
+const lessonFullCellGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-12";
+const lessonSplitResultGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-8";
+const lessonSplitAsideGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-4";
 
 type LessonPageProps = {
   backHref?: string;
@@ -266,6 +278,42 @@ function evaluateExerciseAnswerSnapshot(
   return evaluateFeatureTargetRoles(
     answer.columnRoleAssignmentsByExerciseId?.[exercise.id] ?? {},
     locale,
+  );
+}
+
+function LessonLeftGutter({ className = "" }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`learning-sheet-cell learning-sheet-break-stripes learning-extend-left hidden [@media_(min-width:1024px)]:block ${className}`}
+    />
+  );
+}
+
+function LessonRightGutter({ className = "" }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`learning-sheet-cell learning-sheet-break-stripes learning-extend-right hidden [@media_(min-width:1024px)]:block ${className}`}
+    />
+  );
+}
+
+function LessonFullRow({
+  children,
+  leftClassName = "",
+  rightClassName = "",
+}: {
+  children: ReactNode;
+  leftClassName?: string;
+  rightClassName?: string;
+}) {
+  return (
+    <>
+      <LessonLeftGutter className={leftClassName} />
+      {children}
+      <LessonRightGutter className={rightClassName} />
+    </>
   );
 }
 
@@ -745,35 +793,41 @@ export function LessonPage({
     <LearningGridCanvas>
       <LearningHeader backHref={backHref} backLabel={backLabel} />
 
-      <section className="learning-sheet route-content-transition-target mx-auto grid w-[min(1440px,calc(100%_-_48px))] grid-cols-1 [@media_(min-width:1024px)]:grid-cols-12 [@media_(min-width:2200px)]:w-[min(1776px,calc(100%_-_96px))]">
+      <section className="learning-sheet route-content-transition-target mx-auto grid w-[min(1440px,calc(100%_-_48px))] grid-cols-1 [@media_(min-width:1024px)]:grid-cols-[2rem_repeat(12,minmax(0,1fr))_2rem] [@media_(min-width:2200px)]:w-[min(1776px,calc(100%_-_96px))] [@media_(min-width:2200px)]:grid-cols-[2.5rem_repeat(12,minmax(0,1fr))_2.5rem]">
         <LearningSheetExtensions />
 
-        <div
-          className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} px-6 py-5 [@media_(min-width:2200px)]:px-12 [@media_(min-width:2200px)]:py-8`}
-        >
-          <div className="flex flex-wrap items-center gap-3 text-base text-muted-foreground [@media_(min-width:2200px)]:text-lg">
-            <span>{localizedLesson.numberLabel}</span>
+        <LessonFullRow>
+          <div
+            className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} px-6 py-5 [@media_(min-width:2200px)]:px-12 [@media_(min-width:2200px)]:py-8`}
+          >
+            <div className="flex flex-wrap items-center gap-3 text-base text-muted-foreground [@media_(min-width:2200px)]:text-lg">
+              <span>{localizedLesson.numberLabel}</span>
+            </div>
           </div>
-        </div>
-        <div
-          className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} p-6 [@media_(min-width:2200px)]:p-12`}
-        >
-          <h1 className="max-w-none text-5xl leading-tight font-semibold tracking-normal text-foreground [@media_(min-width:2200px)]:text-8xl">
-            {localizedLesson.title}
-          </h1>
-        </div>
+        </LessonFullRow>
+        <LessonFullRow>
+          <div
+            className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} p-6 [@media_(min-width:2200px)]:p-12`}
+          >
+            <h1 className="max-w-none text-5xl leading-tight font-semibold tracking-normal text-foreground [@media_(min-width:2200px)]:text-8xl">
+              {localizedLesson.title}
+            </h1>
+          </div>
+        </LessonFullRow>
 
-        <section
-          className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} p-6 [@media_(min-width:2200px)]:p-12`}
-        >
-          <div className="grid gap-4 text-base leading-6 text-muted-foreground [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-7 [&>*:first-child]:mt-0 [&_blockquote]:border-l-2 [&_blockquote]:border-sky-400 [&_blockquote]:pl-4 [&_blockquote]:font-medium [&_blockquote]:text-foreground [&_blockquote_p]:m-0 [&_code]:bg-neutral-100 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-sm [&_code]:font-semibold [&_code]:text-foreground [&_h2]:mt-3 [&_h2]:text-xl [&_h2]:leading-tight [&_h2]:font-semibold [&_h2]:text-foreground [@media_(min-width:2200px)]:[&_h2]:text-3xl [&_h3]:mt-2 [&_h3]:text-lg [&_h3]:leading-tight [&_h3]:font-semibold [&_h3]:text-foreground [@media_(min-width:2200px)]:[&_h3]:text-2xl [&_li]:pl-1 [&_ol]:grid [&_ol]:list-decimal [&_ol]:gap-2 [&_ol]:pl-6 [&_p]:m-0 [&_strong]:font-semibold [&_strong]:text-foreground [&_ul]:grid [&_ul]:list-disc [&_ul]:gap-2 [&_ul]:pl-6">
-            {LessonMdxContent ? (
-              <LessonMdxContent />
-            ) : (
-              localizedLesson.summary.map((paragraph) => <p key={paragraph}>{paragraph}</p>)
-            )}
-          </div>
-        </section>
+        <LessonFullRow>
+          <section
+            className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} p-6 [@media_(min-width:2200px)]:p-12`}
+          >
+            <div className="grid gap-4 text-base leading-6 text-muted-foreground [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-7 [&>*:first-child]:mt-0 [&_blockquote]:border-l-2 [&_blockquote]:border-sky-400 [&_blockquote]:pl-4 [&_blockquote]:font-medium [&_blockquote]:text-foreground [&_blockquote_p]:m-0 [&_code]:bg-neutral-100 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-sm [&_code]:font-semibold [&_code]:text-foreground [&_h2]:mt-3 [&_h2]:text-xl [&_h2]:leading-tight [&_h2]:font-semibold [&_h2]:text-foreground [@media_(min-width:2200px)]:[&_h2]:text-3xl [&_h3]:mt-2 [&_h3]:text-lg [&_h3]:leading-tight [&_h3]:font-semibold [&_h3]:text-foreground [@media_(min-width:2200px)]:[&_h3]:text-2xl [&_li]:pl-1 [&_ol]:grid [&_ol]:list-decimal [&_ol]:gap-2 [&_ol]:pl-6 [&_p]:m-0 [&_strong]:font-semibold [&_strong]:text-foreground [&_ul]:grid [&_ul]:list-disc [&_ul]:gap-2 [&_ul]:pl-6">
+              {LessonMdxContent ? (
+                <LessonMdxContent />
+              ) : (
+                localizedLesson.summary.map((paragraph) => <p key={paragraph}>{paragraph}</p>)
+              )}
+            </div>
+          </section>
+        </LessonFullRow>
 
         {exerciseEntries.map((exercise, exerciseIndex) => {
           const exerciseLabel =
@@ -787,10 +841,12 @@ export function LessonPage({
           return (
             <Fragment key={exercise.id}>
               {isMultiExerciseLesson && exerciseIndex > 0 ? (
-                <div
-                  aria-hidden="true"
-                  className={`learning-sheet-cell learning-sheet-break-stripes learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} h-8 [@media_(min-width:2200px)]:h-10`}
-                />
+                <LessonFullRow>
+                  <div
+                    aria-hidden="true"
+                    className={`learning-sheet-cell learning-sheet-break-stripes learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} h-8 [@media_(min-width:2200px)]:h-10`}
+                  />
+                </LessonFullRow>
               ) : null}
               <ExerciseSection
                 assignments={assignments}
@@ -840,51 +896,53 @@ export function LessonPage({
         })}
 
         {!isMultiExerciseLesson || isLessonFinished ? (
-          <div
-            className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${rightEdgeCompensationClassName} flex items-center gap-4 p-6 [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-12`}
-          >
-            {previousLessonHref ? (
-              <LiquidLink
-                className={`${emeraldLiquidButtonClassName} min-h-12 [@media_(min-width:2200px)]:min-h-16`}
-                data-app-link
-                href={previousLessonHref}
-              >
-                <ArrowLeftIcon
-                  aria-hidden="true"
-                  className="size-5 [@media_(min-width:2200px)]:size-6"
-                />
-                {t("navigation.prev")}
-              </LiquidLink>
-            ) : null}
-            {isLessonFinished ? (
-              <LiquidLink
-                className={`${emeraldLiquidButtonClassName} ml-auto min-h-12 [@media_(min-width:2200px)]:min-h-16`}
-                data-app-link
-                href={finishedActionHref}
-              >
-                {finishedActionLabel}
-                <ArrowRightIcon
-                  aria-hidden="true"
-                  className="size-5 [@media_(min-width:2200px)]:size-6"
-                />
-              </LiquidLink>
-            ) : (
-              <LiquidButton
-                className={`${emeraldLiquidButtonClassName} ml-auto min-h-12 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-neutral-950 ${isSubmitDisabled ? "" : "cursor-pointer"} [@media_(min-width:2200px)]:min-h-16`}
-                disabled={isSubmitDisabled}
-                onClick={() => {
-                  const firstExercise = exerciseEntries[0];
+          <LessonFullRow>
+            <div
+              className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} flex items-center gap-4 p-6 [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-12`}
+            >
+              {previousLessonHref ? (
+                <LiquidLink
+                  className={`${emeraldLiquidButtonClassName} min-h-12 [@media_(min-width:2200px)]:min-h-16`}
+                  data-app-link
+                  href={previousLessonHref}
+                >
+                  <ArrowLeftIcon
+                    aria-hidden="true"
+                    className="size-5 [@media_(min-width:2200px)]:size-6"
+                  />
+                  {t("navigation.prev")}
+                </LiquidLink>
+              ) : null}
+              {isLessonFinished ? (
+                <LiquidLink
+                  className={`${emeraldLiquidButtonClassName} ml-auto min-h-12 [@media_(min-width:2200px)]:min-h-16`}
+                  data-app-link
+                  href={finishedActionHref}
+                >
+                  {finishedActionLabel}
+                  <ArrowRightIcon
+                    aria-hidden="true"
+                    className="size-5 [@media_(min-width:2200px)]:size-6"
+                  />
+                </LiquidLink>
+              ) : (
+                <LiquidButton
+                  className={`${emeraldLiquidButtonClassName} ml-auto min-h-12 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-neutral-950 ${isSubmitDisabled ? "" : "cursor-pointer"} [@media_(min-width:2200px)]:min-h-16`}
+                  disabled={isSubmitDisabled}
+                  onClick={() => {
+                    const firstExercise = exerciseEntries[0];
 
-                  if (firstExercise) {
-                    submitExercise(firstExercise);
-                  }
-                }}
-                type="button"
-              >
-                {t("learning.submit")}
-              </LiquidButton>
-            )}
-          </div>
+                    if (firstExercise) {
+                      submitExercise(firstExercise);
+                    }
+                  }}
+                  type="button"
+                >
+                  {t("learning.submit")}
+                </LiquidButton>
+              )}
+            </div>
+          </LessonFullRow>
         ) : null}
 
         {!isMultiExerciseLesson && lessonResult && lessonResult.status !== "correct" ? (
@@ -910,20 +968,24 @@ export function LessonPage({
 
         {hasNotQuiteResult ? (
           <>
+            <LessonLeftGutter />
             <div
               aria-hidden="true"
-              className="learning-sheet-cell learning-extend-left learning-sheet-footer-cell col-span-full [@media_(min-width:1024px)]:col-span-8"
+              className={`learning-sheet-cell learning-extend-left learning-sheet-footer-cell ${lessonSplitResultGridClassName}`}
             />
             <div
               aria-hidden="true"
-              className="learning-sheet-cell learning-extend-right learning-sheet-footer-cell col-span-full -mr-px [@media_(min-width:1024px)]:col-span-4"
+              className={`learning-sheet-cell learning-extend-right learning-sheet-footer-cell ${lessonSplitAsideGridClassName} -mr-px`}
             />
+            <LessonRightGutter />
           </>
         ) : (
-          <div
-            aria-hidden="true"
-            className="learning-sheet-cell learning-extend-left learning-extend-right learning-sheet-footer-cell col-span-full"
-          />
+          <LessonFullRow>
+            <div
+              aria-hidden="true"
+              className={`learning-sheet-cell learning-extend-left learning-extend-right learning-sheet-footer-cell ${lessonFullCellGridClassName}`}
+            />
+          </LessonFullRow>
         )}
       </section>
     </LearningGridCanvas>
@@ -946,28 +1008,33 @@ function ExerciseSubmitAction({
   const { t } = useLocalization();
 
   return (
-    <div
-      className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${edgeCompensationClassName} flex items-center gap-4 p-6 [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-12`}
-    >
-      {previousLessonHref ? (
-        <LiquidLink
-          className={`${emeraldLiquidButtonClassName} min-h-12 [@media_(min-width:2200px)]:min-h-16`}
-          data-app-link
-          href={previousLessonHref}
-        >
-          <ArrowLeftIcon aria-hidden="true" className="size-5 [@media_(min-width:2200px)]:size-6" />
-          {t("navigation.prev")}
-        </LiquidLink>
-      ) : null}
-      <LiquidButton
-        className={`${emeraldLiquidButtonClassName} ml-auto min-h-12 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-neutral-950 ${disabled ? "" : "cursor-pointer"} [@media_(min-width:2200px)]:min-h-16`}
-        disabled={disabled}
-        onClick={onSubmit}
-        type="button"
+    <LessonFullRow>
+      <div
+        className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${edgeCompensationClassName} flex items-center gap-4 p-6 [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-12`}
       >
-        {submitted ? t("learning.submitted") : t("learning.submit")}
-      </LiquidButton>
-    </div>
+        {previousLessonHref ? (
+          <LiquidLink
+            className={`${emeraldLiquidButtonClassName} min-h-12 [@media_(min-width:2200px)]:min-h-16`}
+            data-app-link
+            href={previousLessonHref}
+          >
+            <ArrowLeftIcon
+              aria-hidden="true"
+              className="size-5 [@media_(min-width:2200px)]:size-6"
+            />
+            {t("navigation.prev")}
+          </LiquidLink>
+        ) : null}
+        <LiquidButton
+          className={`${emeraldLiquidButtonClassName} ml-auto min-h-12 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-neutral-950 ${disabled ? "" : "cursor-pointer"} [@media_(min-width:2200px)]:min-h-16`}
+          disabled={disabled}
+          onClick={onSubmit}
+          type="button"
+        >
+          {submitted ? t("learning.submitted") : t("learning.submit")}
+        </LiquidButton>
+      </div>
+    </LessonFullRow>
   );
 }
 
@@ -1012,21 +1079,23 @@ function ExerciseSection({
 
   return (
     <>
-      <div
-        className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${edgeCompensationClassName} p-6 [@media_(min-width:2200px)]:p-12`}
-      >
-        <p className="text-base font-medium text-sky-600 [@media_(min-width:2200px)]:text-lg">
-          {exerciseLabel}
-        </p>
-        <h2 className="mt-3 text-xl font-semibold text-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-3xl">
-          {exercise.prompt}
-        </h2>
-        {choiceModeLabel ? (
-          <p className="mt-3 text-sm font-medium text-muted-foreground [@media_(min-width:2200px)]:text-base">
-            {choiceModeLabel}
+      <LessonFullRow>
+        <div
+          className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${edgeCompensationClassName} p-6 [@media_(min-width:2200px)]:p-12`}
+        >
+          <p className="text-base font-medium text-sky-600 [@media_(min-width:2200px)]:text-lg">
+            {exerciseLabel}
           </p>
-        ) : null}
-      </div>
+          <h2 className="mt-3 text-xl font-semibold text-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-3xl">
+            {exercise.prompt}
+          </h2>
+          {choiceModeLabel ? (
+            <p className="mt-3 text-sm font-medium text-muted-foreground [@media_(min-width:2200px)]:text-base">
+              {choiceModeLabel}
+            </p>
+          ) : null}
+        </div>
+      </LessonFullRow>
 
       {exercise.type === "table-column-role-assignment" && datasetView ? (
         <DatasetPreview
@@ -1226,96 +1295,104 @@ function DatasetPreview({
 
   return (
     <>
-      <section
-        className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${edgeCompensationClassName} flex flex-col gap-3 p-6 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:p-12`}
-      >
-        <h2
-          className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl"
-          id="dataset-preview"
+      <LessonFullRow>
+        <section
+          className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${edgeCompensationClassName} flex flex-col gap-3 p-6 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:p-12`}
         >
-          {t("learning.dataset.preview")}
-        </h2>
-        <p className="text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
-          {exercise.datasetContext}
-        </p>
-      </section>
-      <div
-        className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${edgeCompensationClassName}`}
-      >
-        <div className="overflow-x-auto overflow-y-clip">
-          <table className="min-w-full border-separate border-spacing-0 text-left text-base [@media_(min-width:2200px)]:text-lg">
-            <thead>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr className="learning-sheet-cell-fill-strong" key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => {
-                    const sorted = header.column.getIsSorted();
-                    const columnMeta = header.column.columnDef.meta as
-                      | { label?: string }
-                      | undefined;
-                    const sortLabel = columnMeta?.label ?? String(header.column.columnDef.id);
+          <h2
+            className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl"
+            id="dataset-preview"
+          >
+            {t("learning.dataset.preview")}
+          </h2>
+          <p className="text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+            {exercise.datasetContext}
+          </p>
+        </section>
+      </LessonFullRow>
+      <LessonFullRow>
+        <div
+          className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${edgeCompensationClassName}`}
+        >
+          <div className="overflow-x-auto overflow-y-clip">
+            <table className="min-w-full border-separate border-spacing-0 text-left text-base [@media_(min-width:2200px)]:text-lg">
+              <thead>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr className="learning-sheet-cell-fill-strong" key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => {
+                      const sorted = header.column.getIsSorted();
+                      const columnMeta = header.column.columnDef.meta as
+                        | { label?: string }
+                        | undefined;
+                      const sortLabel = columnMeta?.label ?? String(header.column.columnDef.id);
 
-                    return (
-                      <th
-                        aria-sort={
-                          sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : "none"
-                        }
-                        className="border-b learning-grid-border p-0 font-semibold text-foreground"
-                        key={header.id}
-                        scope="col"
-                      >
-                        <button
-                          aria-label={t("learning.sortBy", { label: sortLabel })}
-                          className="flex w-full cursor-pointer items-center gap-4 px-5 py-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-emerald-400 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-5"
-                          onClick={header.column.getToggleSortingHandler()}
-                          type="button"
+                      return (
+                        <th
+                          aria-sort={
+                            sorted === "asc"
+                              ? "ascending"
+                              : sorted === "desc"
+                                ? "descending"
+                                : "none"
+                          }
+                          className="border-b learning-grid-border p-0 font-semibold text-foreground"
+                          key={header.id}
+                          scope="col"
                         >
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(header.column.columnDef.header, header.getContext())}
-                          <span
-                            aria-hidden="true"
-                            className="ml-auto inline-flex size-5 shrink-0 items-center justify-center text-muted-foreground [@media_(min-width:2200px)]:size-6"
+                          <button
+                            aria-label={t("learning.sortBy", { label: sortLabel })}
+                            className="flex w-full cursor-pointer items-center gap-4 px-5 py-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-emerald-400 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-5"
+                            onClick={header.column.getToggleSortingHandler()}
+                            type="button"
                           >
-                            {sorted === "asc" ? (
-                              <ArrowUpIcon className="size-5 text-emerald-500 [@media_(min-width:2200px)]:size-6" />
-                            ) : sorted === "desc" ? (
-                              <ArrowDownIcon className="size-5 text-emerald-500 [@media_(min-width:2200px)]:size-6" />
-                            ) : (
-                              <ChevronDownIcon className="size-5 opacity-45 [@media_(min-width:2200px)]:size-6" />
-                            )}
-                          </span>
-                        </button>
-                      </th>
-                    );
-                  })}
-                </tr>
-              ))}
-            </thead>
-            <tbody ref={tableBodyRef}>
-              {sortedRows.map((row, rowIndex) => (
-                <tr
-                  className={
-                    rowIndex % 2 === 0
-                      ? "bg-transparent will-change-transform"
-                      : "learning-sheet-cell-fill will-change-transform"
-                  }
-                  data-dataset-row-id={row.id}
-                  key={row.id}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td
-                      className={`${rowIndex === sortedRows.length - 1 ? "" : "border-b"} learning-grid-border px-5 py-4 text-muted-foreground [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-5`}
-                      key={cell.id}
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(header.column.columnDef.header, header.getContext())}
+                            <span
+                              aria-hidden="true"
+                              className="ml-auto inline-flex size-5 shrink-0 items-center justify-center text-muted-foreground [@media_(min-width:2200px)]:size-6"
+                            >
+                              {sorted === "asc" ? (
+                                <ArrowUpIcon className="size-5 text-emerald-500 [@media_(min-width:2200px)]:size-6" />
+                              ) : sorted === "desc" ? (
+                                <ArrowDownIcon className="size-5 text-emerald-500 [@media_(min-width:2200px)]:size-6" />
+                              ) : (
+                                <ChevronDownIcon className="size-5 opacity-45 [@media_(min-width:2200px)]:size-6" />
+                              )}
+                            </span>
+                          </button>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </thead>
+              <tbody ref={tableBodyRef}>
+                {sortedRows.map((row, rowIndex) => (
+                  <tr
+                    className={
+                      rowIndex % 2 === 0
+                        ? "bg-transparent will-change-transform"
+                        : "learning-sheet-cell-fill will-change-transform"
+                    }
+                    data-dataset-row-id={row.id}
+                    key={row.id}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <td
+                        className={`${rowIndex === sortedRows.length - 1 ? "" : "border-b"} learning-grid-border px-5 py-4 text-muted-foreground [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-5`}
+                        key={cell.id}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      </LessonFullRow>
     </>
   );
 }
@@ -1592,62 +1669,66 @@ function ColumnRoleExerciseView({
 
   return (
     <>
-      <div
-        className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${edgeCompensationClassName} px-6 py-5 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:px-12 [@media_(min-width:2200px)]:py-8 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8`}
-      >
-        {exercise.instruction}
-      </div>
-      <div
-        className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${edgeCompensationClassName} grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12`}
-      >
-        {columns.map((column) => {
-          const expectedRole = expectedRoles[column.id];
-          const evaluatedRole = evaluatedAssignments[column.id] ?? "ignore";
-          const shouldShowFeedback = shouldShowColumnFeedback && expectedRole !== undefined;
-          const isPositiveFeedback = evaluatedRole === expectedRole;
+      <LessonFullRow>
+        <div
+          className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${edgeCompensationClassName} px-6 py-5 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:px-12 [@media_(min-width:2200px)]:py-8 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8`}
+        >
+          {exercise.instruction}
+        </div>
+      </LessonFullRow>
+      <LessonFullRow>
+        <div
+          className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${edgeCompensationClassName} grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12`}
+        >
+          {columns.map((column) => {
+            const expectedRole = expectedRoles[column.id];
+            const evaluatedRole = evaluatedAssignments[column.id] ?? "ignore";
+            const shouldShowFeedback = shouldShowColumnFeedback && expectedRole !== undefined;
+            const isPositiveFeedback = evaluatedRole === expectedRole;
 
-          return (
-            <div className="grid" key={column.id}>
-              {shouldShowFeedback ? (
-                <div className="flex min-h-16 items-center gap-3 border border-b-0 learning-grid-border px-5 py-4 [@media_(min-width:2200px)]:min-h-20 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-5">
-                  {isPositiveFeedback ? (
-                    <CheckCircleIcon
-                      aria-hidden="true"
-                      className="size-6 shrink-0 text-emerald-500 [@media_(min-width:2200px)]:size-7"
-                    />
-                  ) : (
-                    <XCircleIcon
-                      aria-hidden="true"
-                      className="size-6 shrink-0 text-rose-500 [@media_(min-width:2200px)]:size-7"
-                    />
-                  )}
-                  <h3 className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl">
-                    {isPositiveFeedback
-                      ? t("learning.feedback.correct")
-                      : t("learning.feedback.incorrect")}
-                  </h3>
+            return (
+              <div className="grid" key={column.id}>
+                {shouldShowFeedback ? (
+                  <div className="flex min-h-16 items-center gap-3 border border-b-0 learning-grid-border px-5 py-4 [@media_(min-width:2200px)]:min-h-20 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-5">
+                    {isPositiveFeedback ? (
+                      <CheckCircleIcon
+                        aria-hidden="true"
+                        className="size-6 shrink-0 text-emerald-500 [@media_(min-width:2200px)]:size-7"
+                      />
+                    ) : (
+                      <XCircleIcon
+                        aria-hidden="true"
+                        className="size-6 shrink-0 text-rose-500 [@media_(min-width:2200px)]:size-7"
+                      />
+                    )}
+                    <h3 className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl">
+                      {isPositiveFeedback
+                        ? t("learning.feedback.correct")
+                        : t("learning.feedback.incorrect")}
+                    </h3>
+                  </div>
+                ) : null}
+                <div className="grid gap-4 border learning-grid-border p-5 sm:grid-cols-[minmax(0,1fr)_288px] sm:items-center [@media_(min-width:2200px)]:grid-cols-[minmax(0,1fr)_384px] [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-6">
+                  <span>
+                    <span className="block text-base font-semibold text-foreground [@media_(min-width:2200px)]:text-lg">
+                      {column.label}
+                    </span>
+                    <span className="mt-1.5 block text-base text-muted-foreground [@media_(min-width:2200px)]:text-lg">
+                      {column.id}
+                    </span>
+                  </span>
+                  <RoleDropdown
+                    columnLabel={column.label}
+                    disabled={isReviewMode}
+                    onChange={(role) => onUpdateAssignment(column.id, role)}
+                    value={assignments[column.id] ?? "ignore"}
+                  />
                 </div>
-              ) : null}
-              <div className="grid gap-4 border learning-grid-border p-5 sm:grid-cols-[minmax(0,1fr)_288px] sm:items-center [@media_(min-width:2200px)]:grid-cols-[minmax(0,1fr)_384px] [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-6">
-                <span>
-                  <span className="block text-base font-semibold text-foreground [@media_(min-width:2200px)]:text-lg">
-                    {column.label}
-                  </span>
-                  <span className="mt-1.5 block text-base text-muted-foreground [@media_(min-width:2200px)]:text-lg">
-                    {column.id}
-                  </span>
-                </span>
-                <RoleDropdown
-                  columnLabel={column.label}
-                  disabled={isReviewMode}
-                  onChange={(role) => onUpdateAssignment(column.id, role)}
-                  value={assignments[column.id] ?? "ignore"}
-                />
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      </LessonFullRow>
     </>
   );
 }
@@ -1675,69 +1756,71 @@ function MultipleChoiceExerciseView({
   const isSingleOptionExercise = exercise.correctOptionIds.length === 1;
 
   return (
-    <div
-      className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${edgeCompensationClassName} grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12`}
-    >
-      {exercise.options.map((option) => {
-        const isCorrectOption = exercise.correctOptionIds.includes(option.id);
-        const isSelectedOption = selectedOptionIds.includes(option.id);
-        const isSubmittedOption = submittedSelectedOptionIds.includes(option.id);
-        const shouldShowCorrectForOption = shouldShowCorrectIndicator && isCorrectOption;
-        const shouldShowSubmittedFeedbackForOption =
-          shouldShowSubmittedOptionFeedback && isSubmittedOption;
-        const shouldShowOptionFeedback =
-          shouldShowCorrectForOption || shouldShowSubmittedFeedbackForOption;
-        const isPositiveFeedback = isCorrectOption;
+    <LessonFullRow>
+      <div
+        className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${edgeCompensationClassName} grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12`}
+      >
+        {exercise.options.map((option) => {
+          const isCorrectOption = exercise.correctOptionIds.includes(option.id);
+          const isSelectedOption = selectedOptionIds.includes(option.id);
+          const isSubmittedOption = submittedSelectedOptionIds.includes(option.id);
+          const shouldShowCorrectForOption = shouldShowCorrectIndicator && isCorrectOption;
+          const shouldShowSubmittedFeedbackForOption =
+            shouldShowSubmittedOptionFeedback && isSubmittedOption;
+          const shouldShowOptionFeedback =
+            shouldShowCorrectForOption || shouldShowSubmittedFeedbackForOption;
+          const isPositiveFeedback = isCorrectOption;
 
-        return (
-          <div className="grid" key={option.id}>
-            {shouldShowOptionFeedback ? (
-              <div className="flex min-h-16 items-center gap-3 border border-b-0 learning-grid-border px-5 py-4 [@media_(min-width:2200px)]:min-h-20 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-5">
-                {isPositiveFeedback ? (
-                  <CheckCircleIcon
-                    aria-hidden="true"
-                    className="size-6 shrink-0 text-emerald-500 [@media_(min-width:2200px)]:size-7"
-                  />
-                ) : (
-                  <XCircleIcon
-                    aria-hidden="true"
-                    className="size-6 shrink-0 text-rose-500 [@media_(min-width:2200px)]:size-7"
-                  />
-                )}
-                <h3 className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl">
-                  {isPositiveFeedback
-                    ? t("learning.feedback.correct")
-                    : t("learning.feedback.incorrect")}
-                </h3>
-              </div>
-            ) : null}
-            <label
-              className={`flex min-h-16 items-center gap-4 border learning-grid-border px-5 py-4 [@media_(min-width:2200px)]:min-h-20 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-5 ${
-                isReviewMode ? "cursor-not-allowed" : "cursor-pointer"
-              }`}
-            >
-              <input
-                checked={isSelectedOption}
-                className="peer sr-only"
-                disabled={isReviewMode}
-                name={exercise.id}
-                onChange={() => onToggleOption(option.id)}
-                type={isSingleOptionExercise ? "radio" : "checkbox"}
-              />
-              <span className="flex size-5 shrink-0 items-center justify-center border border-neutral-300 bg-white text-transparent transition-colors peer-checked:border-emerald-500 peer-checked:bg-emerald-500 peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-emerald-500 [@media_(min-width:2200px)]:size-6">
-                <CheckIcon
-                  aria-hidden="true"
-                  className="size-4 stroke-[3.25] [@media_(min-width:2200px)]:size-5"
+          return (
+            <div className="grid" key={option.id}>
+              {shouldShowOptionFeedback ? (
+                <div className="flex min-h-16 items-center gap-3 border border-b-0 learning-grid-border px-5 py-4 [@media_(min-width:2200px)]:min-h-20 [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-5">
+                  {isPositiveFeedback ? (
+                    <CheckCircleIcon
+                      aria-hidden="true"
+                      className="size-6 shrink-0 text-emerald-500 [@media_(min-width:2200px)]:size-7"
+                    />
+                  ) : (
+                    <XCircleIcon
+                      aria-hidden="true"
+                      className="size-6 shrink-0 text-rose-500 [@media_(min-width:2200px)]:size-7"
+                    />
+                  )}
+                  <h3 className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl">
+                    {isPositiveFeedback
+                      ? t("learning.feedback.correct")
+                      : t("learning.feedback.incorrect")}
+                  </h3>
+                </div>
+              ) : null}
+              <label
+                className={`flex min-h-16 items-center gap-4 border learning-grid-border px-5 py-4 [@media_(min-width:2200px)]:min-h-20 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:px-6 [@media_(min-width:2200px)]:py-5 ${
+                  isReviewMode ? "cursor-not-allowed" : "cursor-pointer"
+                }`}
+              >
+                <input
+                  checked={isSelectedOption}
+                  className="peer sr-only"
+                  disabled={isReviewMode}
+                  name={exercise.id}
+                  onChange={() => onToggleOption(option.id)}
+                  type={isSingleOptionExercise ? "radio" : "checkbox"}
                 />
-              </span>
-              <span className="text-base leading-7 text-foreground [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
-                {option.label}
-              </span>
-            </label>
-          </div>
-        );
-      })}
-    </div>
+                <span className="flex size-5 shrink-0 items-center justify-center border border-neutral-300 bg-white text-transparent transition-colors peer-checked:border-emerald-500 peer-checked:bg-emerald-500 peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-emerald-500 [@media_(min-width:2200px)]:size-6">
+                  <CheckIcon
+                    aria-hidden="true"
+                    className="size-4 stroke-[3.25] [@media_(min-width:2200px)]:size-5"
+                  />
+                </span>
+                <span className="text-base leading-7 text-foreground [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+                  {option.label}
+                </span>
+              </label>
+            </div>
+          );
+        })}
+      </div>
+    </LessonFullRow>
   );
 }
 
@@ -1758,57 +1841,59 @@ function OrderedStepsExerciseView({
   const stepById = new Map(exercise.steps.map((step) => [step.id, step]));
 
   return (
-    <ol
-      className={`learning-sheet-cell learning-extend-left learning-extend-right col-span-full ${edgeCompensationClassName} grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12`}
-    >
-      {orderedStepIds.map((stepId, index) => {
-        const step = stepById.get(stepId);
+    <LessonFullRow>
+      <ol
+        className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${edgeCompensationClassName} grid gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12`}
+      >
+        {orderedStepIds.map((stepId, index) => {
+          const step = stepById.get(stepId);
 
-        if (!step) {
-          return null;
-        }
+          if (!step) {
+            return null;
+          }
 
-        return (
-          <li
-            className="grid gap-4 border learning-grid-border p-5 sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:items-center [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-6"
-            key={step.id}
-          >
-            <span className="learning-grid-panel-fill flex size-12 items-center justify-center text-base font-semibold text-foreground [@media_(min-width:2200px)]:size-24 [@media_(min-width:2200px)]:text-lg">
-              {index + 1}
-            </span>
-            <span className="text-base font-medium text-foreground [@media_(min-width:2200px)]:text-lg">
-              {step.label}
-            </span>
-            <span className="flex gap-3 [@media_(min-width:2200px)]:gap-4">
-              <button
-                aria-label={t("learning.move.up", { label: step.label })}
-                className="learning-grid-panel-fill inline-flex size-12 cursor-pointer items-center justify-center text-foreground disabled:cursor-not-allowed disabled:opacity-40 [@media_(min-width:2200px)]:size-24"
-                disabled={isReviewMode || index === 0}
-                onClick={() => onMoveStep(index, -1)}
-                type="button"
-              >
-                <ArrowUpIcon
-                  aria-hidden="true"
-                  className="size-5 [@media_(min-width:2200px)]:size-6"
-                />
-              </button>
-              <button
-                aria-label={t("learning.move.down", { label: step.label })}
-                className="learning-grid-panel-fill inline-flex size-12 cursor-pointer items-center justify-center text-foreground disabled:cursor-not-allowed disabled:opacity-40 [@media_(min-width:2200px)]:size-24"
-                disabled={isReviewMode || index === orderedStepIds.length - 1}
-                onClick={() => onMoveStep(index, 1)}
-                type="button"
-              >
-                <ArrowDownIcon
-                  aria-hidden="true"
-                  className="size-5 [@media_(min-width:2200px)]:size-6"
-                />
-              </button>
-            </span>
-          </li>
-        );
-      })}
-    </ol>
+          return (
+            <li
+              className="grid gap-4 border learning-grid-border p-5 sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:items-center [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-6"
+              key={step.id}
+            >
+              <span className="learning-grid-panel-fill flex size-12 items-center justify-center text-base font-semibold text-foreground [@media_(min-width:2200px)]:size-24 [@media_(min-width:2200px)]:text-lg">
+                {index + 1}
+              </span>
+              <span className="text-base font-medium text-foreground [@media_(min-width:2200px)]:text-lg">
+                {step.label}
+              </span>
+              <span className="flex gap-3 [@media_(min-width:2200px)]:gap-4">
+                <button
+                  aria-label={t("learning.move.up", { label: step.label })}
+                  className="learning-grid-panel-fill inline-flex size-12 cursor-pointer items-center justify-center text-foreground disabled:cursor-not-allowed disabled:opacity-40 [@media_(min-width:2200px)]:size-24"
+                  disabled={isReviewMode || index === 0}
+                  onClick={() => onMoveStep(index, -1)}
+                  type="button"
+                >
+                  <ArrowUpIcon
+                    aria-hidden="true"
+                    className="size-5 [@media_(min-width:2200px)]:size-6"
+                  />
+                </button>
+                <button
+                  aria-label={t("learning.move.down", { label: step.label })}
+                  className="learning-grid-panel-fill inline-flex size-12 cursor-pointer items-center justify-center text-foreground disabled:cursor-not-allowed disabled:opacity-40 [@media_(min-width:2200px)]:size-24"
+                  disabled={isReviewMode || index === orderedStepIds.length - 1}
+                  onClick={() => onMoveStep(index, 1)}
+                  type="button"
+                >
+                  <ArrowDownIcon
+                    aria-hidden="true"
+                    className="size-5 [@media_(min-width:2200px)]:size-6"
+                  />
+                </button>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </LessonFullRow>
   );
 }
 
@@ -1816,51 +1901,55 @@ function LessonResult({ result }: { result: EvaluationResult }) {
   const { t } = useLocalization();
   const resultCellClassName =
     result.status === "correct"
-      ? "learning-extend-left learning-extend-right col-span-full"
-      : "learning-extend-left col-span-full [@media_(min-width:1024px)]:col-span-8";
+      ? `learning-extend-left learning-extend-right ${lessonFullCellGridClassName}`
+      : `learning-extend-left ${lessonSplitResultGridClassName}`;
   const shouldShowResultBody = result.status !== "correct";
 
   return (
-    <div
-      aria-live="polite"
-      className={`learning-sheet-cell ${resultCellClassName} flex gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12`}
-    >
-      {result.status === "correct" ? (
-        <CheckCircleIcon
-          aria-hidden="true"
-          className="size-7 shrink-0 text-emerald-500 [@media_(min-width:2200px)]:size-8"
-        />
-      ) : result.status === "incorrect" ? (
-        <XCircleIcon
-          aria-hidden="true"
-          className="size-7 shrink-0 text-rose-500 [@media_(min-width:2200px)]:size-8"
-        />
-      ) : (
-        <InformationCircleIcon
-          aria-hidden="true"
-          className="size-7 shrink-0 text-sky-600 [@media_(min-width:2200px)]:size-8"
-        />
-      )}
-      <div>
-        <h2 className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl">
-          {result.status === "correct"
-            ? t("learning.result.correct")
-            : result.status === "partial"
-              ? t("learning.result.partial")
-              : t("learning.result.incorrect")}
-        </h2>
-        {shouldShowResultBody ? (
-          <>
-            <p className="mt-3 text-base leading-6 text-muted-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-7">
-              {result.message}
-            </p>
-            <p className="mt-2 text-base leading-6 text-muted-foreground [@media_(min-width:2200px)]:mt-3 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-7">
-              {result.nextStep}
-            </p>
-          </>
-        ) : null}
+    <>
+      <LessonLeftGutter />
+      <div
+        aria-live="polite"
+        className={`learning-sheet-cell ${resultCellClassName} flex gap-4 p-6 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:p-12`}
+      >
+        {result.status === "correct" ? (
+          <CheckCircleIcon
+            aria-hidden="true"
+            className="size-7 shrink-0 text-emerald-500 [@media_(min-width:2200px)]:size-8"
+          />
+        ) : result.status === "incorrect" ? (
+          <XCircleIcon
+            aria-hidden="true"
+            className="size-7 shrink-0 text-rose-500 [@media_(min-width:2200px)]:size-8"
+          />
+        ) : (
+          <InformationCircleIcon
+            aria-hidden="true"
+            className="size-7 shrink-0 text-sky-600 [@media_(min-width:2200px)]:size-8"
+          />
+        )}
+        <div>
+          <h2 className="text-xl font-semibold text-foreground [@media_(min-width:2200px)]:text-3xl">
+            {result.status === "correct"
+              ? t("learning.result.correct")
+              : result.status === "partial"
+                ? t("learning.result.partial")
+                : t("learning.result.incorrect")}
+          </h2>
+          {shouldShowResultBody ? (
+            <>
+              <p className="mt-3 text-base leading-6 text-muted-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-7">
+                {result.message}
+              </p>
+              <p className="mt-2 text-base leading-6 text-muted-foreground [@media_(min-width:2200px)]:mt-3 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-7">
+                {result.nextStep}
+              </p>
+            </>
+          ) : null}
+        </div>
       </div>
-    </div>
+      {result.status === "correct" ? <LessonRightGutter /> : null}
+    </>
   );
 }
 
@@ -1883,30 +1972,38 @@ function LessonHintPanel({
     : t("learning.hint.show");
 
   return (
-    <aside className="learning-sheet-cell learning-extend-left learning-extend-right learning-sheet-cell-fill col-span-full -mr-px p-6 [@media_(min-width:1024px)]:col-span-4 [@media_(min-width:2200px)]:p-12">
-      <h2 className="flex items-center gap-3 text-xl font-semibold text-foreground [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:text-3xl">
-        <LightBulbIcon
-          aria-hidden="true"
-          className="size-6 text-amber-500 [@media_(min-width:2200px)]:size-7"
-        />
-        {t("learning.hint")}
-      </h2>
-      {areHintsVisible ? (
-        <ol className="mt-6 grid gap-4 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-8 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
-          {hints.slice(0, visibleHintCount).map((hint, index) => (
-            <li className="learning-grid-panel-fill p-5 [@media_(min-width:2200px)]:p-6" key={hint}>
-              {index + 1}. {hint}
-            </li>
-          ))}
-        </ol>
-      ) : null}
-      <LiquidButton
-        className={`${amberLiquidButtonClassName} mt-5 w-full cursor-pointer [@media_(min-width:2200px)]:mt-7 [@media_(min-width:2200px)]:min-h-16`}
-        onClick={onToggleHints}
-        type="button"
+    <>
+      <aside
+        className={`learning-sheet-cell learning-extend-left learning-extend-right learning-sheet-cell-fill ${lessonSplitAsideGridClassName} -mr-px p-6 [@media_(min-width:2200px)]:p-12`}
       >
-        {buttonLabel}
-      </LiquidButton>
-    </aside>
+        <h2 className="flex items-center gap-3 text-xl font-semibold text-foreground [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:text-3xl">
+          <LightBulbIcon
+            aria-hidden="true"
+            className="size-6 text-amber-500 [@media_(min-width:2200px)]:size-7"
+          />
+          {t("learning.hint")}
+        </h2>
+        {areHintsVisible ? (
+          <ol className="mt-6 grid gap-4 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-8 [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+            {hints.slice(0, visibleHintCount).map((hint, index) => (
+              <li
+                className="learning-grid-panel-fill p-5 [@media_(min-width:2200px)]:p-6"
+                key={hint}
+              >
+                {index + 1}. {hint}
+              </li>
+            ))}
+          </ol>
+        ) : null}
+        <LiquidButton
+          className={`${amberLiquidButtonClassName} mt-5 w-full cursor-pointer [@media_(min-width:2200px)]:mt-7 [@media_(min-width:2200px)]:min-h-16`}
+          onClick={onToggleHints}
+          type="button"
+        >
+          {buttonLabel}
+        </LiquidButton>
+      </aside>
+      <LessonRightGutter />
+    </>
   );
 }
