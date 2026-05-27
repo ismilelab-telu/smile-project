@@ -299,19 +299,8 @@ function LessonRightGutter({ className = "" }: { className?: string }) {
   );
 }
 
-function LessonGutterPatternRails() {
-  return (
-    <>
-      <span
-        aria-hidden="true"
-        className="learning-sheet-break-stripes pointer-events-none absolute inset-y-0 left-0 z-0 hidden w-8 [@media_(min-width:1024px)]:block [@media_(min-width:2200px)]:w-10"
-      />
-      <span
-        aria-hidden="true"
-        className="learning-sheet-break-stripes pointer-events-none absolute inset-y-0 right-0 z-0 hidden w-8 [@media_(min-width:1024px)]:block [@media_(min-width:2200px)]:w-10"
-      />
-    </>
-  );
+function LessonSheetPatternPlane() {
+  return <span aria-hidden="true" className="learning-sheet-pattern-plane" />;
 }
 
 function LessonFullRow({
@@ -810,7 +799,7 @@ export function LessonPage({
 
       <section className="learning-sheet route-content-transition-target mx-auto grid w-[min(1440px,calc(100%_-_48px))] grid-cols-1 [@media_(min-width:1024px)]:grid-cols-[2rem_repeat(12,minmax(0,1fr))_2rem] [@media_(min-width:2200px)]:w-[min(1776px,calc(100%_-_96px))] [@media_(min-width:2200px)]:grid-cols-[2.5rem_repeat(12,minmax(0,1fr))_2.5rem]">
         <LearningSheetExtensions />
-        <LessonGutterPatternRails />
+        <LessonSheetPatternPlane />
 
         <LessonFullRow>
           <div
@@ -843,6 +832,12 @@ export function LessonPage({
               )}
             </div>
           </section>
+        </LessonFullRow>
+        <LessonFullRow>
+          <div
+            aria-hidden="true"
+            className={`learning-sheet-cell learning-sheet-break-stripes learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} h-8 [@media_(min-width:2200px)]:h-10`}
+          />
         </LessonFullRow>
 
         {exerciseEntries.map((exercise, exerciseIndex) => {
