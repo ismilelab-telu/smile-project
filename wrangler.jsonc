@@ -1,0 +1,7 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "smile-project",
+  "compatibility_date": "2026-05-27",
+  "pages_build_output_dir": "dist",
+  "send_metrics": false,
+}
