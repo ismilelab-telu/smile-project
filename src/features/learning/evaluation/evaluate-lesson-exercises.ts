@@ -1,4 +1,10 @@
-import type { EvaluationResult, MultipleChoiceExercise, OrderedStepsExercise } from "../types";
+import type {
+  DatasetSourceAnswer,
+  EvaluationResult,
+  MultipleChoiceExercise,
+  OpenDatasetSourceExercise,
+  OrderedStepsExercise,
+} from "../types";
 import type { Locale } from "@/features/localization/localization";
 
 const resultTitleCopy: Record<Locale, Record<EvaluationResult["status"], string>> = {
@@ -24,6 +30,118 @@ function createResult(input: Omit<EvaluationResult, "extraColumnIds" | "missedCo
 
 function sameOrder(left: string[], right: string[]) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function parseHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+
+    return url.protocol === "http:" || url.protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+export function evaluateOpenDatasetSourceExercise(
+  exercise: OpenDatasetSourceExercise,
+  answersBySourceId: Record<string, DatasetSourceAnswer>,
+  locale: Locale = "id",
+): EvaluationResult {
+  const title = resultTitleCopy[locale];
+  const sourceAnswers = exercise.sourceInputs.map((sourceInput) => ({
+    answer: answersBySourceId[sourceInput.id] ?? { notes: "", url: "" },
+    sourceInput,
+  }));
+  const touchedSources = sourceAnswers.filter(
+    ({ answer }) => answer.url.trim() !== "" || answer.notes.trim() !== "",
+  );
+  const linkedSources = sourceAnswers.filter(({ answer }) => answer.url.trim() !== "");
+
+  if (touchedSources.length === 0) {
+    return createResult({
+      message:
+        locale === "en"
+          ? "No dataset source has been recorded yet."
+          : "Belum ada sumber dataset yang dicatat.",
+      nextStep:
+        locale === "en"
+          ? "Start with one public cafe dataset page link."
+          : "Mulai dari satu link halaman dataset kafe publik.",
+      score: 20,
+      status: "incorrect",
+      title: title.incorrect,
+    });
+  }
+
+  if (linkedSources.length < exercise.minimumCompleteSources) {
+    return createResult({
+      message:
+        locale === "en"
+          ? `Record links for at least ${exercise.minimumCompleteSources} sources. You have recorded ${linkedSources.length}.`
+          : `Catat link untuk minimal ${exercise.minimumCompleteSources} sumber. Saat ini yang terisi baru ${linkedSources.length}.`,
+      nextStep:
+        locale === "en"
+          ? "Paste the dataset page URL. Context notes are optional."
+          : "Tempel URL halaman dataset. Catatan konteks bersifat opsional.",
+      score: linkedSources.length > 0 ? 45 : 25,
+      status: linkedSources.length > 0 ? "partial" : "incorrect",
+      title: linkedSources.length > 0 ? title.partial : title.incorrect,
+    });
+  }
+
+  const parsedSourceUrls = linkedSources.map(({ answer }) => parseHttpUrl(answer.url.trim()));
+
+  if (parsedSourceUrls.some((url) => url === null)) {
+    return createResult({
+      message:
+        locale === "en"
+          ? "One or more links are not valid HTTP or HTTPS URLs."
+          : "Ada link yang belum berbentuk URL HTTP atau HTTPS yang valid.",
+      nextStep:
+        locale === "en"
+          ? "Paste the full source page link, including https://, then submit again."
+          : "Tempel link halaman sumber secara utuh, termasuk https://, lalu kirim ulang.",
+      score: 55,
+      status: "partial",
+      title: title.partial,
+    });
+  }
+
+  const distinctHosts = new Set(
+    parsedSourceUrls
+      .filter((url): url is URL => url !== null)
+      .map((url) => url.hostname.replace(/^www\./, "")),
+  );
+
+  if (distinctHosts.size < exercise.minimumDistinctDomains) {
+    return createResult({
+      message:
+        locale === "en"
+          ? "The sources are still concentrated in too few places."
+          : "Sumber data masih terlalu terkumpul di tempat yang sama.",
+      nextStep:
+        locale === "en"
+          ? "Use at least one additional source domain so the demand data can be checked against outside context."
+          : "Tambahkan minimal satu domain sumber lain agar data demand bisa dibandingkan dengan konteks luar.",
+      score: 65,
+      status: "partial",
+      title: title.partial,
+    });
+  }
+
+  return createResult({
+    message:
+      locale === "en"
+        ? "The recorded sources have usable links and enough variety for early validation."
+        : "Sumber yang dicatat sudah punya link yang bisa dipakai dan variasi yang cukup untuk validasi awal.",
+    nextStep:
+      locale === "en"
+        ? "Keep the raw data and source page before moving into data loading."
+        : "Simpan data mentah dan halaman sumber sebelum masuk ke tahap data loading.",
+    score: 100,
+    status: "correct",
+    title: title.correct,
+  });
 }
 
 export function evaluateMultipleChoice(

@@ -3,7 +3,11 @@ export type ColumnRole = "target" | "safe-feature" | "metadata" | "ignore";
 export type LearningLessonStatus = "not_started" | "in_progress" | "completed";
 
 export type EvaluationStatus = "correct" | "partial" | "incorrect";
-export type ExerciseType = "multiple-choice" | "ordered-steps" | "table-column-role-assignment";
+export type ExerciseType =
+  | "multiple-choice"
+  | "open-dataset-source"
+  | "ordered-steps"
+  | "table-column-role-assignment";
 
 export type DatasetColumn = {
   id: string;
@@ -70,8 +74,58 @@ export type OrderedStepsExercise = LessonExerciseBase & {
   correctStepIds: string[];
 };
 
+export type OpenDatasetSourceGuidance = {
+  id: string;
+  title: string;
+  description: string;
+  examples: string[];
+};
+
+export type OpenDatasetSourceInput = {
+  id: string;
+  label: string;
+  description: string;
+  urlPlaceholder: string;
+  notesPlaceholder: string;
+};
+
+export type DatasetSourceAnswer = {
+  url: string;
+  notes: string;
+};
+
+export type DatasetSourcePageValidationStatus = "invalid" | "partial" | "unreachable" | "valid";
+
+export type DatasetSourcePageValidationResult = {
+  checkedAt: string;
+  description?: string;
+  httpStatus?: number;
+  issues: string[];
+  signals: string[];
+  sourceId: string;
+  status: DatasetSourcePageValidationStatus;
+  title?: string;
+  url: string;
+};
+
+export type OpenDatasetSourceExercise = LessonExerciseBase & {
+  type: "open-dataset-source";
+  introTitle: string;
+  introParagraphs: string[];
+  sourceGuidanceTitle: string;
+  sourceGuidance: OpenDatasetSourceGuidance[];
+  taskTitle: string;
+  taskDescription: string;
+  urlLabel: string;
+  notesLabel: string;
+  sourceInputs: OpenDatasetSourceInput[];
+  minimumCompleteSources: number;
+  minimumDistinctDomains: number;
+};
+
 export type LessonExercise =
   | MultipleChoiceExercise
+  | OpenDatasetSourceExercise
   | OrderedStepsExercise
   | TableColumnRoleExercise;
 
@@ -114,6 +168,7 @@ export type ExerciseAttempt = {
 
 export type LessonAnswer = {
   columnRoleAssignmentsByExerciseId?: Record<string, Record<string, ColumnRole>>;
+  datasetSourceAnswersByExerciseId?: Record<string, Record<string, DatasetSourceAnswer>>;
   orderedStepIdsByExerciseId?: Record<string, string[]>;
   selectedOptionIdsByExerciseId?: Record<string, string[]>;
 };

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { evaluateMultipleChoice } from "./evaluate-lesson-exercises";
-import type { MultipleChoiceExercise } from "../types";
+import {
+  evaluateMultipleChoice,
+  evaluateOpenDatasetSourceExercise,
+} from "./evaluate-lesson-exercises";
+import type { MultipleChoiceExercise, OpenDatasetSourceExercise } from "../types";
 
 const multipleOptionExercise: MultipleChoiceExercise = {
   correctOptionIds: ["problem", "data", "model", "training", "evaluation"],
@@ -17,6 +20,32 @@ const multipleOptionExercise: MultipleChoiceExercise = {
   ],
   prompt: "Pilih komponen utama.",
   type: "multiple-choice",
+};
+
+const openDatasetSourceExercise: OpenDatasetSourceExercise = {
+  hints: [],
+  id: "exercise-open-dataset-source",
+  introParagraphs: [],
+  introTitle: "Mengumpulkan data terbuka",
+  minimumCompleteSources: 1,
+  minimumDistinctDomains: 1,
+  notesLabel: "Catatan",
+  prompt: "Cari sumber data.",
+  sourceGuidance: [],
+  sourceGuidanceTitle: "Sumber",
+  sourceInputs: [
+    {
+      description: "Demand",
+      id: "demand-source",
+      label: "Demand",
+      notesPlaceholder: "Catatan demand",
+      urlPlaceholder: "https://...",
+    },
+  ],
+  taskDescription: "Cari satu sumber.",
+  taskTitle: "Tugas",
+  type: "open-dataset-source",
+  urlLabel: "Link",
 };
 
 describe("evaluateMultipleChoice", () => {
@@ -56,5 +85,39 @@ describe("evaluateMultipleChoice", () => {
     expect(result.status).toBe("partial");
     expect(result.message).toBe("Select 5 options for this question. You currently selected 3.");
     expect(result.nextStep).toBe("Add 2 more selections, then submit again.");
+  });
+});
+
+describe("evaluateOpenDatasetSourceExercise", () => {
+  it("asks for dataset sources before giving credit", () => {
+    const result = evaluateOpenDatasetSourceExercise(openDatasetSourceExercise, {});
+
+    expect(result.status).toBe("incorrect");
+    expect(result.message).toBe("Belum ada sumber dataset yang dicatat.");
+  });
+
+  it("requires a valid URL", () => {
+    const result = evaluateOpenDatasetSourceExercise(openDatasetSourceExercise, {
+      "demand-source": {
+        notes:
+          "Halaman ini punya kolom jumlah order, periode transaksi, lisensi, dan catatan bahwa cakupan shift perlu dicek.",
+        url: "kaggle.com/cafe-demand",
+      },
+    });
+
+    expect(result.status).toBe("partial");
+    expect(result.message).toBe("Ada link yang belum berbentuk URL HTTP atau HTTPS yang valid.");
+  });
+
+  it("accepts one complete cafe dataset link without requiring notes", () => {
+    const result = evaluateOpenDatasetSourceExercise(openDatasetSourceExercise, {
+      "demand-source": {
+        notes: "",
+        url: "https://www.kaggle.com/datasets/example/cafe-demand",
+      },
+    });
+
+    expect(result.status).toBe("correct");
+    expect(result.score).toBe(100);
   });
 });

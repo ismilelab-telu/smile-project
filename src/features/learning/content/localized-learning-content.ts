@@ -9,6 +9,7 @@ import type {
   Lesson,
   LessonExercise,
   MultipleChoiceExercise,
+  OpenDatasetSourceExercise,
   OrderedStepsExercise,
   TableColumnRoleExercise,
 } from "../types";
@@ -16,10 +17,27 @@ import type {
 type ExerciseCopy = {
   datasetContext?: string;
   hints?: string[];
+  introParagraphs?: string[];
+  introTitle?: string;
   instruction?: string;
+  notesLabel?: string;
   options?: Record<string, string>;
   prompt?: string;
+  sourceGuidance?: Record<string, { description?: string; examples?: string[]; title?: string }>;
+  sourceGuidanceTitle?: string;
+  sourceInputs?: Record<
+    string,
+    {
+      description?: string;
+      label?: string;
+      notesPlaceholder?: string;
+      urlPlaceholder?: string;
+    }
+  >;
   steps?: Record<string, string>;
+  taskDescription?: string;
+  taskTitle?: string;
+  urlLabel?: string;
 };
 
 type LessonCopy = {
@@ -267,13 +285,57 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
         options: {
           "capture-source": "Record source origin, data period, and collection method.",
           "check-permission": "Check permission, privacy, and field-use limits.",
-          "check-representation": "Make sure location, home type, and price range are represented.",
+          "check-representation":
+            "Make sure day parts, weather, promotions, and cafe branches are represented.",
           "collect-everything": "Grab as many columns as possible; decide the goal later.",
           "define-question": "Set the prediction output, row unit, and data coverage.",
           "single-segment": "Use the easiest source even if its segment is narrow.",
         },
         prompt:
-          "A team wants to build a home price estimation model from several data sources. Which early decisions are healthiest?",
+          "A cafe team wants to estimate next-shift drinks sold from several data sources. Which early decisions are healthiest?",
+      },
+      "exercise-1-2-open-source-data-search": {
+        hints: [
+          "Look for a dataset related to cafe sales, transactions, orders, or inventory.",
+          "Read the dataset page before submitting, not just the link.",
+          "Good optional notes mention the target, important columns, period, license, and visible data limits.",
+        ],
+        introParagraphs: [
+          "For early practice, we do not always need to create a dataset from scratch. Many learning projects use open datasets from public platforms so we can focus on understanding the problem, data structure, and data quality.",
+          "Open datasets still need inspection. A dataset that is easy to download is not automatically a good fit, especially when the target, features, period, or usage permission is unclear.",
+        ],
+        introTitle: "Collecting Data from Open Sources",
+        notesLabel: "Context notes from the source page (optional)",
+        prompt: "Find one open dataset relevant to the cafe demand case.",
+        sourceGuidance: {
+          "dataset-documentation": {
+            description:
+              "Use dataset documentation to read column definitions, period, license, and usage limits.",
+            examples: ["dataset page", "data card", "README", "license note"],
+            title: "Dataset documentation",
+          },
+          "dataset-repository": {
+            description:
+              "Search for sales, restaurant, coffee shop, order, inventory, or transaction datasets that can support the cafe case.",
+            examples: ["Kaggle", "UC Irvine Machine Learning Repository", "Google Dataset Search"],
+            title: "Dataset repositories",
+          },
+        },
+        sourceGuidanceTitle: "What to check from the cafe dataset",
+        sourceInputs: {
+          "demand-source": {
+            description:
+              "Paste one cafe dataset link. Optional notes can capture what you can infer from the dataset page.",
+            label: "Cafe dataset",
+            notesPlaceholder:
+              "Example: this dataset contains cafe orders/inventory, has item or transaction columns, shows a license, but the period and branch coverage still need checking.",
+            urlPlaceholder: "https://www.kaggle.com/datasets/...",
+          },
+        },
+        taskDescription:
+          "Find one cafe dataset from an open source. Paste the dataset page link; add a short note about the possible target, important columns, period, license, coverage, or visible limitation if useful.",
+        taskTitle: "Search task",
+        urlLabel: "Dataset or data page link",
       },
     },
     objective:
@@ -468,6 +530,34 @@ function localizeExercise(
         label: copy.steps?.[step.id] ?? step.label,
       })),
     } satisfies OrderedStepsExercise;
+  }
+
+  if (exercise.type === "open-dataset-source") {
+    return {
+      ...baseExercise,
+      introParagraphs: copy.introParagraphs ?? exercise.introParagraphs,
+      introTitle: copy.introTitle ?? exercise.introTitle,
+      notesLabel: copy.notesLabel ?? exercise.notesLabel,
+      sourceGuidance: exercise.sourceGuidance.map((source) => ({
+        ...source,
+        description: copy.sourceGuidance?.[source.id]?.description ?? source.description,
+        examples: copy.sourceGuidance?.[source.id]?.examples ?? source.examples,
+        title: copy.sourceGuidance?.[source.id]?.title ?? source.title,
+      })),
+      sourceGuidanceTitle: copy.sourceGuidanceTitle ?? exercise.sourceGuidanceTitle,
+      sourceInputs: exercise.sourceInputs.map((sourceInput) => ({
+        ...sourceInput,
+        description: copy.sourceInputs?.[sourceInput.id]?.description ?? sourceInput.description,
+        label: copy.sourceInputs?.[sourceInput.id]?.label ?? sourceInput.label,
+        notesPlaceholder:
+          copy.sourceInputs?.[sourceInput.id]?.notesPlaceholder ?? sourceInput.notesPlaceholder,
+        urlPlaceholder:
+          copy.sourceInputs?.[sourceInput.id]?.urlPlaceholder ?? sourceInput.urlPlaceholder,
+      })),
+      taskDescription: copy.taskDescription ?? exercise.taskDescription,
+      taskTitle: copy.taskTitle ?? exercise.taskTitle,
+      urlLabel: copy.urlLabel ?? exercise.urlLabel,
+    } satisfies OpenDatasetSourceExercise;
   }
 
   return {

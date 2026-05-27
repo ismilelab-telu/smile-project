@@ -12,6 +12,8 @@ const lesson03Path = `${foundationsTrackPath}/lesson-0-3-core-components`;
 const lesson04Path = `${foundationsTrackPath}/lesson-0-4-learning-types`;
 const lesson05Path = `${foundationsTrackPath}/lesson-0-5-machine-learning-use-cases`;
 const lesson06Path = `${foundationsTrackPath}/lesson-0-6-formulating-ml-problems`;
+const lesson11Path = `${foundationsTrackPath}/lesson-1-1-ml-tools-libraries`;
+const lesson12Path = `${foundationsTrackPath}/lesson-1-2-data-collecting`;
 const module0LessonIds = [
   "lesson-0-1-what-is-machine-learning",
   "lesson-0-2-machine-learning-in-ai",
@@ -616,7 +618,9 @@ describe("App", () => {
 
     fireEvent.click(submitButtons[1]);
 
-    expect(await screen.findAllByRole("heading", { name: "Benar" })).toHaveLength(11);
+    await waitFor(() => {
+      expect(screen.getAllByRole("heading", { name: "Benar" })).toHaveLength(11);
+    });
     expect(screen.getByRole("link", { name: /^Lanjut$/ })).toBeInTheDocument();
     expect(getStoredCompletedLessonIds()).toContain("lesson-0-6-formulating-ml-problems");
   });
@@ -689,12 +693,82 @@ describe("App", () => {
 
   it("unlocks the first lesson in the next module after the previous module is complete", async () => {
     seedCompletedLessons(module0LessonIds);
-    window.history.pushState(null, "", `${foundationsTrackPath}/lesson-1-1-ml-tools-libraries`);
+    window.history.pushState(null, "", lesson11Path);
     render(<App />);
 
     expect(
       await screen.findByRole("heading", { name: "Tool dan Library ML" }, lazyRouteTimeout),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Kirim jawaban" })).toBeInTheDocument();
+  });
+
+  it("keeps newly added exercises editable when old progress marked the lesson complete", async () => {
+    seedCompletedLessons([
+      ...module0LessonIds,
+      "lesson-1-1-ml-tools-libraries",
+      "lesson-1-2-data-collecting",
+    ]);
+    window.history.pushState(null, "", lesson12Path);
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Pengumpulan Data" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+
+    expect(screen.getByLabelText("Dataset kafe: Link dataset atau halaman data")).toBeEnabled();
+  });
+
+  it("allows editing a completed dataset source submission", async () => {
+    seedCompletedLessons([...module0LessonIds, "lesson-1-1-ml-tools-libraries"]);
+    window.history.pushState(null, "", lesson12Path);
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Pengumpulan Data" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByLabelText("Tetapkan output prediksi, unit baris, dan cakupan data."),
+    );
+    fireEvent.click(
+      screen.getByLabelText("Catat asal sumber, periode data, dan cara pengambilannya."),
+    );
+    fireEvent.click(screen.getByLabelText("Cek izin, privasi, dan batasan pemakaian field."));
+    fireEvent.click(
+      screen.getByLabelText(
+        "Pastikan variasi waktu shift, cuaca, promo, dan cabang kafe terwakili.",
+      ),
+    );
+    fireEvent.click(screen.getAllByRole("button", { name: "Kirim jawaban" })[0]);
+
+    expect(await screen.findByRole("button", { name: "Terkirim" })).toBeDisabled();
+
+    const demandUrlInput = screen.getByLabelText("Dataset kafe: Link dataset atau halaman data");
+
+    fireEvent.change(demandUrlInput, {
+      target: { value: "https://www.kaggle.com/datasets/viramatv/coffee-shop-data" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Kirim jawaban" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: /^Lanjut$/ })).toBeInTheDocument();
+    });
+    expect(screen.getAllByRole("link", { name: /^Lanjut$/ })).toHaveLength(1);
+    expect(screen.getAllByRole("link", { name: "Sebelumnya" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Terkirim" })).toHaveLength(1);
+    expect(
+      screen.getByText(
+        "Sumber yang dicatat sudah punya link yang bisa dipakai dan variasi yang cukup untuk validasi awal.",
+      ),
+    ).toBeInTheDocument();
+    expect(demandUrlInput).toBeDisabled();
+
+    expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+    expect(demandUrlInput).toBeEnabled();
+    expect(screen.queryByRole("link", { name: /^Lanjut$/ })).not.toBeInTheDocument();
   });
 });

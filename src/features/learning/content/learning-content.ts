@@ -1,4 +1,11 @@
-import type { ChoiceExerciseOption, LearningModule, LearningTrack, Lesson } from "../types";
+import type {
+  ChoiceExerciseOption,
+  LearningModule,
+  LearningTrack,
+  Lesson,
+  MultipleChoiceExercise,
+  OpenDatasetSourceExercise,
+} from "../types";
 
 const moduleIds = [
   "module-0-workflow-foundations",
@@ -463,6 +470,118 @@ const lesson06: Lesson = {
   viewId: "intro-table-preview",
 };
 
+const lesson12DecisionExercise: MultipleChoiceExercise = {
+  correctOptionIds: [
+    "define-question",
+    "capture-source",
+    "check-permission",
+    "check-representation",
+  ],
+  hints: [
+    "Dataset yang baik menjawab kebutuhan model, bukan sekadar berukuran besar.",
+    "Sumber, periode, izin, dan cakupan menentukan apakah data bisa dipercaya.",
+    "Sampel yang terlalu sempit bisa membuat model bias saat dipakai di kondisi lain.",
+  ],
+  id: "exercise-1-2-data-collecting",
+  options: [
+    {
+      id: "define-question",
+      label: "Tetapkan output prediksi, unit baris, dan cakupan data.",
+    },
+    {
+      id: "capture-source",
+      label: "Catat asal sumber, periode data, dan cara pengambilannya.",
+    },
+    {
+      id: "check-permission",
+      label: "Cek izin, privasi, dan batasan pemakaian field.",
+    },
+    {
+      id: "check-representation",
+      label: "Pastikan variasi waktu shift, cuaca, promo, dan cabang kafe terwakili.",
+    },
+    {
+      id: "collect-everything",
+      label: "Ambil kolom sebanyak mungkin; tujuan bisa diputuskan nanti.",
+    },
+    {
+      id: "single-segment",
+      label: "Pakai satu sumber termudah meski segmennya sempit.",
+    },
+  ],
+  prompt:
+    "Tim kafe ingin membangun model estimasi jumlah minuman terjual pada shift berikutnya dari beberapa sumber data. Keputusan awal mana yang paling sehat?",
+  type: "multiple-choice",
+};
+
+const lesson12OpenSourceExercise: OpenDatasetSourceExercise = {
+  hints: [
+    "Cari dataset yang memang berhubungan dengan penjualan, transaksi, order, atau inventory kafe.",
+    "Baca halaman dataset sebelum submit, bukan hanya menyalin link.",
+    "Catatan opsional yang baik menyebut target, kolom penting, periode, lisensi, dan batasan data yang terlihat.",
+  ],
+  id: "exercise-1-2-open-source-data-search",
+  introParagraphs: [
+    "Untuk latihan awal, kita tidak selalu perlu membuat dataset sendiri dari nol. Banyak proyek pembelajaran machine learning memakai dataset terbuka dari platform publik agar kita bisa fokus memahami masalah, struktur data, dan kualitas data.",
+    "Dataset terbuka tetap perlu diperiksa. Dataset yang mudah diunduh belum tentu cocok untuk masalah kita, apalagi jika target, fitur, periode, atau izin penggunaannya tidak jelas.",
+  ],
+  introTitle: "Mengumpulkan Data dari Sumber Terbuka",
+  minimumCompleteSources: 1,
+  minimumDistinctDomains: 1,
+  notesLabel: "Catatan konteks dari halaman sumber (opsional)",
+  prompt: "Cari satu dataset terbuka yang relevan untuk kasus permintaan kafe.",
+  sourceGuidance: [
+    {
+      description:
+        "Cari dataset penjualan, restoran, coffee shop, order, inventory, atau transaksi yang bisa dipakai sebagai latihan kasus kafe.",
+      examples: ["Kaggle", "UC Irvine Machine Learning Repository", "Google Dataset Search"],
+      id: "dataset-repository",
+      title: "Repositori dataset",
+    },
+    {
+      description:
+        "Gunakan dokumentasi halaman dataset untuk membaca definisi kolom, periode, lisensi, dan batasan penggunaan.",
+      examples: ["halaman dataset", "data card", "README", "license note"],
+      id: "dataset-documentation",
+      title: "Dokumentasi dataset",
+    },
+  ],
+  sourceGuidanceTitle: "Yang perlu dicek dari dataset kafe",
+  sourceInputs: [
+    {
+      description:
+        "Tempel satu link dataset kafe. Catatan tambahan boleh dipakai untuk menulis hal yang kamu lihat dari halaman datasetnya.",
+      id: "demand-source",
+      label: "Dataset kafe",
+      notesPlaceholder:
+        "Contoh: dataset ini berisi order/inventory kafe, ada kolom item atau jumlah transaksi, lisensi terlihat, tetapi periode dan cakupan cabang masih perlu dicek.",
+      urlPlaceholder: "https://www.kaggle.com/datasets/...",
+    },
+  ],
+  taskDescription:
+    "Temukan satu dataset kafe dari sumber terbuka. Tempel link halaman dataset; catatan singkat tentang target, kolom penting, periode, lisensi, cakupan, atau batasan yang terlihat boleh ditambahkan jika ada.",
+  taskTitle: "Tugas pencarian",
+  type: "open-dataset-source",
+  urlLabel: "Link dataset atau halaman data",
+};
+
+const lesson12: Lesson = {
+  estimatedMinutes: 12,
+  exercise: lesson12DecisionExercise,
+  exerciseId: lesson12DecisionExercise.id,
+  exercises: [lesson12DecisionExercise, lesson12OpenSourceExercise],
+  id: "lesson-1-2-data-collecting",
+  moduleId: "module-1-data-understanding",
+  numberLabel: "Lesson 1.2",
+  objective: "Kamu bisa menentukan kebutuhan, sumber, izin, dan cek awal data untuk proyek ML.",
+  summary: [
+    "Pengumpulan data menentukan apakah model belajar dari contoh yang relevan, cukup, aman, dan punya konteks.",
+    "Sumber data bisa internal, eksternal, sintetis, atau berasal dari pengguna; tiap sumber perlu dicek izin, cakupan, dan risikonya.",
+    "Sebelum data dipakai, catat konteks dan lakukan validasi awal agar bias, field hilang, atau batasan penggunaan tidak terlambat ditemukan.",
+  ],
+  title: "Pengumpulan Data",
+};
+
 const laterLessons: Lesson[] = [
   multipleChoiceLesson({
     correctOptionIds: [
@@ -516,59 +635,7 @@ const laterLessons: Lesson[] = [
     ],
     title: "Tool dan Library ML",
   }),
-  multipleChoiceLesson({
-    correctOptionIds: [
-      "define-question",
-      "capture-source",
-      "check-permission",
-      "check-representation",
-    ],
-    estimatedMinutes: 7,
-    exerciseId: "exercise-1-2-data-collecting",
-    hints: [
-      "Dataset yang baik menjawab kebutuhan model, bukan sekadar berukuran besar.",
-      "Sumber, periode, izin, dan cakupan menentukan apakah data bisa dipercaya.",
-      "Sampel yang terlalu sempit bisa membuat model bias saat dipakai di kondisi lain.",
-    ],
-    id: "lesson-1-2-data-collecting",
-    moduleId: "module-1-data-understanding",
-    numberLabel: "Lesson 1.2",
-    objective: "Kamu bisa menentukan kebutuhan, sumber, izin, dan cek awal data untuk proyek ML.",
-    options: [
-      {
-        id: "define-question",
-        label: "Tetapkan output prediksi, unit baris, dan cakupan data.",
-      },
-      {
-        id: "capture-source",
-        label: "Catat asal sumber, periode data, dan cara pengambilannya.",
-      },
-      {
-        id: "check-permission",
-        label: "Cek izin, privasi, dan batasan pemakaian field.",
-      },
-      {
-        id: "check-representation",
-        label: "Pastikan variasi lokasi, tipe rumah, dan rentang harga terwakili.",
-      },
-      {
-        id: "collect-everything",
-        label: "Ambil kolom sebanyak mungkin; tujuan bisa diputuskan nanti.",
-      },
-      {
-        id: "single-segment",
-        label: "Pakai satu sumber termudah meski segmennya sempit.",
-      },
-    ],
-    prompt:
-      "Tim ingin membangun model estimasi harga rumah dari beberapa sumber data. Keputusan awal mana yang paling sehat?",
-    summary: [
-      "Pengumpulan data menentukan apakah model belajar dari contoh yang relevan, cukup, aman, dan punya konteks.",
-      "Sumber data bisa internal, eksternal, sintetis, atau berasal dari pengguna; tiap sumber perlu dicek izin, cakupan, dan risikonya.",
-      "Sebelum data dipakai, catat konteks dan lakukan validasi awal agar bias, field hilang, atau batasan penggunaan tidak terlambat ditemukan.",
-    ],
-    title: "Pengumpulan Data",
-  }),
+  lesson12,
   multipleChoiceLesson({
     correctOptionIds: ["read-into-table", "check-schema", "preview-rows"],
     estimatedMinutes: 5,

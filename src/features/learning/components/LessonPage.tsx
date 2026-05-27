@@ -17,6 +17,8 @@ import {
   ChevronDownIcon,
   InformationCircleIcon,
   LightBulbIcon,
+  LinkIcon,
+  PencilSquareIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
 import { useGSAP } from "@gsap/react";
@@ -38,6 +40,7 @@ import { getDatasetView } from "../datasets/registry";
 import { lessonMdxContentByLocaleAndId } from "../content/lesson-mdx-content";
 import { localizeDatasetView, localizeLesson } from "../content/localized-learning-content";
 import {
+  evaluateOpenDatasetSourceExercise,
   evaluateMultipleChoice,
   evaluateOrderedSteps,
 } from "../evaluation/evaluate-lesson-exercises";
@@ -49,11 +52,14 @@ import type {
   ColumnRole,
   DatasetColumn,
   DatasetRow,
+  DatasetSourceAnswer,
+  DatasetSourcePageValidationResult,
   EvaluationResult,
   Lesson,
   LessonAnswer,
   LessonExercise,
   MultipleChoiceExercise,
+  OpenDatasetSourceExercise,
   OrderedStepsExercise,
   TableColumnRoleExercise,
 } from "../types";
@@ -189,6 +195,69 @@ function createRestoredCorrectResult(locale: Locale): EvaluationResult {
   };
 }
 
+function isDatasetSourcePageValidationResult(
+  value: unknown,
+): value is DatasetSourcePageValidationResult {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const result = value as Partial<DatasetSourcePageValidationResult>;
+
+  return (
+    typeof result.sourceId === "string" &&
+    typeof result.url === "string" &&
+    typeof result.status === "string" &&
+    Array.isArray(result.signals) &&
+    Array.isArray(result.issues)
+  );
+}
+
+async function validateDatasetSourcePages({
+  answersBySourceId,
+  exercise,
+  locale,
+}: {
+  answersBySourceId: Record<string, DatasetSourceAnswer>;
+  exercise: OpenDatasetSourceExercise;
+  locale: Locale;
+}) {
+  const sources = exercise.sourceInputs
+    .map((sourceInput) => {
+      const answer = answersBySourceId[sourceInput.id];
+
+      return {
+        id: sourceInput.id,
+        label: sourceInput.label,
+        notes: answer?.notes ?? "",
+        url: answer?.url ?? "",
+      };
+    })
+    .filter((source) => source.url.trim() !== "");
+
+  if (sources.length === 0) {
+    return [];
+  }
+
+  const response = await fetch("/api/learning/dataset-source-validation", {
+    body: JSON.stringify({ locale, sources }),
+    headers: {
+      "content-type": "application/json",
+    },
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error("Dataset source validation failed.");
+  }
+
+  const body = (await response.json()) as { results?: unknown };
+
+  return Array.isArray(body.results)
+    ? body.results.filter(isDatasetSourcePageValidationResult)
+    : [];
+}
+
 function haveSameOrderedValues(left: string[], right: string[]) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
@@ -201,6 +270,19 @@ function haveSameValueSet(left: string[], right: string[]) {
   const rightValues = new Set(right);
 
   return left.every((value) => rightValues.has(value));
+}
+
+function haveSameDatasetSourceAnswers(
+  sourceInputs: OpenDatasetSourceExercise["sourceInputs"],
+  left: Record<string, DatasetSourceAnswer>,
+  right: Record<string, DatasetSourceAnswer>,
+) {
+  return sourceInputs.every((sourceInput) => {
+    const leftAnswer = left[sourceInput.id] ?? { notes: "", url: "" };
+    const rightAnswer = right[sourceInput.id] ?? { notes: "", url: "" };
+
+    return leftAnswer.url === rightAnswer.url && leftAnswer.notes === rightAnswer.notes;
+  });
 }
 
 function haveSameEvaluationResult(left: EvaluationResult | undefined, right: EvaluationResult) {
@@ -218,17 +300,20 @@ function haveSameEvaluationResult(left: EvaluationResult | undefined, right: Eva
 
 function createLessonAnswerSnapshot({
   assignments,
+  datasetSourceAnswersByExerciseId,
   exercises,
   orderedStepIdsByExerciseId,
   selectedOptionIdsByExerciseId,
 }: {
   assignments: Record<string, ColumnRole>;
+  datasetSourceAnswersByExerciseId: Record<string, Record<string, DatasetSourceAnswer>>;
   exercises: LessonExercise[];
   orderedStepIdsByExerciseId: Record<string, string[]>;
   selectedOptionIdsByExerciseId: Record<string, string[]>;
 }): LessonAnswer {
   const answer: LessonAnswer = {
     columnRoleAssignmentsByExerciseId: {},
+    datasetSourceAnswersByExerciseId: {},
     orderedStepIdsByExerciseId: {},
     selectedOptionIdsByExerciseId: {},
   };
@@ -248,6 +333,12 @@ function createLessonAnswerSnapshot({
 
     if (exercise.type === "table-column-role-assignment") {
       answer.columnRoleAssignmentsByExerciseId[exercise.id] = { ...assignments };
+    }
+
+    if (exercise.type === "open-dataset-source") {
+      answer.datasetSourceAnswersByExerciseId[exercise.id] = {
+        ...datasetSourceAnswersByExerciseId[exercise.id],
+      };
     }
   }
 
@@ -275,10 +366,36 @@ function evaluateExerciseAnswerSnapshot(
     );
   }
 
+  if (exercise.type === "open-dataset-source") {
+    return evaluateOpenDatasetSourceExercise(
+      exercise,
+      answer.datasetSourceAnswersByExerciseId?.[exercise.id] ?? {},
+      locale,
+    );
+  }
+
   return evaluateFeatureTargetRoles(
     answer.columnRoleAssignmentsByExerciseId?.[exercise.id] ?? {},
     locale,
   );
+}
+
+function getExerciseResultFromSubmittedAnswer({
+  exercise,
+  isCompletedForCurrentExerciseSet,
+  locale,
+  submittedAnswer,
+}: {
+  exercise: LessonExercise;
+  isCompletedForCurrentExerciseSet: boolean;
+  locale: Locale;
+  submittedAnswer: LessonAnswer | undefined;
+}) {
+  if (submittedAnswer) {
+    return evaluateExerciseAnswerSnapshot(exercise, submittedAnswer, locale);
+  }
+
+  return isCompletedForCurrentExerciseSet ? createRestoredCorrectResult(locale) : undefined;
 }
 
 function LessonLeftGutter({ className = "" }: { className?: string }) {
@@ -393,6 +510,32 @@ export function LessonPage({
       }, {}),
     [exerciseEntries, initialAnswer],
   );
+  const initialDatasetSourceAnswersByExerciseId = useMemo(
+    () =>
+      exerciseEntries.reduce<Record<string, Record<string, DatasetSourceAnswer>>>(
+        (sourceAnswers, exercise) => {
+          if (exercise.type === "open-dataset-source") {
+            const savedAnswers =
+              initialAnswer?.datasetSourceAnswersByExerciseId?.[exercise.id] ?? {};
+
+            sourceAnswers[exercise.id] = exercise.sourceInputs.reduce<
+              Record<string, DatasetSourceAnswer>
+            >((answersBySourceId, sourceInput) => {
+              answersBySourceId[sourceInput.id] = savedAnswers[sourceInput.id] ?? {
+                notes: "",
+                url: "",
+              };
+
+              return answersBySourceId;
+            }, {});
+          }
+
+          return sourceAnswers;
+        },
+        {},
+      ),
+    [exerciseEntries, initialAnswer],
+  );
   const initialSubmittedAnswerSnapshotsByExerciseId = useMemo(
     () =>
       exerciseEntries.reduce<Record<string, LessonAnswer>>((submittedAnswers, exercise) => {
@@ -406,27 +549,35 @@ export function LessonPage({
       }, {}),
     [exerciseEntries, initialSubmittedAnswersByExerciseId],
   );
+  const isCompletedForCurrentExerciseSet =
+    isCompleted &&
+    (exerciseEntries.length <= 1 ||
+      exerciseEntries.every(
+        (exercise) => initialSubmittedAnswerSnapshotsByExerciseId[exercise.id] !== undefined,
+      ));
   const initialExerciseResultsById = useMemo(
     () =>
-      isCompleted
-        ? exerciseEntries.reduce<Record<string, EvaluationResult>>((results, exercise) => {
-            results[exercise.id] = createRestoredCorrectResult(locale);
-            return results;
-          }, {})
-        : exerciseEntries.reduce<Record<string, EvaluationResult>>((results, exercise) => {
-            const submittedAnswer = initialSubmittedAnswerSnapshotsByExerciseId[exercise.id];
+      exerciseEntries.reduce<Record<string, EvaluationResult>>((results, exercise) => {
+        const submittedAnswer = initialSubmittedAnswerSnapshotsByExerciseId[exercise.id];
+        const nextResult = getExerciseResultFromSubmittedAnswer({
+          exercise,
+          isCompletedForCurrentExerciseSet,
+          locale,
+          submittedAnswer,
+        });
 
-            if (submittedAnswer) {
-              results[exercise.id] = evaluateExerciseAnswerSnapshot(
-                exercise,
-                submittedAnswer,
-                locale,
-              );
-            }
+        if (nextResult) {
+          results[exercise.id] = nextResult;
+        }
 
-            return results;
-          }, {}),
-    [exerciseEntries, initialSubmittedAnswerSnapshotsByExerciseId, isCompleted, locale],
+        return results;
+      }, {}),
+    [
+      exerciseEntries,
+      initialSubmittedAnswerSnapshotsByExerciseId,
+      isCompletedForCurrentExerciseSet,
+      locale,
+    ],
   );
   const mountedLessonIdRef = useRef(lesson.id);
   const [assignments, setAssignments] = useState<Record<string, ColumnRole>>(initialAssignments);
@@ -441,6 +592,17 @@ export function LessonPage({
   const [selectedOptionIdsByExerciseId, setSelectedOptionIdsByExerciseId] = useState<
     Record<string, string[]>
   >(initialSelectedOptionIdsByExerciseId);
+  const [datasetSourceAnswersByExerciseId, setDatasetSourceAnswersByExerciseId] = useState<
+    Record<string, Record<string, DatasetSourceAnswer>>
+  >(initialDatasetSourceAnswersByExerciseId);
+  const [
+    datasetSourceValidationResultsByExerciseId,
+    setDatasetSourceValidationResultsByExerciseId,
+  ] = useState<Record<string, DatasetSourcePageValidationResult[]>>({});
+  const [validatingDatasetSourceExerciseId, setValidatingDatasetSourceExerciseId] = useState<
+    string | null
+  >(null);
+  const [editingExerciseIds, setEditingExerciseIds] = useState<Set<string>>(() => new Set());
   const [visibleHintCountByExerciseId, setVisibleHintCountByExerciseId] = useState<
     Record<string, number>
   >({});
@@ -448,11 +610,18 @@ export function LessonPage({
     () =>
       createLessonAnswerSnapshot({
         assignments,
+        datasetSourceAnswersByExerciseId,
         exercises: exerciseEntries,
         orderedStepIdsByExerciseId,
         selectedOptionIdsByExerciseId,
       }),
-    [assignments, exerciseEntries, orderedStepIdsByExerciseId, selectedOptionIdsByExerciseId],
+    [
+      assignments,
+      datasetSourceAnswersByExerciseId,
+      exerciseEntries,
+      orderedStepIdsByExerciseId,
+      selectedOptionIdsByExerciseId,
+    ],
   );
   const datasetView =
     tableColumnRoleExercise && localizedLesson.datasetId && localizedLesson.viewId
@@ -470,6 +639,12 @@ export function LessonPage({
 
     if (exercise.type === "table-column-role-assignment") {
       return Object.values(assignments).some((role) => role !== "ignore");
+    }
+
+    if (exercise.type === "open-dataset-source") {
+      return Object.values(datasetSourceAnswersByExerciseId[exercise.id] ?? {}).some(
+        (answer) => answer.url.trim() !== "" || answer.notes.trim() !== "",
+      );
     }
 
     const currentStepIds = orderedStepIdsByExerciseId[exercise.id] ?? [];
@@ -499,6 +674,14 @@ export function LessonPage({
       );
     }
 
+    if (exercise.type === "open-dataset-source") {
+      return haveSameDatasetSourceAnswers(
+        exercise.sourceInputs,
+        datasetSourceAnswersByExerciseId[exercise.id] ?? {},
+        submittedAnswer.datasetSourceAnswersByExerciseId?.[exercise.id] ?? {},
+      );
+    }
+
     const submittedAssignments =
       submittedAnswer.columnRoleAssignmentsByExerciseId?.[exercise.id] ?? {};
     const assignmentKeys = new Set([
@@ -512,6 +695,7 @@ export function LessonPage({
     );
   };
   const hasAnyAnswer = exerciseEntries.some(hasAnswerForExercise);
+  const hasEditingExercise = editingExerciseIds.size > 0;
   const areAllExerciseResultsCorrect =
     exerciseEntries.length > 0 &&
     exerciseEntries.every((exercise) => {
@@ -519,7 +703,7 @@ export function LessonPage({
 
       return (
         exerciseResult?.status === "correct" &&
-        (isCompleted ||
+        (isCompletedForCurrentExerciseSet ||
           isCurrentAnswerSubmittedForExercise(
             exercise,
             submittedAnswerSnapshotsByExerciseId[exercise.id],
@@ -537,7 +721,8 @@ export function LessonPage({
             locale,
           )
         : null;
-  const isLessonFinished = isCompleted || lessonResult?.status === "correct";
+  const isLessonFinished =
+    !hasEditingExercise && (isCompletedForCurrentExerciseSet || lessonResult?.status === "correct");
   const hasNotQuiteResult = exerciseEntries.some((exercise) => {
     const exerciseResult = exerciseResultsById[exercise.id];
 
@@ -558,13 +743,18 @@ export function LessonPage({
 
     mountedLessonIdRef.current = lesson.id;
     setAssignments(initialAssignments);
+    setDatasetSourceAnswersByExerciseId(initialDatasetSourceAnswersByExerciseId);
     setOrderedStepIdsByExerciseId(initialOrderedStepIds);
     setExerciseResultsById(initialExerciseResultsById);
     setSubmittedAnswerSnapshotsByExerciseId(initialSubmittedAnswerSnapshotsByExerciseId);
     setSelectedOptionIdsByExerciseId(initialSelectedOptionIdsByExerciseId);
+    setDatasetSourceValidationResultsByExerciseId({});
+    setEditingExerciseIds(new Set());
+    setValidatingDatasetSourceExerciseId(null);
     setVisibleHintCountByExerciseId({});
   }, [
     initialAssignments,
+    initialDatasetSourceAnswersByExerciseId,
     initialExerciseResultsById,
     initialOrderedStepIds,
     initialSelectedOptionIdsByExerciseId,
@@ -582,15 +772,12 @@ export function LessonPage({
           continue;
         }
 
-        const nextResult = isCompleted
-          ? createRestoredCorrectResult(locale)
-          : submittedAnswerSnapshotsByExerciseId[exercise.id]
-            ? evaluateExerciseAnswerSnapshot(
-                exercise,
-                submittedAnswerSnapshotsByExerciseId[exercise.id],
-                locale,
-              )
-            : undefined;
+        const nextResult = getExerciseResultFromSubmittedAnswer({
+          exercise,
+          isCompletedForCurrentExerciseSet,
+          locale,
+          submittedAnswer: submittedAnswerSnapshotsByExerciseId[exercise.id],
+        });
 
         if (!nextResult) {
           continue;
@@ -602,10 +789,15 @@ export function LessonPage({
 
       return hasChanges ? nextResults : currentResults;
     });
-  }, [exerciseEntries, isCompleted, locale, submittedAnswerSnapshotsByExerciseId]);
+  }, [
+    exerciseEntries,
+    isCompletedForCurrentExerciseSet,
+    locale,
+    submittedAnswerSnapshotsByExerciseId,
+  ]);
 
   useEffect(() => {
-    if (isCompleted) {
+    if (isCompletedForCurrentExerciseSet && !hasEditingExercise) {
       return;
     }
 
@@ -613,7 +805,13 @@ export function LessonPage({
       answer: answerSnapshot,
       lessonId: lesson.id,
     });
-  }, [answerSnapshot, isCompleted, lesson.id, onAnswerChange]);
+  }, [
+    answerSnapshot,
+    hasEditingExercise,
+    isCompletedForCurrentExerciseSet,
+    lesson.id,
+    onAnswerChange,
+  ]);
 
   if (tableColumnRoleExercise && !datasetView) {
     return (
@@ -707,20 +905,161 @@ export function LessonPage({
     }));
   };
 
-  const evaluateExercise = (exercise: LessonExercise) => {
+  const updateDatasetSourceAnswer = (
+    exerciseId: string,
+    sourceInputId: string,
+    field: keyof DatasetSourceAnswer,
+    value: string,
+  ) => {
+    setDatasetSourceAnswersByExerciseId((current) => {
+      const currentExerciseAnswers = current[exerciseId] ?? {};
+      const currentSourceAnswer = currentExerciseAnswers[sourceInputId] ?? {
+        notes: "",
+        url: "",
+      };
+
+      return {
+        ...current,
+        [exerciseId]: {
+          ...currentExerciseAnswers,
+          [sourceInputId]: {
+            ...currentSourceAnswer,
+            [field]: value,
+          },
+        },
+      };
+    });
+    setVisibleHintCountByExerciseId((current) => ({
+      ...current,
+      [exerciseId]: 0,
+    }));
+    setDatasetSourceValidationResultsByExerciseId((current) => {
+      if (!current[exerciseId]) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[exerciseId];
+
+      return next;
+    });
+  };
+
+  const startEditingExercise = (exerciseId: string) => {
+    setEditingExerciseIds((current) => {
+      const next = new Set(current);
+      next.add(exerciseId);
+
+      return next;
+    });
+    setExerciseResultsById((current) => {
+      if (!current[exerciseId]) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[exerciseId];
+
+      return next;
+    });
+    setDatasetSourceValidationResultsByExerciseId((current) => {
+      if (!current[exerciseId]) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[exerciseId];
+
+      return next;
+    });
+    setVisibleHintCountByExerciseId((current) => ({
+      ...current,
+      [exerciseId]: 0,
+    }));
+  };
+
+  const evaluateExercise = async (
+    exercise: LessonExercise,
+  ): Promise<{
+    evaluation: EvaluationResult;
+    sourceValidationResults?: DatasetSourcePageValidationResult[];
+  }> => {
     if (exercise.type === "multiple-choice") {
-      return evaluateMultipleChoice(
-        exercise,
-        selectedOptionIdsByExerciseId[exercise.id] ?? [],
-        locale,
-      );
+      return {
+        evaluation: evaluateMultipleChoice(
+          exercise,
+          selectedOptionIdsByExerciseId[exercise.id] ?? [],
+          locale,
+        ),
+      };
     }
 
     if (exercise.type === "ordered-steps") {
-      return evaluateOrderedSteps(exercise, orderedStepIdsByExerciseId[exercise.id] ?? [], locale);
+      return {
+        evaluation: evaluateOrderedSteps(
+          exercise,
+          orderedStepIdsByExerciseId[exercise.id] ?? [],
+          locale,
+        ),
+      };
     }
 
-    return evaluateFeatureTargetRoles(assignments, locale);
+    if (exercise.type === "open-dataset-source") {
+      const localEvaluation = evaluateOpenDatasetSourceExercise(
+        exercise,
+        datasetSourceAnswersByExerciseId[exercise.id] ?? {},
+        locale,
+      );
+
+      if (localEvaluation.status !== "correct") {
+        return { evaluation: localEvaluation };
+      }
+
+      setValidatingDatasetSourceExerciseId(exercise.id);
+
+      try {
+        const validationResults = await validateDatasetSourcePages({
+          answersBySourceId: datasetSourceAnswersByExerciseId[exercise.id] ?? {},
+          exercise,
+          locale,
+        });
+
+        if (validationResults.some((result) => result.status === "invalid")) {
+          return {
+            evaluation: {
+              extraColumnIds: [],
+              message:
+                locale === "en"
+                  ? "One or more links are not allowed for automatic validation."
+                  : "Ada link yang tidak diizinkan untuk validasi otomatis.",
+              missedColumnIds: [],
+              nextStep:
+                locale === "en"
+                  ? "Use public HTTP or HTTPS dataset pages, then submit again."
+                  : "Gunakan halaman dataset publik berbasis HTTP atau HTTPS, lalu kirim ulang.",
+              score: 70,
+              status: "partial",
+              title: locale === "en" ? "Partially correct" : "Sebagian benar",
+            },
+            sourceValidationResults: validationResults,
+          };
+        }
+
+        return {
+          evaluation: localEvaluation,
+          sourceValidationResults: validationResults,
+        };
+      } catch {
+        return {
+          evaluation: localEvaluation,
+          sourceValidationResults: [],
+        };
+      }
+    }
+
+    return {
+      evaluation: evaluateFeatureTargetRoles(assignments, locale),
+    };
   };
 
   const isLessonCorrectWithResults = (
@@ -736,8 +1075,8 @@ export function LessonPage({
       );
     });
 
-  const submitExercise = (exercise: LessonExercise) => {
-    const evaluation = evaluateExercise(exercise);
+  const submitExercise = async (exercise: LessonExercise) => {
+    const { evaluation, sourceValidationResults } = await evaluateExercise(exercise);
     const nextExerciseResultsById = {
       ...exerciseResultsById,
       [exercise.id]: evaluation,
@@ -747,8 +1086,27 @@ export function LessonPage({
       [exercise.id]: answerSnapshot,
     };
 
+    if (exercise.type === "open-dataset-source") {
+      setValidatingDatasetSourceExerciseId(null);
+      setDatasetSourceValidationResultsByExerciseId((current) => ({
+        ...current,
+        [exercise.id]: sourceValidationResults ?? [],
+      }));
+    }
     setExerciseResultsById(nextExerciseResultsById);
     setSubmittedAnswerSnapshotsByExerciseId(nextSubmittedAnswerSnapshotsByExerciseId);
+    if (evaluation.status === "correct") {
+      setEditingExerciseIds((current) => {
+        if (!current.has(exercise.id)) {
+          return current;
+        }
+
+        const next = new Set(current);
+        next.delete(exercise.id);
+
+        return next;
+      });
+    }
     onExerciseSubmitResult?.({
       answer: answerSnapshot,
       exerciseId: exercise.id,
@@ -847,7 +1205,11 @@ export function LessonPage({
               : t("learning.exercise.numbered", { number: exerciseIndex + 1 });
           const exerciseResult = exerciseResultsById[exercise.id] ?? null;
           const isExerciseCorrect = exerciseResult?.status === "correct";
-          const isExerciseReadOnly = isReviewMode || isExerciseCorrect;
+          const isExerciseEditing = editingExerciseIds.has(exercise.id);
+          const canEditExerciseSubmission =
+            exercise.type === "open-dataset-source" && isExerciseCorrect && !isExerciseEditing;
+          const isExerciseReadOnly = isReviewMode || (isExerciseCorrect && !isExerciseEditing);
+          const isExerciseSubmitting = validatingDatasetSourceExerciseId === exercise.id;
 
           return (
             <Fragment key={exercise.id}>
@@ -868,6 +1230,9 @@ export function LessonPage({
                 onMoveStep={(index, direction) => moveStep(exercise.id, index, direction)}
                 onToggleOption={(optionId) => toggleOption(exercise.id, optionId)}
                 onUpdateAssignment={updateAssignment}
+                onUpdateDatasetSourceAnswer={(sourceInputId, field, value) =>
+                  updateDatasetSourceAnswer(exercise.id, sourceInputId, field, value)
+                }
                 orderedStepIds={orderedStepIdsByExerciseId[exercise.id] ?? []}
                 result={exerciseResult}
                 isReviewMode={isExerciseReadOnly}
@@ -875,16 +1240,41 @@ export function LessonPage({
                   submittedAnswerSnapshotsByExerciseId[exercise.id]
                     ?.columnRoleAssignmentsByExerciseId?.[exercise.id] ?? {}
                 }
+                submittedDatasetSourceAnswers={
+                  submittedAnswerSnapshotsByExerciseId[exercise.id]
+                    ?.datasetSourceAnswersByExerciseId?.[exercise.id] ?? {}
+                }
+                sourceValidationResults={
+                  datasetSourceValidationResultsByExerciseId[exercise.id] ?? []
+                }
                 submittedSelectedOptionIds={
                   submittedAnswerSnapshotsByExerciseId[exercise.id]
                     ?.selectedOptionIdsByExerciseId?.[exercise.id] ?? []
                 }
+                datasetSourceAnswers={datasetSourceAnswersByExerciseId[exercise.id] ?? {}}
                 selectedOptionIds={selectedOptionIdsByExerciseId[exercise.id] ?? []}
               />
-              {isMultiExerciseLesson && !isLessonFinished ? (
+              {isMultiExerciseLesson ? (
                 <ExerciseSubmitAction
-                  disabled={!hasAnswerForExercise(exercise) || isExerciseCorrect}
+                  disabled={
+                    !hasAnswerForExercise(exercise) ||
+                    (isExerciseCorrect && !isExerciseEditing) ||
+                    isExerciseSubmitting
+                  }
                   edgeCompensationClassName={rightEdgeCompensationClassName}
+                  finishedHref={
+                    isLessonFinished && exerciseIndex === exerciseEntries.length - 1
+                      ? finishedActionHref
+                      : undefined
+                  }
+                  finishedLabel={
+                    isLessonFinished && exerciseIndex === exerciseEntries.length - 1
+                      ? finishedActionLabel
+                      : undefined
+                  }
+                  isEditable={canEditExerciseSubmission}
+                  isSubmitting={isExerciseSubmitting}
+                  onEdit={() => startEditingExercise(exercise.id)}
                   onSubmit={() => submitExercise(exercise)}
                   previousLessonHref={
                     exerciseIndex === exerciseEntries.length - 1 ? previousLessonHref : undefined
@@ -906,7 +1296,7 @@ export function LessonPage({
           );
         })}
 
-        {!isMultiExerciseLesson || isLessonFinished ? (
+        {!isMultiExerciseLesson ? (
           <LessonFullRow>
             <div
               className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} flex items-center gap-4 p-6 [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-12`}
@@ -1006,17 +1396,29 @@ export function LessonPage({
 function ExerciseSubmitAction({
   disabled,
   edgeCompensationClassName,
+  finishedHref,
+  finishedLabel,
+  isEditable = false,
+  isSubmitting = false,
+  onEdit,
   onSubmit,
   previousLessonHref,
   submitted,
 }: {
   disabled: boolean;
   edgeCompensationClassName: string;
+  finishedHref?: string;
+  finishedLabel?: string;
+  isEditable?: boolean;
+  isSubmitting?: boolean;
+  onEdit?: () => void;
   onSubmit: () => void;
   previousLessonHref?: string;
   submitted: boolean;
 }) {
   const { t } = useLocalization();
+  const finishedAction =
+    finishedHref && finishedLabel ? { href: finishedHref, label: finishedLabel } : null;
 
   return (
     <LessonFullRow>
@@ -1036,14 +1438,45 @@ function ExerciseSubmitAction({
             {t("navigation.prev")}
           </LiquidLink>
         ) : null}
-        <LiquidButton
-          className={`${emeraldLiquidButtonClassName} ml-auto min-h-12 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-neutral-950 ${disabled ? "" : "cursor-pointer"} [@media_(min-width:2200px)]:min-h-16`}
-          disabled={disabled}
-          onClick={onSubmit}
-          type="button"
-        >
-          {submitted ? t("learning.submitted") : t("learning.submit")}
-        </LiquidButton>
+        {isEditable ? (
+          <LiquidButton
+            className={`${amberLiquidButtonClassName} ml-auto min-h-12 cursor-pointer [@media_(min-width:2200px)]:min-h-16`}
+            onClick={onEdit}
+            type="button"
+          >
+            <PencilSquareIcon
+              aria-hidden="true"
+              className="size-5 [@media_(min-width:2200px)]:size-6"
+            />
+            {t("learning.exercise.edit")}
+          </LiquidButton>
+        ) : null}
+        {finishedAction ? (
+          <LiquidLink
+            className={`${emeraldLiquidButtonClassName} ${isEditable ? "" : "ml-auto"} min-h-12 [@media_(min-width:2200px)]:min-h-16`}
+            data-app-link
+            href={finishedAction.href}
+          >
+            {finishedAction.label}
+            <ArrowRightIcon
+              aria-hidden="true"
+              className="size-5 [@media_(min-width:2200px)]:size-6"
+            />
+          </LiquidLink>
+        ) : (
+          <LiquidButton
+            className={`${emeraldLiquidButtonClassName} ${isEditable ? "" : "ml-auto"} min-h-12 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-neutral-950 ${disabled ? "" : "cursor-pointer"} [@media_(min-width:2200px)]:min-h-16`}
+            disabled={disabled}
+            onClick={onSubmit}
+            type="button"
+          >
+            {isSubmitting
+              ? t("learning.validating")
+              : submitted
+                ? t("learning.submitted")
+                : t("learning.submit")}
+          </LiquidButton>
+        )}
       </div>
     </LessonFullRow>
   );
@@ -1052,31 +1485,43 @@ function ExerciseSubmitAction({
 function ExerciseSection({
   assignments,
   datasetView,
+  datasetSourceAnswers,
   edgeCompensationClassName,
   exercise,
   exerciseLabel,
   onMoveStep,
   onToggleOption,
   onUpdateAssignment,
+  onUpdateDatasetSourceAnswer,
   orderedStepIds,
   result,
   isReviewMode,
+  sourceValidationResults,
   submittedColumnRoleAssignments,
+  submittedDatasetSourceAnswers,
   submittedSelectedOptionIds,
   selectedOptionIds,
 }: {
   assignments: Record<string, ColumnRole>;
   datasetView: ReturnType<typeof getDatasetView>;
+  datasetSourceAnswers: Record<string, DatasetSourceAnswer>;
   edgeCompensationClassName: string;
   exercise: LessonExercise;
   exerciseLabel: string;
   onMoveStep: (index: number, direction: -1 | 1) => void;
   onToggleOption: (optionId: string) => void;
   onUpdateAssignment: (columnId: string, role: ColumnRole) => void;
+  onUpdateDatasetSourceAnswer: (
+    sourceInputId: string,
+    field: keyof DatasetSourceAnswer,
+    value: string,
+  ) => void;
   orderedStepIds: string[];
   result: EvaluationResult | null;
   isReviewMode: boolean;
+  sourceValidationResults: DatasetSourcePageValidationResult[];
   submittedColumnRoleAssignments: Record<string, ColumnRole>;
+  submittedDatasetSourceAnswers: Record<string, DatasetSourceAnswer>;
   submittedSelectedOptionIds: string[];
   selectedOptionIds: string[];
 }) {
@@ -1098,8 +1543,34 @@ function ExerciseSection({
             {exerciseLabel}
           </p>
           <h2 className="mt-3 text-xl font-semibold text-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-3xl">
-            {exercise.prompt}
+            {exercise.type === "open-dataset-source" ? exercise.introTitle : exercise.prompt}
           </h2>
+          {exercise.type === "open-dataset-source" ? (
+            <div className="mt-5 grid gap-5 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-7 [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+              {exercise.introParagraphs.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+              <div>
+                <h3 className="text-lg font-semibold text-foreground [@media_(min-width:2200px)]:text-2xl">
+                  {exercise.sourceGuidanceTitle}
+                </h3>
+                <ul className="mt-4 grid gap-4 [@media_(min-width:2200px)]:gap-5">
+                  {exercise.sourceGuidance.map((source) => (
+                    <li
+                      className="learning-grid-panel-fill grid gap-2 p-5 [@media_(min-width:2200px)]:gap-3 [@media_(min-width:2200px)]:p-6"
+                      key={source.id}
+                    >
+                      <span className="font-semibold text-foreground">{source.title}</span>
+                      <span>{source.description}</span>
+                      <span className="text-sm font-medium text-muted-foreground [@media_(min-width:2200px)]:text-base">
+                        {source.examples.join(", ")}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ) : null}
           {choiceModeLabel ? (
             <p className="mt-3 text-sm font-medium text-muted-foreground [@media_(min-width:2200px)]:text-base">
               {choiceModeLabel}
@@ -1138,6 +1609,19 @@ function ExerciseSection({
         />
       ) : null}
 
+      {exercise.type === "open-dataset-source" ? (
+        <OpenDatasetSourceExerciseView
+          answers={datasetSourceAnswers}
+          edgeCompensationClassName={edgeCompensationClassName}
+          exercise={exercise}
+          isReviewMode={isReviewMode}
+          onUpdateAnswer={onUpdateDatasetSourceAnswer}
+          result={result}
+          sourceValidationResults={sourceValidationResults}
+          submittedAnswers={submittedDatasetSourceAnswers}
+        />
+      ) : null}
+
       {exercise.type === "table-column-role-assignment" && datasetView ? (
         <ColumnRoleExerciseView
           assignments={assignments}
@@ -1151,6 +1635,200 @@ function ExerciseSection({
         />
       ) : null}
     </>
+  );
+}
+
+function OpenDatasetSourceExerciseView({
+  answers,
+  edgeCompensationClassName,
+  exercise,
+  isReviewMode,
+  onUpdateAnswer,
+  result,
+  sourceValidationResults,
+  submittedAnswers,
+}: {
+  answers: Record<string, DatasetSourceAnswer>;
+  edgeCompensationClassName: string;
+  exercise: OpenDatasetSourceExercise;
+  isReviewMode: boolean;
+  onUpdateAnswer: (sourceInputId: string, field: keyof DatasetSourceAnswer, value: string) => void;
+  result: EvaluationResult | null;
+  sourceValidationResults: DatasetSourcePageValidationResult[];
+  submittedAnswers: Record<string, DatasetSourceAnswer>;
+}) {
+  const { locale } = useLocalization();
+  const displayedAnswers =
+    isReviewMode && Object.keys(submittedAnswers).length > 0 ? submittedAnswers : answers;
+  const validationResultBySourceId = new Map(
+    sourceValidationResults.map((validationResult) => [
+      validationResult.sourceId,
+      validationResult,
+    ]),
+  );
+
+  return (
+    <>
+      <LessonFullRow>
+        <div
+          className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${edgeCompensationClassName} p-6 [@media_(min-width:2200px)]:p-12`}
+        >
+          <p className="text-base font-medium text-sky-600 [@media_(min-width:2200px)]:text-lg">
+            {exercise.taskTitle}
+          </p>
+          <h3 className="mt-3 text-xl font-semibold text-foreground [@media_(min-width:2200px)]:mt-4 [@media_(min-width:2200px)]:text-3xl">
+            {exercise.prompt}
+          </h3>
+          <p className="mt-4 max-w-4xl text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:mt-5 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+            {exercise.taskDescription}
+          </p>
+        </div>
+      </LessonFullRow>
+      <LessonFullRow>
+        <div
+          className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${edgeCompensationClassName} grid gap-5 p-6 [@media_(min-width:2200px)]:gap-6 [@media_(min-width:2200px)]:p-12`}
+        >
+          {exercise.sourceInputs.map((sourceInput) => {
+            const sourceAnswer = displayedAnswers[sourceInput.id] ?? { notes: "", url: "" };
+            const validationResult = validationResultBySourceId.get(sourceInput.id);
+
+            return (
+              <section
+                className="learning-grid-panel-fill p-5 [@media_(min-width:2200px)]:p-6"
+                key={sourceInput.id}
+              >
+                <div className="flex gap-3 [@media_(min-width:2200px)]:gap-4">
+                  <LinkIcon
+                    aria-hidden="true"
+                    className="mt-1 size-5 shrink-0 text-sky-600 [@media_(min-width:2200px)]:size-6"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-lg font-semibold text-foreground [@media_(min-width:2200px)]:text-2xl">
+                      {sourceInput.label}
+                    </h4>
+                    <p className="mt-2 text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+                      {sourceInput.description}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-4 [@media_(min-width:2200px)]:mt-6 [@media_(min-width:2200px)]:gap-5">
+                  <label className="grid gap-2">
+                    <span className="text-sm font-semibold text-foreground [@media_(min-width:2200px)]:text-base">
+                      {exercise.urlLabel}
+                    </span>
+                    <input
+                      aria-label={`${sourceInput.label}: ${exercise.urlLabel}`}
+                      className="learning-grid-control min-h-12 w-full border border-neutral-300 bg-white px-4 py-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-sky-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:bg-neutral-100 disabled:text-muted-foreground [@media_(min-width:2200px)]:min-h-14 [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:text-lg"
+                      disabled={isReviewMode}
+                      onChange={(event) =>
+                        onUpdateAnswer(sourceInput.id, "url", event.currentTarget.value)
+                      }
+                      placeholder={sourceInput.urlPlaceholder}
+                      type="url"
+                      value={sourceAnswer.url}
+                    />
+                  </label>
+                  <label className="grid gap-2">
+                    <span className="text-sm font-semibold text-foreground [@media_(min-width:2200px)]:text-base">
+                      {exercise.notesLabel}
+                    </span>
+                    <textarea
+                      aria-label={`${sourceInput.label}: ${exercise.notesLabel}`}
+                      className="learning-grid-control min-h-32 w-full resize-y border border-neutral-300 bg-white px-4 py-3 text-base leading-7 text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-sky-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:bg-neutral-100 disabled:text-muted-foreground [@media_(min-width:2200px)]:min-h-40 [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8"
+                      disabled={isReviewMode}
+                      onChange={(event) =>
+                        onUpdateAnswer(sourceInput.id, "notes", event.currentTarget.value)
+                      }
+                      placeholder={sourceInput.notesPlaceholder}
+                      value={sourceAnswer.notes}
+                    />
+                  </label>
+                </div>
+                {validationResult ? (
+                  <DatasetSourceValidationSummary locale={locale} result={validationResult} />
+                ) : null}
+              </section>
+            );
+          })}
+          {result?.status === "correct" ? (
+            <p className="text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
+              {result.message}
+            </p>
+          ) : null}
+        </div>
+      </LessonFullRow>
+    </>
+  );
+}
+
+function DatasetSourceValidationSummary({
+  locale,
+  result,
+}: {
+  locale: Locale;
+  result: DatasetSourcePageValidationResult;
+}) {
+  const isPositive = result.status === "valid";
+  const isNegative = result.status === "invalid" || result.status === "unreachable";
+  const title =
+    locale === "en"
+      ? result.status === "valid"
+        ? "Page readable"
+        : result.status === "partial"
+          ? "Page needs manual review"
+          : result.status === "invalid"
+            ? "Link blocked"
+            : "Page unreachable"
+      : result.status === "valid"
+        ? "Halaman terbaca"
+        : result.status === "partial"
+          ? "Halaman perlu dicek manual"
+          : result.status === "invalid"
+            ? "Link diblokir"
+            : "Halaman tidak terbaca";
+  const statusClassName = isPositive
+    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+    : isNegative
+      ? "border-rose-200 bg-rose-50 text-rose-800"
+      : "border-sky-200 bg-sky-50 text-sky-800";
+
+  return (
+    <div className={`mt-5 border p-4 ${statusClassName} [@media_(min-width:2200px)]:mt-6`}>
+      <div className="flex items-start gap-3">
+        {isPositive ? (
+          <CheckCircleIcon
+            aria-hidden="true"
+            className="mt-0.5 size-5 shrink-0 [@media_(min-width:2200px)]:size-6"
+          />
+        ) : isNegative ? (
+          <XCircleIcon
+            aria-hidden="true"
+            className="mt-0.5 size-5 shrink-0 [@media_(min-width:2200px)]:size-6"
+          />
+        ) : (
+          <InformationCircleIcon
+            aria-hidden="true"
+            className="mt-0.5 size-5 shrink-0 [@media_(min-width:2200px)]:size-6"
+          />
+        )}
+        <div className="min-w-0 flex-1">
+          <h5 className="font-semibold">{title}</h5>
+          {result.title ? <p className="mt-1 text-sm font-medium">{result.title}</p> : null}
+          {result.description ? (
+            <p className="mt-1 line-clamp-2 text-sm opacity-85">{result.description}</p>
+          ) : null}
+          {result.signals.length > 0 ? (
+            <p className="mt-2 text-sm opacity-85">
+              {(locale === "en" ? "Signals: " : "Sinyal: ") + result.signals.join(", ")}
+            </p>
+          ) : null}
+          {result.issues.length > 0 ? (
+            <p className="mt-2 text-sm opacity-85">{result.issues.join(" ")}</p>
+          ) : null}
+        </div>
+      </div>
+    </div>
   );
 }
 

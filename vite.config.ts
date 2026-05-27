@@ -1,11 +1,61 @@
 import mdx from "@mdx-js/rollup";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite-plus";
+import type { Plugin } from "vite-plus";
+
+import { handleDatasetSourcePageValidationRequest } from "./src/features/learning/server/dataset-source-page-validation.ts";
+
+function readIncomingRequestBody(request: IncomingMessage) {
+  return new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+
+    request.on("data", (chunk: Buffer) => {
+      chunks.push(chunk);
+    });
+    request.on("end", () => {
+      resolve(Buffer.concat(chunks));
+    });
+    request.on("error", reject);
+  });
+}
+
+async function writeWebResponse(response: Response, serverResponse: ServerResponse) {
+  serverResponse.statusCode = response.status;
+  response.headers.forEach((value, key) => {
+    serverResponse.setHeader(key, value);
+  });
+  serverResponse.end(Buffer.from(await response.arrayBuffer()));
+}
+
+function datasetSourceValidationDevPlugin(): Plugin {
+  return {
+    configureServer(server) {
+      server.middlewares.use(
+        "/api/learning/dataset-source-validation",
+        async (request, response) => {
+          const origin = `${request.headers["x-forwarded-proto"] ?? "http"}://${request.headers.host ?? "127.0.0.1"}`;
+          const body =
+            request.method === "GET" ? undefined : await readIncomingRequestBody(request);
+          const webRequest = new Request(`${origin}${request.url ?? ""}`, {
+            body,
+            headers: request.headers as HeadersInit,
+            method: request.method,
+          });
+          const webResponse = await handleDatasetSourcePageValidationRequest(webRequest);
+
+          await writeWebResponse(webResponse, response);
+        },
+      );
+    },
+    name: "smile-dataset-source-validation-dev",
+  };
+}
 
 export default defineConfig({
-  plugins: [tailwindcss(), mdx(), react()],
+  plugins: [datasetSourceValidationDevPlugin(), tailwindcss(), mdx(), react()],
   build: {
     rolldownOptions: {
       output: {
