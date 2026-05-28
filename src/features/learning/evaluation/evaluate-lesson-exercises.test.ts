@@ -5,6 +5,7 @@ import {
   evaluateOpenDatasetSourceExercise,
   evaluateOrderedSteps,
 } from "./evaluate-lesson-exercises";
+import { learningHintGlossaryByExerciseId } from "../content/learning-hint-glossary";
 import { lessons } from "../content/learning-content";
 import { localizeLesson } from "../content/localized-learning-content";
 import type {
@@ -128,6 +129,16 @@ describe("evaluateMultipleChoice", () => {
 });
 
 describe("multiple-choice hint content", () => {
+  it("keeps the glossary aligned with exercise ids", () => {
+    const exerciseIds = new Set(
+      lessons.flatMap((lesson) => (lesson.exercises ?? [lesson.exercise]).map(({ id }) => id)),
+    );
+    const glossaryExerciseIds = Object.keys(learningHintGlossaryByExerciseId);
+
+    expect(glossaryExerciseIds.filter((id) => !exerciseIds.has(id))).toEqual([]);
+    expect([...exerciseIds].filter((id) => !(id in learningHintGlossaryByExerciseId))).toEqual([]);
+  });
+
   it("keeps answer hints aligned with correct answers in every locale", () => {
     for (const locale of ["id", "en"] as const) {
       for (const lesson of lessons.map((lesson) => localizeLesson(lesson, locale))) {
