@@ -72,9 +72,7 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
     exerciseCopies: {
       "exercise-0-1-what-is-machine-learning": {
         hints: [
-          "Look for the answer that mentions learning from data.",
-          "Machine learning does not guarantee every answer will be correct.",
-          "A model needs examples before it can learn useful patterns.",
+          "Look for the statement where a system learns patterns from data for new examples.",
         ],
         options: {
           "always-correct":
@@ -101,9 +99,7 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
     exerciseCopies: {
       "exercise-0-2-machine-learning-in-ai": {
         hints: [
-          "AI is the larger umbrella.",
-          "Machine learning learns from data.",
-          "Generative AI is related to creating new content.",
+          "Look for the umbrella relationship: machine learning sits inside AI and learns from data.",
         ],
         options: {
           "ai-ml-same": "AI and machine learning are exactly the same thing.",
@@ -126,9 +122,11 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
     exerciseCopies: {
       "exercise-0-3-core-components": {
         hints: [
-          "A model needs both a goal and data.",
-          "Training is the learning process.",
-          "Evaluation checks that the model is not only good on early examples.",
+          "Start from the need or task to solve; without it, the model has no direction.",
+          "Historical examples are the learning material, not just report decoration.",
+          "The part that stores learned patterns is the model.",
+          "Learning happens when the model is adjusted from examples.",
+          "The final component checks whether the model result is actually useful.",
         ],
         options: {
           data: "Data as examples to learn from.",
@@ -153,10 +151,10 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
     exerciseCopies: {
       "exercise-0-4-learning-types": {
         hints: [
-          "Numbers point to regression.",
-          "Categories point to classification.",
-          "Groups without answer labels point to clustering.",
-          "Actions and rewards point to reinforcement learning.",
+          "Numeric output points to regression.",
+          "Category output points to classification.",
+          "Finding groups without answer labels points to clustering.",
+          "Learning actions from rewards points to reinforcement learning.",
         ],
         options: {
           "classification-category": "Classification predicts categories.",
@@ -180,9 +178,9 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
     exerciseCopies: {
       "exercise-0-5-machine-learning-use-cases": {
         hints: [
-          "Look for problems that need patterns learned from data.",
-          "Simple rules do not always need ML.",
-          "Prediction and risk detection often fit ML when data is available.",
+          "Estimating duration from distance, weather, traffic, and vehicle type fits pattern-based prediction.",
+          "Customer groups from behavior history are a segmentation task.",
+          "Transaction risk can be learned from patterns in previous cases when data is available.",
         ],
         options: {
           "customer-segments": "Group customers based on purchase patterns.",
@@ -207,9 +205,10 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
     exerciseCopies: {
       "exercise-0-6-formulate-problem": {
         hints: [
-          "The target is the output you want to predict.",
-          "Features must be available before prediction time.",
-          "A numeric output points to regression.",
+          "The answer the model should produce is delivery duration.",
+          "Because the output is numeric, the task type is regression.",
+          "Safe inputs are order context known before the delivery finishes.",
+          "The problem statement should mention the output and input context in one sentence.",
         ],
         options: {
           "actual-demand-feature":
@@ -251,9 +250,10 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
     exerciseCopies: {
       "exercise-1-1-ml-tools-libraries": {
         hints: [
-          "Look for choices that make data, assumptions, and early results auditable.",
-          "Use tools by stage: exploration, data checks, visualization, then a model benchmark.",
-          "A large model is not a shortcut around unread data.",
+          "A notebook keeps the experiment trail auditable.",
+          "Pandas fits sample, column-type, and blank-value checks.",
+          "Quick charts help reveal the target pattern before training.",
+          "Scikit-learn fits a simple baseline for the first benchmark.",
         ],
         options: {
           "baseline-with-scikit-learn": "Set a simple Scikit-learn benchmark.",
@@ -278,9 +278,10 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
     exerciseCopies: {
       "exercise-1-2-data-collecting": {
         hints: [
-          "A good dataset serves the model need, not just a large row count.",
-          "Source, period, permission, and coverage determine whether data can be trusted.",
-          "A narrow sample can make the model biased in other conditions.",
+          "Start from the prediction output, row unit, and data coverage the model needs.",
+          "Source origin, period, and collection method must be traceable.",
+          "Permission, privacy, and field-use limits need checking before the data is used.",
+          "The data should cover the condition variety the model will face.",
         ],
         options: {
           "capture-source": "Record source origin, data period, and collection method.",
@@ -352,9 +353,9 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
     exerciseCopies: {
       "exercise-1-3-data-loading": {
         hints: [
-          "Loading turns raw files, databases, or API responses into inspectable tables.",
-          "Schema checks catch unexpected column names and data types.",
-          "A quick preview can reveal obvious loading problems.",
+          "The first loading step moves raw sources into an inspectable table or dataframe.",
+          "Column names, data types, and required fields need validation after data loads.",
+          "Previewing a few rows helps catch rough loading issues.",
         ],
         options: {
           "check-schema": "Check column names, data types, and expected fields.",
@@ -376,9 +377,9 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
     exerciseCopies: {
       "exercise-1-4-cleaning-transformation": {
         hints: [
-          "Cleaning handles issues such as missing values and inconsistent labels.",
-          "Transformation makes raw fields easier to analyze or model.",
-          "Target leakage can appear when transformation is careless.",
+          "Missing or impossible values need handling with a clear reason.",
+          "Inconsistent categories or formats need standardization.",
+          "A new field is safe only when it avoids target answers or future information.",
         ],
         options: {
           "change-target-after-model":
@@ -402,9 +403,9 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
     exerciseCopies: {
       "exercise-1-5-exploratory-explanatory-analysis": {
         hints: [
-          "Exploratory analysis helps discover patterns, issues, and follow-up questions.",
-          "Explanatory analysis communicates findings clearly.",
-          "Charts can support claims, but they do not automatically prove causation.",
+          "Exploration looks for patterns, gaps, and follow-up questions in the data.",
+          "Explanation presents selected findings so others can understand the claim.",
+          "Analysis claims should stop at the available evidence.",
         ],
         options: {
           "avoid-overclaiming": "Avoid making claims beyond the evidence.",
@@ -426,9 +427,9 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
     exerciseCopies: {
       "exercise-1-6-data-splitting": {
         hints: [
-          "The test set should behave like unseen future data.",
-          "Preprocessing that learns from data should be fitted on training data only.",
-          "The split should still represent the real problem.",
+          "Test data should be held out as an estimate of new unseen data.",
+          "Split before transformations or models learn from the data.",
+          "Train and test still need to represent the real problem conditions.",
         ],
         options: {
           "representative-split": "Check whether the split still represents the real problem.",
@@ -450,9 +451,9 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
     exerciseCopies: {
       "exercise-1-7-modeling": {
         hints: [
-          "A baseline gives the model a simple comparison point.",
-          "Training adjusts model behavior based on training data.",
-          "Evaluation checks errors and limitations, not only one score.",
+          "A baseline gives a simple comparison point for judging the model.",
+          "The model learns when it is trained on training data.",
+          "Evaluation looks at errors and limitations, not just one score.",
         ],
         options: {
           "choose-baseline": "Compare the model with a simple baseline.",

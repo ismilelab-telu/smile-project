@@ -5,6 +5,8 @@ import {
   evaluateOpenDatasetSourceExercise,
   evaluateOrderedSteps,
 } from "./evaluate-lesson-exercises";
+import { lessons } from "../content/learning-content";
+import { localizeLesson } from "../content/localized-learning-content";
 import type {
   MultipleChoiceExercise,
   OpenDatasetSourceExercise,
@@ -13,7 +15,13 @@ import type {
 
 const multipleOptionExercise: MultipleChoiceExercise = {
   correctOptionIds: ["problem", "data", "model", "training", "evaluation"],
-  hints: ["Pilih klaim yang langsung menjelaskan komponen dasar ML."],
+  hints: [
+    "Masalah memberi arah proyek ML.",
+    "Data menjadi contoh untuk belajar.",
+    "Model menyimpan pola hasil belajar.",
+    "Pelatihan menyesuaikan model dari contoh.",
+    "Evaluasi mengecek manfaat model.",
+  ],
   id: "exercise-core-components",
   options: [
     { id: "problem", label: "Masalah" },
@@ -80,7 +88,9 @@ describe("evaluateMultipleChoice", () => {
     expect(result.message).toBe("Pilih 5 opsi untuk pertanyaan ini. Saat ini kamu memilih 3.");
     expect(result.nextStep).toBe("Tambahkan 2 pilihan lagi, lalu kirim ulang.");
     expect(result.suggestedHints).toEqual([
-      "Pilih klaim yang langsung menjelaskan komponen dasar ML.",
+      "Masalah memberi arah proyek ML.",
+      "Data menjadi contoh untuk belajar.",
+      "Model menyimpan pola hasil belajar.",
     ]);
   });
 
@@ -96,9 +106,7 @@ describe("evaluateMultipleChoice", () => {
     expect(result.status).toBe("partial");
     expect(result.message).toBe("Jumlah pilihan sudah sesuai, tapi ada pilihan yang belum tepat.");
     expect(result.nextStep).toBe("Ganti pilihan yang tidak sesuai, lalu kirim ulang.");
-    expect(result.suggestedHints?.[0]).toBe(
-      "Fokus pada pilihan yang ditandai salah; pilihan itu perlu diganti, bukan ditambah.",
-    );
+    expect(result.suggestedHints).toEqual(["Masalah memberi arah proyek ML."]);
   });
 
   it("supports English feedback", () => {
@@ -112,8 +120,33 @@ describe("evaluateMultipleChoice", () => {
     expect(result.message).toBe("Select 5 options for this question. You currently selected 3.");
     expect(result.nextStep).toBe("Add 2 more selections, then submit again.");
     expect(result.suggestedHints).toEqual([
-      "Pilih klaim yang langsung menjelaskan komponen dasar ML.",
+      "Masalah memberi arah proyek ML.",
+      "Data menjadi contoh untuk belajar.",
+      "Model menyimpan pola hasil belajar.",
     ]);
+  });
+});
+
+describe("multiple-choice hint content", () => {
+  it("keeps answer hints aligned with correct answers in every locale", () => {
+    for (const locale of ["id", "en"] as const) {
+      for (const lesson of lessons.map((lesson) => localizeLesson(lesson, locale))) {
+        for (const exercise of lesson.exercises ?? [lesson.exercise]) {
+          if (exercise.type !== "multiple-choice") {
+            continue;
+          }
+
+          expect(
+            exercise.hints,
+            `${locale} ${lesson.id}/${exercise.id} should have one hint per correct answer`,
+          ).toHaveLength(exercise.correctOptionIds.length);
+          expect(
+            exercise.hints.every((hint) => hint.trim() !== ""),
+            `${locale} ${lesson.id}/${exercise.id} should not have empty hints`,
+          ).toBe(true);
+        }
+      }
+    }
   });
 });
 

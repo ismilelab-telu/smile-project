@@ -441,11 +441,7 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { name: "Belum tepat" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Tampilkan petunjuk" }));
-    expect(
-      screen.getByText(
-        /Untuk soal satu jawaban, pilih opsi yang paling langsung dan lengkap menjelaskan konsepnya./,
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/sistem belajar pola dari data untuk contoh baru/)).toBeInTheDocument();
     expect(
       screen.queryByText("Cari jawaban yang menyebut belajar dari data."),
     ).not.toBeInTheDocument();

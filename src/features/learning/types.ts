@@ -43,6 +43,7 @@ type LessonExerciseBase = {
   id: string;
   type: ExerciseType;
   prompt: string;
+  // For multiple-choice exercises, hints are answer clues ordered like correctOptionIds.
   hints: string[];
 };
 

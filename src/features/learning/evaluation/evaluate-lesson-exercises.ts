@@ -34,16 +34,31 @@ function createSuggestedHints(contextualHints: string[], fallbackHints: string[]
   );
 }
 
-function getMultipleChoiceConceptHints(exercise: MultipleChoiceExercise, locale: Locale) {
-  if (exercise.hints.length > 0) {
-    return exercise.hints;
+function getMultipleChoiceAnswerHints(exercise: MultipleChoiceExercise, locale: Locale) {
+  if (exercise.hints.length >= exercise.correctOptionIds.length) {
+    return exercise.hints.slice(0, exercise.correctOptionIds.length);
   }
 
-  return [
+  const fallbackHint =
     locale === "en"
       ? "Read each option as a claim, then keep only the claims supported by the lesson concept."
-      : "Baca setiap opsi sebagai klaim, lalu pertahankan hanya klaim yang didukung konsep lesson.",
-  ];
+      : "Baca setiap opsi sebagai klaim, lalu pertahankan hanya klaim yang didukung konsep lesson.";
+
+  return exercise.correctOptionIds.map((_, index) => exercise.hints[index] ?? fallbackHint);
+}
+
+function getMultipleChoiceSuggestedHints(
+  exercise: MultipleChoiceExercise,
+  selectedOptionIds: string[],
+  locale: Locale,
+) {
+  const selected = new Set(selectedOptionIds);
+  const answerHints = getMultipleChoiceAnswerHints(exercise, locale);
+  const missedAnswerHints = exercise.correctOptionIds.flatMap((optionId, index) =>
+    selected.has(optionId) ? [] : [answerHints[index]],
+  );
+
+  return missedAnswerHints.length > 0 ? missedAnswerHints : answerHints;
 }
 
 function sameOrder(left: string[], right: string[]) {
@@ -272,7 +287,7 @@ export function evaluateMultipleChoice(
       nextStep,
       score: correctSelectedCount > 0 ? 45 : 20,
       status,
-      suggestedHints: getMultipleChoiceConceptHints(exercise, locale),
+      suggestedHints: getMultipleChoiceSuggestedHints(exercise, selectedOptionIds, locale),
       title: title[status],
     });
   }
@@ -291,17 +306,7 @@ export function evaluateMultipleChoice(
           : "Ganti pilihan yang tidak sesuai, lalu kirim ulang.",
       score: correctSelectedCount > 0 ? 55 : 20,
       status,
-      suggestedHints: createSuggestedHints(
-        [
-          locale === "en"
-            ? "Focus on the selected option marked incorrect; it should be replaced, not added to."
-            : "Fokus pada pilihan yang ditandai salah; pilihan itu perlu diganti, bukan ditambah.",
-          locale === "en"
-            ? "Compare each selected option against the exact wording of the question."
-            : "Bandingkan setiap pilihanmu dengan kata-kata persis di pertanyaan.",
-        ],
-        exercise.hints,
-      ),
+      suggestedHints: getMultipleChoiceSuggestedHints(exercise, selectedOptionIds, locale),
       title: title[status],
     });
   }
@@ -318,17 +323,7 @@ export function evaluateMultipleChoice(
           : "Baca lagi pertanyaannya, lalu cari pilihan lain yang masih sesuai.",
       score: 60,
       status: "partial",
-      suggestedHints: createSuggestedHints(
-        [
-          locale === "en"
-            ? "One selected idea already fits; now look for a different part of the concept, not a duplicate of the same idea."
-            : "Satu ide yang dipilih sudah cocok; sekarang cari bagian konsep lain, bukan duplikat ide yang sama.",
-          locale === "en"
-            ? "Use the answer count as a clue for how many concept pieces are expected."
-            : "Pakai jumlah jawaban sebagai petunjuk berapa bagian konsep yang diminta.",
-        ],
-        exercise.hints,
-      ),
+      suggestedHints: getMultipleChoiceSuggestedHints(exercise, selectedOptionIds, locale),
       title: title.partial,
     });
   }
@@ -345,17 +340,7 @@ export function evaluateMultipleChoice(
           : "Hapus pilihan yang tidak sesuai, lalu submit lagi.",
       score: 40,
       status: "partial",
-      suggestedHints: createSuggestedHints(
-        [
-          locale === "en"
-            ? "The extra option is not part of the concept being checked."
-            : "Pilihan tambahan itu bukan bagian dari konsep yang sedang dicek.",
-          locale === "en"
-            ? "Keep only the options that directly answer the prompt."
-            : "Sisakan hanya opsi yang langsung menjawab prompt.",
-        ],
-        exercise.hints,
-      ),
+      suggestedHints: getMultipleChoiceSuggestedHints(exercise, selectedOptionIds, locale),
       title: title.partial,
     });
   }
@@ -368,21 +353,7 @@ export function evaluateMultipleChoice(
         : "Coba baca pertanyaannya lagi dan gunakan petunjuk kalau masih ragu.",
     score: 20,
     status: "incorrect",
-    suggestedHints: createSuggestedHints(
-      [
-        isMultipleOptionExercise
-          ? locale === "en"
-            ? "Start from the prompt, then keep options that describe the main concept rather than extreme or unrelated claims."
-            : "Mulai dari prompt, lalu pilih opsi yang menjelaskan konsep utama, bukan klaim yang ekstrem atau tidak terkait."
-          : locale === "en"
-            ? "For a single-answer question, choose the option that explains the concept most directly and completely."
-            : "Untuk soal satu jawaban, pilih opsi yang paling langsung dan lengkap menjelaskan konsepnya.",
-        locale === "en"
-          ? "If an option uses absolute wording, check whether the lesson actually supports that claim."
-          : "Kalau opsi memakai kata-kata mutlak, cek apakah materi lesson benar-benar mendukung klaim itu.",
-      ],
-      exercise.hints,
-    ),
+    suggestedHints: getMultipleChoiceSuggestedHints(exercise, selectedOptionIds, locale),
     title: title.incorrect,
   });
 }
