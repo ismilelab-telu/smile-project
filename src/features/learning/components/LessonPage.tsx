@@ -1352,12 +1352,6 @@ export function LessonPage({
       ...current,
       [columnId]: role,
     }));
-    if (tableColumnRoleExercise) {
-      setVisibleHintCountByExerciseId((current) => ({
-        ...current,
-        [tableColumnRoleExercise.id]: 0,
-      }));
-    }
   };
 
   const toggleOption = (exerciseId: string, optionId: string) => {
@@ -1380,10 +1374,6 @@ export function LessonPage({
         [exerciseId]: nextExerciseOptionIds,
       };
     });
-    setVisibleHintCountByExerciseId((current) => ({
-      ...current,
-      [exerciseId]: 0,
-    }));
   };
 
   const moveStep = (exerciseId: string, index: number, direction: -1 | 1) => {
@@ -1404,10 +1394,6 @@ export function LessonPage({
         [exerciseId]: next,
       };
     });
-    setVisibleHintCountByExerciseId((current) => ({
-      ...current,
-      [exerciseId]: 0,
-    }));
   };
 
   const updateDatasetSourceAnswer = (
@@ -1434,10 +1420,6 @@ export function LessonPage({
         },
       };
     });
-    setVisibleHintCountByExerciseId((current) => ({
-      ...current,
-      [exerciseId]: 0,
-    }));
     setDatasetSourceValidationResultsByExerciseId((current) => {
       if (!current[exerciseId]) {
         return current;
@@ -1477,10 +1459,6 @@ export function LessonPage({
 
       return next;
     });
-    setVisibleHintCountByExerciseId((current) => ({
-      ...current,
-      [exerciseId]: 0,
-    }));
   };
 
   const evaluateExercise = async (
@@ -1680,11 +1658,6 @@ export function LessonPage({
     if (nextLessonResult) {
       onSubmitResult(nextLessonResult, nextAnswerSnapshot);
     }
-
-    setVisibleHintCountByExerciseId((current) => ({
-      ...current,
-      [exercise.id]: 0,
-    }));
   };
 
   const toggleHints = (exerciseId: string, hintCount: number) => {

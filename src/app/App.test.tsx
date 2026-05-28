@@ -482,6 +482,9 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { name: "Belum tepat" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Salah" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Tampilkan petunjuk" }));
+
+    expect(screen.getByText(/sistem belajar pola dari data untuk contoh baru/)).toBeInTheDocument();
 
     fireEvent.click(correctSingleOption);
 
@@ -489,6 +492,7 @@ describe("App", () => {
     expect(wrongSingleOption).not.toBeChecked();
     expect(screen.getByRole("heading", { name: "Belum tepat" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Salah" })).toBeInTheDocument();
+    expect(screen.getByText(/sistem belajar pola dari data untuk contoh baru/)).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Benar" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Kirim jawaban" }));
