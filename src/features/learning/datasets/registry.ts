@@ -1,6 +1,6 @@
-import { smileCafeDemandIntroDataset } from "./smile-cafe-demand-intro";
+import { foodDeliveryTimeIntroDataset } from "./food-delivery-time-intro";
 
-const datasets = [smileCafeDemandIntroDataset];
+const datasets = [foodDeliveryTimeIntroDataset];
 
 export function getDataset(datasetId: string) {
   return datasets.find((dataset) => dataset.id === datasetId);

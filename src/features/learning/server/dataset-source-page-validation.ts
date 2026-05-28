@@ -24,7 +24,6 @@ type DatasetSourcePageValidationResponseBody = {
 const maxRequestCharacters = 16_384;
 const maxSourcesPerRequest = 5;
 const maxResponseBytes = 96_000;
-const maxEvidenceCharacters = 320;
 const fetchTimeoutMs = 8_000;
 
 const signalPatterns = [
@@ -49,9 +48,10 @@ const signalPatterns = [
     pattern: /\b(20\d{2}|period|date|time|daily|monthly|year|tanggal|periode)\b/i,
   },
   {
-    id: "cafe",
-    label: { en: "cafe domain signal", id: "sinyal domain kafe" },
-    pattern: /\b(coffee|cafe|café|shop|restaurant|sales|transaction|order)\b/i,
+    id: "delivery",
+    label: { en: "delivery domain signal", id: "sinyal domain pengiriman" },
+    pattern:
+      /\b(food|delivery|courier|traffic|distance|weather|vehicle|logistics|order|restaurant)\b/i,
   },
   {
     id: "kaggle",
@@ -201,6 +201,16 @@ function normalizeReadableText(value: string) {
   return decodeHtmlEntities(value).replaceAll(/\s+/g, " ").trim();
 }
 
+function normalizeMarkdownText(value: string) {
+  return decodeHtmlEntities(value)
+    .replaceAll(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.replaceAll(/[ \t]+$/g, ""))
+    .join("\n")
+    .replaceAll(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function extractPageText(html: string) {
   return decodeHtmlEntities(
     html
@@ -332,15 +342,7 @@ function createEvidenceExcerpt(...candidates: Array<string | undefined>) {
     return undefined;
   }
 
-  const normalized = normalizeReadableText(source);
-
-  if (normalized.length <= maxEvidenceCharacters) {
-    return normalized;
-  }
-
-  const trimmed = normalized.slice(0, maxEvidenceCharacters).replace(/\s+\S*$/, "");
-
-  return `${trimmed}...`;
+  return normalizeMarkdownText(source);
 }
 
 async function readTextSnippet(response: Response) {

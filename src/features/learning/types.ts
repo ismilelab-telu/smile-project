@@ -190,6 +190,7 @@ export type EvaluationResult = {
   title: string;
   message: string;
   nextStep: string;
+  suggestedHints?: string[];
   missedColumnIds: string[];
   extraColumnIds: string[];
 };

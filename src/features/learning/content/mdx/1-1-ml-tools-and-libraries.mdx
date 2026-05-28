@@ -128,7 +128,7 @@ Untuk model yang lebih kompleks, terutama deep learning, ada beberapa library la
 - **PyTorch**: populer untuk riset dan eksperimen.
 - **Keras**: menyediakan antarmuka yang lebih sederhana untuk membuat prototipe model deep learning.
 
-Deep learning tidak otomatis menjadi pilihan pertama. **Target numerik** berarti output yang ingin diprediksi berupa angka, misalnya permintaan harian atau pendapatan. Target numerik sering bisa dimulai dengan regresi sederhana di Scikit-learn.
+Deep learning tidak otomatis menjadi pilihan pertama. **Target numerik** berarti output yang ingin diprediksi berupa angka, misalnya waktu pengiriman atau biaya operasional. Target numerik sering bisa dimulai dengan regresi sederhana di Scikit-learn.
 
 Library lain juga muncul untuk kebutuhan khusus:
 
@@ -137,7 +137,7 @@ Library lain juga muncul untuk kebutuhan khusus:
 
 ## Contoh Alur Praktis
 
-Bayangkan kita mendapat file `.csv` penjualan kafe dan diminta membuat model awal prediksi permintaan. **CSV** adalah file tabel sederhana yang biasanya berisi baris transaksi atau ringkasan penjualan.
+Bayangkan kita mendapat file `.csv` food delivery dan diminta membuat model awal prediksi waktu pengiriman. **CSV** adalah file tabel sederhana yang biasanya berisi baris order atau ringkasan pengiriman.
 
 Alur yang masuk akal:
 
@@ -147,8 +147,8 @@ Alur yang masuk akal:
 - Periksa **schema**: nama kolom, tipe data, dan arti kolom.
 - Cek _missing value_ dan data yang terlihat aneh.
 - Lakukan **EDA** dengan ringkasan dan visualisasi.
-- Plot **target**, misalnya jumlah minuman terjual atau permintaan per shift.
-- Lihat **fitur** penting seperti cuaca, waktu shift, promo, atau suhu.
+- Plot **target**, yaitu waktu pengiriman dalam menit.
+- Lihat **fitur** penting seperti jarak, cuaca, trafik, waktu hari, jenis kendaraan, waktu persiapan, dan pengalaman kurir.
 - Latih **baseline** dengan **Scikit-learn**.
 - Baru pertimbangkan model yang lebih kompleks jika baseline belum cukup.
 

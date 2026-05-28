@@ -28,6 +28,24 @@ function createResult(input: Omit<EvaluationResult, "extraColumnIds" | "missedCo
   };
 }
 
+function createSuggestedHints(contextualHints: string[], fallbackHints: string[]) {
+  return [...contextualHints, ...fallbackHints].filter(
+    (hint, index, hints) => hint.trim() !== "" && hints.indexOf(hint) === index,
+  );
+}
+
+function getMultipleChoiceConceptHints(exercise: MultipleChoiceExercise, locale: Locale) {
+  if (exercise.hints.length > 0) {
+    return exercise.hints;
+  }
+
+  return [
+    locale === "en"
+      ? "Read each option as a claim, then keep only the claims supported by the lesson concept."
+      : "Baca setiap opsi sebagai klaim, lalu pertahankan hanya klaim yang didukung konsep lesson.",
+  ];
+}
+
 function sameOrder(left: string[], right: string[]) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
@@ -65,15 +83,28 @@ export function evaluateOpenDatasetSourceExercise(
           : "Belum ada sumber dataset yang dicatat.",
       nextStep:
         locale === "en"
-          ? "Start with one public cafe dataset page link."
-          : "Mulai dari satu link halaman dataset kafe publik.",
+          ? "Start with the public Food Delivery Time Prediction dataset page link."
+          : "Mulai dari link halaman dataset Food Delivery Time Prediction publik.",
       score: 20,
       status: "incorrect",
+      suggestedHints: createSuggestedHints(
+        [
+          locale === "en"
+            ? "Fill in the dataset page link first; notes can come after the page is readable."
+            : "Isi link halaman dataset dulu; catatan bisa menyusul setelah halaman terbaca.",
+          locale === "en"
+            ? "Use a public dataset page, not a search result or a page that depends on a private session."
+            : "Gunakan halaman dataset publik, bukan hasil pencarian atau halaman yang bergantung pada sesi pribadi.",
+        ],
+        exercise.hints,
+      ),
       title: title.incorrect,
     });
   }
 
   if (linkedSources.length < exercise.minimumCompleteSources) {
+    const needsUrlAfterNotes = touchedSources.length > linkedSources.length;
+
     return createResult({
       message:
         locale === "en"
@@ -85,6 +116,21 @@ export function evaluateOpenDatasetSourceExercise(
           : "Tempel URL halaman dataset. Catatan konteks bersifat opsional.",
       score: linkedSources.length > 0 ? 45 : 25,
       status: linkedSources.length > 0 ? "partial" : "incorrect",
+      suggestedHints: createSuggestedHints(
+        [
+          needsUrlAfterNotes
+            ? locale === "en"
+              ? "Notes do not replace the source URL; the validator still needs the public page link."
+              : "Catatan tidak menggantikan URL sumber; validator tetap membutuhkan link halaman publiknya."
+            : locale === "en"
+              ? "Check which source inputs are still missing a URL."
+              : "Cek input sumber mana yang masih belum punya URL.",
+          locale === "en"
+            ? "Paste the full page address from the browser address bar."
+            : "Tempel alamat halaman lengkap dari address bar browser.",
+        ],
+        exercise.hints,
+      ),
       title: linkedSources.length > 0 ? title.partial : title.incorrect,
     });
   }
@@ -103,6 +149,17 @@ export function evaluateOpenDatasetSourceExercise(
           : "Tempel link halaman sumber secara utuh, termasuk https://, lalu kirim ulang.",
       score: 55,
       status: "partial",
+      suggestedHints: createSuggestedHints(
+        [
+          locale === "en"
+            ? "A valid URL starts with http:// or https:// and includes the domain."
+            : "URL valid dimulai dengan http:// atau https:// dan menyertakan domain.",
+          locale === "en"
+            ? "Do not paste only the site name, dataset title, or search keywords."
+            : "Jangan hanya menempel nama situs, judul dataset, atau kata kunci pencarian.",
+        ],
+        exercise.hints,
+      ),
       title: title.partial,
     });
   }
@@ -121,10 +178,21 @@ export function evaluateOpenDatasetSourceExercise(
           : "Sumber data masih terlalu terkumpul di tempat yang sama.",
       nextStep:
         locale === "en"
-          ? "Use at least one additional source domain so the demand data can be checked against outside context."
-          : "Tambahkan minimal satu domain sumber lain agar data demand bisa dibandingkan dengan konteks luar.",
+          ? "Use at least one additional source domain if the exercise asks for cross-source context."
+          : "Tambahkan minimal satu domain sumber lain jika latihan meminta konteks lintas sumber.",
       score: 65,
       status: "partial",
+      suggestedHints: createSuggestedHints(
+        [
+          locale === "en"
+            ? "Compare the main domain of each URL; repeated domains count as one place."
+            : "Bandingkan domain utama tiap URL; domain yang berulang dihitung sebagai satu tempat.",
+          locale === "en"
+            ? "Use another source domain only when the task asks for cross-source context."
+            : "Gunakan domain sumber lain hanya saat tugas meminta konteks lintas sumber.",
+        ],
+        exercise.hints,
+      ),
       title: title.partial,
     });
   }
@@ -132,14 +200,15 @@ export function evaluateOpenDatasetSourceExercise(
   return createResult({
     message:
       locale === "en"
-        ? "The recorded sources have usable links and enough variety for early validation."
-        : "Sumber yang dicatat sudah punya link yang bisa dipakai dan variasi yang cukup untuk validasi awal.",
+        ? "The dataset page is readable. Review the About dataset field before continuing."
+        : "Halaman dataset berhasil dibaca. Cek kembali bagian Tentang dataset sebelum lanjut.",
     nextStep:
       locale === "en"
-        ? "Keep the raw data and source page before moving into data loading."
-        : "Simpan data mentah dan halaman sumber sebelum masuk ke tahap data loading.",
+        ? "Use that description as context when deciding whether the dataset fits the food delivery time case."
+        : "Pakai deskripsi itu sebagai konteks untuk menilai apakah dataset cocok dengan kasus waktu pengiriman makanan.",
     score: 100,
     status: "correct",
+    suggestedHints: [],
     title: title.correct,
   });
 }
@@ -178,6 +247,7 @@ export function evaluateMultipleChoice(
           : "Lesson ini selesai. Lanjutkan ke lesson berikutnya yang sudah terbuka.",
       score: 100,
       status: "correct",
+      suggestedHints: [],
       title: title.correct,
     });
   }
@@ -202,6 +272,7 @@ export function evaluateMultipleChoice(
       nextStep,
       score: correctSelectedCount > 0 ? 45 : 20,
       status,
+      suggestedHints: getMultipleChoiceConceptHints(exercise, locale),
       title: title[status],
     });
   }
@@ -220,6 +291,17 @@ export function evaluateMultipleChoice(
           : "Ganti pilihan yang tidak sesuai, lalu kirim ulang.",
       score: correctSelectedCount > 0 ? 55 : 20,
       status,
+      suggestedHints: createSuggestedHints(
+        [
+          locale === "en"
+            ? "Focus on the selected option marked incorrect; it should be replaced, not added to."
+            : "Fokus pada pilihan yang ditandai salah; pilihan itu perlu diganti, bukan ditambah.",
+          locale === "en"
+            ? "Compare each selected option against the exact wording of the question."
+            : "Bandingkan setiap pilihanmu dengan kata-kata persis di pertanyaan.",
+        ],
+        exercise.hints,
+      ),
       title: title[status],
     });
   }
@@ -236,6 +318,17 @@ export function evaluateMultipleChoice(
           : "Baca lagi pertanyaannya, lalu cari pilihan lain yang masih sesuai.",
       score: 60,
       status: "partial",
+      suggestedHints: createSuggestedHints(
+        [
+          locale === "en"
+            ? "One selected idea already fits; now look for a different part of the concept, not a duplicate of the same idea."
+            : "Satu ide yang dipilih sudah cocok; sekarang cari bagian konsep lain, bukan duplikat ide yang sama.",
+          locale === "en"
+            ? "Use the answer count as a clue for how many concept pieces are expected."
+            : "Pakai jumlah jawaban sebagai petunjuk berapa bagian konsep yang diminta.",
+        ],
+        exercise.hints,
+      ),
       title: title.partial,
     });
   }
@@ -252,6 +345,17 @@ export function evaluateMultipleChoice(
           : "Hapus pilihan yang tidak sesuai, lalu submit lagi.",
       score: 40,
       status: "partial",
+      suggestedHints: createSuggestedHints(
+        [
+          locale === "en"
+            ? "The extra option is not part of the concept being checked."
+            : "Pilihan tambahan itu bukan bagian dari konsep yang sedang dicek.",
+          locale === "en"
+            ? "Keep only the options that directly answer the prompt."
+            : "Sisakan hanya opsi yang langsung menjawab prompt.",
+        ],
+        exercise.hints,
+      ),
       title: title.partial,
     });
   }
@@ -264,6 +368,21 @@ export function evaluateMultipleChoice(
         : "Coba baca pertanyaannya lagi dan gunakan petunjuk kalau masih ragu.",
     score: 20,
     status: "incorrect",
+    suggestedHints: createSuggestedHints(
+      [
+        isMultipleOptionExercise
+          ? locale === "en"
+            ? "Start from the prompt, then keep options that describe the main concept rather than extreme or unrelated claims."
+            : "Mulai dari prompt, lalu pilih opsi yang menjelaskan konsep utama, bukan klaim yang ekstrem atau tidak terkait."
+          : locale === "en"
+            ? "For a single-answer question, choose the option that explains the concept most directly and completely."
+            : "Untuk soal satu jawaban, pilih opsi yang paling langsung dan lengkap menjelaskan konsepnya.",
+        locale === "en"
+          ? "If an option uses absolute wording, check whether the lesson actually supports that claim."
+          : "Kalau opsi memakai kata-kata mutlak, cek apakah materi lesson benar-benar mendukung klaim itu.",
+      ],
+      exercise.hints,
+    ),
     title: title.incorrect,
   });
 }
@@ -311,6 +430,7 @@ export function evaluateOrderedSteps(
           : "Lesson modul ini selesai. Kamu bisa kembali ke halaman belajar untuk melihat progres.",
       score: 100,
       status: "correct",
+      suggestedHints: [],
       title: title.correct,
     });
   }
@@ -332,6 +452,17 @@ export function evaluateOrderedSteps(
           : "Pindahkan pemodelan setelah pemahaman data, pembersihan, persiapan fitur, dan pembagian data latih/uji.",
       score: 20,
       status: "incorrect",
+      suggestedHints: createSuggestedHints(
+        [
+          locale === "en"
+            ? "Move modeling after the steps that make the data and evaluation trustworthy."
+            : "Pindahkan pemodelan setelah langkah yang membuat data dan evaluasi bisa dipercaya.",
+          locale === "en"
+            ? "Data understanding and cleaning should happen before the model is trained."
+            : "Pemahaman data dan pembersihan perlu terjadi sebelum model dilatih.",
+        ],
+        exercise.hints,
+      ),
       title: title.incorrect,
     });
   }
@@ -351,6 +482,17 @@ export function evaluateOrderedSteps(
           : "Periksa urutan di sekitar pasangan yang tertukar, lalu kirim lagi.",
       score: 75,
       status: "partial",
+      suggestedHints: createSuggestedHints(
+        [
+          locale === "en"
+            ? "The overall order is close; focus only on the adjacent pair that feels out of sequence."
+            : "Urutan besarnya sudah dekat; fokus hanya pada pasangan langkah bersebelahan yang terasa tertukar.",
+          locale === "en"
+            ? "Ask which step needs evidence from the previous step before it can happen."
+            : "Tanyakan langkah mana yang membutuhkan bukti dari langkah sebelumnya sebelum bisa dilakukan.",
+        ],
+        exercise.hints,
+      ),
       title: title.partial,
     });
   }
@@ -366,6 +508,17 @@ export function evaluateOrderedSteps(
         : "Letakkan pembagian data sebelum baseline, baseline sebelum perbandingan model, dan evaluasi setelah pemodelan.",
     score: 50,
     status: "partial",
+    suggestedHints: createSuggestedHints(
+      [
+        locale === "en"
+          ? "Build the order from data understanding, preparation, split, baseline, modeling, then evaluation."
+          : "Bangun urutan dari pemahaman data, persiapan, split, baseline, pemodelan, lalu evaluasi.",
+        locale === "en"
+          ? "Steps that judge model performance should come after the model has been trained."
+          : "Langkah yang menilai performa model harus muncul setelah model dilatih.",
+      ],
+      exercise.hints,
+    ),
     title: title.partial,
   });
 }

@@ -9,7 +9,7 @@ Cleaning handles data quality issues. Examples include:
 - missing values;
 - duplicate records;
 - inconsistent labels such as `sunny`, `Sunny`, and `clear weather`;
-- impossible values such as negative demand;
+- impossible values such as negative delivery time;
 - invalid dates;
 - category values that do not match the expected list;
 - target values that are empty or cannot be verified.
@@ -34,6 +34,6 @@ Transformation is not automatically good. A new feature is useful only if it is 
 
 The main risk is target leakage. Leakage happens when an input feature contains information that will not be known when the model is used in the real world.
 
-For example, if the model predicts drinks sold before a shift starts, final shift revenue is not a safe feature. That column is only known after the shift and is very close to the target.
+For example, if the model predicts delivery time, `Delivery_Time_min` should not be recreated as an input feature. That target column is the answer the model is trying to predict.
 
 Good cleaning and transformation make the dataset clearer without slipping future information into the model inputs.

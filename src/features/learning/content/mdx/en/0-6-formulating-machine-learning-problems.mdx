@@ -4,10 +4,10 @@ Formulating the problem means turning a real need into an ML problem statement t
 
 ## Steps to Formulate a Problem
 
-1. **Define the real goal.** For example, a cafe wants to prepare stock better before a shift starts.
-2. **Turn the goal into an ML question.** For example, "how many drinks are likely to be sold in the next shift?"
+1. **Define the real goal.** For example, a food delivery team wants to give more accurate arrival estimates.
+2. **Turn the goal into an ML question.** For example, "how many minutes will an order likely take to reach the customer?"
 3. **Define the model output.** The output can be a number, category, score, recommendation, or group.
-4. **Define the prediction time.** Make it clear when the model will be used: before the shift, when a transaction happens, or after a certain period.
+4. **Define the prediction time.** Make it clear when the model will be used: when the order is placed, when the courier is assigned, or after certain data is available.
 5. **Define the information available at prediction time.** Features must already be known before the model produces an output.
 6. **Define the problem type.** Numeric output points to regression, category output points to classification, and groups without a target point to clustering.
 7. **Define the evaluation.** The team needs to know how to judge whether the model actually helps.
@@ -18,17 +18,17 @@ In supervised learning, the **target** is the value or category we want to predi
 
 **Features** are the information used by the model as input. Features must be available when the prediction is made. If information is only known after the event ends, it is not safe to use as a feature because it can leak the answer.
 
-Cafe example:
+Food delivery example:
 
-- business goal: prepare drink stock before the shift starts;
-- ML problem statement: predict the number of drinks that will be sold in the next shift;
-- target: drinks sold;
-- safe features: day, shift time, weather forecast, active promotion, scheduled staff, and previous demand history;
-- unsafe features: actual drinks sold after the shift ends or final shift revenue;
+- business goal: give more realistic delivery-time estimates for customers and operations;
+- ML problem statement: predict `Delivery_Time_min` for an order;
+- target: delivery time in minutes;
+- safe features: `Distance_km`, `Weather`, `Traffic_Level`, `Time_of_Day`, `Vehicle_Type`, `Preparation_Time_min`, and `Courier_Experience_yrs`;
+- unsafe features: the actual delivery time reused as a model input;
 - problem type: regression, because the target is a number.
 
 ## Why This Matters
 
 A clear problem statement prevents the model from aiming at the wrong thing. Without a clear target, the model does not know what to learn. Without a clear prediction time, features can get mixed with future information. Without clear evaluation, the team does not know whether the model helps or only looks convincing.
 
-In this lesson, the feature and target exercise uses cafe shift data so you can practice distinguishing targets, safe features, metadata, and columns that should not be used yet.
+In this lesson, the feature and target exercise uses food delivery data so you can practice distinguishing targets, safe features, metadata, and columns that should not be used yet.

@@ -28,10 +28,10 @@ describe("validateDatasetSourcePage", () => {
           `<!doctype html>
           <html>
             <head>
-              <title>Coffee Shop Data | Kaggle</title>
-              <meta name="description" content="Dataset with coffee shop sales, CSV downloads, and license notes">
+              <title>Food Delivery Time Prediction | Kaggle</title>
+              <meta name="description" content="Dataset with food delivery time, distance, traffic, CSV downloads, and license notes">
             </head>
-            <body>Download the dataset as CSV. Includes 2024 orders and transaction data.</body>
+            <body>Download the dataset as CSV. Includes 2024 delivery orders, distance, weather, and traffic data.</body>
           </html>`,
           {
             headers: { "content-type": "text/html; charset=utf-8" },
@@ -42,18 +42,31 @@ describe("validateDatasetSourcePage", () => {
     );
 
     const result = await validateDatasetSourcePage(
-      { id: "demand-source", url: "https://www.kaggle.com/datasets/example/coffee-shop" },
+      { id: "demand-source", url: "https://www.kaggle.com/datasets/example/food-delivery" },
       "id",
     );
 
     expect(result.status).toBe("valid");
-    expect(result.title).toBe("Coffee Shop Data | Kaggle");
-    expect(result.description).toContain("coffee shop sales");
+    expect(result.title).toBe("Food Delivery Time Prediction | Kaggle");
+    expect(result.description).toContain("food delivery time");
     expect(result.signals).toContain("sinyal sumber Kaggle");
-    expect(result.signals).toContain("sinyal domain kafe");
+    expect(result.signals).toContain("sinyal domain pengiriman");
   });
 
   it("returns structured dataset evidence from Kaggle JSON-LD", async () => {
+    const fullDatasetDescription =
+      "## About Dataset\n\nThe **Food Delivery Time Prediction** dataset is designed for predicting food delivery times based on distance, weather, traffic conditions, and time of day.\n\n- Distance_km\n- Delivery_Time_min";
+    const structuredDatasetJson = JSON.stringify({
+      "@context": "http://schema.org/",
+      "@type": "Dataset",
+      description: fullDatasetDescription,
+      license: {
+        "@type": "CreativeWork",
+        name: "CC0: Public Domain",
+      },
+      name: "Food Delivery Time Prediction",
+    });
+
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -61,18 +74,9 @@ describe("validateDatasetSourcePage", () => {
           `<!doctype html>
           <html>
             <head>
-              <meta name="description" content="Full Cycle of Coffee Shop Management">
+              <meta name="description" content="Optimize Food Delivery: Predict Times with Real-World Data!">
               <script type="application/ld+json">
-                {
-                  "@context": "http://schema.org/",
-                  "@type": "Dataset",
-                  "name": "Coffee Shop Sales/Inventory/Staff",
-                  "description": "The Coffee Shop Data dataset is a comprehensive collection designed for a wide array of data analysis, providing a deep dive into the operations of a coffee shop.",
-                  "license": {
-                    "@type": "CreativeWork",
-                    "name": "CC0: Public Domain"
-                  }
-                }
+                ${structuredDatasetJson}
               </script>
             </head>
             <body>About Dataset</body>
@@ -86,13 +90,14 @@ describe("validateDatasetSourcePage", () => {
     );
 
     const result = await validateDatasetSourcePage(
-      { id: "demand-source", url: "https://www.kaggle.com/datasets/example/coffee-shop" },
+      { id: "demand-source", url: "https://www.kaggle.com/datasets/example/food-delivery" },
       "id",
     );
 
     expect(result.status).toBe("valid");
-    expect(result.title).toBe("Coffee Shop Sales/Inventory/Staff");
-    expect(result.evidenceExcerpt).toContain("comprehensive collection");
+    expect(result.title).toBe("Food Delivery Time Prediction");
+    expect(result.evidenceExcerpt).toBe(fullDatasetDescription);
+    expect(result.evidenceExcerpt).not.toContain("...");
     expect(result.license).toBe("CC0: Public Domain");
   });
 });

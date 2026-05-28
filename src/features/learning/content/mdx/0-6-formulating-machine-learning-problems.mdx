@@ -4,10 +4,10 @@ Merumuskan masalah berarti mengubah kebutuhan nyata menjadi pernyataan masalah M
 
 ## Langkah Merumuskan Masalah
 
-1. **Tentukan tujuan nyata.** Misalnya, cafe ingin menyiapkan stok lebih baik sebelum shift dimulai.
-2. **Ubah tujuan menjadi pertanyaan ML.** Contohnya, "berapa banyak minuman yang kemungkinan terjual pada shift berikutnya?"
+1. **Tentukan tujuan nyata.** Misalnya, tim food delivery ingin memberi estimasi waktu sampai yang lebih akurat.
+2. **Ubah tujuan menjadi pertanyaan ML.** Contohnya, "berapa menit kemungkinan order sampai ke pelanggan?"
 3. **Tentukan output model.** Output bisa berupa angka, kategori, skor, rekomendasi, atau kelompok.
-4. **Tentukan waktu prediksi.** Pastikan jelas kapan model akan dipakai: sebelum shift, saat transaksi terjadi, atau setelah periode tertentu.
+4. **Tentukan waktu prediksi.** Pastikan jelas kapan model akan dipakai: saat order dibuat, saat kurir ditugaskan, atau setelah data tertentu tersedia.
 5. **Tentukan informasi yang tersedia saat prediksi.** Fitur harus sudah diketahui sebelum model membuat output.
 6. **Tentukan jenis masalah.** Output angka mengarah ke regresi, output kategori mengarah ke klasifikasi, dan kelompok tanpa target mengarah ke clustering.
 7. **Tentukan evaluasi.** Tim perlu tahu bagaimana menilai apakah model benar-benar membantu.
@@ -18,17 +18,17 @@ Dalam supervised learning, **target** adalah nilai atau kategori yang ingin dipr
 
 **Fitur** adalah informasi yang dipakai model sebagai input. Fitur harus tersedia saat prediksi dibuat. Jika informasi baru diketahui setelah kejadian selesai, informasi itu tidak aman dipakai sebagai fitur karena bisa membocorkan jawaban.
 
-Contoh pada cafe:
+Contoh pada food delivery:
 
-- tujuan bisnis: menyiapkan stok minuman sebelum shift dimulai;
-- pernyataan masalah ML: memprediksi jumlah minuman yang akan terjual pada shift berikutnya;
-- target: jumlah minuman terjual;
-- fitur aman: hari, jam shift, perkiraan cuaca, promo aktif, staff yang dijadwalkan, dan riwayat permintaan sebelumnya;
-- fitur tidak aman: jumlah minuman aktual setelah shift selesai atau pendapatan akhir shift;
+- tujuan bisnis: memberi estimasi waktu pengiriman yang lebih masuk akal untuk pelanggan dan operasi;
+- pernyataan masalah ML: memprediksi `Delivery_Time_min` untuk sebuah order;
+- target: waktu pengiriman dalam menit;
+- fitur aman: `Distance_km`, `Weather`, `Traffic_Level`, `Time_of_Day`, `Vehicle_Type`, `Preparation_Time_min`, dan `Courier_Experience_yrs`;
+- fitur tidak aman: waktu pengiriman aktual dipakai lagi sebagai input model;
 - jenis masalah: regresi, karena target berupa angka.
 
 ## Kenapa Ini Penting
 
 Pernyataan masalah yang jelas mencegah model salah sasaran. Tanpa target yang jelas, model tidak tahu apa yang harus dipelajari. Tanpa waktu prediksi yang jelas, fitur bisa tercampur dengan informasi masa depan. Tanpa evaluasi yang jelas, tim tidak tahu apakah model membantu atau hanya terlihat meyakinkan.
 
-Pada lesson ini, latihan fitur dan target memakai data shift cafe agar kamu terbiasa membedakan target, fitur aman, metadata, dan kolom yang sebaiknya belum dipakai.
+Pada lesson ini, latihan fitur dan target memakai data food delivery agar kamu terbiasa membedakan target, fitur aman, metadata, dan kolom yang sebaiknya belum dipakai.

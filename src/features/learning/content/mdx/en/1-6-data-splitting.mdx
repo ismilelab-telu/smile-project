@@ -26,6 +26,6 @@ A safer workflow:
 
 ## Representing the Real Problem
 
-Data splitting should match how the model will be used. If the model predicts future demand, a time-based split can be more realistic than randomly mixing past and future data.
+Data splitting should match how the model will be used. If the model predicts delivery time for new orders, the split should keep distance, weather, traffic, and vehicle variation represented.
 
 The basic idea is simple: set aside some examples so evaluation feels closer to the real world.

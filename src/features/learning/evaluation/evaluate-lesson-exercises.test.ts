@@ -3,12 +3,17 @@ import { describe, expect, it } from "vitest";
 import {
   evaluateMultipleChoice,
   evaluateOpenDatasetSourceExercise,
+  evaluateOrderedSteps,
 } from "./evaluate-lesson-exercises";
-import type { MultipleChoiceExercise, OpenDatasetSourceExercise } from "../types";
+import type {
+  MultipleChoiceExercise,
+  OpenDatasetSourceExercise,
+  OrderedStepsExercise,
+} from "../types";
 
 const multipleOptionExercise: MultipleChoiceExercise = {
   correctOptionIds: ["problem", "data", "model", "training", "evaluation"],
-  hints: [],
+  hints: ["Pilih klaim yang langsung menjelaskan komponen dasar ML."],
   id: "exercise-core-components",
   options: [
     { id: "problem", label: "Masalah" },
@@ -35,10 +40,10 @@ const openDatasetSourceExercise: OpenDatasetSourceExercise = {
   sourceGuidanceTitle: "Sumber",
   sourceInputs: [
     {
-      description: "Demand",
+      description: "Waktu pengiriman",
       id: "demand-source",
-      label: "Demand",
-      notesPlaceholder: "Catatan demand",
+      label: "Waktu pengiriman",
+      notesPlaceholder: "Catatan waktu pengiriman",
       urlPlaceholder: "https://...",
     },
   ],
@@ -46,6 +51,21 @@ const openDatasetSourceExercise: OpenDatasetSourceExercise = {
   taskTitle: "Tugas",
   type: "open-dataset-source",
   urlLabel: "Link",
+};
+
+const orderedStepsExercise: OrderedStepsExercise = {
+  correctStepIds: ["data-understanding", "cleaning", "split", "modeling", "evaluation"],
+  hints: [],
+  id: "exercise-workflow-order",
+  prompt: "Urutkan alur kerja ML.",
+  steps: [
+    { id: "data-understanding", label: "Pahami data" },
+    { id: "cleaning", label: "Bersihkan data" },
+    { id: "split", label: "Bagi data" },
+    { id: "modeling", label: "Latih model" },
+    { id: "evaluation", label: "Evaluasi model" },
+  ],
+  type: "ordered-steps",
 };
 
 describe("evaluateMultipleChoice", () => {
@@ -59,6 +79,9 @@ describe("evaluateMultipleChoice", () => {
     expect(result.status).toBe("partial");
     expect(result.message).toBe("Pilih 5 opsi untuk pertanyaan ini. Saat ini kamu memilih 3.");
     expect(result.nextStep).toBe("Tambahkan 2 pilihan lagi, lalu kirim ulang.");
+    expect(result.suggestedHints).toEqual([
+      "Pilih klaim yang langsung menjelaskan komponen dasar ML.",
+    ]);
   });
 
   it("explains when the count is right but one selected option is wrong", () => {
@@ -73,6 +96,9 @@ describe("evaluateMultipleChoice", () => {
     expect(result.status).toBe("partial");
     expect(result.message).toBe("Jumlah pilihan sudah sesuai, tapi ada pilihan yang belum tepat.");
     expect(result.nextStep).toBe("Ganti pilihan yang tidak sesuai, lalu kirim ulang.");
+    expect(result.suggestedHints?.[0]).toBe(
+      "Fokus pada pilihan yang ditandai salah; pilihan itu perlu diganti, bukan ditambah.",
+    );
   });
 
   it("supports English feedback", () => {
@@ -85,6 +111,9 @@ describe("evaluateMultipleChoice", () => {
     expect(result.status).toBe("partial");
     expect(result.message).toBe("Select 5 options for this question. You currently selected 3.");
     expect(result.nextStep).toBe("Add 2 more selections, then submit again.");
+    expect(result.suggestedHints).toEqual([
+      "Pilih klaim yang langsung menjelaskan komponen dasar ML.",
+    ]);
   });
 });
 
@@ -94,30 +123,53 @@ describe("evaluateOpenDatasetSourceExercise", () => {
 
     expect(result.status).toBe("incorrect");
     expect(result.message).toBe("Belum ada sumber dataset yang dicatat.");
+    expect(result.suggestedHints?.[0]).toBe(
+      "Isi link halaman dataset dulu; catatan bisa menyusul setelah halaman terbaca.",
+    );
   });
 
   it("requires a valid URL", () => {
     const result = evaluateOpenDatasetSourceExercise(openDatasetSourceExercise, {
       "demand-source": {
         notes:
-          "Halaman ini punya kolom jumlah order, periode transaksi, lisensi, dan catatan bahwa cakupan shift perlu dicek.",
-        url: "kaggle.com/cafe-demand",
+          "Halaman ini punya kolom jarak, cuaca, trafik, lisensi, dan catatan bahwa cakupan order perlu dicek.",
+        url: "kaggle.com/food-delivery-time",
       },
     });
 
     expect(result.status).toBe("partial");
     expect(result.message).toBe("Ada link yang belum berbentuk URL HTTP atau HTTPS yang valid.");
+    expect(result.suggestedHints?.[0]).toBe(
+      "URL valid dimulai dengan http:// atau https:// dan menyertakan domain.",
+    );
   });
 
-  it("accepts one complete cafe dataset link without requiring notes", () => {
+  it("accepts one complete food delivery dataset link without requiring notes", () => {
     const result = evaluateOpenDatasetSourceExercise(openDatasetSourceExercise, {
       "demand-source": {
         notes: "",
-        url: "https://www.kaggle.com/datasets/example/cafe-demand",
+        url: "https://www.kaggle.com/datasets/denkuznetz/food-delivery-time-prediction/data",
       },
     });
 
     expect(result.status).toBe("correct");
     expect(result.score).toBe(100);
+  });
+});
+
+describe("evaluateOrderedSteps", () => {
+  it("tailors hints when modeling happens too early", () => {
+    const result = evaluateOrderedSteps(orderedStepsExercise, [
+      "modeling",
+      "data-understanding",
+      "cleaning",
+      "split",
+      "evaluation",
+    ]);
+
+    expect(result.status).toBe("incorrect");
+    expect(result.suggestedHints?.[0]).toBe(
+      "Pindahkan pemodelan setelah langkah yang membuat data dan evaluasi bisa dipercaya.",
+    );
   });
 });

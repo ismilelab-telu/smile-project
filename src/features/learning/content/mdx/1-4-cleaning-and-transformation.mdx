@@ -9,7 +9,7 @@ Pembersihan menangani masalah kualitas data. Contohnya:
 - missing values;
 - record duplikat;
 - label yang tidak konsisten seperti `cerah`, `Cerah`, dan `cuaca cerah`;
-- nilai mustahil seperti permintaan negatif;
+- nilai mustahil seperti waktu pengiriman negatif;
 - tanggal tidak valid;
 - nilai kategori yang tidak sesuai daftar yang diharapkan;
 - nilai target yang kosong atau tidak bisa diverifikasi.
@@ -34,6 +34,6 @@ Transformasi tidak otomatis baik. Fitur baru hanya berguna jika bermakna, tersed
 
 Risiko utama adalah kebocoran target. Kebocoran terjadi ketika fitur input berisi informasi yang belum akan diketahui saat model dipakai di dunia nyata.
 
-Misalnya, jika model memprediksi minuman terjual sebelum shift dimulai, pendapatan akhir shift bukan fitur yang aman. Kolom itu baru diketahui setelah shift dan sangat dekat dengan target.
+Misalnya, jika model memprediksi waktu pengiriman, `Delivery_Time_min` tidak boleh dibuat ulang menjadi fitur input. Kolom target itu adalah jawaban yang sedang ingin diprediksi.
 
 Pembersihan dan transformasi yang baik membuat dataset lebih jelas tanpa menyelipkan informasi masa depan ke input model.

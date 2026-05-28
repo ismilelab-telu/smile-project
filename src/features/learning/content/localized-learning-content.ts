@@ -190,7 +190,7 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
           "fixed-alarm": "Turn on an alarm at the same time every day.",
           "fixed-total": "Calculate checkout total with price multiplied by quantity.",
           "forecast-demand":
-            "Predict tomorrow's order volume from sales history, weather, and promotions.",
+            "Predict food delivery time from distance, weather, traffic, and vehicle type.",
         },
         prompt: "Which use cases make the most sense for machine learning?",
       },
@@ -213,21 +213,21 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
         ],
         options: {
           "actual-demand-feature":
-            "The best feature is the actual drink count, which is only known after the shift ends.",
+            "The best feature is the actual delivery time we want to predict.",
           "clear-statement":
-            "A clear problem statement is to predict drinks sold before the shift starts.",
+            "A clear problem statement is to predict food delivery duration from order and delivery context.",
           "regression-task":
             "The sensible problem type is regression because the output is a number.",
           "safe-features":
-            "Safe features can include day, shift time, predicted weather, and promotions known before the shift.",
-          "target-demand": "A sensible target is the number of drinks sold during the shift.",
+            "Safe features can include distance, weather, traffic, time of day, vehicle type, preparation time, and courier experience.",
+          "target-demand": "A sensible target is delivery time in minutes.",
         },
         prompt:
-          "A cafe wants to estimate how many drinks to prepare before a shift starts. Which choices correctly formulate the ML problem?",
+          "A food delivery team wants to estimate how many minutes an order will take to reach the customer. Which choices correctly formulate the ML problem?",
       },
       "exercise-0-6-select-feature-target": {
         datasetContext:
-          "The cafe wants to predict how many drinks will be sold before the shift starts.",
+          "The food delivery team wants to predict order delivery time in minutes from delivery context.",
         hints: [
           "The target is the output you want to predict.",
           "Features must be available before prediction time.",
@@ -235,7 +235,7 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
           "Information only known after the event is not safe to use as a feature.",
         ],
         instruction: "Choose one target, safe features, metadata, and columns not used yet.",
-        prompt: "Choose the target and features from the cafe shift table.",
+        prompt: "Choose the target and features from the food delivery table.",
       },
     },
     objective:
@@ -264,7 +264,7 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
           "visualize-before-modeling": "Read the target pattern with quick charts.",
         },
         prompt:
-          "A cafe team needs an initial model to estimate next-shift stock from sales data. Which early decisions are healthiest?",
+          "A food delivery team needs an initial model to estimate delivery time from order data. Which early decisions are healthiest?",
       },
     },
     objective: "You can recognize the role of basic tools in a machine learning workflow.",
@@ -286,27 +286,27 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
           "capture-source": "Record source origin, data period, and collection method.",
           "check-permission": "Check permission, privacy, and field-use limits.",
           "check-representation":
-            "Make sure day parts, weather, promotions, and cafe branches are represented.",
+            "Make sure distance, weather, traffic, time of day, vehicle type, and couriers are represented.",
           "collect-everything": "Grab as many columns as possible; decide the goal later.",
           "define-question": "Set the prediction output, row unit, and data coverage.",
           "single-segment": "Use the easiest source even if its segment is narrow.",
         },
         prompt:
-          "A cafe team wants to estimate next-shift drinks sold from several data sources. Which early decisions are healthiest?",
+          "A food delivery team wants to estimate delivery time from order data. Which early decisions are healthiest?",
       },
       "exercise-1-2-open-source-data-search": {
         hints: [
-          "Look for a dataset related to cafe sales, transactions, orders, or inventory.",
+          "Use the Food Delivery Time Prediction dataset from Kaggle as the main practice source.",
           "Read the dataset page before submitting, not just the link.",
-          "Good optional notes mention the target, important columns, period, license, and visible data limits.",
+          "The About dataset field can be filled automatically from the source page; if it is not, fill it manually from the dataset description.",
         ],
         introParagraphs: [
           "For early practice, we do not always need to create a dataset from scratch. Many learning projects use open datasets from public platforms so we can focus on understanding the problem, data structure, and data quality.",
           "Open datasets still need inspection. A dataset that is easy to download is not automatically a good fit, especially when the target, features, period, or usage permission is unclear.",
         ],
         introTitle: "Collecting Data from Open Sources",
-        notesLabel: "Context notes from the source page (optional)",
-        prompt: "Find one open dataset relevant to the cafe demand case.",
+        notesLabel: "About dataset",
+        prompt: "Validate an open dataset for the food delivery time prediction case.",
         sourceGuidance: {
           "dataset-documentation": {
             description:
@@ -316,24 +316,25 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
           },
           "dataset-repository": {
             description:
-              "Search for sales, restaurant, coffee shop, order, inventory, or transaction datasets that can support the cafe case.",
-            examples: ["Kaggle", "UC Irvine Machine Learning Repository", "Google Dataset Search"],
+              "Use the Kaggle Food Delivery Time Prediction page so the target and features stay aligned across lessons.",
+            examples: ["Kaggle Food Delivery Time Prediction"],
             title: "Dataset repositories",
           },
         },
-        sourceGuidanceTitle: "What to check from the cafe dataset",
+        sourceGuidanceTitle: "What to check from the food delivery dataset",
         sourceInputs: {
           "demand-source": {
             description:
-              "Paste one cafe dataset link. Optional notes can capture what you can infer from the dataset page.",
-            label: "Cafe dataset",
+              "Paste the Food Delivery Time Prediction dataset link. If the page is readable, the About dataset field will be filled automatically.",
+            label: "Food delivery dataset",
             notesPlaceholder:
-              "Example: this dataset contains cafe orders/inventory, has item or transaction columns, shows a license, but the period and branch coverage still need checking.",
-            urlPlaceholder: "https://www.kaggle.com/datasets/...",
+              "This will be filled automatically from the dataset page if readable. If not, write the About Dataset summary here.",
+            urlPlaceholder:
+              "https://www.kaggle.com/datasets/denkuznetz/food-delivery-time-prediction/data",
           },
         },
         taskDescription:
-          "Find one cafe dataset from an open source. Paste the dataset page link; add a short note about the possible target, important columns, period, license, coverage, or visible limitation if useful.",
+          "Paste the Kaggle Food Delivery Time Prediction dataset link; the system will try to read the About Dataset section and move it into the About dataset field.",
         taskTitle: "Search task",
         urlLabel: "Dataset or data page link",
       },
@@ -473,29 +474,44 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
 
 const englishDatasetCopy = {
   columns: {
-    day_part: { label: "Day Part" },
-    drinks_sold: { label: "Drinks Sold", unit: "cups" },
-    end_shift_revenue: { label: "End Shift Revenue", unit: "idr" },
-    promo_active: { label: "Promo Active" },
-    shift_id: { label: "Shift ID" },
-    temperature_c: { label: "Temperature", unit: "deg_c" },
+    courier_experience_yrs: { label: "Courier Experience", unit: "yrs" },
+    delivery_time_min: { label: "Delivery Time", unit: "min" },
+    distance_km: { label: "Distance", unit: "km" },
+    order_id: { label: "Order ID" },
+    preparation_time_min: { label: "Preparation Time", unit: "min" },
+    time_of_day: { label: "Time of Day" },
+    traffic_level: { label: "Traffic Level" },
+    vehicle_type: { label: "Vehicle Type" },
     weather: { label: "Weather" },
   } satisfies Record<string, Partial<DatasetColumn>>,
-  description: "Fictional cafe shift dataset for learning features and targets.",
+  description:
+    "Fictional food delivery dataset based on the Food Delivery Time Prediction structure for learning features and targets.",
   rows: {
-    day_part: {
+    time_of_day: {
       malam: "night",
       pagi: "morning",
       siang: "afternoon",
       sore: "evening",
     },
+    traffic_level: {
+      rendah: "low",
+      sedang: "medium",
+      tinggi: "high",
+    },
+    vehicle_type: {
+      mobil: "car",
+      sepeda: "bike",
+      skuter: "scooter",
+    },
     weather: {
-      berawan: "cloudy",
+      berangin: "windy",
+      berkabut: "foggy",
+      bersalju: "snowy",
       cerah: "sunny",
       hujan: "rainy",
     },
   },
-  title: "Smile Cafe Demand Intro",
+  title: "Food Delivery Time Intro",
 };
 
 function localizeExercise(

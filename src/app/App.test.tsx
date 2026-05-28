@@ -378,17 +378,17 @@ describe("App", () => {
       ),
     ).toBeInTheDocument();
 
-    const drinksSoldHeader = screen.getByRole("button", {
-      name: "Urutkan berdasarkan Minuman Terjual",
+    const deliveryTimeHeader = screen.getByRole("button", {
+      name: "Urutkan berdasarkan Waktu Pengiriman",
     });
 
-    fireEvent.click(drinksSoldHeader);
-    expect(within(getFirstDatasetRow()).getByText("SHIFT-010")).toBeInTheDocument();
-    expect(within(getFirstDatasetRow()).getByText("58")).toBeInTheDocument();
+    fireEvent.click(deliveryTimeHeader);
+    expect(within(getFirstDatasetRow()).getByText("ORD-005")).toBeInTheDocument();
+    expect(within(getFirstDatasetRow()).getByText("18")).toBeInTheDocument();
 
-    fireEvent.click(drinksSoldHeader);
-    expect(within(getFirstDatasetRow()).getByText("SHIFT-012")).toBeInTheDocument();
-    expect(within(getFirstDatasetRow()).getByText("155")).toBeInTheDocument();
+    fireEvent.click(deliveryTimeHeader);
+    expect(within(getFirstDatasetRow()).getByText("ORD-011")).toBeInTheDocument();
+    expect(within(getFirstDatasetRow()).getByText("65")).toBeInTheDocument();
   });
 
   it("marks correct and incorrect column role assignments after submit", async () => {
@@ -404,10 +404,10 @@ describe("App", () => {
       ),
     ).toBeInTheDocument();
 
-    await chooseColumnRole("Waktu Shift", "Target");
-    await chooseColumnRole("Suhu", "Fitur");
-    await chooseColumnRole("Promo Aktif", "Fitur");
-    await chooseColumnRole("Minuman Terjual", "Metadata");
+    await chooseColumnRole("Jarak", "Target");
+    await chooseColumnRole("Cuaca", "Fitur");
+    await chooseColumnRole("Level Trafik", "Fitur");
+    await chooseColumnRole("Waktu Pengiriman", "Metadata");
 
     const submitButtons = screen.getAllByRole("button", { name: "Kirim jawaban" });
     expect(submitButtons).toHaveLength(2);
@@ -415,8 +415,8 @@ describe("App", () => {
     fireEvent.click(submitButtons[1]);
 
     expect(await screen.findByRole("heading", { name: "Belum tepat" })).toBeInTheDocument();
-    expect(screen.getAllByRole("heading", { name: "Benar" })).toHaveLength(3);
-    expect(screen.getAllByRole("heading", { name: "Salah" })).toHaveLength(4);
+    expect(screen.getAllByRole("heading", { name: "Benar" })).toHaveLength(2);
+    expect(screen.getAllByRole("heading", { name: "Salah" })).toHaveLength(7);
   });
 
   it("keeps the next lesson locked after an incorrect answer", async () => {
@@ -440,8 +440,17 @@ describe("App", () => {
     fireEvent.click(submitButton);
 
     expect(await screen.findByRole("heading", { name: "Belum tepat" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Tampilkan petunjuk" }));
+    expect(
+      screen.getByText(
+        /Untuk soal satu jawaban, pilih opsi yang paling langsung dan lengkap menjelaskan konsepnya./,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Cari jawaban yang menyebut belajar dari data."),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("Expected role check")).not.toBeInTheDocument();
-    expect(screen.queryByText("drinks_sold: target")).not.toBeInTheDocument();
+    expect(screen.queryByText("delivery_time_min: target")).not.toBeInTheDocument();
     expect(getStoredCompletedLessonIds()).not.toContain("lesson-0-1-what-is-machine-learning");
 
     fireEvent.click(screen.getAllByRole("link", { name: "Kembali ke Jalur Belajar" })[0]);
@@ -566,7 +575,9 @@ describe("App", () => {
 
     expect(await screen.findAllByRole("heading", { name: "Benar" })).toHaveLength(4);
     expect(screen.getByRole("link", { name: /^Lanjut$/ })).toHaveAttribute("href", lesson05Path);
-    expect(getStoredCompletedLessonIds()).toContain("lesson-0-4-learning-types");
+    await waitFor(() => {
+      expect(getStoredCompletedLessonIds()).toContain("lesson-0-4-learning-types");
+    });
   });
 
   it("submits the problem formulation lesson with both exercises", async () => {
@@ -583,9 +594,7 @@ describe("App", () => {
     ).toBeInTheDocument();
 
     fireEvent.click(
-      screen.getByLabelText(
-        "Target yang masuk akal adalah jumlah minuman yang terjual pada shift tersebut.",
-      ),
+      screen.getByLabelText("Target yang masuk akal adalah waktu pengiriman dalam menit."),
     );
     fireEvent.click(
       screen.getByLabelText(
@@ -594,35 +603,41 @@ describe("App", () => {
     );
     fireEvent.click(
       screen.getByLabelText(
-        "Fitur yang aman bisa mencakup hari, jam shift, cuaca yang diprediksi, dan promo yang sudah diketahui sebelum shift.",
+        "Fitur yang aman bisa mencakup jarak, cuaca, level trafik, waktu hari, jenis kendaraan, waktu persiapan, dan pengalaman kurir.",
       ),
     );
     fireEvent.click(
       screen.getByLabelText(
-        "Pernyataan masalah yang jelas: memprediksi jumlah minuman terjual sebelum shift dimulai.",
+        "Pernyataan masalah yang jelas: memprediksi durasi pengiriman makanan dari konteks order dan pengiriman.",
       ),
     );
-    await chooseColumnRole("ID Shift", "Metadata");
-    await chooseColumnRole("Waktu Shift", "Fitur");
+    await chooseColumnRole("Order ID", "Metadata");
+    await chooseColumnRole("Jarak", "Fitur");
     await chooseColumnRole("Cuaca", "Fitur");
-    await chooseColumnRole("Suhu", "Fitur");
-    await chooseColumnRole("Promo Aktif", "Fitur");
-    await chooseColumnRole("Minuman Terjual", "Target");
+    await chooseColumnRole("Level Trafik", "Fitur");
+    await chooseColumnRole("Waktu Hari", "Fitur");
+    await chooseColumnRole("Jenis Kendaraan", "Fitur");
+    await chooseColumnRole("Waktu Persiapan", "Fitur");
+    await chooseColumnRole("Pengalaman Kurir", "Fitur");
+    await chooseColumnRole("Waktu Pengiriman", "Target");
 
     const submitButtons = screen.getAllByRole("button", { name: "Kirim jawaban" });
     expect(submitButtons).toHaveLength(2);
 
     fireEvent.click(submitButtons[0]);
     expect(await screen.findByRole("button", { name: "Terkirim" })).toBeDisabled();
-    expect(submitButtons[1]).not.toBeDisabled();
+    const nextSubmitButton = screen.getByRole("button", { name: "Kirim jawaban" });
+    expect(nextSubmitButton).not.toBeDisabled();
 
-    fireEvent.click(submitButtons[1]);
+    fireEvent.click(nextSubmitButton);
 
     await waitFor(() => {
-      expect(screen.getAllByRole("heading", { name: "Benar" })).toHaveLength(11);
+      expect(screen.getAllByRole("heading", { name: "Benar" })).toHaveLength(13);
     });
     expect(screen.getByRole("link", { name: /^Lanjut$/ })).toBeInTheDocument();
-    expect(getStoredCompletedLessonIds()).toContain("lesson-0-6-formulating-ml-problems");
+    await waitFor(() => {
+      expect(getStoredCompletedLessonIds()).toContain("lesson-0-6-formulating-ml-problems");
+    });
   });
 
   it("keeps submitted multi-exercise state after leaving an unfinished lesson", async () => {
@@ -639,9 +654,7 @@ describe("App", () => {
     ).toBeInTheDocument();
 
     fireEvent.click(
-      screen.getByLabelText(
-        "Target yang masuk akal adalah jumlah minuman yang terjual pada shift tersebut.",
-      ),
+      screen.getByLabelText("Target yang masuk akal adalah waktu pengiriman dalam menit."),
     );
     fireEvent.click(
       screen.getByLabelText(
@@ -650,22 +663,24 @@ describe("App", () => {
     );
     fireEvent.click(
       screen.getByLabelText(
-        "Fitur yang aman bisa mencakup hari, jam shift, cuaca yang diprediksi, dan promo yang sudah diketahui sebelum shift.",
+        "Fitur yang aman bisa mencakup jarak, cuaca, level trafik, waktu hari, jenis kendaraan, waktu persiapan, dan pengalaman kurir.",
       ),
     );
     fireEvent.click(
       screen.getByLabelText(
-        "Pernyataan masalah yang jelas: memprediksi jumlah minuman terjual sebelum shift dimulai.",
+        "Pernyataan masalah yang jelas: memprediksi durasi pengiriman makanan dari konteks order dan pengiriman.",
       ),
     );
 
     fireEvent.click(screen.getAllByRole("button", { name: "Kirim jawaban" })[0]);
 
     expect(await screen.findByRole("button", { name: "Terkirim" })).toBeDisabled();
-    expect(
-      getStoredLearningProgress().submittedExerciseAnswers?.["exercise-0-6-formulate-problem"]
-        ?.selectedOptionIdsByExerciseId?.["exercise-0-6-formulate-problem"],
-    ).toEqual(["target-demand", "regression-task", "safe-features", "clear-statement"]);
+    await waitFor(() => {
+      expect(
+        getStoredLearningProgress().submittedExerciseAnswers?.["exercise-0-6-formulate-problem"]
+          ?.selectedOptionIdsByExerciseId?.["exercise-0-6-formulate-problem"],
+      ).toEqual(["target-demand", "regression-task", "safe-features", "clear-statement"]);
+    });
 
     fireEvent.click(screen.getAllByRole("link", { name: "Kembali ke Jalur Belajar" })[0]);
 
@@ -715,7 +730,9 @@ describe("App", () => {
       await screen.findByRole("heading", { name: "Pengumpulan Data" }, lazyRouteTimeout),
     ).toBeInTheDocument();
 
-    expect(screen.getByLabelText("Dataset kafe: Link dataset atau halaman data")).toBeEnabled();
+    expect(
+      screen.getByLabelText("Dataset food delivery: Link dataset atau halaman data"),
+    ).toBeEnabled();
   });
 
   it("allows editing a completed dataset source submission", async () => {
@@ -736,17 +753,55 @@ describe("App", () => {
     fireEvent.click(screen.getByLabelText("Cek izin, privasi, dan batasan pemakaian field."));
     fireEvent.click(
       screen.getByLabelText(
-        "Pastikan variasi waktu shift, cuaca, promo, dan cabang kafe terwakili.",
+        "Pastikan variasi jarak, cuaca, trafik, waktu hari, kendaraan, dan kurir terwakili.",
       ),
     );
     fireEvent.click(screen.getAllByRole("button", { name: "Kirim jawaban" })[0]);
 
     expect(await screen.findByRole("button", { name: "Terkirim" })).toBeDisabled();
 
-    const demandUrlInput = screen.getByLabelText("Dataset kafe: Link dataset atau halaman data");
+    const demandUrlInput = screen.getByLabelText(
+      "Dataset food delivery: Link dataset atau halaman data",
+    );
+    const aboutDatasetInput = screen.getByLabelText("Dataset food delivery: Tentang dataset");
+    const markdownDatasetDescription =
+      "## About Dataset\n\nThe **Food Delivery Time Prediction** dataset is designed for predicting food delivery times.\n\n- Distance_km\n- Delivery_Time_min\n\n[Kaggle source](https://www.kaggle.com/datasets/denkuznetz/food-delivery-time-prediction/data)";
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          results: [
+            {
+              checkedAt: "2026-05-27T08:19:33.940Z",
+              description: "Optimize Food Delivery: Predict Times with Real-World Data!",
+              evidenceExcerpt: markdownDatasetDescription,
+              httpStatus: 200,
+              issues: [],
+              license: "Apache 2.0",
+              signals: [
+                "sinyal dataset",
+                "sinyal lisensi",
+                "sinyal domain pengiriman",
+                "sinyal sumber Kaggle",
+              ],
+              sourceId: "demand-source",
+              status: "valid",
+              title: "Food Delivery Time Prediction 🛵",
+              url: "https://www.kaggle.com/datasets/denkuznetz/food-delivery-time-prediction/data",
+            },
+          ],
+        }),
+        {
+          headers: { "content-type": "application/json" },
+          status: 200,
+        },
+      ),
+    );
 
     fireEvent.change(demandUrlInput, {
-      target: { value: "https://www.kaggle.com/datasets/viramatv/coffee-shop-data" },
+      target: {
+        value: "https://www.kaggle.com/datasets/denkuznetz/food-delivery-time-prediction/data",
+      },
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Kirim jawaban" }));
@@ -757,11 +812,18 @@ describe("App", () => {
     expect(screen.getAllByRole("link", { name: /^Lanjut$/ })).toHaveLength(1);
     expect(screen.getAllByRole("link", { name: "Sebelumnya" })).toHaveLength(1);
     expect(screen.getAllByRole("button", { name: "Terkirim" })).toHaveLength(1);
-    expect(
-      screen.getByText(
-        "Sumber yang dicatat sudah punya link yang bisa dipakai dan variasi yang cukup untuk validasi awal.",
-      ),
-    ).toBeInTheDocument();
+    expect(aboutDatasetInput).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "About Dataset" })).toBeInTheDocument();
+    expect(screen.getByText("Food Delivery Time Prediction").closest("strong")).not.toBeNull();
+    expect(screen.getByText("Distance_km").closest("li")).not.toBeNull();
+    expect(screen.getByRole("link", { name: "Kaggle source" })).toHaveAttribute(
+      "href",
+      "https://www.kaggle.com/datasets/denkuznetz/food-delivery-time-prediction/data",
+    );
+    expect(screen.getByText("Halaman terbaca")).toBeInTheDocument();
+    expect(screen.queryByText(/Bukti terbaca:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Lisensi:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Sinyal:/)).not.toBeInTheDocument();
     expect(demandUrlInput).toBeDisabled();
 
     expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(1);
@@ -769,6 +831,10 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
 
     expect(demandUrlInput).toBeEnabled();
+    expect(
+      (screen.getByLabelText("Dataset food delivery: Tentang dataset") as HTMLTextAreaElement)
+        .value,
+    ).toContain("## About Dataset");
     expect(screen.queryByRole("link", { name: /^Lanjut$/ })).not.toBeInTheDocument();
   });
 });

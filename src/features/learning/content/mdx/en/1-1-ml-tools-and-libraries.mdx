@@ -128,7 +128,7 @@ For more complex models, especially deep learning, common libraries include:
 - **PyTorch**: popular for research and experimentation.
 - **Keras**: provides a simpler interface for prototyping deep learning models.
 
-Deep learning is not automatically the first choice. **A numeric target** means the output to predict is a number, such as daily demand or revenue. Numeric targets can often start with simple regression in Scikit-learn.
+Deep learning is not automatically the first choice. **A numeric target** means the output to predict is a number, such as delivery time or operating cost. Numeric targets can often start with simple regression in Scikit-learn.
 
 Other libraries appear for specific needs:
 
@@ -137,7 +137,7 @@ Other libraries appear for specific needs:
 
 ## Practical Workflow Example
 
-Imagine receiving a cafe sales `.csv` and being asked to build an initial demand prediction model. **CSV** is a simple table file that usually contains transaction rows or sales summaries.
+Imagine receiving a food delivery `.csv` and being asked to build an initial delivery-time prediction model. **CSV** is a simple table file that usually contains order rows or delivery summaries.
 
 A sensible workflow:
 
@@ -147,8 +147,8 @@ A sensible workflow:
 - Check the **schema**: column names, data types, and column meanings.
 - Check _missing values_ and unusual data.
 - Do **EDA** with summaries and visualizations.
-- Plot the **target**, such as drinks sold or demand per shift.
-- Inspect important **features** such as weather, shift time, promotion status, or temperature.
+- Plot the **target**, which is delivery time in minutes.
+- Inspect important **features** such as distance, weather, traffic, time of day, vehicle type, preparation time, and courier experience.
 - Train a **baseline** with **Scikit-learn**.
 - Consider more complex models only if the baseline is not enough.
 

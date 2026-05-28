@@ -382,7 +382,7 @@ const lesson05: Lesson = multipleChoiceLesson({
   options: [
     {
       id: "forecast-demand",
-      label: "Memprediksi jumlah pesanan besok dari riwayat penjualan, cuaca, dan promosi.",
+      label: "Memprediksi waktu pengiriman makanan dari jarak, cuaca, trafik, dan kendaraan.",
     },
     { id: "customer-segments", label: "Mengelompokkan pelanggan berdasarkan pola pembelian." },
     { id: "fixed-total", label: "Menghitung total belanja dengan rumus harga dikali jumlah." },
@@ -409,7 +409,7 @@ const lesson06ProblemExercise = {
   options: [
     {
       id: "target-demand",
-      label: "Target yang masuk akal adalah jumlah minuman yang terjual pada shift tersebut.",
+      label: "Target yang masuk akal adalah waktu pengiriman dalam menit.",
     },
     {
       id: "regression-task",
@@ -418,26 +418,26 @@ const lesson06ProblemExercise = {
     {
       id: "safe-features",
       label:
-        "Fitur yang aman bisa mencakup hari, jam shift, cuaca yang diprediksi, dan promo yang sudah diketahui sebelum shift.",
+        "Fitur yang aman bisa mencakup jarak, cuaca, level trafik, waktu hari, jenis kendaraan, waktu persiapan, dan pengalaman kurir.",
     },
     {
       id: "actual-demand-feature",
-      label:
-        "Fitur terbaik adalah jumlah minuman aktual yang baru diketahui setelah shift selesai.",
+      label: "Fitur terbaik adalah waktu pengiriman aktual yang ingin diprediksi.",
     },
     {
       id: "clear-statement",
       label:
-        "Pernyataan masalah yang jelas: memprediksi jumlah minuman terjual sebelum shift dimulai.",
+        "Pernyataan masalah yang jelas: memprediksi durasi pengiriman makanan dari konteks order dan pengiriman.",
     },
   ],
   prompt:
-    "Sebuah kafe ingin memperkirakan jumlah minuman yang perlu disiapkan sebelum shift dimulai. Pilihan mana yang tepat untuk merumuskan masalah ML-nya?",
+    "Tim food delivery ingin memperkirakan berapa menit sebuah order sampai ke pelanggan. Pilihan mana yang tepat untuk merumuskan masalah ML-nya?",
   type: "multiple-choice" as const,
 };
 
 const lesson06ColumnRoleExercise = {
-  datasetContext: "Kafe ingin memprediksi jumlah minuman yang akan terjual sebelum shift dimulai.",
+  datasetContext:
+    "Tim food delivery ingin memprediksi waktu pengiriman order dalam menit dari konteks pengiriman.",
   hints: [
     "Target adalah output yang ingin diprediksi.",
     "Fitur harus tersedia sebelum waktu prediksi.",
@@ -446,12 +446,12 @@ const lesson06ColumnRoleExercise = {
   ],
   id: "exercise-0-6-select-feature-target",
   instruction: "Pilih satu target, fitur yang aman, metadata, dan kolom yang belum dipakai.",
-  prompt: "Pilih target dan fitur dari tabel shift kafe.",
+  prompt: "Pilih target dan fitur dari tabel pengiriman makanan.",
   type: "table-column-role-assignment" as const,
 };
 
 const lesson06: Lesson = {
-  datasetId: "dataset-smile-cafe-demand-intro",
+  datasetId: "dataset-food-delivery-time-intro",
   estimatedMinutes: 8,
   exercise: lesson06ProblemExercise,
   exerciseId: lesson06ProblemExercise.id,
@@ -498,7 +498,7 @@ const lesson12DecisionExercise: MultipleChoiceExercise = {
     },
     {
       id: "check-representation",
-      label: "Pastikan variasi waktu shift, cuaca, promo, dan cabang kafe terwakili.",
+      label: "Pastikan variasi jarak, cuaca, trafik, waktu hari, kendaraan, dan kurir terwakili.",
     },
     {
       id: "collect-everything",
@@ -510,15 +510,15 @@ const lesson12DecisionExercise: MultipleChoiceExercise = {
     },
   ],
   prompt:
-    "Tim kafe ingin membangun model estimasi jumlah minuman terjual pada shift berikutnya dari beberapa sumber data. Keputusan awal mana yang paling sehat?",
+    "Tim food delivery ingin membangun model estimasi waktu pengiriman dari data order. Keputusan awal mana yang paling sehat?",
   type: "multiple-choice",
 };
 
 const lesson12OpenSourceExercise: OpenDatasetSourceExercise = {
   hints: [
-    "Cari dataset yang memang berhubungan dengan penjualan, transaksi, order, atau inventory kafe.",
+    "Gunakan dataset Food Delivery Time Prediction dari Kaggle sebagai sumber latihan utama.",
     "Baca halaman dataset sebelum submit, bukan hanya menyalin link.",
-    "Catatan opsional yang baik menyebut target, kolom penting, periode, lisensi, dan batasan data yang terlihat.",
+    "Bagian Tentang dataset bisa terisi otomatis dari halaman sumber; jika tidak, isi manual dari deskripsi dataset.",
   ],
   id: "exercise-1-2-open-source-data-search",
   introParagraphs: [
@@ -528,13 +528,13 @@ const lesson12OpenSourceExercise: OpenDatasetSourceExercise = {
   introTitle: "Mengumpulkan Data dari Sumber Terbuka",
   minimumCompleteSources: 1,
   minimumDistinctDomains: 1,
-  notesLabel: "Catatan konteks dari halaman sumber (opsional)",
-  prompt: "Cari satu dataset terbuka yang relevan untuk kasus permintaan kafe.",
+  notesLabel: "Tentang dataset",
+  prompt: "Validasi dataset terbuka untuk kasus prediksi waktu pengiriman makanan.",
   sourceGuidance: [
     {
       description:
-        "Cari dataset penjualan, restoran, coffee shop, order, inventory, atau transaksi yang bisa dipakai sebagai latihan kasus kafe.",
-      examples: ["Kaggle", "UC Irvine Machine Learning Repository", "Google Dataset Search"],
+        "Gunakan halaman Kaggle Food Delivery Time Prediction agar target dan fitur selaras dengan seluruh lesson.",
+      examples: ["Kaggle Food Delivery Time Prediction"],
       id: "dataset-repository",
       title: "Repositori dataset",
     },
@@ -546,20 +546,21 @@ const lesson12OpenSourceExercise: OpenDatasetSourceExercise = {
       title: "Dokumentasi dataset",
     },
   ],
-  sourceGuidanceTitle: "Yang perlu dicek dari dataset kafe",
+  sourceGuidanceTitle: "Yang perlu dicek dari dataset food delivery",
   sourceInputs: [
     {
       description:
-        "Tempel satu link dataset kafe. Catatan tambahan boleh dipakai untuk menulis hal yang kamu lihat dari halaman datasetnya.",
+        "Tempel link dataset Food Delivery Time Prediction. Jika halaman terbaca, bagian Tentang dataset akan diisi otomatis.",
       id: "demand-source",
-      label: "Dataset kafe",
+      label: "Dataset food delivery",
       notesPlaceholder:
-        "Contoh: dataset ini berisi order/inventory kafe, ada kolom item atau jumlah transaksi, lisensi terlihat, tetapi periode dan cakupan cabang masih perlu dicek.",
-      urlPlaceholder: "https://www.kaggle.com/datasets/...",
+        "Akan terisi otomatis dari halaman dataset jika terbaca. Jika tidak, tulis ringkasan About Dataset di sini.",
+      urlPlaceholder:
+        "https://www.kaggle.com/datasets/denkuznetz/food-delivery-time-prediction/data",
     },
   ],
   taskDescription:
-    "Temukan satu dataset kafe dari sumber terbuka. Tempel link halaman dataset; catatan singkat tentang target, kolom penting, periode, lisensi, cakupan, atau batasan yang terlihat boleh ditambahkan jika ada.",
+    "Tempel link dataset Food Delivery Time Prediction dari Kaggle; sistem akan mencoba membaca bagian About Dataset dan memindahkannya ke field Tentang dataset.",
   taskTitle: "Tugas pencarian",
   type: "open-dataset-source",
   urlLabel: "Link dataset atau halaman data",
@@ -628,7 +629,7 @@ const laterLessons: Lesson[] = [
       },
     ],
     prompt:
-      "Tim kafe butuh model awal untuk memperkirakan stok shift berikutnya dari data penjualan. Keputusan awal mana yang paling sehat?",
+      "Tim food delivery butuh model awal untuk memperkirakan waktu pengiriman dari data order. Keputusan awal mana yang paling sehat?",
     summary: [
       "Pekerjaan machine learning biasanya menggabungkan lingkungan eksperimen, tool data, dan tool pemodelan.",
       "Tool tidak menggantikan pemahaman. Tool membantu memuat data, memeriksa data, menyiapkan data, melatih model, dan mengevaluasi hasil secara konsisten.",
@@ -820,7 +821,7 @@ const laterLessons: Lesson[] = [
         label: "The model output is a category such as yes/no or class A/B.",
       },
       { id: "supervised-examples", label: "Training examples include the correct label." },
-      { id: "numeric-demand", label: "The model predicts an exact drink count." },
+      { id: "numeric-demand", label: "The model predicts an exact delivery time in minutes." },
     ],
     prompt: "Which statements describe supervised classification?",
     summary: [
@@ -851,7 +852,7 @@ const laterLessons: Lesson[] = [
       { id: "not-guarantee", label: "A 0.90 score is strong evidence, not a promise." },
       {
         id: "same-as-regression",
-        label: "Classification scores are the same as predicting cups sold.",
+        label: "Classification scores are the same as predicting delivery minutes.",
       },
     ],
     prompt: "Which statements about classification scores are correct?",
@@ -1051,7 +1052,6 @@ const laterLessons: Lesson[] = [
       "listing-id-text",
       "district-categorical",
       "area-numeric",
-      "parking-boolean",
       "price-numeric-target",
     ],
     estimatedMinutes: 6,
@@ -1064,15 +1064,15 @@ const laterLessons: Lesson[] = [
     id: "lesson-1-1-column-types",
     moduleId: "module-1-data-understanding",
     numberLabel: "Lesson 1.1",
-    objective: "You can classify common column types in a small cafe shift dataset.",
+    objective: "You can classify common column types in a small food delivery dataset.",
     options: [
-      { id: "listing-id-text", label: "shift_id is a text identifier." },
-      { id: "district-categorical", label: "branch_area is categorical." },
-      { id: "area-numeric", label: "temperature_c is numeric." },
-      { id: "parking-boolean", label: "promo_active is boolean." },
-      { id: "price-numeric-target", label: "drinks_sold is a numeric target." },
-      { id: "district-numeric", label: "branch_area is numeric." },
-      { id: "listing-id-target", label: "shift_id is the target." },
+      { id: "listing-id-text", label: "order_id is a text identifier." },
+      { id: "district-categorical", label: "traffic_level is categorical." },
+      { id: "area-numeric", label: "distance_km is numeric." },
+      { id: "parking-boolean", label: "vehicle_type is boolean." },
+      { id: "price-numeric-target", label: "delivery_time_min is a numeric target." },
+      { id: "district-numeric", label: "traffic_level is numeric." },
+      { id: "listing-id-target", label: "order_id is the target." },
     ],
     prompt: "Which column type statements are correct?",
     summary: [
@@ -1088,20 +1088,20 @@ const laterLessons: Lesson[] = [
     hints: [
       "The target answers what we want to predict.",
       "A feature must be known before prediction time.",
-      "Do not feed the final demand count into a model that predicts final demand.",
+      "Do not feed the final delivery time into a model that predicts final delivery time.",
     ],
     id: "lesson-1-2-target-context",
     moduleId: "module-1-data-understanding",
     numberLabel: "Lesson 1.2",
     objective: "You can decide which fields are available at prediction time.",
     options: [
-      { id: "district", label: "Branch area." },
-      { id: "property-type", label: "Day part." },
+      { id: "district", label: "Distance in kilometers." },
+      { id: "property-type", label: "Traffic level." },
       { id: "building-area", label: "Weather." },
-      { id: "bedrooms", label: "Promo active." },
-      { id: "price", label: "Final drinks sold." },
+      { id: "bedrooms", label: "Vehicle type." },
+      { id: "price", label: "Final delivery time." },
     ],
-    prompt: "Which fields are safe features for forecasting drinks sold?",
+    prompt: "Which fields are safe features for forecasting delivery time?",
     summary: [
       "A target must be clearly defined before modeling starts.",
       "Features must be available before the prediction is made. Information only known after the target happens can create leakage.",
@@ -1123,10 +1123,10 @@ const laterLessons: Lesson[] = [
     objective: "You can spot first-look data quality issues before deeper analysis.",
     options: [
       { id: "missing-value", label: "A feature value is missing." },
-      { id: "negative-area", label: "Drinks sold is negative." },
-      { id: "category-typo", label: "A branch area label uses inconsistent spelling." },
+      { id: "negative-area", label: "Delivery time is negative." },
+      { id: "category-typo", label: "A traffic level label uses inconsistent spelling." },
       { id: "missing-target", label: "A target value is empty." },
-      { id: "valid-district", label: "A valid branch area value is present." },
+      { id: "valid-district", label: "A valid traffic level value is present." },
     ],
     prompt: "Which items are first-look data quality issues?",
     summary: [
@@ -1149,11 +1149,11 @@ const laterLessons: Lesson[] = [
     numberLabel: "Lesson 3.1",
     objective: "You can choose charts based on the question and data type.",
     options: [
-      { id: "price-histogram", label: "Use a histogram for the drinks-sold distribution." },
-      { id: "area-price-scatter", label: "Use a scatter plot for temperature vs drinks sold." },
-      { id: "district-bar", label: "Use a bar chart for shift count by branch area." },
-      { id: "type-box", label: "Use grouped summaries to compare demand by day part." },
-      { id: "id-histogram", label: "Use a histogram of shift IDs to evaluate model quality." },
+      { id: "price-histogram", label: "Use a histogram for the delivery-time distribution." },
+      { id: "area-price-scatter", label: "Use a scatter plot for distance vs delivery time." },
+      { id: "district-bar", label: "Use a bar chart for order count by traffic level." },
+      { id: "type-box", label: "Use grouped summaries to compare delivery time by vehicle type." },
+      { id: "id-histogram", label: "Use a histogram of order IDs to evaluate model quality." },
     ],
     prompt: "Which chart choices match the question?",
     summary: [
@@ -1176,12 +1176,15 @@ const laterLessons: Lesson[] = [
     numberLabel: "Lesson 3.2",
     objective: "You can read a target distribution for range, skew, and extreme values.",
     options: [
-      { id: "right-skew", label: "Demand is right-skewed with a few very busy shifts." },
-      { id: "wide-range", label: "The demand range is wide enough that error units matter." },
-      { id: "all-same", label: "All shifts sell almost identical drink counts." },
-      { id: "no-extreme", label: "There are no unusually busy shifts worth checking." },
+      { id: "right-skew", label: "Delivery time is right-skewed with a few slow deliveries." },
+      {
+        id: "wide-range",
+        label: "The delivery-time range is wide enough that error units matter.",
+      },
+      { id: "all-same", label: "All orders have almost identical delivery times." },
+      { id: "no-extreme", label: "There are no unusually slow deliveries worth checking." },
     ],
-    prompt: "Which conclusions are supported by a right-skewed drinks-sold histogram?",
+    prompt: "Which conclusions are supported by a right-skewed delivery-time histogram?",
     summary: [
       "A target histogram shows the values the model needs to predict.",
       "Skew and extreme values can make evaluation harder, but they do not automatically mean the data is wrong.",
@@ -1204,9 +1207,9 @@ const laterLessons: Lesson[] = [
     options: [
       {
         id: "building-area",
-        label: "temperature_c, because demand tends to rise on warmer shifts.",
+        label: "distance_km, because delivery time tends to rise for longer routes.",
       },
-      { id: "listing-id", label: "shift_id, because it is unique for each row." },
+      { id: "listing-id", label: "order_id, because it is unique for each row." },
       { id: "random-order", label: "Random row order, because it changes every row." },
       { id: "source-batch", label: "Source batch, because it is a data collection artifact." },
     ],
@@ -1233,10 +1236,10 @@ const laterLessons: Lesson[] = [
     options: [
       {
         id: "investigate-outlier",
-        label: "Mark unusual temperature-demand points for investigation.",
+        label: "Mark unusual distance-delivery-time points for investigation.",
       },
       { id: "do-not-auto-delete", label: "Keep context before deciding to remove a point." },
-      { id: "delete-all-high", label: "Delete every unusually busy shift immediately." },
+      { id: "delete-all-high", label: "Delete every unusually slow delivery immediately." },
       {
         id: "ignore-outliers",
         label: "Ignore all outliers because models handle them automatically.",
@@ -1263,7 +1266,7 @@ const laterLessons: Lesson[] = [
     numberLabel: "Lesson 3.5",
     objective: "You can choose EDA conclusions that are supported by evidence.",
     options: [
-      { id: "supported-pattern", label: "Temperature appears positively related to drinks sold." },
+      { id: "supported-pattern", label: "Distance appears positively related to delivery time." },
       { id: "state-limits", label: "The chart does not prove causation." },
       { id: "next-step", label: "Investigate extreme points before cleaning or modeling." },
       { id: "perfect-model", label: "The chart proves the model will be perfect." },
@@ -1321,9 +1324,9 @@ const laterLessons: Lesson[] = [
     numberLabel: "Lesson 1.5",
     objective: "You can identify duplicate rows and explain their impact.",
     options: [
-      { id: "find-duplicate", label: "Flag rows that repeat the same shift record." },
+      { id: "find-duplicate", label: "Flag rows that repeat the same order record." },
       { id: "avoid-bias", label: "Duplicates can overweight repeated examples." },
-      { id: "same-district", label: "Rows from the same branch area are always duplicates." },
+      { id: "same-district", label: "Rows with the same traffic level are always duplicates." },
       { id: "keep-all", label: "Duplicate rows never affect model evaluation." },
     ],
     prompt: "Which duplicate-row statements are correct?",
@@ -1347,13 +1350,13 @@ const laterLessons: Lesson[] = [
     numberLabel: "Lesson 1.6",
     objective: "You can separate valid, suspicious, and impossible values.",
     options: [
-      { id: "negative-area", label: "Negative drinks sold is invalid." },
-      { id: "impossible-bedroom", label: "A negative customer count is invalid." },
+      { id: "negative-area", label: "Negative delivery time is invalid." },
+      { id: "impossible-bedroom", label: "Negative courier experience is invalid." },
       {
         id: "valid-high-price",
-        label: "A very high drink count can be valid if the shift context supports it.",
+        label: "A very long delivery time can be valid if the route context supports it.",
       },
-      { id: "all-expensive-invalid", label: "Every unusually busy shift is invalid." },
+      { id: "all-expensive-invalid", label: "Every unusually slow delivery is invalid." },
     ],
     prompt: "Which invalid-value statements are correct?",
     summary: [
@@ -1436,7 +1439,7 @@ const laterLessons: Lesson[] = [
       { id: "not-id-only", label: "Avoid treating row identifiers as meaningful signals." },
       {
         id: "use-final-price",
-        label: "Use final drinks sold as a feature to predict drinks sold.",
+        label: "Use final delivery time as a feature to predict delivery time.",
       },
     ],
     prompt: "Which feature choices are safe?",
@@ -1462,8 +1465,8 @@ const laterLessons: Lesson[] = [
     options: [
       { id: "future-info", label: "Information only known after the prediction point." },
       { id: "target-derived", label: "A field calculated from the target." },
-      { id: "post-outcome", label: "End-of-shift revenue used to forecast drinks sold." },
-      { id: "building-area", label: "Temperature known before the shift starts." },
+      { id: "post-outcome", label: "Final delivery time used to forecast delivery time." },
+      { id: "building-area", label: "Distance known before the prediction is made." },
     ],
     prompt: "Which fields are leakage risks?",
     summary: [
@@ -1517,11 +1520,11 @@ const laterLessons: Lesson[] = [
     options: [
       {
         id: "area-per-bedroom",
-        label: "Create a promo-and-event flag from existing shift fields.",
+        label: "Create a long-route-and-high-traffic flag from existing delivery fields.",
       },
-      { id: "is-central", label: "Create a central-branch flag from branch area." },
+      { id: "is-central", label: "Create a high-traffic flag from traffic level." },
       { id: "row-wise-safe", label: "Use row-wise transformations that do not use the target." },
-      { id: "price-ratio", label: "Create a feature directly from drinks_sold." },
+      { id: "price-ratio", label: "Create a feature directly from delivery_time_min." },
     ],
     prompt: "Which feature engineering ideas are safe?",
     summary: [
@@ -1659,16 +1662,19 @@ const laterLessons: Lesson[] = [
         label: "Train and test should have broadly similar target coverage.",
       },
       { id: "avoid-sorted-split", label: "Avoid splitting after sorting by target." },
-      { id: "check-target-range", label: "Check whether both sets cover realistic demand ranges." },
+      {
+        id: "check-target-range",
+        label: "Check whether both sets cover realistic delivery-time ranges.",
+      },
       {
         id: "test-only-cheap",
-        label: "Put only quiet shifts in test to make evaluation easier.",
+        label: "Put only short deliveries in test to make evaluation easier.",
       },
     ],
     prompt: "Which split practices support reliable evaluation?",
     summary: [
       "A test set should represent the kind of data the model will face.",
-      "A split that separates data by sorted demand or unusual groups can distort evaluation.",
+      "A split that separates data by sorted delivery time or unusual groups can distort evaluation.",
     ],
     title: "Representative Split",
   }),
@@ -1713,14 +1719,14 @@ const laterLessons: Lesson[] = [
     objective: "You can interpret a numeric prediction from a regression model.",
     options: [
       { id: "plug-feature", label: "Use feature values as inputs to produce a prediction." },
-      { id: "read-output", label: "Read the output as the predicted drinks sold." },
+      { id: "read-output", label: "Read the output as the predicted delivery time." },
       { id: "same-unit", label: "Interpret the prediction in the target unit." },
-      { id: "class-label", label: "Interpret the prediction as a drink type class." },
+      { id: "class-label", label: "Interpret the prediction as a vehicle-type class." },
     ],
     prompt: "Which prediction statements are correct?",
     summary: [
       "A regression model prediction is a numeric output for a row.",
-      "The prediction should be interpreted in the same unit as the target, such as cups sold.",
+      "The prediction should be interpreted in the same unit as the target, such as minutes.",
     ],
     title: "Prediction",
   }),

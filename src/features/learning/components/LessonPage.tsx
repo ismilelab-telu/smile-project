@@ -78,6 +78,8 @@ const amberLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-butto
 const lessonFullCellGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-12";
 const lessonSplitResultGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-8";
 const lessonSplitAsideGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-4";
+const lessonMarkdownContentClassName =
+  "grid gap-4 text-base leading-6 text-muted-foreground [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-7 [&>*:first-child]:mt-0 [&_a]:font-semibold [&_a]:text-sky-700 [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:border-l-2 [&_blockquote]:border-sky-400 [&_blockquote]:pl-4 [&_blockquote]:font-medium [&_blockquote]:text-foreground [&_blockquote_p]:m-0 [&_code]:bg-neutral-100 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-sm [&_code]:font-semibold [&_code]:text-foreground [&_h2]:mt-3 [&_h2]:text-xl [&_h2]:leading-tight [&_h2]:font-semibold [&_h2]:text-foreground [@media_(min-width:2200px)]:[&_h2]:text-3xl [&_h3]:mt-2 [&_h3]:text-lg [&_h3]:leading-tight [&_h3]:font-semibold [&_h3]:text-foreground [@media_(min-width:2200px)]:[&_h3]:text-2xl [&_li]:pl-1 [&_ol]:grid [&_ol]:list-decimal [&_ol]:gap-2 [&_ol]:pl-6 [&_p]:m-0 [&_pre]:overflow-x-auto [&_pre]:bg-neutral-100 [&_pre]:p-4 [&_pre]:text-sm [&_pre]:leading-6 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_strong]:font-semibold [&_strong]:text-foreground [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-neutral-300 [&_td]:p-2 [&_td]:align-top [&_th]:border [&_th]:border-neutral-300 [&_th]:bg-neutral-100 [&_th]:p-2 [&_th]:text-left [&_th]:font-semibold [&_th]:text-foreground [&_ul]:grid [&_ul]:list-disc [&_ul]:gap-2 [&_ul]:pl-6";
 
 type LessonPageProps = {
   backHref?: string;
@@ -128,6 +130,7 @@ function createCombinedExerciseResult(
   );
   const missedColumnIds = [...new Set(results.flatMap((result) => result.missedColumnIds))];
   const extraColumnIds = [...new Set(results.flatMap((result) => result.extraColumnIds))];
+  const suggestedHints = [...new Set(results.flatMap((result) => result.suggestedHints ?? []))];
   const correctCount = results.filter((result) => result.status === "correct").length;
 
   if (correctCount === results.length) {
@@ -144,6 +147,7 @@ function createCombinedExerciseResult(
           : "Lesson ini selesai. Lanjutkan ke lesson berikutnya yang sudah terbuka.",
       score,
       status: "correct",
+      suggestedHints: [],
       title: locale === "en" ? "Correct" : "Benar",
     };
   }
@@ -162,6 +166,7 @@ function createCombinedExerciseResult(
           : "Gunakan feedback dan petunjuk, perbaiki jawaban yang belum selesai, lalu kirim ulang.",
       score,
       status: "partial",
+      suggestedHints,
       title: locale === "en" ? "Partially correct" : "Sebagian benar",
     };
   }
@@ -179,6 +184,7 @@ function createCombinedExerciseResult(
         : "Gunakan petunjuk, baca ulang materi, lalu coba lagi.",
     score,
     status: "incorrect",
+    suggestedHints,
     title: locale === "en" ? "Not quite" : "Belum tepat",
   };
 }
@@ -191,6 +197,7 @@ function createRestoredCorrectResult(locale: Locale): EvaluationResult {
     nextStep: "",
     score: 100,
     status: "correct",
+    suggestedHints: [],
     title: locale === "en" ? "Correct" : "Benar",
   };
 }
@@ -285,6 +292,17 @@ function haveSameDatasetSourceAnswers(
   });
 }
 
+function haveSameColumnRoleAssignments(
+  left: Record<string, ColumnRole>,
+  right: Record<string, ColumnRole>,
+) {
+  const assignmentKeys = new Set([...Object.keys(left), ...Object.keys(right)]);
+
+  return [...assignmentKeys].every(
+    (columnId) => (left[columnId] ?? "ignore") === (right[columnId] ?? "ignore"),
+  );
+}
+
 function haveSameEvaluationResult(left: EvaluationResult | undefined, right: EvaluationResult) {
   return (
     left !== undefined &&
@@ -294,7 +312,481 @@ function haveSameEvaluationResult(left: EvaluationResult | undefined, right: Eva
     left.message === right.message &&
     left.nextStep === right.nextStep &&
     haveSameValueSet(left.missedColumnIds, right.missedColumnIds) &&
-    haveSameValueSet(left.extraColumnIds, right.extraColumnIds)
+    haveSameValueSet(left.extraColumnIds, right.extraColumnIds) &&
+    haveSameOrderedValues(left.suggestedHints ?? [], right.suggestedHints ?? [])
+  );
+}
+
+function getDatasetSourceAnswersWithValidationEvidence({
+  answersBySourceId,
+  sourceInputs,
+  validationResults,
+}: {
+  answersBySourceId: Record<string, DatasetSourceAnswer>;
+  sourceInputs: OpenDatasetSourceExercise["sourceInputs"];
+  validationResults: DatasetSourcePageValidationResult[];
+}) {
+  const validationResultBySourceId = new Map(
+    validationResults.map((validationResult) => [validationResult.sourceId, validationResult]),
+  );
+  let hasChanges = false;
+  const nextAnswersBySourceId = { ...answersBySourceId };
+
+  for (const sourceInput of sourceInputs) {
+    const validationResult = validationResultBySourceId.get(sourceInput.id);
+    const evidenceExcerpt = validationResult?.evidenceExcerpt?.trim();
+    const currentAnswer = nextAnswersBySourceId[sourceInput.id] ?? { notes: "", url: "" };
+
+    if (
+      evidenceExcerpt &&
+      validationResult.status !== "invalid" &&
+      validationResult.status !== "unreachable" &&
+      currentAnswer.notes.trim() === ""
+    ) {
+      nextAnswersBySourceId[sourceInput.id] = {
+        ...currentAnswer,
+        notes: evidenceExcerpt,
+      };
+      hasChanges = true;
+    }
+  }
+
+  return hasChanges ? nextAnswersBySourceId : answersBySourceId;
+}
+
+type MarkdownBlock =
+  | { blocks: MarkdownBlock[]; type: "blockquote" }
+  | { code: string; type: "code" }
+  | { level: 2 | 3; text: string; type: "heading" }
+  | { headers: string[]; rows: string[][]; type: "table" }
+  | { items: string[]; type: "ordered-list" | "unordered-list" }
+  | { text: string; type: "paragraph" };
+
+const unorderedMarkdownListItemPattern = /^\s*[-*+]\s+(.+)$/;
+const orderedMarkdownListItemPattern = /^\s*\d+[.)]\s+(.+)$/;
+const markdownTableSeparatorPattern = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/;
+
+function parseMarkdownTableRow(line: string) {
+  return line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+}
+
+function isMarkdownTableStart(lines: string[], index: number) {
+  const headerLine = lines[index];
+  const separatorLine = lines[index + 1];
+
+  return Boolean(
+    headerLine?.includes("|") && separatorLine && markdownTableSeparatorPattern.test(separatorLine),
+  );
+}
+
+function isMarkdownBlockStart(lines: string[], index: number) {
+  const line = lines[index] ?? "";
+  const trimmedLine = line.trim();
+
+  return (
+    trimmedLine === "" ||
+    trimmedLine.startsWith("```") ||
+    /^#{1,6}\s+/.test(trimmedLine) ||
+    trimmedLine.startsWith(">") ||
+    unorderedMarkdownListItemPattern.test(line) ||
+    orderedMarkdownListItemPattern.test(line) ||
+    isMarkdownTableStart(lines, index)
+  );
+}
+
+function parseMarkdownBlocks(value: string): MarkdownBlock[] {
+  const lines = value.replace(/\r\n?/g, "\n").split("\n");
+  const blocks: MarkdownBlock[] = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index] ?? "";
+    const trimmedLine = line.trim();
+
+    if (trimmedLine === "") {
+      index += 1;
+      continue;
+    }
+
+    if (trimmedLine.startsWith("```")) {
+      const codeLines: string[] = [];
+      index += 1;
+
+      while (index < lines.length && !(lines[index] ?? "").trim().startsWith("```")) {
+        codeLines.push(lines[index] ?? "");
+        index += 1;
+      }
+
+      if (index < lines.length) {
+        index += 1;
+      }
+
+      blocks.push({ code: codeLines.join("\n"), type: "code" });
+      continue;
+    }
+
+    if (isMarkdownTableStart(lines, index)) {
+      const headers = parseMarkdownTableRow(lines[index] ?? "");
+      const rows: string[][] = [];
+      index += 2;
+
+      while (index < lines.length && (lines[index] ?? "").includes("|")) {
+        rows.push(parseMarkdownTableRow(lines[index] ?? ""));
+        index += 1;
+      }
+
+      blocks.push({ headers, rows, type: "table" });
+      continue;
+    }
+
+    const headingMatch = /^(#{1,6})\s+(.+)$/.exec(trimmedLine);
+
+    if (headingMatch?.[1] && headingMatch[2]) {
+      blocks.push({
+        level: headingMatch[1].length <= 2 ? 2 : 3,
+        text: headingMatch[2].trim(),
+        type: "heading",
+      });
+      index += 1;
+      continue;
+    }
+
+    if (trimmedLine.startsWith(">")) {
+      const quoteLines: string[] = [];
+
+      while (index < lines.length) {
+        const quoteMatch = /^\s*>\s?(.*)$/.exec(lines[index] ?? "");
+
+        if (!quoteMatch) {
+          break;
+        }
+
+        quoteLines.push(quoteMatch[1] ?? "");
+        index += 1;
+      }
+
+      blocks.push({ blocks: parseMarkdownBlocks(quoteLines.join("\n")), type: "blockquote" });
+      continue;
+    }
+
+    const unorderedListMatch = unorderedMarkdownListItemPattern.exec(line);
+
+    if (unorderedListMatch?.[1]) {
+      const items: string[] = [];
+
+      while (index < lines.length) {
+        const itemMatch = unorderedMarkdownListItemPattern.exec(lines[index] ?? "");
+
+        if (!itemMatch?.[1]) {
+          break;
+        }
+
+        items.push(itemMatch[1].trim());
+        index += 1;
+      }
+
+      blocks.push({ items, type: "unordered-list" });
+      continue;
+    }
+
+    const orderedListMatch = orderedMarkdownListItemPattern.exec(line);
+
+    if (orderedListMatch?.[1]) {
+      const items: string[] = [];
+
+      while (index < lines.length) {
+        const itemMatch = orderedMarkdownListItemPattern.exec(lines[index] ?? "");
+
+        if (!itemMatch?.[1]) {
+          break;
+        }
+
+        items.push(itemMatch[1].trim());
+        index += 1;
+      }
+
+      blocks.push({ items, type: "ordered-list" });
+      continue;
+    }
+
+    const paragraphLines: string[] = [];
+
+    while (index < lines.length && !isMarkdownBlockStart(lines, index)) {
+      paragraphLines.push((lines[index] ?? "").trim());
+      index += 1;
+    }
+
+    blocks.push({ text: paragraphLines.join(" "), type: "paragraph" });
+  }
+
+  return blocks.filter((block) => block.type !== "paragraph" || block.text.trim() !== "");
+}
+
+function hasInlineBoundaryBefore(value: string, index: number) {
+  return index === 0 || /[\s([{"'“‘]/.test(value[index - 1] ?? "");
+}
+
+function hasInlineBoundaryAfter(value: string, index: number) {
+  return index >= value.length || /[\s.,!?;:)\]}"'”’]/.test(value[index] ?? "");
+}
+
+function findBoundedDelimiter(value: string, delimiter: string, startIndex: number) {
+  let searchIndex = startIndex + delimiter.length;
+
+  while (searchIndex < value.length) {
+    const endIndex = value.indexOf(delimiter, searchIndex);
+
+    if (endIndex === -1) {
+      return -1;
+    }
+
+    if (
+      endIndex > startIndex + delimiter.length &&
+      hasInlineBoundaryAfter(value, endIndex + delimiter.length)
+    ) {
+      return endIndex;
+    }
+
+    searchIndex = endIndex + delimiter.length;
+  }
+
+  return -1;
+}
+
+function getSafeMarkdownHref(value: string) {
+  const trimmedValue = value.trim();
+
+  return /^(https?:|mailto:)/i.test(trimmedValue) ? trimmedValue : undefined;
+}
+
+function renderInlineMarkdown(value: string, keyPrefix: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  let buffer = "";
+  let nodeIndex = 0;
+  let index = 0;
+
+  const flushBuffer = () => {
+    if (buffer) {
+      nodes.push(buffer);
+      buffer = "";
+    }
+  };
+
+  const pushNode = (node: ReactNode) => {
+    flushBuffer();
+    nodes.push(node);
+    nodeIndex += 1;
+  };
+
+  while (index < value.length) {
+    if (value[index] === "`") {
+      const endIndex = value.indexOf("`", index + 1);
+
+      if (endIndex > index + 1) {
+        pushNode(
+          <code key={`${keyPrefix}-code-${nodeIndex}`}>{value.slice(index + 1, endIndex)}</code>,
+        );
+        index = endIndex + 1;
+        continue;
+      }
+    }
+
+    if (value.startsWith("**", index)) {
+      const endIndex = value.indexOf("**", index + 2);
+
+      if (endIndex > index + 2) {
+        pushNode(
+          <strong key={`${keyPrefix}-strong-${nodeIndex}`}>
+            {renderInlineMarkdown(
+              value.slice(index + 2, endIndex),
+              `${keyPrefix}-strong-${nodeIndex}`,
+            )}
+          </strong>,
+        );
+        index = endIndex + 2;
+        continue;
+      }
+    }
+
+    if (value.startsWith("__", index) && hasInlineBoundaryBefore(value, index)) {
+      const endIndex = findBoundedDelimiter(value, "__", index);
+
+      if (endIndex > index + 2) {
+        pushNode(
+          <strong key={`${keyPrefix}-strong-${nodeIndex}`}>
+            {renderInlineMarkdown(
+              value.slice(index + 2, endIndex),
+              `${keyPrefix}-strong-${nodeIndex}`,
+            )}
+          </strong>,
+        );
+        index = endIndex + 2;
+        continue;
+      }
+    }
+
+    if (value[index] === "[") {
+      const labelEndIndex = value.indexOf("]", index + 1);
+
+      if (labelEndIndex > index + 1 && value[labelEndIndex + 1] === "(") {
+        const hrefEndIndex = value.indexOf(")", labelEndIndex + 2);
+        const safeHref =
+          hrefEndIndex > labelEndIndex + 2
+            ? getSafeMarkdownHref(value.slice(labelEndIndex + 2, hrefEndIndex))
+            : undefined;
+
+        if (safeHref) {
+          pushNode(
+            <a
+              href={safeHref}
+              key={`${keyPrefix}-link-${nodeIndex}`}
+              rel="noreferrer"
+              target="_blank"
+            >
+              {renderInlineMarkdown(
+                value.slice(index + 1, labelEndIndex),
+                `${keyPrefix}-link-${nodeIndex}`,
+              )}
+            </a>,
+          );
+          index = hrefEndIndex + 1;
+          continue;
+        }
+      }
+    }
+
+    if (value[index] === "*") {
+      const endIndex = value.indexOf("*", index + 1);
+
+      if (endIndex > index + 1) {
+        pushNode(
+          <em key={`${keyPrefix}-em-${nodeIndex}`}>
+            {renderInlineMarkdown(value.slice(index + 1, endIndex), `${keyPrefix}-em-${nodeIndex}`)}
+          </em>,
+        );
+        index = endIndex + 1;
+        continue;
+      }
+    }
+
+    if (value[index] === "_" && hasInlineBoundaryBefore(value, index)) {
+      const endIndex = findBoundedDelimiter(value, "_", index);
+
+      if (endIndex > index + 1) {
+        pushNode(
+          <em key={`${keyPrefix}-em-${nodeIndex}`}>
+            {renderInlineMarkdown(value.slice(index + 1, endIndex), `${keyPrefix}-em-${nodeIndex}`)}
+          </em>,
+        );
+        index = endIndex + 1;
+        continue;
+      }
+    }
+
+    buffer += value[index] ?? "";
+    index += 1;
+  }
+
+  flushBuffer();
+
+  return nodes;
+}
+
+function renderMarkdownBlock(block: MarkdownBlock, index: number): ReactNode {
+  if (block.type === "heading") {
+    return block.level === 2 ? (
+      <h2 key={index}>{renderInlineMarkdown(block.text, `heading-${index}`)}</h2>
+    ) : (
+      <h3 key={index}>{renderInlineMarkdown(block.text, `heading-${index}`)}</h3>
+    );
+  }
+
+  if (block.type === "paragraph") {
+    return <p key={index}>{renderInlineMarkdown(block.text, `paragraph-${index}`)}</p>;
+  }
+
+  if (block.type === "unordered-list") {
+    return (
+      <ul key={index}>
+        {block.items.map((item, itemIndex) => (
+          <li key={itemIndex}>{renderInlineMarkdown(item, `ul-${index}-${itemIndex}`)}</li>
+        ))}
+      </ul>
+    );
+  }
+
+  if (block.type === "ordered-list") {
+    return (
+      <ol key={index}>
+        {block.items.map((item, itemIndex) => (
+          <li key={itemIndex}>{renderInlineMarkdown(item, `ol-${index}-${itemIndex}`)}</li>
+        ))}
+      </ol>
+    );
+  }
+
+  if (block.type === "blockquote") {
+    return <blockquote key={index}>{block.blocks.map(renderMarkdownBlock)}</blockquote>;
+  }
+
+  if (block.type === "code") {
+    return (
+      <pre key={index}>
+        <code>{block.code}</code>
+      </pre>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto" key={index}>
+      <table>
+        <thead>
+          <tr>
+            {block.headers.map((header, headerIndex) => (
+              <th key={headerIndex}>
+                {renderInlineMarkdown(header, `table-${index}-header-${headerIndex}`)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {block.rows.map((row, rowIndex) => (
+            <tr key={rowIndex}>
+              {row.map((cell, cellIndex) => (
+                <td key={cellIndex}>
+                  {renderInlineMarkdown(cell, `table-${index}-row-${rowIndex}-${cellIndex}`)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function hasMarkdownSyntax(value: string) {
+  return /(^|\n)\s*(#{1,6}\s+|[-*+]\s+|\d+[.)]\s+|>|```)|[`*_]|\[[^\]]+\]\((https?:|mailto:)/i.test(
+    value,
+  );
+}
+
+function MarkdownContent({ className = "", value }: { className?: string; value: string }) {
+  const blocks = parseMarkdownBlocks(value);
+
+  if (blocks.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className={`${lessonMarkdownContentClassName} ${className}`}>
+      {blocks.map(renderMarkdownBlock)}
+    </div>
   );
 }
 
@@ -380,6 +872,43 @@ function evaluateExerciseAnswerSnapshot(
   );
 }
 
+function doesSubmittedAnswerMatchCurrentSnapshot(
+  exercise: LessonExercise,
+  currentAnswer: LessonAnswer,
+  submittedAnswer: LessonAnswer | undefined,
+) {
+  if (!submittedAnswer) {
+    return false;
+  }
+
+  if (exercise.type === "multiple-choice") {
+    return haveSameValueSet(
+      currentAnswer.selectedOptionIdsByExerciseId?.[exercise.id] ?? [],
+      submittedAnswer.selectedOptionIdsByExerciseId?.[exercise.id] ?? [],
+    );
+  }
+
+  if (exercise.type === "ordered-steps") {
+    return haveSameOrderedValues(
+      currentAnswer.orderedStepIdsByExerciseId?.[exercise.id] ?? [],
+      submittedAnswer.orderedStepIdsByExerciseId?.[exercise.id] ?? [],
+    );
+  }
+
+  if (exercise.type === "open-dataset-source") {
+    return haveSameDatasetSourceAnswers(
+      exercise.sourceInputs,
+      currentAnswer.datasetSourceAnswersByExerciseId?.[exercise.id] ?? {},
+      submittedAnswer.datasetSourceAnswersByExerciseId?.[exercise.id] ?? {},
+    );
+  }
+
+  return haveSameColumnRoleAssignments(
+    currentAnswer.columnRoleAssignmentsByExerciseId?.[exercise.id] ?? {},
+    submittedAnswer.columnRoleAssignmentsByExerciseId?.[exercise.id] ?? {},
+  );
+}
+
 function getExerciseResultFromSubmittedAnswer({
   exercise,
   isCompletedForCurrentExerciseSet,
@@ -396,6 +925,16 @@ function getExerciseResultFromSubmittedAnswer({
   }
 
   return isCompletedForCurrentExerciseSet ? createRestoredCorrectResult(locale) : undefined;
+}
+
+function getExerciseHints(exercise: LessonExercise | undefined, result: EvaluationResult | null) {
+  if (!exercise) {
+    return [];
+  }
+
+  return result?.suggestedHints && result.suggestedHints.length > 0
+    ? result.suggestedHints
+    : exercise.hints;
 }
 
 function LessonLeftGutter({ className = "" }: { className?: string }) {
@@ -655,45 +1194,7 @@ export function LessonPage({
   const isCurrentAnswerSubmittedForExercise = (
     exercise: LessonExercise,
     submittedAnswer: LessonAnswer | undefined,
-  ) => {
-    if (!submittedAnswer) {
-      return false;
-    }
-
-    if (exercise.type === "multiple-choice") {
-      return haveSameValueSet(
-        selectedOptionIdsByExerciseId[exercise.id] ?? [],
-        submittedAnswer.selectedOptionIdsByExerciseId?.[exercise.id] ?? [],
-      );
-    }
-
-    if (exercise.type === "ordered-steps") {
-      return haveSameOrderedValues(
-        orderedStepIdsByExerciseId[exercise.id] ?? [],
-        submittedAnswer.orderedStepIdsByExerciseId?.[exercise.id] ?? [],
-      );
-    }
-
-    if (exercise.type === "open-dataset-source") {
-      return haveSameDatasetSourceAnswers(
-        exercise.sourceInputs,
-        datasetSourceAnswersByExerciseId[exercise.id] ?? {},
-        submittedAnswer.datasetSourceAnswersByExerciseId?.[exercise.id] ?? {},
-      );
-    }
-
-    const submittedAssignments =
-      submittedAnswer.columnRoleAssignmentsByExerciseId?.[exercise.id] ?? {};
-    const assignmentKeys = new Set([
-      ...Object.keys(assignments),
-      ...Object.keys(submittedAssignments),
-    ]);
-
-    return [...assignmentKeys].every(
-      (columnId) =>
-        (assignments[columnId] ?? "ignore") === (submittedAssignments[columnId] ?? "ignore"),
-    );
-  };
+  ) => doesSubmittedAnswerMatchCurrentSnapshot(exercise, answerSnapshot, submittedAnswer);
   const hasAnyAnswer = exerciseEntries.some(hasAnswerForExercise);
   const hasEditingExercise = editingExerciseIds.size > 0;
   const areAllExerciseResultsCorrect =
@@ -728,6 +1229,10 @@ export function LessonPage({
 
     return exerciseResult !== undefined && exerciseResult.status !== "correct";
   });
+  const lastExercise = exerciseEntries.at(-1);
+  const lastExerciseResult = lastExercise ? exerciseResultsById[lastExercise.id] : undefined;
+  const shouldSplitFooterForHint =
+    lastExerciseResult !== undefined && lastExerciseResult.status !== "correct";
   const isReviewMode = isLessonFinished;
   const isSubmitDisabled = !hasAnyAnswer;
   const rightEdgeCompensationClassName = hasNotQuiteResult ? "-mr-px" : "";
@@ -1039,6 +1544,15 @@ export function LessonPage({
                   : "Gunakan halaman dataset publik berbasis HTTP atau HTTPS, lalu kirim ulang.",
               score: 70,
               status: "partial",
+              suggestedHints: [
+                locale === "en"
+                  ? "Automatic validation blocks private, local, or unsafe addresses even when their text looks like a URL."
+                  : "Validasi otomatis memblokir alamat privat, lokal, atau tidak aman walaupun teksnya terlihat seperti URL.",
+                locale === "en"
+                  ? "Use a public dataset page that can be opened without your local machine or private network."
+                  : "Gunakan halaman dataset publik yang bisa dibuka tanpa mesin lokal atau jaringan privatmu.",
+                ...exercise.hints,
+              ],
               title: locale === "en" ? "Partially correct" : "Sebagian benar",
             },
             sourceValidationResults: validationResults,
@@ -1065,29 +1579,61 @@ export function LessonPage({
   const isLessonCorrectWithResults = (
     resultsById: Record<string, EvaluationResult>,
     submittedAnswersByExerciseId: Record<string, LessonAnswer>,
+    currentAnswer: LessonAnswer = answerSnapshot,
   ) =>
     exerciseEntries.every((exercise) => {
       const exerciseResult = resultsById[exercise.id];
 
       return (
         exerciseResult?.status === "correct" &&
-        isCurrentAnswerSubmittedForExercise(exercise, submittedAnswersByExerciseId[exercise.id])
+        doesSubmittedAnswerMatchCurrentSnapshot(
+          exercise,
+          currentAnswer,
+          submittedAnswersByExerciseId[exercise.id],
+        )
       );
     });
 
   const submitExercise = async (exercise: LessonExercise) => {
     const { evaluation, sourceValidationResults } = await evaluateExercise(exercise);
+    let nextDatasetSourceAnswersByExerciseId = datasetSourceAnswersByExerciseId;
+    let nextAnswerSnapshot = answerSnapshot;
+
+    if (exercise.type === "open-dataset-source" && sourceValidationResults) {
+      const currentExerciseAnswers = datasetSourceAnswersByExerciseId[exercise.id] ?? {};
+      const nextExerciseAnswers = getDatasetSourceAnswersWithValidationEvidence({
+        answersBySourceId: currentExerciseAnswers,
+        sourceInputs: exercise.sourceInputs,
+        validationResults: sourceValidationResults,
+      });
+
+      if (nextExerciseAnswers !== currentExerciseAnswers) {
+        nextDatasetSourceAnswersByExerciseId = {
+          ...datasetSourceAnswersByExerciseId,
+          [exercise.id]: nextExerciseAnswers,
+        };
+        nextAnswerSnapshot = createLessonAnswerSnapshot({
+          assignments,
+          datasetSourceAnswersByExerciseId: nextDatasetSourceAnswersByExerciseId,
+          exercises: exerciseEntries,
+          orderedStepIdsByExerciseId,
+          selectedOptionIdsByExerciseId,
+        });
+      }
+    }
+
     const nextExerciseResultsById = {
       ...exerciseResultsById,
       [exercise.id]: evaluation,
     };
     const nextSubmittedAnswerSnapshotsByExerciseId = {
       ...submittedAnswerSnapshotsByExerciseId,
-      [exercise.id]: answerSnapshot,
+      [exercise.id]: nextAnswerSnapshot,
     };
 
     if (exercise.type === "open-dataset-source") {
       setValidatingDatasetSourceExerciseId(null);
+      setDatasetSourceAnswersByExerciseId(nextDatasetSourceAnswersByExerciseId);
       setDatasetSourceValidationResultsByExerciseId((current) => ({
         ...current,
         [exercise.id]: sourceValidationResults ?? [],
@@ -1108,7 +1654,7 @@ export function LessonPage({
       });
     }
     onExerciseSubmitResult?.({
-      answer: answerSnapshot,
+      answer: nextAnswerSnapshot,
       exerciseId: exercise.id,
       lessonId: lesson.id,
       result: evaluation,
@@ -1120,6 +1666,7 @@ export function LessonPage({
         : isLessonCorrectWithResults(
               nextExerciseResultsById,
               nextSubmittedAnswerSnapshotsByExerciseId,
+              nextAnswerSnapshot,
             )
           ? createCombinedExerciseResult(
               exerciseEntries.map(
@@ -1131,7 +1678,7 @@ export function LessonPage({
           : null;
 
     if (nextLessonResult) {
-      onSubmitResult(nextLessonResult, answerSnapshot);
+      onSubmitResult(nextLessonResult, nextAnswerSnapshot);
     }
 
     setVisibleHintCountByExerciseId((current) => ({
@@ -1182,7 +1729,7 @@ export function LessonPage({
           <section
             className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} p-6 [@media_(min-width:2200px)]:p-12`}
           >
-            <div className="grid gap-4 text-base leading-6 text-muted-foreground [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-7 [&>*:first-child]:mt-0 [&_blockquote]:border-l-2 [&_blockquote]:border-sky-400 [&_blockquote]:pl-4 [&_blockquote]:font-medium [&_blockquote]:text-foreground [&_blockquote_p]:m-0 [&_code]:bg-neutral-100 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-sm [&_code]:font-semibold [&_code]:text-foreground [&_h2]:mt-3 [&_h2]:text-xl [&_h2]:leading-tight [&_h2]:font-semibold [&_h2]:text-foreground [@media_(min-width:2200px)]:[&_h2]:text-3xl [&_h3]:mt-2 [&_h3]:text-lg [&_h3]:leading-tight [&_h3]:font-semibold [&_h3]:text-foreground [@media_(min-width:2200px)]:[&_h3]:text-2xl [&_li]:pl-1 [&_ol]:grid [&_ol]:list-decimal [&_ol]:gap-2 [&_ol]:pl-6 [&_p]:m-0 [&_strong]:font-semibold [&_strong]:text-foreground [&_ul]:grid [&_ul]:list-disc [&_ul]:gap-2 [&_ul]:pl-6">
+            <div className={lessonMarkdownContentClassName}>
               {LessonMdxContent ? (
                 <LessonMdxContent />
               ) : (
@@ -1286,8 +1833,10 @@ export function LessonPage({
                 <>
                   <LessonResult result={exerciseResult} />
                   <LessonHintPanel
-                    hints={exercise.hints}
-                    onToggleHints={() => toggleHints(exercise.id, exercise.hints.length)}
+                    hints={getExerciseHints(exercise, exerciseResult)}
+                    onToggleHints={() =>
+                      toggleHints(exercise.id, getExerciseHints(exercise, exerciseResult).length)
+                    }
                     visibleHintCount={visibleHintCountByExerciseId[exercise.id] ?? 0}
                   />
                 </>
@@ -1351,10 +1900,13 @@ export function LessonPage({
             <LessonResult result={lessonResult} />
             {hasNotQuiteResult ? (
               <LessonHintPanel
-                hints={exerciseEntries[0]?.hints ?? []}
+                hints={getExerciseHints(exerciseEntries[0], lessonResult)}
                 onToggleHints={() =>
                   exerciseEntries[0]
-                    ? toggleHints(exerciseEntries[0].id, exerciseEntries[0].hints.length)
+                    ? toggleHints(
+                        exerciseEntries[0].id,
+                        getExerciseHints(exerciseEntries[0], lessonResult).length,
+                      )
                     : undefined
                 }
                 visibleHintCount={
@@ -1367,7 +1919,7 @@ export function LessonPage({
           </>
         ) : null}
 
-        {hasNotQuiteResult ? (
+        {shouldSplitFooterForHint ? (
           <>
             <LessonLeftGutter />
             <div
@@ -1616,7 +2168,6 @@ function ExerciseSection({
           exercise={exercise}
           isReviewMode={isReviewMode}
           onUpdateAnswer={onUpdateDatasetSourceAnswer}
-          result={result}
           sourceValidationResults={sourceValidationResults}
           submittedAnswers={submittedDatasetSourceAnswers}
         />
@@ -1644,7 +2195,6 @@ function OpenDatasetSourceExerciseView({
   exercise,
   isReviewMode,
   onUpdateAnswer,
-  result,
   sourceValidationResults,
   submittedAnswers,
 }: {
@@ -1653,7 +2203,6 @@ function OpenDatasetSourceExerciseView({
   exercise: OpenDatasetSourceExercise;
   isReviewMode: boolean;
   onUpdateAnswer: (sourceInputId: string, field: keyof DatasetSourceAnswer, value: string) => void;
-  result: EvaluationResult | null;
   sourceValidationResults: DatasetSourcePageValidationResult[];
   submittedAnswers: Record<string, DatasetSourceAnswer>;
 }) {
@@ -1691,6 +2240,7 @@ function OpenDatasetSourceExerciseView({
           {exercise.sourceInputs.map((sourceInput) => {
             const sourceAnswer = displayedAnswers[sourceInput.id] ?? { notes: "", url: "" };
             const validationResult = validationResultBySourceId.get(sourceInput.id);
+            const hasNotes = sourceAnswer.notes.trim() !== "";
 
             return (
               <section
@@ -1729,21 +2279,39 @@ function OpenDatasetSourceExerciseView({
                       value={sourceAnswer.url}
                     />
                   </label>
-                  <label className="grid gap-2">
-                    <span className="text-sm font-semibold text-foreground [@media_(min-width:2200px)]:text-base">
-                      {exercise.notesLabel}
-                    </span>
-                    <textarea
-                      aria-label={`${sourceInput.label}: ${exercise.notesLabel}`}
-                      className="learning-grid-control min-h-32 w-full resize-y border border-neutral-300 bg-white px-4 py-3 text-base leading-7 text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-sky-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:bg-neutral-100 disabled:text-muted-foreground [@media_(min-width:2200px)]:min-h-40 [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8"
-                      disabled={isReviewMode}
-                      onChange={(event) =>
-                        onUpdateAnswer(sourceInput.id, "notes", event.currentTarget.value)
-                      }
-                      placeholder={sourceInput.notesPlaceholder}
+                  {isReviewMode && hasNotes ? (
+                    <div className="grid gap-2">
+                      <span className="text-sm font-semibold text-foreground [@media_(min-width:2200px)]:text-base">
+                        {exercise.notesLabel}
+                      </span>
+                      <MarkdownContent
+                        className="learning-grid-control min-h-32 border border-neutral-300 bg-white px-4 py-3 [@media_(min-width:2200px)]:min-h-40 [@media_(min-width:2200px)]:px-5"
+                        value={sourceAnswer.notes}
+                      />
+                    </div>
+                  ) : (
+                    <label className="grid gap-2">
+                      <span className="text-sm font-semibold text-foreground [@media_(min-width:2200px)]:text-base">
+                        {exercise.notesLabel}
+                      </span>
+                      <textarea
+                        aria-label={`${sourceInput.label}: ${exercise.notesLabel}`}
+                        className="learning-grid-control min-h-32 w-full resize-y border border-neutral-300 bg-white px-4 py-3 text-base leading-7 text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-sky-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:bg-neutral-100 disabled:text-muted-foreground [@media_(min-width:2200px)]:min-h-40 [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8"
+                        disabled={isReviewMode}
+                        onChange={(event) =>
+                          onUpdateAnswer(sourceInput.id, "notes", event.currentTarget.value)
+                        }
+                        placeholder={sourceInput.notesPlaceholder}
+                        value={sourceAnswer.notes}
+                      />
+                    </label>
+                  )}
+                  {!isReviewMode && hasNotes && hasMarkdownSyntax(sourceAnswer.notes) ? (
+                    <MarkdownContent
+                      className="learning-grid-control border border-neutral-200 bg-white/70 px-4 py-3 text-sm leading-6 [@media_(min-width:2200px)]:px-5"
                       value={sourceAnswer.notes}
                     />
-                  </label>
+                  ) : null}
                 </div>
                 {validationResult ? (
                   <DatasetSourceValidationSummary locale={locale} result={validationResult} />
@@ -1751,11 +2319,6 @@ function OpenDatasetSourceExerciseView({
               </section>
             );
           })}
-          {result?.status === "correct" ? (
-            <p className="text-base leading-7 text-muted-foreground [@media_(min-width:2200px)]:text-lg [@media_(min-width:2200px)]:leading-8">
-              {result.message}
-            </p>
-          ) : null}
         </div>
       </LessonFullRow>
     </>
@@ -1773,20 +2336,12 @@ function DatasetSourceValidationSummary({
   const isNegative = result.status === "invalid" || result.status === "unreachable";
   const title =
     locale === "en"
-      ? result.status === "valid"
-        ? "Page readable"
-        : result.status === "partial"
-          ? "Page needs manual review"
-          : result.status === "invalid"
-            ? "Link blocked"
-            : "Page unreachable"
-      : result.status === "valid"
-        ? "Halaman terbaca"
-        : result.status === "partial"
-          ? "Halaman perlu dicek manual"
-          : result.status === "invalid"
-            ? "Link diblokir"
-            : "Halaman tidak terbaca";
+      ? isNegative
+        ? "Page not readable"
+        : "Page readable"
+      : isNegative
+        ? "Halaman tidak terbaca"
+        : "Halaman terbaca";
   const statusClassName = isPositive
     ? "border-emerald-200 bg-emerald-50 text-emerald-800"
     : isNegative
@@ -1814,28 +2369,6 @@ function DatasetSourceValidationSummary({
         )}
         <div className="min-w-0 flex-1">
           <h5 className="font-semibold">{title}</h5>
-          {result.title ? <p className="mt-1 text-sm font-medium">{result.title}</p> : null}
-          {result.description ? (
-            <p className="mt-1 line-clamp-2 text-sm opacity-85">{result.description}</p>
-          ) : null}
-          {result.evidenceExcerpt ? (
-            <p className="mt-3 border-l-2 border-current/30 pl-3 text-sm leading-6 opacity-90">
-              <span className="font-semibold">
-                {locale === "en" ? "Readable evidence: " : "Bukti terbaca: "}
-              </span>
-              {result.evidenceExcerpt}
-            </p>
-          ) : null}
-          {result.license ? (
-            <p className="mt-2 text-sm opacity-85">
-              {(locale === "en" ? "License: " : "Lisensi: ") + result.license}
-            </p>
-          ) : null}
-          {result.signals.length > 0 ? (
-            <p className="mt-2 text-sm opacity-85">
-              {(locale === "en" ? "Signals: " : "Sinyal: ") + result.signals.join(", ")}
-            </p>
-          ) : null}
           {result.issues.length > 0 ? (
             <p className="mt-2 text-sm opacity-85">{result.issues.join(" ")}</p>
           ) : null}
@@ -2676,7 +3209,7 @@ function LessonHintPanel({
   return (
     <>
       <aside
-        className={`learning-sheet-cell learning-extend-left learning-extend-right learning-sheet-cell-fill ${lessonSplitAsideGridClassName} -mr-px p-6 [@media_(min-width:2200px)]:p-12`}
+        className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonSplitAsideGridClassName} -mr-px p-6 [@media_(min-width:2200px)]:p-12`}
       >
         <h2 className="flex items-center gap-3 text-xl font-semibold text-foreground [@media_(min-width:2200px)]:gap-4 [@media_(min-width:2200px)]:text-3xl">
           <LightBulbIcon
