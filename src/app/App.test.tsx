@@ -753,6 +753,49 @@ describe("App", () => {
     expect(screen.queryByText("Jenis platform data terbuka")).not.toBeInTheDocument();
   });
 
+  it("asks for confirmation before opening external lesson links", async () => {
+    seedCompletedLessons([...module0LessonIds, "lesson-1-1-ml-tools-libraries"]);
+    window.history.pushState(null, "", lesson12Path);
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Pengumpulan Data" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+
+    const kaggleLink = (await screen.findAllByRole("link", { name: "Kaggle" }))[0];
+
+    if (!kaggleLink) {
+      throw new Error("Expected a Kaggle link in the data collecting lesson.");
+    }
+
+    await waitFor(() => {
+      expect(kaggleLink).toHaveAttribute("target", "_blank");
+      expect(kaggleLink).toHaveAttribute("rel", expect.stringContaining("noopener"));
+      expect(kaggleLink).toHaveAttribute("rel", expect.stringContaining("noreferrer"));
+    });
+
+    fireEvent.click(kaggleLink);
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Buka tautan eksternal",
+    });
+
+    expect(
+      within(dialog).getByText("Kamu akan meninggalkan Smile untuk membuka tautan eksternal:"),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByDisplayValue("https://www.kaggle.com/datasets")).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Buka tautan" }));
+
+    expect(openSpy).toHaveBeenCalledWith(
+      "https://www.kaggle.com/datasets",
+      "_blank",
+      "noopener,noreferrer",
+    );
+  });
+
   it("blocks direct access to a coming soon lesson", async () => {
     seedCompletedLessons([
       ...module0LessonIds,

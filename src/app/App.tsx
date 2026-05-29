@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
+import { ExternalLinkGuard } from "@/components/ExternalLinkGuard";
 import LiquidEther from "@/components/ui/liquid-ether";
 import { LocalizationProvider } from "@/features/localization/localization";
 import { ExplorePage } from "@/pages/ExplorePage";
@@ -73,6 +74,7 @@ function isLocalAppLink(element: HTMLAnchorElement) {
 export function App() {
   return (
     <LocalizationProvider>
+      <ExternalLinkGuard />
       <AppRoutes />
     </LocalizationProvider>
   );
