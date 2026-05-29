@@ -1,34 +1,46 @@
-A good machine learning project starts with a clear problem. Many projects fail not because the algorithm is weak, but because the team has not agreed on what should actually be predicted, when the prediction is made, and what data may be used.
+A good ML project often wins or loses before the model is trained. The reason is simple: the team needs to agree on **what should be predicted**, **when the prediction is made**, and **what data may be used**.
 
-Formulating the problem means turning a real need into an ML problem statement that can be worked on. A good problem statement mentions the goal, model output, prediction time, available features, problem type, and how the result will be evaluated.
+Formulating the problem means turning a real need into something a model can work on. We do not stop at "make estimates more accurate". We make it specific.
 
 ## Steps to Formulate a Problem
 
-1. **Define the real goal.** For example, a food delivery team wants to give more accurate arrival estimates.
+Use this order:
+
+1. **Define the real goal.** For example, a food delivery team wants to give more realistic arrival estimates.
 2. **Turn the goal into an ML question.** For example, "how many minutes will an order likely take to reach the customer?"
 3. **Define the model output.** The output can be a number, category, score, recommendation, or group.
-4. **Define the prediction time.** Make it clear when the model will be used: when the order is placed, when the courier is assigned, or after certain data is available.
-5. **Define the information available at prediction time.** Features must already be known before the model produces an output.
+4. **Define the prediction time.** For example, when the order is placed, when the courier is assigned, or after certain information is available.
+5. **Define the available features.** Features must already be known when the model makes a prediction.
 6. **Define the problem type.** Numeric output points to regression, category output points to classification, and groups without a target point to clustering.
-7. **Define the evaluation.** The team needs to know how to judge whether the model actually helps.
+7. **Define the evaluation.** The team needs a way to judge whether the model actually helps.
 
 ## Target and Features
 
-In supervised learning, the **target** is the value or category we want to predict. Examples include tomorrow's sales, whether a customer will churn, or a transaction risk category.
+In supervised learning, the **target** is the value or category we want to predict. Examples include delivery time, tomorrow's sales, or whether a customer will churn.
 
-**Features** are the information used by the model as input. Features must be available when the prediction is made. If information is only known after the event ends, it is not safe to use as a feature because it can leak the answer.
+**Features** are the information used by the model as input. Features must be available when the prediction is made. If information is only known after the event ends, it is unsafe because it can leak the answer.
 
-Food delivery example:
+For food delivery:
 
-- business goal: give more realistic delivery-time estimates for customers and operations;
+- business goal: give more realistic delivery-time estimates;
 - ML problem statement: predict `Delivery_Time_min` for an order;
 - target: delivery time in minutes;
-- safe features: `Distance_km`, `Weather`, `Traffic_Level`, `Time_of_Day`, `Vehicle_Type`, `Preparation_Time_min`, and `Courier_Experience_yrs`;
-- unsafe features: the actual delivery time reused as a model input;
+- safe features: `Distance_km`, `Weather`, `Traffic_Level`, `Time_of_Day`, `Vehicle_Type`, `Preparation_Time_min`, and `Courier_Experience_yrs`, as long as those values are available when the estimate is made;
+- unsafe feature: `Delivery_Time_min` reused as a model input;
 - problem type: regression, because the target is a number.
+
+## Metadata Is Not the Main Feature
+
+Some columns help us read the dataset, but are not always useful as model inputs. `Order_ID` is a common example.
+
+Columns like this are usually **metadata**:
+
+- they help identify rows;
+- they are useful for audit or tracing;
+- they do not directly explain delivery duration.
 
 ## Why This Matters
 
-A clear problem statement prevents the model from aiming at the wrong thing. Without a clear target, the model does not know what to learn. Without a clear prediction time, features can get mixed with future information. Without clear evaluation, the team does not know whether the model helps or only looks convincing.
+A clear problem statement keeps the model from aiming at the wrong thing. Without a clear target, the model does not know what to learn. Without a clear prediction time, features can get mixed with future information.
 
-In this lesson, the feature and target exercise uses food delivery data so you can practice distinguishing targets, safe features, metadata, and columns that should not be used yet.
+In this lesson, you will use food delivery data to distinguish **target**, **safe features**, and **metadata**. Assume the displayed safe features are already available when the estimate is made.

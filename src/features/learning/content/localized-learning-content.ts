@@ -196,7 +196,7 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
         datasetContext:
           "The food delivery team wants to predict order delivery time in minutes from delivery context.",
 
-        instruction: "Choose one target, safe features, metadata, and columns not used yet.",
+        instruction: "Choose one target, safe features, and metadata from the table.",
         prompt: "Choose the target and features from the food delivery table.",
       },
     },

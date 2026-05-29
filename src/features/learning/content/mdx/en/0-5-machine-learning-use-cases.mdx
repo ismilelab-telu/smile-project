@@ -1,39 +1,46 @@
-Machine learning is strong when a problem has patterns that can be learned from examples. That is why the first question before using ML is not "what is the coolest model?", but "is there a pattern from past data that can help decisions for new examples?"
+Machine learning is most useful when past data has patterns that can help decisions for new examples.
 
-ML use cases usually involve prediction, grouping, recommendation, risk detection, or prioritization. All of these use cases need data and a clear way to evaluate the result.
+So the first question is not "which model is the most advanced?", but:
 
-## Suitable Use Cases
+> Is there a pattern to learn, and can we evaluate the result?
+
+ML use cases usually involve prediction, grouping, recommendation, risk detection, or prioritization.
+
+## When ML Fits
 
 ML tends to make sense when:
 
 - enough historical data or examples exist;
 - the pattern is hard to write as a complete manual rule;
-- decisions need to be made repeatedly for many cases;
-- the model output quality can be checked;
-- model mistakes can be understood and managed.
+- decisions need to be repeated across many cases;
+- output quality can be checked;
+- the impact of mistakes can be understood and managed.
 
-Examples of suitable use cases:
+Good examples:
 
 - predicting food delivery time from distance, weather, traffic, and vehicle type;
 - grouping customers based on purchase patterns;
-- detecting risky transactions from previous transaction patterns;
+- detecting risky transactions from transaction history;
 - recommending products from interaction history;
 - classifying email as spam or not spam.
 
-## Use Cases That Do Not Need ML
+## When ML Is Not Needed
 
-Not every problem needs machine learning. If a problem can be solved with a simple stable rule, ML can be unnecessary.
+Not every problem needs machine learning. If a simple rule is clear, stable, and easy to test, ordinary rules are often better.
 
-Examples:
+More realistic examples:
 
-- calculating checkout total with price multiplied by quantity;
-- calculating tax from a fixed formula;
-- turning on an alarm at the same time every day;
-- simple format validation, such as checking that an email has an `@` sign;
-- giving a fixed 10 percent discount to every customer.
+- **A parking availability system** does not need to guess with ML if the building already has entry-exit counts or slot sensors. Empty slots can be computed from real-time data instead of predicted from busy-hour patterns.
+- **Real-time item stock** does not need to be guessed with ML if the system records incoming items, outgoing items, and returns. Current stock can be computed from inventory transactions instead of predicted from purchase habits.
 
-In examples like these, ordinary rules are clearer, easier to test, and easier to explain.
+In cases like these, ML can make the system more complex without adding real value. ML needs data, learnable patterns, and a way to evaluate results; answers that can already be counted, measured, or checked with stable rules can be handled with ordinary program logic.
 
-## Initial Questions
+## Three Initial Questions
 
-Before using ML, check three things: whether relevant data exists, whether the pattern needs to be learned from examples, and whether the result can be evaluated. If the answers are not clear, the problem needs to be cleaned up before moving into modeling.
+Before using ML, check:
+
+1. **Is the data relevant?**
+2. **Is there a pattern that needs to be learned?**
+3. **Can the model result be evaluated clearly?**
+
+If one answer is still vague, clean up the problem first. A good model always starts from a good question.

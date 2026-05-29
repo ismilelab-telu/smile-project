@@ -128,7 +128,7 @@ export function ExternalLinkGuard() {
         <AlertDialogFooter>
           <AlertDialogCancel>{t("externalLink.cancel")}</AlertDialogCancel>
           <AlertDialogAction
-            className="bg-neutral-950 hover:bg-neutral-800 focus-visible:outline-neutral-950"
+            className="!bg-sky-600 hover:!bg-sky-700 focus-visible:!outline-sky-600"
             onClick={openPendingUrl}
           >
             {t("externalLink.open")}

@@ -1,37 +1,37 @@
-Machine learning has several main types. The difference lies in the available data, the answer we want to produce, and how the model receives feedback.
+Types of machine learning are separated by two things: **what kind of answer we want** and **what kind of feedback is available**.
 
-The problem type matters because it determines the shape of the data, the models that make sense, and the evaluation metrics. Misreading the problem type can make a model look like it works even though it is answering a different question.
+This matters because the problem type determines the data shape, the models that make sense, and the way we evaluate results. If we misread the problem type, a model can look like it works while answering the wrong question.
 
 ## Supervised Learning
 
-Supervised learning uses examples that already have answers. The model learns the relationship between input and output.
+**Supervised learning** uses examples that already have answers. The model sees inputs and targets, then learns the relationship between them.
 
-There are two common forms:
+Two common forms:
 
-- **Regression** predicts a numeric value, such as a delivery time estimate, travel distance, or operating cost.
-- **Classification** predicts a category, such as churn or not churn, spam or not spam, low risk or high risk.
+- **Regression** predicts numbers, such as delivery time in minutes or operating cost.
+- **Classification** predicts categories, such as spam or not spam, low risk or high risk.
 
-Supervised learning fits when we have historical data that contains features and a target.
+Supervised learning fits when you have historical data with **features** and a **target**.
 
 ## Unsupervised Learning
 
-Unsupervised learning uses data without target answers. The goal is not to predict an existing label, but to find structure in the data.
+**Unsupervised learning** uses data without target answers. The goal is not to guess a provided label, but to find structure in the data.
 
-The most common example is **clustering**, which groups similar examples. For instance, customers can be grouped by purchase patterns without labeling the customers first.
+The easiest example to remember is **clustering**. The model tries to group similar examples, such as customers with similar purchase patterns.
 
 ## Reinforcement Learning
 
-Reinforcement learning trains an agent to choose actions based on rewards. The agent tries actions, receives feedback, then learns a strategy that produces better results.
+**Reinforcement learning** trains an agent to choose actions based on rewards. The agent tries an action, receives feedback, then learns a strategy that produces better results.
 
-Examples often appear in games, robotics, control systems, or decision simulations. For the foundation level, it is enough to understand that reinforcement learning is different because its feedback is a reward from actions, not a direct answer target like supervised learning.
+You often see this idea in games, robotics, control systems, or decision simulations. For the foundation level, just remember that the feedback is not a direct answer target, but a reward from an action.
 
-## How to Tell Them Apart
+## Quick Way to Tell Them Apart
 
-Look at the output shape and feedback source:
+Look at the output and feedback source:
 
 - numeric output usually points to **regression**;
 - category output usually points to **classification**;
 - groups without a target usually point to **clustering**;
 - actions scored by rewards point to **reinforcement learning**.
 
-This map helps us choose an initial approach before going into algorithm details.
+This map is not for memorizing names. It helps you choose an initial direction before going into algorithms.

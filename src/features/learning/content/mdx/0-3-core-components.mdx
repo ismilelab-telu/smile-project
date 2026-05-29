@@ -1,27 +1,38 @@
-Machine learning bukan hanya memilih algoritma. Sebuah proyek ML yang rapi selalu dimulai dari masalah yang jelas, lalu bergerak ke data, model, pelatihan, prediksi, dan evaluasi.
+Machine learning bukan dimulai dari pertanyaan "algoritma apa yang keren?" Proyek ML yang sehat dimulai dari pertanyaan yang lebih membumi: **masalah apa yang ingin dibantu?**
 
-Kalau salah satu bagian ini kabur, hasil akhirnya ikut kabur. Model yang canggih tetap bisa salah sasaran jika targetnya tidak jelas, datanya tidak relevan, atau evaluasinya tidak jujur.
+Kalau masalahnya kabur, bagian lain ikut kabur. Model yang canggih tetap bisa salah arah jika target tidak jelas, data tidak relevan, atau evaluasinya terlalu mudah.
 
 ## Komponen Utama
 
-1. **Masalah atau tugas** menjelaskan apa yang ingin dibantu oleh model. Contohnya memprediksi waktu pengiriman, mengelompokkan pelanggan, atau mendeteksi transaksi berisiko.
-2. **Data** menyediakan contoh yang bisa dipelajari. Data bisa berupa tabel, teks, gambar, audio, log aktivitas, atau bentuk lain.
-3. **Model** adalah sistem matematis yang mencoba menangkap pola dari data. Model menerima input dan menghasilkan output seperti angka, kategori, skor, atau kelompok.
-4. **Pelatihan** adalah proses menyesuaikan model menggunakan data. Pada tahap ini, model mengubah nilai internalnya agar output makin sesuai dengan target belajar.
-5. **Prediksi atau inference** adalah proses memakai model yang sudah dilatih untuk contoh baru.
-6. **Evaluasi** menilai apakah model benar-benar berguna pada data atau situasi yang belum dipakai untuk melatih model.
+Sebuah proyek ML biasanya punya bagian-bagian ini:
 
-## Alur Besar
+1. **Masalah atau tugas**: apa yang ingin dibantu oleh model, misalnya memprediksi waktu pengiriman.
+2. **Data**: contoh yang bisa dipelajari, seperti tabel order, teks, gambar, audio, atau log aktivitas.
+3. **Model**: sistem matematis yang mencari pola dari data.
+4. **Pelatihan**: proses menyesuaikan model memakai contoh.
+5. **Prediksi atau inference**: memakai model yang sudah dilatih untuk contoh baru.
+6. **Evaluasi**: mengecek apakah model benar-benar berguna pada situasi yang belum dipakai untuk melatihnya.
 
-Untuk foundation, cukup pegang alur ini:
+## Alur Kerja Besar
+
+Untuk level fondasi, pegang alur ini dulu:
 
 1. pahami masalah;
 2. siapkan data;
 3. pilih model awal;
 4. latih model;
-5. pakai model untuk prediksi;
+5. hasilkan prediksi;
 6. evaluasi hasilnya.
 
-Komponen lain seperti feature engineering, hyperparameter tuning, dan deployment juga penting. Namun, semuanya lebih mudah dipahami setelah alur dasar ini jelas.
+Nanti kamu akan bertemu feature engineering, hyperparameter tuning, deployment, dan monitoring. Semua itu penting, tetapi lebih mudah dipahami setelah alur dasarnya terasa kokoh.
 
-Intinya, model hanya satu bagian dari sistem ML. Proyek yang baik membutuhkan masalah yang tepat, data yang masuk akal, proses belajar yang terkontrol, dan evaluasi yang bisa dipercaya.
+## Contoh Singkat
+
+Untuk kasus food delivery:
+
+- masalahnya adalah memperkirakan waktu pengiriman;
+- datanya berisi jarak, cuaca, trafik, kendaraan, dan durasi aktual;
+- model belajar hubungan antara konteks order dan waktu sampai;
+- evaluasi mengecek apakah prediksi model cukup dekat dengan durasi nyata.
+
+Intinya, **model hanya satu bagian dari sistem ML**. Proyek yang baik butuh masalah yang tepat, data yang masuk akal, proses belajar yang terkontrol, dan evaluasi yang bisa dipercaya.

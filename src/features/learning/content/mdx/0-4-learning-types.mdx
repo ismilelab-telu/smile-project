@@ -1,37 +1,37 @@
-Machine learning punya beberapa jenis utama. Perbedaannya terletak pada data yang tersedia, jawaban yang ingin dihasilkan, dan cara model mendapatkan feedback.
+Jenis machine learning dibedakan dari dua hal: **jawaban seperti apa yang ingin dibuat** dan **feedback seperti apa yang tersedia**.
 
-Jenis masalah penting karena menentukan bentuk data, model yang masuk akal, serta metrik evaluasi. Salah mengenali jenis masalah bisa membuat model terlihat bekerja, padahal sebenarnya menjawab pertanyaan yang berbeda.
+Ini penting karena jenis masalah menentukan bentuk data, model yang masuk akal, dan cara mengevaluasi hasil. Kalau jenis masalahnya salah, model bisa terlihat bekerja padahal sedang menjawab pertanyaan yang berbeda.
 
 ## Supervised Learning
 
-Supervised learning memakai contoh yang sudah memiliki jawaban. Model belajar hubungan antara input dan output.
+**Supervised learning** memakai contoh yang sudah punya jawaban. Model melihat input dan target, lalu belajar hubungan di antara keduanya.
 
-Ada dua bentuk yang paling sering ditemui:
+Dua bentuk yang paling sering muncul:
 
-- **Regresi** memprediksi nilai numerik, misalnya estimasi waktu pengiriman, jarak tempuh, atau biaya operasional.
-- **Klasifikasi** memprediksi kategori, misalnya churn atau tidak churn, spam atau bukan spam, risiko rendah atau risiko tinggi.
+- **Regresi** memprediksi angka, misalnya waktu pengiriman dalam menit atau biaya operasional.
+- **Klasifikasi** memprediksi kategori, misalnya spam atau bukan spam, risiko rendah atau risiko tinggi.
 
-Supervised learning cocok ketika kita punya riwayat data yang berisi fitur dan target.
+Supervised learning cocok ketika kamu punya data historis yang berisi **fitur** dan **target**.
 
 ## Unsupervised Learning
 
-Unsupervised learning memakai data tanpa target jawaban. Tujuannya bukan memprediksi label yang sudah tersedia, tetapi mencari struktur dalam data.
+**Unsupervised learning** memakai data tanpa target jawaban. Tujuannya bukan menebak label yang sudah disediakan, tetapi mencari struktur dalam data.
 
-Contoh paling umum adalah **clustering**, yaitu mengelompokkan contoh yang mirip. Misalnya, pelanggan bisa dikelompokkan berdasarkan pola pembelian tanpa memberi label pelanggan terlebih dahulu.
+Contoh yang paling mudah diingat adalah **clustering**. Model mencoba mengelompokkan contoh yang mirip, misalnya pelanggan dengan pola pembelian serupa.
 
 ## Reinforcement Learning
 
-Reinforcement learning melatih agen untuk memilih tindakan berdasarkan reward. Agen mencoba aksi, menerima feedback, lalu belajar strategi yang memberi hasil lebih baik.
+**Reinforcement learning** melatih agen untuk memilih tindakan berdasarkan reward. Agen mencoba aksi, menerima feedback, lalu belajar strategi yang memberi hasil lebih baik.
 
-Contohnya sering muncul pada game, robotik, sistem kontrol, atau simulasi keputusan. Untuk foundation, cukup pahami bahwa reinforcement learning berbeda karena feedback-nya berupa reward dari tindakan, bukan target jawaban langsung seperti supervised learning.
+Kamu sering melihat ide ini di game, robotik, sistem kontrol, atau simulasi keputusan. Untuk tahap fondasi, cukup ingat bahwa feedback-nya bukan target jawaban langsung, melainkan reward dari tindakan.
 
-## Cara Membedakannya
+## Cara Cepat Membedakan
 
-Lihat bentuk output dan sumber feedback-nya:
+Lihat output dan sumber feedback:
 
 - output angka biasanya mengarah ke **regression**;
 - output kategori biasanya mengarah ke **classification**;
 - kelompok tanpa target biasanya mengarah ke **clustering**;
 - tindakan yang dinilai dengan reward mengarah ke **reinforcement learning**.
 
-Peta ini membantu kita memilih pendekatan awal sebelum masuk ke detail algoritma.
+Peta ini bukan untuk menghafal nama. Peta ini membantu kamu memilih arah awal sebelum masuk ke algoritma.

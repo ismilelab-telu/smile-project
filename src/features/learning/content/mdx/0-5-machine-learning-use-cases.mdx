@@ -1,39 +1,46 @@
-Machine learning kuat ketika sebuah masalah memiliki pola yang bisa dipelajari dari contoh. Karena itu, pertanyaan pertama sebelum memakai ML bukan "model apa yang paling keren?", tetapi "apakah ada pola dari data masa lalu yang bisa membantu keputusan untuk contoh baru?"
+Machine learning paling berguna ketika ada pola dari data masa lalu yang bisa membantu keputusan untuk contoh baru.
 
-Kasus penggunaan ML biasanya berhubungan dengan prediksi, pengelompokan, rekomendasi, deteksi risiko, atau prioritas. Semua kasus penggunaan itu membutuhkan data dan cara evaluasi yang jelas.
+Jadi pertanyaan awalnya bukan "model apa yang paling canggih?", tetapi:
 
-## Kasus Penggunaan yang Cocok
+> Apakah ada pola yang bisa dipelajari, dan apakah hasilnya bisa dievaluasi?
+
+Kasus ML biasanya berhubungan dengan prediksi, pengelompokan, rekomendasi, deteksi risiko, atau prioritas.
+
+## Kapan ML Cocok
 
 ML cenderung masuk akal ketika:
 
-- ada riwayat data atau contoh yang cukup;
+- ada data historis atau contoh yang cukup;
 - pola sulit ditulis sebagai aturan manual lengkap;
 - keputusan perlu dibuat berulang untuk banyak kasus;
-- output model bisa diperiksa kualitasnya;
-- kesalahan model bisa dipahami dan dikelola.
+- kualitas output bisa diperiksa;
+- dampak kesalahan bisa dipahami dan dikelola.
 
-Contoh kasus penggunaan yang cocok:
+Contoh yang cocok:
 
-- memprediksi waktu pengiriman makanan dari jarak, cuaca, trafik, dan jenis kendaraan;
+- memprediksi waktu pengiriman makanan dari jarak, cuaca, trafik, dan kendaraan;
 - mengelompokkan pelanggan berdasarkan pola pembelian;
-- mendeteksi transaksi berisiko dari pola transaksi sebelumnya;
+- mendeteksi transaksi berisiko dari riwayat transaksi;
 - merekomendasikan produk dari riwayat interaksi;
 - mengklasifikasikan email sebagai spam atau bukan spam.
 
-## Kasus Penggunaan yang Tidak Perlu ML
+## Kapan ML Tidak Perlu
 
-Tidak semua masalah perlu machine learning. Jika masalah bisa diselesaikan dengan aturan sederhana yang stabil, ML bisa menjadi berlebihan.
+Tidak semua masalah perlu machine learning. Jika aturan sederhana sudah jelas, stabil, dan mudah diuji, aturan biasa sering lebih baik.
 
-Contohnya:
+Contoh yang lebih masuk akal:
 
-- menghitung total belanja dengan rumus harga dikali jumlah;
-- menghitung pajak dari formula yang sudah pasti;
-- menyalakan alarm pada jam yang sama setiap hari;
-- validasi format sederhana seperti memastikan email memiliki tanda `@`;
-- memberi diskon tetap 10 persen untuk semua pelanggan.
+- **Sistem slot parkir kosong** tidak perlu menebak dengan ML jika gedung sudah punya data kendaraan masuk-keluar atau sensor slot. Jumlah slot kosong bisa dihitung langsung dari data real-time, bukan diprediksi dari pola jam ramai.
+- **Stok barang real-time** tidak perlu ditebak dengan ML jika sistem mencatat barang masuk, barang keluar, dan retur. Jumlah stok saat ini bisa dihitung dari transaksi persediaan, bukan diprediksi dari kebiasaan pembelian.
 
-Pada contoh seperti itu, aturan biasa lebih jelas, lebih mudah diuji, dan lebih mudah dijelaskan.
+Dalam kasus seperti itu, ML bisa membuat sistem lebih rumit tanpa manfaat nyata. ML butuh data, pola yang bisa dipelajari, dan cara evaluasi; jawaban yang sudah bisa dihitung, diukur, atau dicek dengan aturan stabil cukup diselesaikan dengan logika program biasa.
 
-## Pertanyaan Awal
+## Tiga Pertanyaan Awal
 
-Sebelum memakai ML, cek tiga hal: apakah ada data yang relevan, apakah pola perlu dipelajari dari contoh, dan apakah hasilnya bisa dievaluasi. Kalau jawabannya tidak jelas, masalahnya perlu dirapikan dulu sebelum masuk ke model.
+Sebelum memakai ML, cek:
+
+1. **Apakah datanya relevan?**
+2. **Apakah ada pola yang memang perlu dipelajari?**
+3. **Apakah hasil model bisa dievaluasi dengan jelas?**
+
+Kalau salah satu jawabannya masih kabur, rapikan masalahnya dulu. Model yang baik selalu dimulai dari pertanyaan yang baik.

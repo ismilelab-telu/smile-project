@@ -1,4 +1,4 @@
-After understanding the machine learning workflow, we need to know the tools and libraries commonly used in practice. **The goal is not to memorize every library name**, but to understand the role each tool plays in the workflow.
+After learning the ML workflow, we can look at the tools. This lesson is not a list of names to memorize. The practical goal is: you know **which tool is used for which job**.
 
 In an ML project, libraries help us:
 
@@ -8,43 +8,43 @@ In an ML project, libraries help us:
 - train models;
 - evaluate results.
 
-Libraries reduce the need to write everything from scratch. More time can be spent understanding the **problem**, **data quality**, and **modeling decisions**.
+Libraries keep us from building everything from scratch. That leaves more learning energy for the important parts: understanding the problem, reading the data, and making reasonable modeling decisions.
 
-## Python
+## Python as a Working Language
 
-**Python** is popular in machine learning because its syntax is relatively readable and its library ecosystem is large. Many data science workflows use Python because the same language can support data exploration and model experiments.
+**[Python](https://www.python.org/)** is popular in machine learning because it is readable and has a large library ecosystem. The same language can support data exploration, model experiments, and evaluation.
 
-Python is usually used in two ways:
+Python is often used in two ways:
 
-- **Script mode**: useful for longer, structured code that should be rerun as a file.
-- **Interactive mode**: useful for trying small pieces of code and seeing the result immediately.
+- **Interactive mode** for trying small pieces and seeing results quickly.
+- **Script mode** for cleaner, longer code that can be rerun.
 
-In ML learning, both modes often appear together. Early exploration can be done interactively, then clearer steps can be organized into a script or notebook that is easier to rerun.
+In practice, both modes work together. You can explore interactively, then organize clearer steps into a script or notebook that can be repeated.
 
-## Python Programming Tools
+## Notebooks for Experiments
 
-A **notebook** is a common environment for ML experiments. In a notebook, code, notes, tables, and charts can live in one place.
+A **notebook** is a comfortable place to learn and experiment. In one place, you can write code, record reasons, inspect tables, and show charts.
 
-Common tools include:
+Common tools:
 
-- **Jupyter Notebook**: common for local or browser-based experiments.
-- **Google Colab**: useful for starting quickly because it runs in the browser and needs little local setup.
-- **IBM Watson Studio**: provides a more managed cloud environment for data science projects.
+- **[Jupyter Notebook](https://jupyter.org/)** for local or browser-based experiments.
+- **[Google Colab](https://colab.research.google.com/)** for starting quickly without much local setup.
+- **[IBM Watson Studio](https://www.ibm.com/products/watson-studio)** for a more managed cloud environment.
 
-Notebooks still need discipline:
+Notebooks still need discipline. If cells run out of order and notes are unclear, experiment results become hard to trust.
 
-- cell order should be clear;
-- outputs should be reproducible;
-- notes should explain the _reason for each step_, not only the result;
-- experiments should not depend on old hidden state.
+Healthy notebook habits:
 
-If a notebook is messy, experiment results become hard to trust even when the model produces a score.
+- cell order is clear;
+- outputs are reproducible;
+- notes explain the reason for each step;
+- experiments do not depend on hidden old state.
 
 ## Data Libraries
 
-Early ML work usually starts with **understanding the dataset**. This is where **NumPy** and **Pandas** often appear.
+Early ML work usually starts not with a model, but with **understanding the dataset**. This is where **[NumPy](https://numpy.org/)** and **[Pandas](https://pandas.pydata.org/)** often appear.
 
-**NumPy** is used for numerical computing:
+**NumPy** helps with numerical computing:
 
 - arrays;
 - vectors;
@@ -52,38 +52,32 @@ Early ML work usually starts with **understanding the dataset**. This is where *
 - mathematical operations;
 - efficient calculations.
 
-**Pandas** is used for tabular data:
+**Pandas** helps with tabular data:
 
 - reading files such as `.csv`;
-- inspecting the first few rows;
+- inspecting sample rows;
 - checking column names;
 - inspecting data types;
-- finding _missing values_;
+- finding *missing values*;
 - filtering rows;
 - creating simple summaries.
 
-At this stage, we usually inspect the dataset _schema_. **Schema** describes the data structure: column names, data types, and what each column means. We also check _missing values_, which are values that are empty or not recorded.
-
-Before modeling, data libraries help answer basic questions:
-
-- what one row represents;
-- which columns might become **features**;
-- which **target** should be predicted;
-- whether there are missing values, duplicates, or wrong data types;
-- whether any column is unsafe because it contains future information.
+At this stage, we inspect the dataset **schema**: column names, data types, and what each column means.
 
 ## Visualization Libraries
 
-Visualization helps us see patterns that are hard to read from raw tables.
+Tables give numbers, but charts often make patterns easier to see.
 
-**Matplotlib** is useful for basic charts:
+**[Matplotlib](https://matplotlib.org/)** works well for basic charts:
 
 - line charts;
 - bar plots;
 - histograms;
 - scatter plots.
 
-**Seaborn** is built on top of Matplotlib and makes statistical visualization easier:
+Matplotlib gives you detailed control over a chart, so it fits when you want to adjust visual elements one by one.
+
+**[Seaborn](https://seaborn.pydata.org/)** is built on top of Matplotlib. Its advantage is making statistical visualization faster and cleaner, especially when working with tabular data such as Pandas DataFrames.
 
 - data distributions;
 - relationships between variables;
@@ -91,19 +85,47 @@ Visualization helps us see patterns that are hard to read from raw tables.
 - box plots;
 - category patterns.
 
-The stage of inspecting data with summaries and visualizations is often called **EDA**, or _exploratory data analysis_. In an ML workflow, EDA helps us inspect:
+## Simple Example
 
-- **target** distribution;
-- outliers;
-- feature-target relationships;
-- category patterns;
-- early signs of data problems.
+Suppose we want to see the relationship between `x` and `y` from a dataframe named `df`.
 
-**EDA should happen before choosing a model**, not only after the score looks bad.
+With Matplotlib, we set up the plot explicitly:
+
+```python
+import matplotlib.pyplot as plt
+
+plt.scatter(df["x"], df["y"])
+plt.xlabel("X")
+plt.ylabel("Y")
+plt.show()
+```
+
+With Seaborn, the same statistical plot can be written more compactly:
+
+```python
+import seaborn as sns
+
+sns.scatterplot(data=df, x="x", y="y")
+```
+
+The point:
+
+- **Matplotlib** gives full control.
+- **Seaborn** is faster for clean statistical plots.
+
+Early visualization helps reveal:
+
+- value distributions;
+- category comparisons;
+- simple relationships between columns;
+- values that look unusual;
+- quick visual summaries.
+
+For this lesson, it is enough to understand that visualization libraries help us read data before moving to the next stage.
 
 ## Machine Learning Libraries
 
-**Scikit-learn** is often the first choice for learning and building classic ML models. It provides:
+**[Scikit-learn](https://scikit-learn.org/)** is often the first choice for learning classic ML. It provides:
 
 - classification;
 - regression;
@@ -113,61 +135,36 @@ The stage of inspecting data with summaries and visualizations is often called *
 - cross-validation;
 - evaluation metrics.
 
-In many projects, we start with a **baseline model**. **Baseline** is a simple, reasonable first model used as a comparison before trying a more complex approach.
+In many projects, we start with a **baseline model**. A baseline is a simple model used as an initial comparison.
 
-A baseline is useful because it:
+A baseline helps because it:
 
-- gives an initial comparison score;
-- shows whether a complex model is actually helpful;
+- gives a comparison score;
+- shows whether a complex model actually helps;
 - makes experiments easier to judge;
-- prevents us from choosing a large model without a clear reason.
+- prevents us from choosing a large model without a reason.
 
-For more complex models, especially deep learning, common libraries include:
+For deep learning, other libraries appear:
 
-- **TensorFlow**: widely used in industry.
-- **PyTorch**: popular for research and experimentation.
-- **Keras**: provides a simpler interface for prototyping deep learning models.
+- **[TensorFlow](https://www.tensorflow.org/)** is widely used in industry.
+- **[PyTorch](https://pytorch.org/)** is popular for research and experimentation.
+- **[Keras](https://keras.io/)** gives a simpler interface for prototyping.
 
-Deep learning is not automatically the first choice. **A numeric target** means the output to predict is a number, such as delivery time or operating cost. Numeric targets can often start with simple regression in Scikit-learn.
-
-Other libraries appear for specific needs:
-
-- **NLTK** and **SpaCy**: help with natural language processing, such as tokenization, information extraction, and text analysis.
-- **SciPy**: supports scientific computing such as statistics, optimization, and advanced mathematical operations.
+Deep learning is not automatically the first choice. If the target is a number, such as delivery time, a simple regression model in Scikit-learn is often a clearer starting point.
 
 ## Practical Workflow Example
 
-Imagine receiving a food delivery `.csv` and being asked to build an initial delivery-time prediction model. **CSV** is a simple table file that usually contains order rows or delivery summaries.
+Imagine you receive a food delivery `.csv` and need to build an initial model for delivery-time prediction.
 
-A sensible workflow:
+A healthy workflow:
 
-- Start in a notebook so assumptions, code, and outputs are easy to trace.
-- Use **Pandas** to load the data.
-- Inspect sample rows to understand the data shape.
-- Check the **schema**: column names, data types, and column meanings.
-- Check _missing values_ and unusual data.
-- Do **EDA** with summaries and visualizations.
-- Plot the **target**, which is delivery time in minutes.
-- Inspect important **features** such as distance, weather, traffic, time of day, vehicle type, preparation time, and courier experience.
-- Train a **baseline** with **Scikit-learn**.
-- Consider more complex models only if the baseline is not enough.
-
-Poor decisions include:
-
-- using **TensorFlow** first only because the target is numeric;
-- delaying **EDA** until the model score looks bad;
-- chasing complex models before understanding the data;
-- using columns that are only known after prediction time.
-
-## Use Each Tool for Its Role
-
-Each tool has a role in the workflow:
-
-- **Notebooks** support experiments.
-- **Pandas** helps understand tabular data.
-- **NumPy** supports numerical computing.
-- **Matplotlib** and **Seaborn** support visualization.
-- **Scikit-learn** supports baselines and classic ML models.
-- **TensorFlow**, **PyTorch**, and **Keras** support deep learning when it is actually needed.
-
-Powerful libraries do not automatically make a model correct. If the **target** is unclear, the data was not inspected, or the **features** leak future information, the model can still produce a score, but that score cannot be trusted.
+1. Start in a notebook so assumptions, code, and outputs can be traced.
+2. Use **Pandas** to read the data.
+3. Inspect sample rows to understand the dataset shape.
+4. Check the **schema**: column names, data types, and column meanings.
+5. Check *missing values* and unusual values.
+6. Make early visualizations with summaries and simple charts.
+7. Plot the **target**, which is delivery time in minutes.
+8. Inspect **features** such as distance, weather, traffic, time of day, vehicle type, preparation time, and courier experience.
+9. Train a **baseline** with **Scikit-learn**.
+10. Consider a more complex model only if the baseline is not enough.

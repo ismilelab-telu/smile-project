@@ -127,7 +127,7 @@ type LessonPageProps = {
   previousLessonHref?: string;
 };
 
-const roleOptions: ColumnRole[] = ["ignore", "target", "safe-feature", "metadata"];
+const roleOptions: ColumnRole[] = ["target", "safe-feature", "metadata"];
 type RoleDropdownHighlightRect = {
   height: number;
   y: number;
@@ -135,13 +135,13 @@ type RoleDropdownHighlightRect = {
 
 function getRoleOptionLabel(value: ColumnRole, t: ReturnType<typeof useLocalization>["t"]) {
   const labels: Record<ColumnRole, string> = {
-    ignore: t("learning.role.ignore"),
+    ignore: t("learning.role.safeFeature"),
     metadata: t("learning.role.metadata"),
     "safe-feature": t("learning.role.safeFeature"),
     target: t("learning.role.target"),
   };
 
-  return labels[value] ?? labels.ignore;
+  return labels[value] ?? labels["safe-feature"];
 }
 
 function createCombinedExerciseResult(
@@ -326,7 +326,7 @@ function haveSameColumnRoleAssignments(
   const assignmentKeys = new Set([...Object.keys(left), ...Object.keys(right)]);
 
   return [...assignmentKeys].every(
-    (columnId) => (left[columnId] ?? "ignore") === (right[columnId] ?? "ignore"),
+    (columnId) => (left[columnId] ?? "safe-feature") === (right[columnId] ?? "safe-feature"),
   );
 }
 
@@ -1035,7 +1035,7 @@ export function LessonPage({
   const baseInitialAssignments = useMemo(
     () =>
       Object.keys(expectedRoles).reduce<Record<string, ColumnRole>>((assignments, columnId) => {
-        assignments[columnId] = "ignore";
+        assignments[columnId] = "safe-feature";
         return assignments;
       }, {}),
     [expectedRoles],
@@ -1045,9 +1045,16 @@ export function LessonPage({
       ? initialAnswer?.columnRoleAssignmentsByExerciseId?.[tableColumnRoleExercise.id]
       : undefined;
 
+    const normalizedSavedAssignments = Object.fromEntries(
+      Object.entries(savedAssignments ?? {}).map(([columnId, role]) => [
+        columnId,
+        role === "ignore" ? "safe-feature" : role,
+      ]),
+    ) as Record<string, ColumnRole>;
+
     return {
       ...baseInitialAssignments,
-      ...savedAssignments,
+      ...normalizedSavedAssignments,
     };
   }, [baseInitialAssignments, initialAnswer, tableColumnRoleExercise]);
   const initialOrderedStepIds = useMemo(
@@ -2849,7 +2856,7 @@ function ColumnRoleExerciseView({
         >
           {columns.map((column) => {
             const expectedRole = expectedRoles[column.id];
-            const evaluatedRole = evaluatedAssignments[column.id] ?? "ignore";
+            const evaluatedRole = evaluatedAssignments[column.id] ?? "safe-feature";
             const shouldShowFeedback = shouldShowColumnFeedback && expectedRole !== undefined;
             const isPositiveFeedback = evaluatedRole === expectedRole;
 
@@ -2885,7 +2892,7 @@ function ColumnRoleExerciseView({
                     columnLabel={column.label}
                     disabled={isReviewMode}
                     onChange={(role) => onUpdateAssignment(column.id, role)}
-                    value={assignments[column.id] ?? "ignore"}
+                    value={assignments[column.id] ?? "safe-feature"}
                   />
                 </div>
               </div>

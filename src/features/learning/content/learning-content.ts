@@ -412,7 +412,7 @@ const lesson06ColumnRoleExercise = {
     "Tim food delivery ingin memprediksi waktu pengiriman order dalam menit dari konteks pengiriman.",
   hints: getLearningExerciseHints("exercise-0-6-select-feature-target", "id"),
   id: "exercise-0-6-select-feature-target",
-  instruction: "Pilih satu target, fitur yang aman, metadata, dan kolom yang belum dipakai.",
+  instruction: "Pilih satu target, fitur yang aman, dan metadata dari tabel.",
   prompt: "Pilih target dan fitur dari tabel pengiriman makanan.",
   type: "table-column-role-assignment" as const,
 };

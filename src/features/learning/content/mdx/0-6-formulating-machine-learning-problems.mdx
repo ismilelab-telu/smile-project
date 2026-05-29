@@ -1,34 +1,46 @@
-Proyek machine learning yang baik dimulai dari masalah yang jelas. Banyak proyek gagal bukan karena algoritmanya lemah, tetapi karena tim belum sepakat apa yang sebenarnya ingin diprediksi, kapan prediksi dibuat, dan data apa yang boleh dipakai.
+Proyek ML yang baik biasanya menang atau kalah sebelum model dilatih. Penyebabnya sederhana: tim harus sepakat dulu **apa yang ingin diprediksi**, **kapan prediksi dibuat**, dan **data apa yang boleh dipakai**.
 
-Merumuskan masalah berarti mengubah kebutuhan nyata menjadi pernyataan masalah ML yang bisa dikerjakan. Pernyataan masalah yang baik menyebut tujuan, output model, waktu prediksi, fitur yang tersedia, jenis masalah, dan cara mengevaluasi hasil.
+Merumuskan masalah berarti mengubah kebutuhan nyata menjadi bentuk yang bisa dikerjakan model. Kita tidak berhenti di "buat estimasi lebih akurat". Kita perlu membuatnya lebih spesifik.
 
 ## Langkah Merumuskan Masalah
 
-1. **Tentukan tujuan nyata.** Misalnya, tim food delivery ingin memberi estimasi waktu sampai yang lebih akurat.
+Gunakan urutan ini:
+
+1. **Tentukan tujuan nyata.** Misalnya, tim food delivery ingin memberi estimasi waktu sampai yang lebih masuk akal.
 2. **Ubah tujuan menjadi pertanyaan ML.** Contohnya, "berapa menit kemungkinan order sampai ke pelanggan?"
 3. **Tentukan output model.** Output bisa berupa angka, kategori, skor, rekomendasi, atau kelompok.
-4. **Tentukan waktu prediksi.** Pastikan jelas kapan model akan dipakai: saat order dibuat, saat kurir ditugaskan, atau setelah data tertentu tersedia.
-5. **Tentukan informasi yang tersedia saat prediksi.** Fitur harus sudah diketahui sebelum model membuat output.
+4. **Tentukan waktu prediksi.** Misalnya saat order dibuat, saat kurir ditugaskan, atau setelah informasi tertentu tersedia.
+5. **Tentukan fitur yang tersedia.** Fitur harus sudah diketahui saat model membuat prediksi.
 6. **Tentukan jenis masalah.** Output angka mengarah ke regresi, output kategori mengarah ke klasifikasi, dan kelompok tanpa target mengarah ke clustering.
-7. **Tentukan evaluasi.** Tim perlu tahu bagaimana menilai apakah model benar-benar membantu.
+7. **Tentukan evaluasi.** Tim perlu tahu cara menilai apakah model benar-benar membantu.
 
 ## Target dan Fitur
 
-Dalam supervised learning, **target** adalah nilai atau kategori yang ingin diprediksi. Contohnya jumlah penjualan besok, apakah pelanggan churn, atau kategori risiko transaksi.
+Dalam supervised learning, **target** adalah nilai atau kategori yang ingin diprediksi. Contohnya waktu pengiriman, jumlah penjualan besok, atau status churn pelanggan.
 
-**Fitur** adalah informasi yang dipakai model sebagai input. Fitur harus tersedia saat prediksi dibuat. Jika informasi baru diketahui setelah kejadian selesai, informasi itu tidak aman dipakai sebagai fitur karena bisa membocorkan jawaban.
+**Fitur** adalah informasi yang dipakai model sebagai input. Fitur harus tersedia saat prediksi dibuat. Kalau informasi baru diketahui setelah kejadian selesai, informasi itu tidak aman karena bisa membocorkan jawaban.
 
-Contoh pada food delivery:
+Untuk kasus food delivery:
 
-- tujuan bisnis: memberi estimasi waktu pengiriman yang lebih masuk akal untuk pelanggan dan operasi;
+- tujuan bisnis: memberi estimasi waktu pengiriman yang lebih masuk akal;
 - pernyataan masalah ML: memprediksi `Delivery_Time_min` untuk sebuah order;
 - target: waktu pengiriman dalam menit;
-- fitur aman: `Distance_km`, `Weather`, `Traffic_Level`, `Time_of_Day`, `Vehicle_Type`, `Preparation_Time_min`, dan `Courier_Experience_yrs`;
-- fitur tidak aman: waktu pengiriman aktual dipakai lagi sebagai input model;
+- fitur aman: `Distance_km`, `Weather`, `Traffic_Level`, `Time_of_Day`, `Vehicle_Type`, `Preparation_Time_min`, dan `Courier_Experience_yrs`, selama nilai itu sudah tersedia saat estimasi dibuat;
+- fitur tidak aman: `Delivery_Time_min` dipakai lagi sebagai input model;
 - jenis masalah: regresi, karena target berupa angka.
+
+## Metadata Bukan Fitur Utama
+
+Beberapa kolom membantu kita membaca dataset, tetapi tidak selalu berguna sebagai input model. Contohnya `Order_ID`.
+
+Kolom seperti itu biasanya menjadi **metadata**:
+
+- membantu mengidentifikasi baris;
+- berguna untuk audit atau pelacakan;
+- tidak menjelaskan durasi pengiriman secara langsung.
 
 ## Kenapa Ini Penting
 
-Pernyataan masalah yang jelas mencegah model salah sasaran. Tanpa target yang jelas, model tidak tahu apa yang harus dipelajari. Tanpa waktu prediksi yang jelas, fitur bisa tercampur dengan informasi masa depan. Tanpa evaluasi yang jelas, tim tidak tahu apakah model membantu atau hanya terlihat meyakinkan.
+Pernyataan masalah yang jelas mencegah model salah sasaran. Tanpa target yang jelas, model tidak tahu apa yang harus dipelajari. Tanpa waktu prediksi yang jelas, fitur bisa tercampur dengan informasi masa depan.
 
-Pada lesson ini, latihan fitur dan target memakai data food delivery agar kamu terbiasa membedakan target, fitur aman, metadata, dan kolom yang sebaiknya belum dipakai.
+Pada lesson ini, kamu akan memakai data food delivery untuk membedakan **target**, **fitur aman**, dan **metadata**. Anggap fitur yang ditampilkan sudah tersedia pada waktu estimasi dibuat.

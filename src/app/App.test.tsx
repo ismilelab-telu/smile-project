@@ -416,8 +416,8 @@ describe("App", () => {
     fireEvent.click(submitButtons[1]);
 
     expect(await screen.findByRole("heading", { name: "Belum tepat" })).toBeInTheDocument();
-    expect(screen.getAllByRole("heading", { name: "Benar" })).toHaveLength(2);
-    expect(screen.getAllByRole("heading", { name: "Salah" })).toHaveLength(7);
+    expect(screen.getAllByRole("heading", { name: "Benar" })).toHaveLength(6);
+    expect(screen.getAllByRole("heading", { name: "Salah" })).toHaveLength(3);
   });
 
   it("keeps the next lesson locked after an incorrect answer", async () => {
