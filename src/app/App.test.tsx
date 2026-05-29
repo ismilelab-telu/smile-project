@@ -777,6 +777,33 @@ describe("App", () => {
       expect(kaggleLink).toHaveAttribute("rel", expect.stringContaining("noreferrer"));
     });
 
+    fireEvent.mouseEnter(kaggleLink);
+
+    const previewCard = await waitFor(() => {
+      const card = document.querySelector("[data-link-preview-card]");
+
+      expect(card).not.toBeNull();
+
+      return card as HTMLElement;
+    });
+    const kagglePreviewImage = previewCard.querySelector("img");
+
+    expect(decodeURIComponent(kagglePreviewImage?.getAttribute("src") ?? "")).toContain(
+      "https://www.kaggle.com/datasets",
+    );
+
+    fireEvent.mouseEnter(screen.getByRole("link", { name: "World Bank" }));
+
+    await waitFor(() => {
+      const currentPreviewCard = document.querySelector("[data-link-preview-card]");
+      const currentPreviewImage = currentPreviewCard?.querySelector("img");
+
+      expect(currentPreviewCard).toBe(previewCard);
+      expect(decodeURIComponent(currentPreviewImage?.getAttribute("src") ?? "")).toContain(
+        "https://data.worldbank.org/",
+      );
+    });
+
     fireEvent.click(kaggleLink);
 
     const dialog = await screen.findByRole("alertdialog", {
