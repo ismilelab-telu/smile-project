@@ -18,8 +18,8 @@ import {
   useRef,
   useState,
   type FocusEvent,
-  type ReactNode,
   type MouseEvent,
+  type ReactNode,
 } from "react";
 
 import { cn } from "@/lib/utils";
@@ -55,12 +55,11 @@ type LinkPreviewItem = {
 type LinkPreviewContextValue = {
   hidePreview: (id?: string) => void;
   keepPreviewOpen: () => void;
-  movePreview: (id: string, anchor: HTMLElement, clientX: number) => void;
-  showPreview: (item: LinkPreviewItem, anchor: HTMLElement, clientX?: number) => void;
+  movePreview: (id: string, anchor: HTMLElement) => void;
+  showPreview: (item: LinkPreviewItem, anchor: HTMLElement) => void;
 };
 
 const previewSpringConfig = { damping: 24, stiffness: 210 } satisfies SpringOptions;
-const cursorSpringConfig = { damping: 15, stiffness: 100 } satisfies SpringOptions;
 const previewViewportPadding = 12;
 const previewGap = 14;
 const previewHideDelayMs = 140;
@@ -133,10 +132,8 @@ export function LinkPreviewProvider({ children }: { children: ReactNode }) {
   const clearTimerRef = useRef<number | undefined>(undefined);
   const previewX = useMotionValue(0);
   const previewY = useMotionValue(0);
-  const cursorX = useMotionValue(0);
   const springX = useSpring(previewX, previewSpringConfig);
   const springY = useSpring(previewY, previewSpringConfig);
-  const springCursorX = useSpring(cursorX, cursorSpringConfig);
 
   const clearTimers = useCallback(() => {
     if (hideTimerRef.current !== undefined) {
@@ -168,52 +165,28 @@ export function LinkPreviewProvider({ children }: { children: ReactNode }) {
     [previewX, previewY, springX, springY],
   );
 
-  const updateCursorOffset = useCallback(
-    (anchor: HTMLElement, clientX?: number) => {
-      if (clientX === undefined) {
-        cursorX.jump(0);
-        springCursorX.jump(0);
-        cursorX.set(0);
-        return;
-      }
-
-      const targetRect = anchor.getBoundingClientRect();
-      const eventOffsetX = clientX - targetRect.left;
-      const offsetFromCenter = (eventOffsetX - targetRect.width / 2) / 2;
-
-      if (!isVisibleRef.current) {
-        cursorX.jump(offsetFromCenter);
-        springCursorX.jump(offsetFromCenter);
-        return;
-      }
-
-      cursorX.set(offsetFromCenter);
-    },
-    [cursorX, springCursorX],
-  );
-
   const keepPreviewOpen = useCallback(() => {
     clearTimers();
   }, [clearTimers]);
 
   const showPreview = useCallback(
-    (item: LinkPreviewItem, anchor: HTMLElement, clientX?: number) => {
+    (item: LinkPreviewItem, anchor: HTMLElement) => {
       clearTimers();
       const shouldJumpToAnchor = !isVisibleRef.current || activePreviewRef.current === null;
 
       activePreviewRef.current = item;
       activeAnchorRef.current = anchor;
+
       setActivePreview(item);
       updatePosition(anchor, item, shouldJumpToAnchor);
-      updateCursorOffset(anchor, clientX);
       isVisibleRef.current = true;
       setIsVisible(true);
     },
-    [clearTimers, updateCursorOffset, updatePosition],
+    [clearTimers, updatePosition],
   );
 
   const movePreview = useCallback(
-    (id: string, anchor: HTMLElement, clientX: number) => {
+    (id: string, anchor: HTMLElement) => {
       const activePreviewItem = activePreviewRef.current;
 
       if (!activePreviewItem || activePreviewItem.id !== id) {
@@ -222,9 +195,8 @@ export function LinkPreviewProvider({ children }: { children: ReactNode }) {
 
       activeAnchorRef.current = anchor;
       updatePosition(anchor, activePreviewItem);
-      updateCursorOffset(anchor, clientX);
     },
-    [updateCursorOffset, updatePosition],
+    [updatePosition],
   );
 
   const hidePreview = useCallback((id?: string) => {
@@ -305,23 +277,34 @@ export function LinkPreviewProvider({ children }: { children: ReactNode }) {
             style={{ x: springX, y: springY }}
             transition={{ damping: 20, stiffness: 260, type: "spring" }}
           >
-            <motion.a
-              className="block rounded-lg border border-neutral-200 bg-white p-1 text-[0px] shadow-sm transition-colors hover:border-neutral-300"
+            <a
+              className="block rounded-lg border border-neutral-200 bg-white p-1 text-[0px] transition-colors hover:border-neutral-300"
               href={activePreview.url}
               onMouseDown={() => hidePreview()}
               rel="noopener noreferrer"
-              style={{ x: springCursorX }}
               target="_blank"
             >
-              <img
-                alt=""
-                className="rounded-md"
-                data-layout={activePreview.layout}
-                height={activePreview.height}
-                src={activePreview.previewSrc}
-                width={activePreview.width}
-              />
-            </motion.a>
+              <span
+                className="relative block overflow-hidden rounded-md"
+                style={{ height: activePreview.height, width: activePreview.width }}
+              >
+                <AnimatePresence initial={false} mode="popLayout">
+                  <motion.img
+                    animate={{ filter: "blur(0px)", opacity: 1 }}
+                    alt=""
+                    className="absolute inset-0 size-full rounded-md object-cover"
+                    data-layout={activePreview.layout}
+                    exit={{ filter: "blur(8px)", opacity: 0 }}
+                    height={activePreview.height}
+                    initial={{ filter: "blur(8px)", opacity: 0.72 }}
+                    key={activePreview.previewSrc}
+                    src={activePreview.previewSrc}
+                    transition={{ duration: 0.24, ease: "easeOut" }}
+                    width={activePreview.width}
+                  />
+                </AnimatePresence>
+              </span>
+            </a>
           </motion.div>
         ) : null}
       </AnimatePresence>
@@ -332,13 +315,13 @@ export function LinkPreviewProvider({ children }: { children: ReactNode }) {
 export function LinkPreview({
   children,
   className,
-  height = 125,
+  height = 190,
   imageSrc,
   isStatic = false,
   layout = "fixed",
   quality = 50,
   url,
-  width = 200,
+  width = 304,
 }: LinkPreviewProps) {
   const linkPreviewContext = useContext(LinkPreviewContext);
   const generatedId = useId();
@@ -368,11 +351,11 @@ export function LinkPreview({
   );
 
   const handleMouseEnter = (event: MouseEvent<HTMLAnchorElement>) => {
-    linkPreviewContext?.showPreview(previewItem, event.currentTarget, event.clientX);
+    linkPreviewContext?.showPreview(previewItem, event.currentTarget);
   };
 
   const handleMouseMove = (event: MouseEvent<HTMLAnchorElement>) => {
-    linkPreviewContext?.movePreview(previewItem.id, event.currentTarget, event.clientX);
+    linkPreviewContext?.movePreview(previewItem.id, event.currentTarget);
   };
 
   const handleFocus = (event: FocusEvent<HTMLAnchorElement>) => {
