@@ -771,6 +771,7 @@ describe("App", () => {
     }
 
     await waitFor(() => {
+      expect(kaggleLink).toHaveAttribute("data-link-preview-trigger");
       expect(kaggleLink).toHaveAttribute("target", "_blank");
       expect(kaggleLink).toHaveAttribute("rel", expect.stringContaining("noopener"));
       expect(kaggleLink).toHaveAttribute("rel", expect.stringContaining("noreferrer"));

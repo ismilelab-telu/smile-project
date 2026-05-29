@@ -28,7 +28,11 @@ import DataSplittingEnglishContent from "./mdx/en/1-6-data-splitting.mdx";
 import ModelingEnglishContent from "./mdx/en/1-7-modeling.mdx";
 import type { Locale } from "@/features/localization/localization";
 
-const indonesianLessonMdxContentById: Partial<Record<string, ComponentType>> = {
+type LessonMdxComponent = ComponentType<{
+  components?: Record<string, ComponentType<Record<string, unknown>>>;
+}>;
+
+const indonesianLessonMdxContentById: Partial<Record<string, LessonMdxComponent>> = {
   "lesson-0-1-what-is-machine-learning": WhatIsMachineLearningContent,
   "lesson-0-2-machine-learning-in-ai": MachineLearningInAiContent,
   "lesson-0-3-core-components": CoreComponentsContent,
@@ -44,7 +48,7 @@ const indonesianLessonMdxContentById: Partial<Record<string, ComponentType>> = {
   "lesson-1-7-modeling": ModelingContent,
 };
 
-const englishLessonMdxContentById: Partial<Record<string, ComponentType>> = {
+const englishLessonMdxContentById: Partial<Record<string, LessonMdxComponent>> = {
   "lesson-0-1-what-is-machine-learning": WhatIsMachineLearningEnglishContent,
   "lesson-0-2-machine-learning-in-ai": MachineLearningInAiEnglishContent,
   "lesson-0-3-core-components": CoreComponentsEnglishContent,
@@ -62,7 +66,7 @@ const englishLessonMdxContentById: Partial<Record<string, ComponentType>> = {
 
 export const lessonMdxContentByLocaleAndId: Record<
   Locale,
-  Partial<Record<string, ComponentType>>
+  Partial<Record<string, LessonMdxComponent>>
 > = {
   en: englishLessonMdxContentById,
   id: indonesianLessonMdxContentById,
