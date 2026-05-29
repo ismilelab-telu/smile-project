@@ -3047,19 +3047,24 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
                       fill="oklch(61.224% 0.2313 22.61)"
                     />
                   </svg>
-                  {/* Keep X centering in layout, not transform: GSAP owns transform for bounce y/scale. */}
+                  {/* Keep X centering on the wrapper so GSAP owns the dot transform for bounce y/scale. */}
                   <span
                     aria-hidden="true"
-                    className="pointer-events-none absolute top-[calc(100%+0.08em)] left-[calc(50%-var(--love-bounce-dot-size)/2-var(--love-bounce-dot-optical-offset))] block h-[var(--love-bounce-dot-size)] w-[var(--love-bounce-dot-size)] opacity-0 [--love-bounce-dot-optical-offset:0.052em] [--love-bounce-dot-size:0.18em]"
-                    data-love-bounce-dot
+                    className="pointer-events-none absolute top-[calc(100%+0.08em)] left-1/2 block -translate-x-1/2"
                   >
-                    <svg
+                    <span
                       aria-hidden="true"
-                      className="block h-full w-full overflow-visible"
-                      viewBox="0 0 100 100"
+                      className="block h-[0.18em] w-[0.18em] opacity-0"
+                      data-love-bounce-dot
                     >
-                      <circle cx="50" cy="50" fill="oklch(61.224% 0.2313 22.61)" r="50" />
-                    </svg>
+                      <svg
+                        aria-hidden="true"
+                        className="block h-full w-full overflow-visible"
+                        viewBox="0 0 100 100"
+                      >
+                        <circle cx="50" cy="50" fill="oklch(61.224% 0.2313 22.61)" r="50" />
+                      </svg>
+                    </span>
                   </span>
                 </span>
                 <span className="relative z-10 inline-block" data-final-word="with">

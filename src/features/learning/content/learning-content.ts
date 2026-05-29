@@ -195,6 +195,7 @@ type MultipleChoiceLessonInput = {
   objective: string;
   options: ChoiceExerciseOption[];
   prompt: string;
+  status?: Lesson["status"];
   summary: string[];
   title: string;
 };
@@ -215,6 +216,7 @@ function multipleChoiceLesson(input: MultipleChoiceLessonInput): Lesson {
     moduleId: input.moduleId,
     numberLabel: input.numberLabel,
     objective: input.objective,
+    status: input.status,
     summary: input.summary,
     title: input.title,
   };
@@ -487,23 +489,6 @@ const lesson12OpenSourceExercise: OpenDatasetSourceExercise = {
   minimumDistinctDomains: 1,
   notesLabel: "Tentang dataset",
   prompt: "Validasi dataset terbuka untuk kasus prediksi waktu pengiriman makanan.",
-  sourceGuidance: [
-    {
-      description:
-        "Gunakan halaman Kaggle Food Delivery Time Prediction agar target dan fitur selaras dengan seluruh lesson.",
-      examples: ["Kaggle Food Delivery Time Prediction"],
-      id: "dataset-repository",
-      title: "Repositori dataset",
-    },
-    {
-      description:
-        "Gunakan dokumentasi halaman dataset untuk membaca definisi kolom, periode, lisensi, dan batasan penggunaan.",
-      examples: ["halaman dataset", "data card", "README", "license note"],
-      id: "dataset-documentation",
-      title: "Dokumentasi dataset",
-    },
-  ],
-  sourceGuidanceTitle: "Yang perlu dicek dari dataset food delivery",
   sourceInputs: [
     {
       description:
@@ -608,6 +593,7 @@ const laterLessons: Lesson[] = [
       "Tahap memuat data membawa data mentah ke bentuk yang bisa diperiksa project.",
       "Sebelum pembersihan atau pemodelan, pastikan tabel termuat dengan benar: baris ada, kolom sesuai ekspektasi, dan tipe data tidak mengejutkan.",
     ],
+    status: "coming-soon",
     title: "Memuat Data",
   }),
   multipleChoiceLesson({
@@ -641,6 +627,7 @@ const laterLessons: Lesson[] = [
       "Pembersihan membuat dataset lebih bisa dipercaya dengan menangani nilai kosong, tidak konsisten, duplikat, atau mustahil.",
       "Transformasi mengubah informasi yang bisa dipakai menjadi field yang lebih jelas sambil menghindari kebocoran target atau data masa depan.",
     ],
+    status: "coming-soon",
     title: "Pembersihan dan Transformasi Data",
   }),
   multipleChoiceLesson({
@@ -671,6 +658,7 @@ const laterLessons: Lesson[] = [
       "Analisis eksploratif adalah tahap memeriksa distribusi, hubungan, gap, dan hal yang mengejutkan.",
       "Analisis eksplanatori mengubah temuan terpilih menjadi komunikasi yang jelas dengan klaim yang sesuai bukti.",
     ],
+    status: "coming-soon",
     title: "Analisis Eksploratif dan Eksplanatori",
   }),
   multipleChoiceLesson({
@@ -701,6 +689,7 @@ const laterLessons: Lesson[] = [
       "Pembagian data menjaga evaluasi agar tidak terlalu optimistis.",
       "Data latih dipakai untuk belajar. Data uji ditahan agar hasil akhir lebih menggambarkan perilaku model pada contoh baru.",
     ],
+    status: "coming-soon",
     title: "Membagi Data",
   }),
   multipleChoiceLesson({
@@ -726,6 +715,7 @@ const laterLessons: Lesson[] = [
       "Pemodelan adalah tahap ketika algoritma belajar pola dari data latih.",
       "Tahap pemodelan yang baik dimulai dari baseline, melatih kandidat model, lalu mengevaluasi apakah model benar-benar berguna untuk masalahnya.",
     ],
+    status: "coming-soon",
     title: "Pemodelan",
   }),
   multipleChoiceLesson({
@@ -1629,6 +1619,10 @@ export function getLesson(lessonId: string) {
 
 export function getModule(moduleId: string) {
   return learningModules.find((module) => module.id === moduleId);
+}
+
+export function isLessonAvailable(lesson: Lesson) {
+  return lesson.status !== "coming-soon";
 }
 
 export function getTrack(trackId: string) {

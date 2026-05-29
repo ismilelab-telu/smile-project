@@ -14,6 +14,7 @@ const lesson05Path = `${foundationsTrackPath}/lesson-0-5-machine-learning-use-ca
 const lesson06Path = `${foundationsTrackPath}/lesson-0-6-formulating-ml-problems`;
 const lesson11Path = `${foundationsTrackPath}/lesson-1-1-ml-tools-libraries`;
 const lesson12Path = `${foundationsTrackPath}/lesson-1-2-data-collecting`;
+const lesson13Path = `${foundationsTrackPath}/lesson-1-3-data-loading`;
 const module0LessonIds = [
   "lesson-0-1-what-is-machine-learning",
   "lesson-0-2-machine-learning-in-ai",
@@ -233,7 +234,7 @@ describe("App", () => {
         lazyRouteTimeout,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText("2/13")).toBeInTheDocument();
+    expect(screen.getByText("2/8")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Reset progres" }));
 
@@ -252,7 +253,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
-    expect(screen.getByText("2/13")).toBeInTheDocument();
+    expect(screen.getByText("2/8")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Reset progres" }));
 
@@ -262,7 +263,7 @@ describe("App", () => {
     fireEvent.click(within(secondDialog).getByRole("button", { name: "Reset progres" }));
 
     await waitFor(() => {
-      expect(screen.getByText("0/13")).toBeInTheDocument();
+      expect(screen.getByText("0/8")).toBeInTheDocument();
     });
     expect(getStoredCompletedLessonIds()).toEqual([]);
   });
@@ -717,25 +718,27 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Kirim jawaban" })).toBeInTheDocument();
   });
 
-  it("keeps newly added exercises editable when old progress marked the lesson complete", async () => {
-    seedCompletedLessons([
-      ...module0LessonIds,
-      "lesson-1-1-ml-tools-libraries",
-      "lesson-1-2-data-collecting",
-    ]);
-    window.history.pushState(null, "", lesson12Path);
+  it("keeps lesson 1.2 available before module 1.3 through 1.7 coming soon", async () => {
+    seedCompletedLessons([...module0LessonIds, "lesson-1-1-ml-tools-libraries"]);
+    window.history.pushState(null, "", foundationsTrackPath);
     render(<App />);
 
     expect(
-      await screen.findByRole("heading", { name: "Pengumpulan Data" }, lazyRouteTimeout),
+      await screen.findByRole(
+        "heading",
+        { name: "Dasar-Dasar Machine Learning" },
+        lazyRouteTimeout,
+      ),
     ).toBeInTheDocument();
 
-    expect(
-      screen.getByLabelText("Dataset food delivery: Link dataset atau halaman data"),
-    ).toBeEnabled();
+    expect(screen.getAllByRole("button", { name: "Segera hadir" })).toHaveLength(5);
+    expect(document.querySelector(`a[href="${lesson12Path}"]`)).not.toBeNull();
+    expect(document.querySelector(`a[href="${lesson13Path}"]`)).toBeNull();
+    expect(screen.getByText("Pengumpulan Data")).toBeInTheDocument();
+    expect(screen.getByText("Pemodelan")).toBeInTheDocument();
   });
 
-  it("allows editing a completed dataset source submission", async () => {
+  it("opens lesson 1.2 without the dataset source guidance panel", async () => {
     seedCompletedLessons([...module0LessonIds, "lesson-1-1-ml-tools-libraries"]);
     window.history.pushState(null, "", lesson12Path);
     render(<App />);
@@ -743,98 +746,28 @@ describe("App", () => {
     expect(
       await screen.findByRole("heading", { name: "Pengumpulan Data" }, lazyRouteTimeout),
     ).toBeInTheDocument();
-
-    fireEvent.click(
-      screen.getByLabelText("Tetapkan output prediksi, unit baris, dan cakupan data."),
-    );
-    fireEvent.click(
-      screen.getByLabelText("Catat asal sumber, periode data, dan cara pengambilannya."),
-    );
-    fireEvent.click(screen.getByLabelText("Cek izin, privasi, dan batasan pemakaian field."));
-    fireEvent.click(
-      screen.getByLabelText(
-        "Pastikan variasi jarak, cuaca, trafik, waktu hari, kendaraan, dan kurir terwakili.",
-      ),
-    );
-    fireEvent.click(screen.getAllByRole("button", { name: "Kirim jawaban" })[0]);
-
-    expect(await screen.findByRole("button", { name: "Terkirim" })).toBeDisabled();
-
-    const demandUrlInput = screen.getByLabelText(
-      "Dataset food delivery: Link dataset atau halaman data",
-    );
-    const aboutDatasetInput = screen.getByLabelText("Dataset food delivery: Tentang dataset");
-    const markdownDatasetDescription =
-      "## About Dataset\n\nThe **Food Delivery Time Prediction** dataset is designed for predicting food delivery times.\n\n- Distance_km\n- Delivery_Time_min\n\n[Kaggle source](https://www.kaggle.com/datasets/denkuznetz/food-delivery-time-prediction/data)";
-
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          results: [
-            {
-              checkedAt: "2026-05-27T08:19:33.940Z",
-              description: "Optimize Food Delivery: Predict Times with Real-World Data!",
-              evidenceExcerpt: markdownDatasetDescription,
-              httpStatus: 200,
-              issues: [],
-              license: "Apache 2.0",
-              signals: [
-                "sinyal dataset",
-                "sinyal lisensi",
-                "sinyal domain pengiriman",
-                "sinyal sumber Kaggle",
-              ],
-              sourceId: "demand-source",
-              status: "valid",
-              title: "Food Delivery Time Prediction 🛵",
-              url: "https://www.kaggle.com/datasets/denkuznetz/food-delivery-time-prediction/data",
-            },
-          ],
-        }),
-        {
-          headers: { "content-type": "application/json" },
-          status: 200,
-        },
-      ),
-    );
-
-    fireEvent.change(demandUrlInput, {
-      target: {
-        value: "https://www.kaggle.com/datasets/denkuznetz/food-delivery-time-prediction/data",
-      },
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "Kirim jawaban" }));
-
-    await waitFor(() => {
-      expect(screen.getByRole("link", { name: /^Lanjut$/ })).toBeInTheDocument();
-    });
-    expect(screen.getAllByRole("link", { name: /^Lanjut$/ })).toHaveLength(1);
-    expect(screen.getAllByRole("link", { name: "Sebelumnya" })).toHaveLength(1);
-    expect(screen.getAllByRole("button", { name: "Terkirim" })).toHaveLength(1);
-    expect(aboutDatasetInput).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "About Dataset" })).toBeInTheDocument();
-    expect(screen.getByText("Food Delivery Time Prediction").closest("strong")).not.toBeNull();
-    expect(screen.getByText("Distance_km").closest("li")).not.toBeNull();
-    expect(screen.getByRole("link", { name: "Kaggle source" })).toHaveAttribute(
-      "href",
-      "https://www.kaggle.com/datasets/denkuznetz/food-delivery-time-prediction/data",
-    );
-    expect(screen.getByText("Halaman terbaca")).toBeInTheDocument();
-    expect(screen.queryByText(/Bukti terbaca:/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Lisensi:/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Sinyal:/)).not.toBeInTheDocument();
-    expect(demandUrlInput).toBeDisabled();
-
-    expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(1);
-
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-
-    expect(demandUrlInput).toBeEnabled();
+    expect(screen.getAllByRole("button", { name: "Kirim jawaban" })).toHaveLength(2);
     expect(
-      (screen.getByLabelText("Dataset food delivery: Tentang dataset") as HTMLTextAreaElement)
-        .value,
-    ).toContain("## About Dataset");
-    expect(screen.queryByRole("link", { name: /^Lanjut$/ })).not.toBeInTheDocument();
+      screen.queryByText("Yang perlu dicek dari dataset food delivery"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Jenis platform data terbuka")).not.toBeInTheDocument();
+  });
+
+  it("blocks direct access to a coming soon lesson", async () => {
+    seedCompletedLessons([
+      ...module0LessonIds,
+      "lesson-1-1-ml-tools-libraries",
+      "lesson-1-2-data-collecting",
+    ]);
+    window.history.pushState(null, "", lesson13Path);
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Lesson 1.3 segera hadir" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Materi ini sedang disiapkan dan belum bisa dibuka."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Kirim jawaban" })).not.toBeInTheDocument();
   });
 });

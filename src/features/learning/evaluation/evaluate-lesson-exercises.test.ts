@@ -45,8 +45,6 @@ const openDatasetSourceExercise: OpenDatasetSourceExercise = {
   minimumDistinctDomains: 1,
   notesLabel: "Catatan",
   prompt: "Cari sumber data.",
-  sourceGuidance: [],
-  sourceGuidanceTitle: "Sumber",
   sourceInputs: [
     {
       description: "Waktu pengiriman",

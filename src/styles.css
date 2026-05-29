@@ -315,13 +315,7 @@
   }
 
   .learning-sheet-footer-cell {
-    min-height: calc(1.5rem + clamp(1rem, 2vw, 1.5rem) + clamp(1rem, 2vw, 1.5rem));
-  }
-
-  @media (min-width: 2200px) {
-    .learning-sheet-footer-cell {
-      min-height: 6rem;
-    }
+    min-height: 4.5rem;
   }
 
   .learning-grid-panel-fill {

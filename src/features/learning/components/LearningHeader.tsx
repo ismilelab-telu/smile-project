@@ -31,14 +31,14 @@ const menuLinks = [
 
 export function LearningHeader({ backHref, backLabel }: LearningHeaderProps) {
   return (
-    <header className="learning-header sticky top-0 z-30 flex items-center justify-between border-b learning-grid-border bg-background px-[clamp(1rem,1.6vw,1.5rem)] py-[clamp(0.875rem,1.6vw,1.25rem)] [@media_(min-width:2200px)]:px-9 [@media_(min-width:2200px)]:py-9">
+    <header className="learning-header sticky top-0 z-30 flex items-center justify-between border-b learning-grid-border bg-background px-6 py-5">
       <a
         aria-label={backLabel}
-        className="inline-flex size-10 items-center justify-center rounded-none bg-transparent text-neutral-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 [@media_(min-width:2200px)]:size-12"
+        className="inline-flex size-10 items-center justify-center rounded-none bg-transparent text-neutral-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
         data-app-link
         href={backHref}
       >
-        <ArrowLeftIcon aria-hidden="true" className="size-5 [@media_(min-width:2200px)]:size-6" />
+        <ArrowLeftIcon aria-hidden="true" className="size-5" />
       </a>
       <LearningMenu />
     </header>
@@ -305,14 +305,11 @@ function LearningMenu() {
       <button
         aria-expanded={isOpen}
         aria-label={isOpen ? t("menu.close") : t("menu.open")}
-        className="relative z-50 inline-flex size-10 cursor-pointer items-center justify-center rounded-none bg-transparent text-neutral-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 [@media_(min-width:2200px)]:size-12"
+        className="relative z-50 inline-flex size-10 cursor-pointer items-center justify-center rounded-none bg-transparent text-neutral-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
         onClick={() => setMenuOpen(!isOpen)}
         type="button"
       >
-        <span
-          className="relative block h-5 w-5 [@media_(min-width:2200px)]:scale-110"
-          aria-hidden="true"
-        >
+        <span className="relative block h-5 w-5" aria-hidden="true">
           <span
             className="absolute top-[5px] left-[3px] h-0.5 w-3.5 bg-current"
             data-learning-menu-bar="top"
@@ -330,7 +327,7 @@ function LearningMenu() {
 
       <div
         aria-hidden={!isOpen}
-        className="invisible fixed inset-0 z-40 flex flex-col items-end gap-2 p-4 [@media_(min-width:2200px)]:gap-3 [@media_(min-width:2200px)]:p-6"
+        className="invisible fixed inset-0 z-40 flex flex-col items-end gap-2 p-4"
         data-learning-menu-nav
       >
         <button
@@ -343,7 +340,7 @@ function LearningMenu() {
 
         <nav
           aria-label={t("menu.navLabel")}
-          className="relative z-10 flex min-h-[420px] w-[min(700px,calc(100vw_-_2rem))] flex-1 transform-gpu flex-col rounded-none border-2 border-neutral-950 bg-neutral-100 px-7 pt-16 pb-7 text-neutral-950 shadow-2xl will-change-transform [@media_(min-width:2200px)]:min-h-[520px] [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:px-9 [@media_(min-width:2200px)]:pt-20 [@media_(min-width:2200px)]:pb-9"
+          className="relative z-10 flex min-h-[420px] w-[min(700px,calc(100vw_-_2rem))] flex-1 transform-gpu flex-col rounded-none border-2 border-neutral-950 bg-neutral-100 px-7 pt-16 pb-7 text-neutral-950 shadow-2xl will-change-transform"
           data-learning-menu-panel
         >
           <ul className="flex flex-1 list-none flex-col justify-center">
@@ -354,7 +351,7 @@ function LearningMenu() {
                 key={link.href}
               >
                 <a
-                  className="block py-4 text-[clamp(1.7rem,4vw,2.15rem)] leading-[1.05] font-semibold tracking-normal text-neutral-950 transition-colors hover:text-emerald-400 [@media_(min-width:2200px)]:py-5 [@media_(min-width:2200px)]:text-[2.55rem]"
+                  className="block py-4 text-[2.15rem] leading-[1.05] font-semibold tracking-normal text-neutral-950 transition-colors hover:text-emerald-400"
                   data-app-link
                   href={link.href}
                 >
@@ -363,9 +360,9 @@ function LearningMenu() {
               </li>
             ))}
           </ul>
-          <div className="absolute bottom-7 left-7 z-20 flex flex-col items-start [@media_(min-width:2200px)]:bottom-9 [@media_(min-width:2200px)]:left-9">
+          <div className="absolute bottom-7 left-7 z-20 flex flex-col items-start">
             {isLanguageSelectorOpen ? (
-              <div className="absolute bottom-full left-0 mb-3 grid min-w-56 overflow-hidden border border-neutral-300 bg-white shadow-lg [@media_(min-width:2200px)]:mb-4 [@media_(min-width:2200px)]:min-w-72">
+              <div className="absolute bottom-full left-0 mb-3 grid min-w-56 overflow-hidden border border-neutral-300 bg-white shadow-lg">
                 {localeOptions.map((option) => {
                   const isSelected = option.value === locale;
                   const label = t(option.labelKey);
@@ -375,7 +372,7 @@ function LearningMenu() {
                   return (
                     <button
                       aria-label={ariaLabel}
-                      className={`flex min-h-12 cursor-pointer items-center gap-3 px-4 py-3 text-left text-sm font-semibold transition-colors hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-emerald-400 [@media_(min-width:2200px)]:min-h-14 [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:text-base ${
+                      className={`flex min-h-12 cursor-pointer items-center gap-3 px-4 py-3 text-left text-sm font-semibold transition-colors hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-emerald-400 ${
                         isSelected ? "bg-emerald-50 text-emerald-700" : "text-neutral-950"
                       }`}
                       key={option.value}
@@ -400,21 +397,18 @@ function LearningMenu() {
             <button
               aria-expanded={isLanguageSelectorOpen}
               aria-label={t("language.triggerAria")}
-              className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-none border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-950 transition-colors hover:border-emerald-500 hover:text-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 [@media_(min-width:2200px)]:min-h-14 [@media_(min-width:2200px)]:gap-3 [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:text-base"
+              className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-none border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-950 transition-colors hover:border-emerald-500 hover:text-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
               onClick={() => setIsLanguageSelectorOpen((current) => !current)}
               type="button"
             >
-              <LanguageIcon
-                aria-hidden="true"
-                className="size-5 [@media_(min-width:2200px)]:size-6"
-              />
+              <LanguageIcon aria-hidden="true" className="size-5" />
               <span>{t("language.trigger")}</span>
               <span className="font-normal text-neutral-500">
                 {t(locale === "id" ? "language.option.id" : "language.option.en")}
               </span>
               <ChevronUpIcon
                 aria-hidden="true"
-                className={`size-4 transition-transform [@media_(min-width:2200px)]:size-5 ${
+                className={`size-4 transition-transform ${
                   isLanguageSelectorOpen ? "rotate-180" : ""
                 }`}
               />
@@ -424,46 +418,40 @@ function LearningMenu() {
 
         <section
           aria-label={t("menu.learningModeHighlight")}
-          className="relative z-10 flex min-h-36 w-[min(700px,calc(100vw_-_2rem))] transform-gpu flex-col justify-center rounded-none border-2 border-emerald-700 bg-gradient-to-br from-emerald-500 via-emerald-300 to-sky-300 p-7 text-neutral-950 shadow-2xl will-change-transform [@media_(min-width:2200px)]:min-h-44 [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:p-9"
+          className="relative z-10 flex min-h-36 w-[min(700px,calc(100vw_-_2rem))] transform-gpu flex-col justify-center rounded-none border-2 border-emerald-700 bg-gradient-to-br from-emerald-500 via-emerald-300 to-sky-300 p-7 text-neutral-950 shadow-2xl will-change-transform"
           data-learning-menu-panel
         >
-          <p className="font-mono text-xs font-semibold tracking-[0.12em] text-neutral-700 uppercase [@media_(min-width:2200px)]:text-sm">
+          <p className="font-mono text-xs font-semibold tracking-[0.12em] text-neutral-700 uppercase">
             {t("menu.whatsNew")}
           </p>
-          <div className="mt-4 flex items-center gap-4 [@media_(min-width:2200px)]:mt-5 [@media_(min-width:2200px)]:gap-5">
-            <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-none bg-neutral-950/10 text-neutral-950 [@media_(min-width:2200px)]:size-14">
-              <SparklesIcon
-                aria-hidden="true"
-                className="size-6 [@media_(min-width:2200px)]:size-7"
-              />
+          <div className="mt-4 flex items-center gap-4">
+            <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-none bg-neutral-950/10 text-neutral-950">
+              <SparklesIcon aria-hidden="true" className="size-6" />
             </span>
             <div>
-              <h2 className="text-xl leading-tight font-semibold tracking-normal [@media_(min-width:2200px)]:text-2xl">
+              <h2 className="text-xl leading-tight font-semibold tracking-normal">
                 {t("menu.learningMode")}
               </h2>
-              <p className="mt-1 text-sm leading-6 text-neutral-700 [@media_(min-width:2200px)]:text-base [@media_(min-width:2200px)]:leading-7">
+              <p className="mt-1 text-sm leading-6 text-neutral-700">
                 {t("menu.whatsNewDescription")}
               </p>
             </div>
           </div>
           <a
-            className="mt-5 inline-flex w-fit items-center gap-2 rounded-none bg-neutral-950 px-4 py-2 font-mono text-xs font-semibold text-emerald-100 transition-colors hover:bg-neutral-800 [@media_(min-width:2200px)]:mt-6 [@media_(min-width:2200px)]:px-5 [@media_(min-width:2200px)]:py-2.5 [@media_(min-width:2200px)]:text-sm"
+            className="mt-5 inline-flex w-fit items-center gap-2 rounded-none bg-neutral-950 px-4 py-2 font-mono text-xs font-semibold text-emerald-100 transition-colors hover:bg-neutral-800"
             data-app-link
             href="/learn"
           >
             {t("menu.startPath")}
-            <ArrowRightIcon
-              aria-hidden="true"
-              className="size-4 [@media_(min-width:2200px)]:size-5"
-            />
+            <ArrowRightIcon aria-hidden="true" className="size-4" />
           </a>
         </section>
 
         <div
-          className="relative z-10 flex h-28 w-[min(700px,calc(100vw_-_2rem))] transform-gpu items-center rounded-none border-2 border-neutral-700 bg-neutral-950 px-7 text-neutral-400 shadow-2xl will-change-transform [@media_(min-width:2200px)]:h-36 [@media_(min-width:2200px)]:w-[min(860px,calc(100vw_-_3rem))] [@media_(min-width:2200px)]:px-9"
+          className="relative z-10 flex h-28 w-[min(700px,calc(100vw_-_2rem))] transform-gpu items-center rounded-none border-2 border-neutral-700 bg-neutral-950 px-7 text-neutral-400 shadow-2xl will-change-transform"
           data-learning-menu-panel
         >
-          <ul className="flex list-none flex-wrap gap-4 font-mono text-xs font-semibold [@media_(min-width:2200px)]:gap-5 [@media_(min-width:2200px)]:text-sm">
+          <ul className="flex list-none flex-wrap gap-4 font-mono text-xs font-semibold">
             <li>
               <a className="transition-colors hover:text-white" data-app-link href="/404">
                 {t("menu.contact")}
@@ -480,10 +468,7 @@ function LearningMenu() {
               </a>
             </li>
           </ul>
-          <HomeIcon
-            aria-hidden="true"
-            className="ml-auto size-10 text-emerald-300 [@media_(min-width:2200px)]:size-12"
-          />
+          <HomeIcon aria-hidden="true" className="ml-auto size-10 text-emerald-300" />
         </div>
       </div>
     </div>

@@ -23,8 +23,6 @@ type ExerciseCopy = {
   notesLabel?: string;
   options?: Record<string, string>;
   prompt?: string;
-  sourceGuidance?: Record<string, { description?: string; examples?: string[]; title?: string }>;
-  sourceGuidanceTitle?: string;
   sourceInputs?: Record<
     string,
     {
@@ -256,21 +254,6 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
         introTitle: "Collecting Data from Open Sources",
         notesLabel: "About dataset",
         prompt: "Validate an open dataset for the food delivery time prediction case.",
-        sourceGuidance: {
-          "dataset-documentation": {
-            description:
-              "Use dataset documentation to read column definitions, period, license, and usage limits.",
-            examples: ["dataset page", "data card", "README", "license note"],
-            title: "Dataset documentation",
-          },
-          "dataset-repository": {
-            description:
-              "Use the Kaggle Food Delivery Time Prediction page so the target and features stay aligned across lessons.",
-            examples: ["Kaggle Food Delivery Time Prediction"],
-            title: "Dataset repositories",
-          },
-        },
-        sourceGuidanceTitle: "What to check from the food delivery dataset",
         sourceInputs: {
           "demand-source": {
             description:
@@ -478,13 +461,6 @@ function localizeExercise(
       introParagraphs: copy.introParagraphs ?? exercise.introParagraphs,
       introTitle: copy.introTitle ?? exercise.introTitle,
       notesLabel: copy.notesLabel ?? exercise.notesLabel,
-      sourceGuidance: exercise.sourceGuidance.map((source) => ({
-        ...source,
-        description: copy.sourceGuidance?.[source.id]?.description ?? source.description,
-        examples: copy.sourceGuidance?.[source.id]?.examples ?? source.examples,
-        title: copy.sourceGuidance?.[source.id]?.title ?? source.title,
-      })),
-      sourceGuidanceTitle: copy.sourceGuidanceTitle ?? exercise.sourceGuidanceTitle,
       sourceInputs: exercise.sourceInputs.map((sourceInput) => ({
         ...sourceInput,
         description: copy.sourceInputs?.[sourceInput.id]?.description ?? sourceInput.description,

@@ -1,6 +1,7 @@
 export type ColumnRole = "target" | "safe-feature" | "metadata" | "ignore";
 
 export type LearningLessonStatus = "not_started" | "in_progress" | "completed";
+export type LessonAvailabilityStatus = "available" | "coming-soon";
 
 export type EvaluationStatus = "correct" | "partial" | "incorrect";
 export type ExerciseType =
@@ -75,13 +76,6 @@ export type OrderedStepsExercise = LessonExerciseBase & {
   correctStepIds: string[];
 };
 
-export type OpenDatasetSourceGuidance = {
-  id: string;
-  title: string;
-  description: string;
-  examples: string[];
-};
-
 export type OpenDatasetSourceInput = {
   id: string;
   label: string;
@@ -115,8 +109,6 @@ export type OpenDatasetSourceExercise = LessonExerciseBase & {
   type: "open-dataset-source";
   introTitle: string;
   introParagraphs: string[];
-  sourceGuidanceTitle: string;
-  sourceGuidance: OpenDatasetSourceGuidance[];
   taskTitle: string;
   taskDescription: string;
   urlLabel: string;
@@ -135,6 +127,7 @@ export type LessonExercise =
 export type Lesson = {
   id: string;
   moduleId: string;
+  status?: LessonAvailabilityStatus;
   title: string;
   numberLabel: string;
   estimatedMinutes: number;

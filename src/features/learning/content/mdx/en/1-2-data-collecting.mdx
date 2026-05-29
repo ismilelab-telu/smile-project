@@ -1,87 +1,96 @@
-After learning what machine learning is and how an ML workflow is built, we now move into a more practical stage: collecting the main material a model learns from, which is **data**.
+After understanding the machine learning workflow, the next step is making sure the model has useful learning material: **data**.
 
-Imagine building a tall building. Before thinking about the glass, elevators, or shape, the project needs a strong foundation. In machine learning, **data collection** is that foundation. If the collected data is weak, the model built on top of it is hard to trust.
+For a food delivery time estimation case, the goal is not to collect as many columns as possible. The goal is to find data that answers the question: _how long does an order take to reach the customer, and what information is already available before the estimate is made?_
 
-## Data as Raw Material
+## Data Collection Goal
 
-Clive Humby popularized the idea that data is like oil: it can be very valuable, but it is not automatically useful until it is processed, understood, and used in the right form.
+**Data collection** is the stage of defining, finding, gathering, and documenting the data that will be used to train or evaluate a model.
 
-In the digital era, data appears from many activities:
+This stage produces several important decisions:
 
-- internet searches;
-- transactions and purchase history;
-- application interactions;
-- reviews, clicks, and user behavior;
-- sensors, smart devices, and operational systems.
+- **data needs**: target, row unit, period, and required fields;
+- **data source**: where the data comes from and how it was collected;
+- **permission and limits**: whether the data may be used, shared, or processed;
+- **data context**: column meanings, location/time coverage, and dataset limitations.
 
-Because of that, many organizations collect data to improve products, understand users, and make decisions. But having a lot of data does not automatically mean having good data. Data still needs to be relevant, traceable, safe to use, and aligned with the model goal.
+Data collection is different from data cleaning. At this stage, we are not fixing every problematic value yet; we are checking whether the dataset is relevant and safe enough to move forward.
 
-## What Data Collection Means
+## Start from the Model Question
 
-**Data collection** is the stage of gathering the information needed to train or evaluate a machine learning model. The data can be numeric, text, images, categories, application logs, survey results, or a combination of several sources.
+Healthy data collection starts from the ML problem, not from a dataset file that happens to be available.
 
-This stage is not just finding a dataset file. We need to make sure:
+For a delivery time estimation model, the early question can be broken down into:
 
-- the data answers the problem need;
-- there are enough examples to learn from;
-- the data quality is reasonable;
-- the collection context is clear;
-- the data can be used ethically and legally.
+- **Target**: the value to predict, such as delivery duration in minutes.
+- **Row unit**: whether one row represents one order, one courier trip, or another aggregation.
+- **Prediction time**: when the model will make the estimate, such as when the order is created or when the courier is assigned.
+- **Safe features**: information already available before the target happens, such as distance, weather, traffic, time of day, vehicle type, and courier experience.
+- **Data coverage**: whether the data represents variation in locations, busy hours, weather, vehicle types, and order types.
 
-A simple principle applies: _garbage in, garbage out_. If poor data enters the workflow, model results usually become poor too, even when the algorithm looks advanced.
-
-## Why Data Collection Matters
-
-When learning machine learning for the first time, it is common to think that building the model is the hardest part. But a model only learns from the examples we give it.
-
-Data collection matters because:
-
-- **It shapes model accuracy**: relevant data helps the model read real patterns, while unexplained noise and outliers can hide those patterns.
-- **It reduces bias**: narrow data can make a model favor certain groups, locations, or conditions.
-- **It captures variation**: the real world changes, so the dataset needs to represent conditions the model may face in use.
-- **It increases trust**: clear sources, periods, permissions, and coverage make model results easier to audit.
-
-Quality and quantity both matter. A large but irrelevant dataset can be less useful than a smaller dataset that is clean, clear, and matched to the problem.
+If this question is unclear, even a large dataset can mislead us. The model may look good during training but fail in use because features are unavailable, the target is inconsistent, or the data is too narrow.
 
 ## Data Sources
 
-Before collecting data, we need to know which sources might be used. Each source has its own benefits and risks.
+Data can come from several places. Choose sources based on the model goal and usage risk.
 
-- **Internal data** comes from organizational operations, such as sales, customers, transactions, inventory, or application logs. It is often close to the business need, but it can be too narrow.
-- **External data** comes from outside the organization, such as government data, public datasets, the web, research, or data providers. It can enrich context, but its quality and permission need checking.
-- **Synthetic data** is artificially created to imitate real data patterns. It can help when real data is hard, sensitive, or expensive to collect, but it must be checked against realistic conditions.
-- **User-generated data** comes from interactions, reviews, clicks, forms, surveys, or application behavior. It can be rich, but it needs careful privacy handling.
+- **Internal data**: data from organizational operations, such as orders, deliveries, transactions, customers, or application logs. It is often close to the business need, but it can be too narrow.
+- **External or public data**: data from governments, public repositories, research, the web, or data providers. It can enrich context, but its quality and permission must be checked.
+- **User-generated data**: data from clicks, reviews, forms, surveys, or application behavior. It can be rich in context, but privacy needs careful handling.
+- **Synthetic data**: artificial data that imitates real data patterns. It can help when real data is sensitive or expensive to collect, but it should not be assumed to represent real conditions.
 
-The chosen data source should follow the model goal, not just the easiest data to obtain.
+No source is always best. A good source is relevant to the target, auditable, and allowed to use.
 
-## Ways to Collect Data
+## Ways to Get Data
 
-After choosing sources, we decide how to collect the data. Several methods are common.
+After choosing sources, there are several ways to get the data.
 
-- **Extracting data** from the web, APIs, public files, research, surveys, or internal systems. When collecting from the web, pay attention to site rules, permission, and access load.
-- **Creating a dataset from scratch** through surveys, observation, internal applications, forms, or combined sources. This gives strong control over the data structure, but usually takes more time.
-- **Using an existing dataset** from a public repository or data provider. This saves time, but the license, period, field definitions, and problem fit still need checking.
+- **Use an existing dataset** from a public repository or data provider. This is fast for learning, but the license, column definitions, period, and problem fit still need checking.
+- **Extract data** from APIs, the web, public files, internal systems, or databases. This is flexible, but access rules, request load, and permission matter.
+- **Create a dataset from scratch** through surveys, observation, forms, internal applications, or product instrumentation. This gives more control, but it needs time and clear collection design.
+- **Combine several sources** to complete the context. For example, internal order data can be combined with weather or map data when the time and row unit can be aligned.
 
-No method is always best. A healthy choice is the method that gives data that is sufficient, relevant, trustworthy, and allowed to use.
+The method should follow the data need, not simply the easiest path.
 
-## Data Collection Steps
+## Platforms for Finding Open Data
 
-Data collection should follow a clear order, not simply gather as many columns as possible.
+When using open datasets, we need to know which kinds of platforms to visit. Each platform has a different focus, format, and risk profile.
 
-1. **Define data needs**: first explain what should be predicted or analyzed. Define the target, row unit, time period, and fields that must be available before prediction.
+- **Community and competition dataset repositories**: [Kaggle](https://www.kaggle.com/datasets), [Hugging Face Datasets](https://huggingface.co/datasets), and the [UCI Machine Learning Repository](https://archive.ics.uci.edu/) often provide practice datasets, example notebooks, and user discussions.
+- **Government and public-organization data portals**: [data.go.id](https://data.go.id/), [data.gov](https://data.gov/), [BPS](https://www.bps.go.id/), the [World Bank](https://data.worldbank.org/), and [WHO](https://www.who.int/data) are useful for statistics, regions, economy, health, transportation, and public-service data.
+- **Research and academic repositories**: [Zenodo](https://zenodo.org/), [Figshare](https://figshare.com/), and university repositories often include research datasets with papers, methodology notes, and licenses.
+- **Cloud data catalogs and public data warehouses**: [BigQuery public datasets](https://cloud.google.com/bigquery/public-data) and the [AWS Open Data Registry](https://registry.opendata.aws/) are useful for large datasets that are easier to analyze directly on a cloud platform.
+- **Open APIs and web data**: [OpenStreetMap](https://www.openstreetmap.org/), public APIs, and product documentation pages can become data sources, but access rules, rate limits, licenses, and privacy must be read.
 
-2. **Choose data sources**: pick sources that match the need. They may come from internal data, public data, surveys, the web, or a combination of sources.
+For early practice, [Kaggle](https://www.kaggle.com/datasets) is practical because datasets, descriptions, and usage examples are usually easy to find. For real projects, compare several platforms so the source, coverage, permission, and data context are stronger.
 
-3. **Collect and store the data**: gather the data with the right method, then store it securely in a format that can be read again.
+## Checks Before Using a Dataset
 
-4. **Run early validation**: check whether files can be opened, key columns exist, row counts make sense, usage permission is clear, and the data does not represent only one narrow segment.
+Before using a dataset, run early validation. The focus is not cleaning every error, but deciding whether the dataset is reasonable enough to move forward.
 
-5. **Record data context**: keep notes about source, collection time, field meaning, collection method, usage limits, and parts that are still unclear.
+Check the following:
 
-Early validation is not the same as data cleaning. It only checks whether the dataset is reasonable enough to move to the next stage.
+- **Target fit**: does the dataset contain the output we actually want to predict?
+- **Row unit**: does one row mean one order, one user, one location, or an aggregation?
+- **Feature availability**: are the features available at prediction time?
+- **Coverage and representation**: does the data cover conditions the model will face?
+- **Column definitions**: are field meanings, units, and categories clear?
+- **Usage permission**: are the license, privacy constraints, and usage limits clear?
+- **Quality signals**: are there missing values, impossible values, duplicates, or inconsistent categories that need to be recorded?
+
+These notes help during data loading, cleaning, EDA, and feature selection. The clearer the early context, the lower the risk of training a model on misunderstood data.
+
+## Practical Workflow
+
+Use this order when starting data collection for an ML project.
+
+1. **Define data needs**: write the target, row unit, prediction time, candidate features, period, and coverage.
+2. **Choose sources and platforms**: decide whether the data comes from internal systems, public sources, APIs, surveys, research repositories, or several combined sources.
+3. **Read dataset documentation**: check the description, column definitions, license, period, collection method, and usage limits.
+4. **Run early validation**: make sure the file opens, key columns exist, row counts make sense, and sample rows match the context.
+5. **Record decisions**: store the source, reason for choosing the dataset, unclear parts, and risks to inspect in the next stage.
 
 ## Practical Takeaway
 
-Good data collection starts from a question, not from a file that happens to be available. A dataset that is ready for machine learning needs **clear sources**, **reasonable coverage**, **usage permission**, and **a strong connection to the prediction target**.
+Good data collection starts from a question, not from a file that happens to be available. A machine learning dataset needs **a clear connection to the target**, **reasonable coverage**, **usage permission**, and **auditable context**.
 
-If this stage is careless, the problems usually appear later: biased models, unstable scores, features that are unavailable at prediction time, or results that cannot be trusted.
+If this stage is careless, problems usually appear later: biased models, unstable scores, features that are unavailable at prediction time, or results that are hard to trust.

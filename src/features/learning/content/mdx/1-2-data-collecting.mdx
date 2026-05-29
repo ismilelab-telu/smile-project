@@ -1,87 +1,96 @@
-Setelah mengenal machine learning dan alur pengembangannya, sekarang kita masuk ke tahap kerja yang lebih nyata: mengumpulkan bahan utama yang akan dipakai model untuk belajar, yaitu **data**.
+Setelah memahami alur kerja machine learning, tahap berikutnya adalah memastikan model punya bahan belajar yang layak: **data**.
 
-Bayangkan kita ingin membangun gedung tinggi. Sebelum memikirkan kaca, lift, atau bentuk bangunannya, kita perlu fondasi yang kuat. Dalam machine learning, **data collecting** adalah fondasi itu. Jika data yang dikumpulkan lemah, model yang dibangun di atasnya juga sulit dipercaya.
+Untuk kasus estimasi waktu pengiriman makanan, tujuan kita bukan mengumpulkan kolom sebanyak mungkin. Tujuannya adalah mencari data yang benar-benar menjawab pertanyaan: _berapa lama sebuah order sampai ke pelanggan, dan informasi apa yang sudah tersedia sebelum estimasi dibuat?_
 
-## Data Sebagai Bahan Baku
+## Tujuan Data Collecting
 
-Clive Humby pernah memperkenalkan gagasan bahwa data mirip seperti minyak: nilainya besar, tetapi tidak otomatis berguna sebelum diolah, dipahami, dan dipakai dalam bentuk yang tepat.
+**Data collecting** adalah tahap menentukan, mencari, mengambil, dan mencatat data yang akan dipakai untuk melatih atau mengevaluasi model.
 
-Di era digital, data muncul dari banyak aktivitas:
+Tahap ini menghasilkan beberapa keputusan penting:
 
-- pencarian di internet;
-- transaksi dan riwayat belanja;
-- interaksi aplikasi;
-- ulasan, klik, dan perilaku pengguna;
-- sensor, perangkat cerdas, dan sistem operasional.
+- **kebutuhan data**: target, unit baris, periode, dan field yang diperlukan;
+- **sumber data**: dari mana data berasal dan bagaimana data dikumpulkan;
+- **izin dan batasan**: apakah data boleh dipakai, dibagikan, atau diproses;
+- **konteks data**: arti kolom, cakupan wilayah/waktu, dan keterbatasan dataset.
 
-Karena itu, banyak organisasi mengumpulkan data untuk memperbaiki produk, memahami pengguna, dan mengambil keputusan. Namun, banyak data bukan berarti selalu baik. Data tetap harus relevan, jelas sumbernya, aman dipakai, dan sesuai dengan tujuan model.
+Data collecting berbeda dari data cleaning. Di tahap ini kita belum memperbaiki semua nilai bermasalah; kita memastikan dataset cukup relevan dan aman untuk dibawa ke tahap berikutnya.
 
-## Apa Itu Data Collecting
+## Mulai dari Pertanyaan Model
 
-**Data collecting** adalah tahap mengumpulkan informasi yang dibutuhkan untuk melatih atau mengevaluasi model machine learning. Data ini bisa berbentuk angka, teks, gambar, kategori, log aplikasi, hasil survei, atau gabungan dari beberapa sumber.
+Pengumpulan data yang sehat dimulai dari masalah ML, bukan dari file dataset yang kebetulan tersedia.
 
-Tahap ini bukan sekadar mencari file dataset. Kita perlu memastikan:
+Untuk model estimasi waktu pengiriman, pertanyaan awalnya bisa dipecah menjadi:
 
-- data menjawab kebutuhan masalah;
-- jumlah contoh cukup untuk dipelajari;
-- kualitas data masuk akal;
-- konteks pengumpulan data jelas;
-- data boleh digunakan secara etis dan legal.
+- **Target**: nilai yang ingin diprediksi, misalnya durasi pengiriman dalam menit.
+- **Unit baris**: satu baris mewakili satu order, satu perjalanan kurir, atau agregasi lain.
+- **Waktu prediksi**: kapan model akan membuat estimasi, misalnya saat order dibuat atau saat kurir ditugaskan.
+- **Fitur aman**: informasi yang sudah tersedia sebelum target terjadi, seperti jarak, cuaca, trafik, waktu hari, kendaraan, dan pengalaman kurir.
+- **Cakupan data**: apakah data mewakili variasi lokasi, jam sibuk, cuaca, jenis kendaraan, dan tipe order.
 
-Prinsipnya sederhana: _garbage in, garbage out_. Jika data yang masuk buruk, hasil model biasanya ikut buruk, walaupun algoritmanya terlihat canggih.
-
-## Mengapa Data Collecting Penting
-
-Saat baru belajar machine learning, wajar kalau kita mengira bagian paling sulit adalah membuat modelnya. Namun, model hanya belajar dari contoh yang kita berikan.
-
-Data collecting penting karena:
-
-- **Menentukan akurasi model**: data yang relevan membantu model membaca pola yang benar, sedangkan noise dan outlier yang tidak dipahami bisa mengaburkan pola.
-- **Mencegah bias**: data yang terlalu sempit dapat membuat model berat sebelah terhadap kelompok, lokasi, atau kondisi tertentu.
-- **Mengakomodasi variasi**: dunia nyata berubah-ubah, jadi dataset perlu mewakili kondisi yang mungkin ditemui model saat dipakai.
-- **Meningkatkan kepercayaan hasil**: sumber, periode, izin, dan cakupan data yang jelas membuat hasil model lebih mudah diaudit.
-
-Kualitas dan kuantitas sama-sama penting. Dataset besar tetapi tidak relevan bisa kalah berguna dibanding dataset lebih kecil yang bersih, jelas, dan cocok dengan masalah.
+Jika pertanyaan ini belum jelas, dataset besar pun bisa menyesatkan. Model mungkin terlihat bagus saat latihan, tetapi gagal saat dipakai karena fiturnya tidak tersedia, targetnya tidak konsisten, atau datanya terlalu sempit.
 
 ## Sumber Data
 
-Sebelum mengambil data, kita perlu tahu sumber apa yang mungkin dipakai. Setiap sumber punya manfaat dan risikonya sendiri.
+Sumber data bisa berasal dari beberapa tempat. Pilih sumber yang sesuai dengan tujuan model dan risiko penggunaannya.
 
-- **Data internal** berasal dari operasi organisasi, seperti order, pelanggan, transaksi, pengiriman, atau log aplikasi. Data ini sering dekat dengan kebutuhan bisnis, tetapi bisa terlalu sempit.
-- **Data eksternal** berasal dari luar organisasi, seperti data pemerintah, dataset publik, web, riset, atau penyedia data. Data ini bisa memperkaya konteks, tetapi perlu dicek kualitas dan izinnya.
-- **Data sintetis** dibuat secara artifisial untuk meniru pola data nyata. Ini berguna saat data asli sulit, sensitif, atau mahal dikumpulkan, tetapi tetap harus diuji agar tidak terlalu jauh dari kondisi nyata.
-- **Data dari pengguna** berasal dari interaksi, ulasan, klik, formulir, survei, atau perilaku penggunaan aplikasi. Data ini kaya, tetapi harus ditangani hati-hati karena menyangkut privasi.
+- **Data internal**: data dari operasi organisasi, seperti order, pengiriman, transaksi, pelanggan, atau log aplikasi. Biasanya dekat dengan kebutuhan bisnis, tetapi bisa terlalu sempit.
+- **Data eksternal atau publik**: data dari pemerintah, repositori publik, riset, web, atau penyedia data. Berguna untuk memperkaya konteks, tetapi kualitas dan izinnya harus dicek.
+- **Data dari pengguna**: data dari klik, ulasan, formulir, survei, atau perilaku aplikasi. Sering kaya konteks, tetapi harus ditangani hati-hati karena menyangkut privasi.
+- **Data sintetis**: data buatan yang meniru pola data nyata. Bisa membantu saat data asli sensitif atau mahal dikumpulkan, tetapi tidak boleh langsung dianggap mewakili dunia nyata.
 
-Sumber data yang dipilih harus mengikuti tujuan model, bukan hanya mengikuti data yang paling mudah diambil.
+Tidak ada sumber yang selalu paling baik. Sumber yang baik adalah sumber yang relevan dengan target, bisa diaudit, dan boleh digunakan.
 
-## Cara Mengumpulkan Data
+## Cara Mendapatkan Data
 
-Setelah sumber dipilih, kita menentukan cara pengumpulannya. Ada beberapa cara yang umum dipakai.
+Setelah sumber dipilih, ada beberapa cara untuk mendapatkan datanya.
 
-- **Mengekstrak data** dari web, API, file publik, riset, survei, atau sistem internal. Jika mengambil data dari web, perhatikan aturan situs, izin, dan beban akses.
-- **Membuat dataset sendiri** lewat survei, observasi, aplikasi internal, formulir, atau penggabungan beberapa sumber. Cara ini memberi kontrol besar terhadap struktur data, tetapi biasanya memakan waktu.
-- **Menggunakan dataset yang sudah ada** dari repositori publik atau penyedia data. Cara ini menghemat waktu, tetapi tetap perlu dicek lisensi, periode, definisi field, dan kesesuaian dengan masalah.
+- **Menggunakan dataset yang sudah ada** dari repositori publik atau penyedia data. Cara ini cepat untuk belajar, tetapi tetap perlu cek lisensi, definisi kolom, periode, dan kesesuaian masalah.
+- **Mengekstrak data** dari API, web, file publik, sistem internal, atau database. Cara ini fleksibel, tetapi perlu memperhatikan aturan akses, beban request, dan izin.
+- **Membuat dataset sendiri** lewat survei, observasi, formulir, aplikasi internal, atau instrumentasi produk. Cara ini memberi kontrol besar, tetapi membutuhkan waktu dan desain pengumpulan yang jelas.
+- **Menggabungkan beberapa sumber** untuk melengkapi konteks. Misalnya data order internal digabung dengan cuaca atau peta, selama waktu dan unit datanya bisa diselaraskan.
 
-Tidak ada cara yang selalu terbaik. Pilihan yang sehat adalah cara yang memberi data cukup, relevan, dapat dipercaya, dan boleh dipakai.
+Pilihan metode harus mengikuti kebutuhan data, bukan sekadar mengikuti cara yang paling mudah.
 
-## Langkah Pengumpulan Data
+## Platform untuk Mencari Data Terbuka
 
-Proses data collecting sebaiknya dilakukan dengan urutan yang jelas, bukan asal mengumpulkan kolom sebanyak mungkin.
+Saat memakai dataset terbuka, kita perlu tahu jenis platform yang bisa dikunjungi. Setiap platform punya fokus, format, dan risiko yang berbeda.
 
-1. **Menentukan kebutuhan data**: jelaskan dulu apa yang ingin diprediksi atau dianalisis. Tentukan target, unit baris, periode, dan field yang harus tersedia sebelum prediksi dibuat.
+- **Repositori dataset komunitas dan kompetisi**: [Kaggle](https://www.kaggle.com/datasets), [Hugging Face Datasets](https://huggingface.co/datasets), dan [UCI Machine Learning Repository](https://archive.ics.uci.edu/) sering menyediakan dataset latihan, notebook contoh, dan diskusi pengguna.
+- **Portal data pemerintah dan organisasi publik**: [data.go.id](https://data.go.id/), [data.gov](https://data.gov/), [BPS](https://www.bps.go.id/), [World Bank](https://data.worldbank.org/), dan [WHO](https://www.who.int/data) berguna untuk data statistik, wilayah, ekonomi, kesehatan, transportasi, dan layanan publik.
+- **Repositori riset dan institusi akademik**: [Zenodo](https://zenodo.org/), [Figshare](https://figshare.com/), dan repositori universitas sering menyertakan dataset penelitian dengan paper, metodologi, dan lisensi.
+- **Katalog data cloud dan data warehouse publik**: [BigQuery public datasets](https://cloud.google.com/bigquery/public-data) dan [AWS Open Data Registry](https://registry.opendata.aws/) cocok untuk dataset besar yang lebih mudah dianalisis langsung di platform cloud.
+- **API dan data web terbuka**: [OpenStreetMap](https://www.openstreetmap.org/), API publik, dan halaman dokumentasi produk bisa menjadi sumber data, tetapi aturan akses, rate limit, lisensi, dan privasi harus dibaca.
 
-2. **Memilih sumber data**: pilih sumber yang sesuai dengan kebutuhan. Bisa dari data internal, data publik, survei, web, atau gabungan beberapa sumber.
+Untuk latihan awal, [Kaggle](https://www.kaggle.com/datasets) praktis karena dataset, deskripsi, dan contoh penggunaannya biasanya mudah ditemukan. Untuk proyek nyata, bandingkan beberapa platform agar sumber, cakupan, izin, dan konteks datanya lebih kuat.
 
-3. **Mengumpulkan dan menyimpan data**: ambil data melalui metode yang tepat, lalu simpan dengan aman dalam format yang mudah dibaca kembali.
+## Cek Sebelum Memakai Dataset
 
-4. **Melakukan validasi awal**: cek apakah file bisa dibuka, kolom penting tersedia, jumlah baris masuk akal, izin penggunaan jelas, dan data tidak hanya mewakili satu segmen sempit.
+Sebelum dataset dipakai, lakukan validasi awal. Fokusnya bukan membersihkan semua error, melainkan menilai apakah dataset layak dibawa ke tahap berikutnya.
 
-5. **Mencatat konteks data**: simpan catatan tentang sumber, waktu pengambilan, arti field, cara data dikumpulkan, batasan penggunaan, dan bagian yang masih belum jelas.
+Cek hal-hal berikut:
 
-Validasi awal belum sama dengan data cleaning. Validasi ini hanya memastikan dataset cukup layak untuk dibawa ke tahap berikutnya.
+- **Kesesuaian target**: apakah dataset punya output yang benar-benar ingin diprediksi?
+- **Unit baris**: apakah satu baris berarti satu order, satu pengguna, satu lokasi, atau agregasi?
+- **Ketersediaan fitur**: apakah fitur sudah tersedia pada waktu prediksi?
+- **Cakupan dan representasi**: apakah data mencakup kondisi yang akan dihadapi model?
+- **Definisi kolom**: apakah arti, satuan, dan kategori tiap field jelas?
+- **Izin penggunaan**: apakah lisensi, privasi, dan batas pemakaian data jelas?
+- **Sinyal kualitas**: apakah ada nilai kosong, nilai mustahil, duplikat, atau kategori tidak konsisten yang perlu dicatat?
+
+Catatan ini akan membantu saat data loading, cleaning, EDA, dan feature selection. Semakin jelas konteks awal, semakin kecil risiko model belajar dari data yang salah tafsir.
+
+## Alur Praktis
+
+Gunakan urutan ini saat mulai mengumpulkan data untuk proyek ML.
+
+1. **Tentukan kebutuhan data**: tulis target, unit baris, waktu prediksi, fitur kandidat, periode, dan cakupan.
+2. **Pilih sumber dan platform**: tentukan apakah data berasal dari internal, publik, API, survei, repositori riset, atau gabungan beberapa sumber.
+3. **Baca dokumentasi dataset**: cek deskripsi, definisi kolom, lisensi, periode, metode pengumpulan, dan batasan penggunaan.
+4. **Validasi awal**: pastikan file bisa dibuka, kolom penting tersedia, jumlah baris masuk akal, dan contoh data sesuai konteks.
+5. **Catat keputusan**: simpan sumber, alasan memilih dataset, hal yang belum jelas, dan risiko yang perlu diperiksa di tahap berikutnya.
 
 ## Pegangan Praktis
 
-Data collecting yang baik dimulai dari pertanyaan, bukan dari file yang kebetulan tersedia. Dataset yang layak untuk machine learning harus punya **sumber jelas**, **cakupan masuk akal**, **izin penggunaan**, dan **hubungan kuat dengan target prediksi**.
+Data collecting yang baik dimulai dari pertanyaan, bukan dari file yang kebetulan tersedia. Dataset yang layak untuk machine learning harus punya **hubungan jelas dengan target**, **cakupan yang masuk akal**, **izin penggunaan**, dan **konteks yang bisa diaudit**.
 
-Jika tahap ini dilakukan asal-asalan, masalahnya biasanya muncul belakangan: model bias, skor tidak stabil, fitur tidak tersedia saat prediksi, atau hasil tidak bisa dipercaya.
+Jika tahap ini asal-asalan, masalahnya biasanya muncul belakangan: model bias, skor tidak stabil, fitur tidak tersedia saat prediksi, atau hasil yang sulit dipercaya.
