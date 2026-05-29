@@ -120,9 +120,10 @@ export function ExternalLinkGuard() {
         </AlertDialogHeader>
         <textarea
           aria-label={t("externalLink.urlLabel")}
-          className="mt-5 min-h-14 resize-none rounded-md border border-neutral-200 bg-white px-4 py-3 text-base text-neutral-950 outline-none focus-visible:border-neutral-950 focus-visible:ring-2 focus-visible:ring-neutral-950/15 [@media_(min-width:2200px)]:mt-7 [@media_(min-width:2200px)]:text-xl"
+          className="mt-5 min-h-14 resize-none overflow-x-auto rounded-md border border-neutral-200 bg-white px-4 py-3 text-base text-neutral-950 outline-none focus-visible:border-neutral-950 focus-visible:ring-2 focus-visible:ring-neutral-950/15 [@media_(min-width:2200px)]:mt-7 [@media_(min-width:2200px)]:text-xl"
           readOnly
           value={pendingUrl ?? ""}
+          wrap="off"
         />
         <AlertDialogFooter>
           <AlertDialogCancel>{t("externalLink.cancel")}</AlertDialogCancel>
