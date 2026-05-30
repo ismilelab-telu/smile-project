@@ -41,8 +41,6 @@ describe("CopyButton", () => {
       expect(writeText).toHaveBeenCalledWith("pd.read_csv('data.csv')");
     });
     expect(await screen.findByRole("button", { name: "Kode disalin" })).toBeInTheDocument();
-    expect(await screen.findByText("Dis")).toBeInTheDocument();
-    expect(screen.getByText("alin")).toBeInTheDocument();
-    expect(screen.getByText("!")).toBeInTheDocument();
+    expect(screen.getAllByText("Disalin!").length).toBeGreaterThan(0);
   });
 });

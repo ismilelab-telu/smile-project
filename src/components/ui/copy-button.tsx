@@ -1,6 +1,6 @@
 import { CheckIcon, CopyIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { AnimatePresence, motion, useAnimationControls, type HTMLMotionProps } from "motion/react";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import { motion, type HTMLMotionProps } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -14,37 +14,8 @@ type CopyButtonProps = Omit<HTMLMotionProps<"button">, "children" | "onClick" | 
   value: string;
 };
 
-type SharedLabelRange = {
-  copiedStart: number;
-  copyStart: number;
-  length: number;
-};
-
-const blurTransition = { duration: 0.16, ease: "easeOut" } as const;
-const buttonWidthTransition = { damping: 24, mass: 0.8, stiffness: 360, type: "spring" } as const;
-
-function getSharedLabelRange(copyLabel: string, copiedLabel: string): SharedLabelRange | null {
-  let bestRange: SharedLabelRange = { copiedStart: 0, copyStart: 0, length: 0 };
-
-  for (let copyIndex = 0; copyIndex < copyLabel.length; copyIndex += 1) {
-    for (let copiedIndex = 0; copiedIndex < copiedLabel.length; copiedIndex += 1) {
-      let length = 0;
-
-      while (
-        copyLabel[copyIndex + length] &&
-        copyLabel[copyIndex + length] === copiedLabel[copiedIndex + length]
-      ) {
-        length += 1;
-      }
-
-      if (length > bestRange.length) {
-        bestRange = { copiedStart: copiedIndex, copyStart: copyIndex, length };
-      }
-    }
-  }
-
-  return bestRange.length > 1 ? bestRange : null;
-}
+const blurTransition = { duration: 0.14, ease: "easeOut" } as const;
+const buttonWidthTransition = { damping: 32, mass: 0.7, stiffness: 520, type: "spring" } as const;
 
 async function copyTextToClipboard(value: string) {
   if (navigator.clipboard?.writeText) {
@@ -71,106 +42,29 @@ async function copyTextToClipboard(value: string) {
   }
 }
 
-function BlurredLabelSlot({ slotKey, text }: { slotKey: string; text: string }) {
-  const [exitingText, setExitingText] = useState<string | null>(null);
-  const previousText = useRef(text);
-
-  useEffect(() => {
-    if (previousText.current === text) {
-      return;
-    }
-
-    setExitingText(previousText.current || null);
-    previousText.current = text;
-  }, [text]);
-
-  return (
-    <span className="relative inline-block h-[1lh] overflow-visible leading-[inherit]">
-      {text ? (
-        <motion.span
-          animate={{ opacity: 1, filter: "blur(0px)" }}
-          className="relative inline-block leading-[inherit]"
-          initial={{ opacity: 0, filter: "blur(6px)" }}
-          key={`${slotKey}-${text}`}
-          transition={blurTransition}
-        >
-          {text}
-        </motion.span>
-      ) : null}
-      {exitingText ? (
-        <motion.span
-          animate={{ opacity: 0, filter: "blur(6px)" }}
-          className="pointer-events-none absolute top-0 left-0 inline-block leading-[inherit]"
-          initial={{ opacity: 1, filter: "blur(0px)" }}
-          key={`${slotKey}-exiting-${exitingText}`}
-          onAnimationComplete={() => {
-            setExitingText(null);
-          }}
-          transition={blurTransition}
-        >
-          {exitingText}
-        </motion.span>
-      ) : null}
-    </span>
-  );
-}
-
-function SharedLabelText({ animationKey, children }: { animationKey: string; children: string }) {
-  const controls = useAnimationControls();
-  const hasMounted = useRef(false);
-
-  useEffect(() => {
-    if (!hasMounted.current) {
-      hasMounted.current = true;
-      return;
-    }
-
-    void controls.start({
-      filter: ["blur(4px)", "blur(0px)"],
-      transition: blurTransition,
-    });
-  }, [animationKey, controls]);
-
-  return (
-    <motion.span animate={controls} initial={false}>
-      {children}
-    </motion.span>
-  );
-}
-
-function CopyButtonLabel({
-  copiedLabel,
-  copyLabel,
-  isCopied,
+function CopyButtonContent({
+  icon,
+  isVisible,
+  label,
 }: {
-  copiedLabel: string;
-  copyLabel: string;
-  isCopied: boolean;
+  icon: IconSvgElement;
+  isVisible: boolean;
+  label: string;
 }) {
-  const sharedRange = getSharedLabelRange(copyLabel, copiedLabel);
-  const currentLabel = isCopied ? copiedLabel : copyLabel;
-
-  if (!sharedRange) {
-    return (
-      <span className="relative inline-grid min-w-16 place-items-center overflow-visible">
-        <BlurredLabelSlot slotKey="label" text={currentLabel} />
-      </span>
-    );
-  }
-
-  const sharedStart = isCopied ? sharedRange.copiedStart : sharedRange.copyStart;
-  const sharedEnd = sharedStart + sharedRange.length;
-  const prefix = currentLabel.slice(0, sharedStart);
-  const shared = currentLabel.slice(sharedStart, sharedEnd);
-  const suffix = currentLabel.slice(sharedEnd);
-  const stateKey = isCopied ? "copied" : "copy";
-
   return (
-    <span className="relative inline-flex items-center justify-center overflow-visible whitespace-nowrap">
-      <BlurredLabelSlot slotKey={`${stateKey}-prefix`} text={prefix} />
-      <SharedLabelText animationKey={stateKey}>{shared}</SharedLabelText>
-      <BlurredLabelSlot slotKey={`${stateKey}-suffix`} text={suffix} />
-    </span>
+    <motion.span
+      animate={{
+        opacity: isVisible ? 1 : 0,
+        filter: isVisible ? "blur(0px)" : "blur(6px)",
+      }}
+      aria-hidden={!isVisible}
+      className="col-start-1 row-start-1 inline-flex items-center justify-center gap-2.5 overflow-visible whitespace-nowrap"
+      initial={false}
+      transition={blurTransition}
+    >
+      <HugeiconsIcon aria-hidden="true" className="size-5" icon={icon} size={20} strokeWidth={2} />
+      <span>{label}</span>
+    </motion.span>
   );
 }
 
@@ -190,7 +84,6 @@ export function CopyButton({
   const [buttonWidth, setButtonWidth] = useState<number>();
   const copiedMeasureRef = useRef<HTMLSpanElement>(null);
   const copyMeasureRef = useRef<HTMLSpanElement>(null);
-  const icon = isCopied ? CheckIcon : CopyIcon;
   const ariaLabel = isCopied ? (copiedAriaLabel ?? copiedLabel) : (copyAriaLabel ?? copyLabel);
 
   useLayoutEffect(() => {
@@ -291,26 +184,9 @@ export function CopyButton({
         aria-hidden="true"
         className="absolute inset-0 z-0 rounded-none bg-neutral-950 transition-colors duration-200 group-hover:bg-neutral-900"
       />
-      <span className="relative z-10 inline-flex items-center justify-center gap-2.5">
-        <AnimatePresence initial={false} mode="wait">
-          <motion.span
-            animate={{ opacity: 1, filter: "blur(0px)", scale: 1 }}
-            className="inline-flex size-5 items-center justify-center overflow-visible"
-            exit={{ opacity: 0, filter: "blur(6px)", scale: 0.9 }}
-            initial={{ opacity: 0, filter: "blur(6px)", scale: 0.9 }}
-            key={isCopied ? "copied-icon" : "copy-icon"}
-            transition={blurTransition}
-          >
-            <HugeiconsIcon
-              aria-hidden="true"
-              className="size-5"
-              icon={icon}
-              size={20}
-              strokeWidth={2}
-            />
-          </motion.span>
-        </AnimatePresence>
-        <CopyButtonLabel copiedLabel={copiedLabel} copyLabel={copyLabel} isCopied={isCopied} />
+      <span className="relative z-10 grid place-items-center overflow-visible">
+        <CopyButtonContent icon={CopyIcon} isVisible={!isCopied} label={copyLabel} />
+        <CopyButtonContent icon={CheckIcon} isVisible={isCopied} label={copiedLabel} />
       </span>
     </motion.button>
   );
