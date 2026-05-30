@@ -72,25 +72,45 @@ async function copyTextToClipboard(value: string) {
 }
 
 function BlurredLabelSlot({ slotKey, text }: { slotKey: string; text: string }) {
+  const [exitingText, setExitingText] = useState<string | null>(null);
+  const previousText = useRef(text);
+
+  useEffect(() => {
+    if (previousText.current === text) {
+      return;
+    }
+
+    setExitingText(previousText.current || null);
+    previousText.current = text;
+  }, [text]);
+
   return (
-    <span className="inline-grid overflow-visible">
-      <AnimatePresence initial={false}>
-        {text ? (
-          <motion.span
-            animate={{
-              opacity: 1,
-              filter: "blur(0px)",
-            }}
-            className="col-start-1 row-start-1"
-            exit={{ opacity: 0, filter: "blur(6px)" }}
-            initial={{ opacity: 0, filter: "blur(6px)" }}
-            key={`${slotKey}-${text}`}
-            transition={blurTransition}
-          >
-            {text}
-          </motion.span>
-        ) : null}
-      </AnimatePresence>
+    <span className="relative inline-block h-[1lh] overflow-visible leading-[inherit]">
+      {text ? (
+        <motion.span
+          animate={{ opacity: 1, filter: "blur(0px)" }}
+          className="relative inline-block leading-[inherit]"
+          initial={{ opacity: 0, filter: "blur(6px)" }}
+          key={`${slotKey}-${text}`}
+          transition={blurTransition}
+        >
+          {text}
+        </motion.span>
+      ) : null}
+      {exitingText ? (
+        <motion.span
+          animate={{ opacity: 0, filter: "blur(6px)" }}
+          className="pointer-events-none absolute top-0 left-0 inline-block leading-[inherit]"
+          initial={{ opacity: 1, filter: "blur(0px)" }}
+          key={`${slotKey}-exiting-${exitingText}`}
+          onAnimationComplete={() => {
+            setExitingText(null);
+          }}
+          transition={blurTransition}
+        >
+          {exitingText}
+        </motion.span>
+      ) : null}
     </span>
   );
 }

@@ -270,7 +270,7 @@ function LessonCodeBlock({ code, language }: { code: string; language?: string }
 
   return (
     <figure className="lesson-code-block overflow-hidden border border-neutral-300 bg-white">
-      <figcaption className="flex min-h-10 items-center justify-between gap-3 px-4 py-2">
+      <figcaption className="flex min-h-10 items-start justify-between gap-3 px-4 pt-4 pb-0">
         <span className="text-xs font-semibold tracking-normal text-neutral-950">
           {getCodeLanguageLabel(codeLanguage)}
         </span>
