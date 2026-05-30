@@ -78,6 +78,7 @@ const liquidButtonBaseClassName =
   "inline-flex items-center justify-center gap-3 rounded-none px-5 py-3 text-base font-semibold text-neutral-950 backdrop-blur-xl hover:text-neutral-50 [--liquid-button-background-color:var(--color-neutral-200)]";
 const emeraldLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-button-color:var(--color-emerald-500)]`;
 const amberLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-button-color:var(--color-amber-500)]`;
+const neutralLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-button-color:var(--color-neutral-500)]`;
 const lessonFullCellGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-12";
 const lessonSplitResultGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-8";
 const lessonSplitAsideGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-4";
@@ -866,6 +867,27 @@ function createLessonAnswerSnapshot({
   return answer;
 }
 
+function getDatasetSourceAnswersFromAnswer(
+  exercise: OpenDatasetSourceExercise,
+  answer: LessonAnswer | undefined,
+) {
+  const savedAnswers = answer?.datasetSourceAnswersByExerciseId?.[exercise.id] ?? {};
+
+  return exercise.sourceInputs.reduce<Record<string, DatasetSourceAnswer>>(
+    (answersBySourceId, sourceInput) => {
+      answersBySourceId[sourceInput.id] = savedAnswers[sourceInput.id]
+        ? { ...savedAnswers[sourceInput.id] }
+        : {
+            notes: "",
+            url: "",
+          };
+
+      return answersBySourceId;
+    },
+    {},
+  );
+}
+
 function evaluateExerciseAnswerSnapshot(
   exercise: LessonExercise,
   answer: LessonAnswer,
@@ -1090,19 +1112,7 @@ export function LessonPage({
       exerciseEntries.reduce<Record<string, Record<string, DatasetSourceAnswer>>>(
         (sourceAnswers, exercise) => {
           if (exercise.type === "open-dataset-source") {
-            const savedAnswers =
-              initialAnswer?.datasetSourceAnswersByExerciseId?.[exercise.id] ?? {};
-
-            sourceAnswers[exercise.id] = exercise.sourceInputs.reduce<
-              Record<string, DatasetSourceAnswer>
-            >((answersBySourceId, sourceInput) => {
-              answersBySourceId[sourceInput.id] = savedAnswers[sourceInput.id] ?? {
-                notes: "",
-                url: "",
-              };
-
-              return answersBySourceId;
-            }, {});
+            sourceAnswers[exercise.id] = getDatasetSourceAnswersFromAnswer(exercise, initialAnswer);
           }
 
           return sourceAnswers;
@@ -1178,6 +1188,9 @@ export function LessonPage({
     string | null
   >(null);
   const [editingExerciseIds, setEditingExerciseIds] = useState<Set<string>>(() => new Set());
+  const [editingAnswerSnapshotsByExerciseId, setEditingAnswerSnapshotsByExerciseId] = useState<
+    Record<string, LessonAnswer>
+  >({});
   const [visibleHintCountByExerciseId, setVisibleHintCountByExerciseId] = useState<
     Record<string, number>
   >({});
@@ -1291,6 +1304,7 @@ export function LessonPage({
     setSelectedOptionIdsByExerciseId(initialSelectedOptionIdsByExerciseId);
     setDatasetSourceValidationResultsByExerciseId({});
     setEditingExerciseIds(new Set());
+    setEditingAnswerSnapshotsByExerciseId({});
     setValidatingDatasetSourceExerciseId(null);
     setVisibleHintCountByExerciseId({});
   }, [
@@ -1471,6 +1485,14 @@ export function LessonPage({
 
       return next;
     });
+    setEditingAnswerSnapshotsByExerciseId((current) =>
+      current[exerciseId]
+        ? current
+        : {
+            ...current,
+            [exerciseId]: answerSnapshot,
+          },
+    );
     setExerciseResultsById((current) => {
       if (!current[exerciseId]) {
         return current;
@@ -1490,6 +1512,73 @@ export function LessonPage({
       delete next[exerciseId];
 
       return next;
+    });
+  };
+
+  const cancelEditingExercise = (exercise: LessonExercise) => {
+    const editingAnswerSnapshot =
+      editingAnswerSnapshotsByExerciseId[exercise.id] ??
+      submittedAnswerSnapshotsByExerciseId[exercise.id];
+
+    setEditingExerciseIds((current) => {
+      if (!current.has(exercise.id)) {
+        return current;
+      }
+
+      const next = new Set(current);
+      next.delete(exercise.id);
+
+      return next;
+    });
+    setEditingAnswerSnapshotsByExerciseId((current) => {
+      if (!current[exercise.id]) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[exercise.id];
+
+      return next;
+    });
+    setValidatingDatasetSourceExerciseId((current) => (current === exercise.id ? null : current));
+    setDatasetSourceValidationResultsByExerciseId((current) => {
+      if (!current[exercise.id]) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[exercise.id];
+
+      return next;
+    });
+
+    if (exercise.type !== "open-dataset-source") {
+      return;
+    }
+
+    const nextDatasetSourceAnswersByExerciseId = {
+      ...datasetSourceAnswersByExerciseId,
+      [exercise.id]: getDatasetSourceAnswersFromAnswer(exercise, editingAnswerSnapshot),
+    };
+    const nextAnswerSnapshot = createLessonAnswerSnapshot({
+      assignments,
+      datasetSourceAnswersByExerciseId: nextDatasetSourceAnswersByExerciseId,
+      exercises: exerciseEntries,
+      orderedStepIdsByExerciseId,
+      selectedOptionIdsByExerciseId,
+    });
+    const restoredExerciseResult = editingAnswerSnapshot
+      ? evaluateExerciseAnswerSnapshot(exercise, editingAnswerSnapshot, locale)
+      : createRestoredCorrectResult(locale);
+
+    setDatasetSourceAnswersByExerciseId(nextDatasetSourceAnswersByExerciseId);
+    setExerciseResultsById((current) => ({
+      ...current,
+      [exercise.id]: restoredExerciseResult,
+    }));
+    onAnswerChange?.({
+      answer: nextAnswerSnapshot,
+      lessonId: lesson.id,
     });
   };
 
@@ -1662,6 +1751,16 @@ export function LessonPage({
 
         return next;
       });
+      setEditingAnswerSnapshotsByExerciseId((current) => {
+        if (!current[exercise.id]) {
+          return current;
+        }
+
+        const next = { ...current };
+        delete next[exercise.id];
+
+        return next;
+      });
     }
     onExerciseSubmitResult?.({
       answer: nextAnswerSnapshot,
@@ -1825,7 +1924,9 @@ export function LessonPage({
                       : undefined
                   }
                   isEditable={canEditExerciseSubmission}
+                  isEditing={isExerciseEditing}
                   isSubmitting={isExerciseSubmitting}
+                  onCancelEdit={() => cancelEditingExercise(exercise)}
                   onEdit={() => startEditingExercise(exercise.id)}
                   onSubmit={() => submitExercise(exercise)}
                   previousLessonHref={
@@ -1950,7 +2051,9 @@ function ExerciseSubmitAction({
   finishedHref,
   finishedLabel,
   isEditable = false,
+  isEditing = false,
   isSubmitting = false,
+  onCancelEdit,
   onEdit,
   onSubmit,
   previousLessonHref,
@@ -1961,7 +2064,9 @@ function ExerciseSubmitAction({
   finishedHref?: string;
   finishedLabel?: string;
   isEditable?: boolean;
+  isEditing?: boolean;
   isSubmitting?: boolean;
+  onCancelEdit?: () => void;
   onEdit?: () => void;
   onSubmit: () => void;
   previousLessonHref?: string;
@@ -1970,6 +2075,7 @@ function ExerciseSubmitAction({
   const { t } = useLocalization();
   const finishedAction =
     finishedHref && finishedLabel ? { href: finishedHref, label: finishedLabel } : null;
+  const hasSecondaryAction = isEditable || isEditing;
 
   return (
     <LessonFullRow>
@@ -1996,9 +2102,20 @@ function ExerciseSubmitAction({
             {t("learning.exercise.edit")}
           </LiquidButton>
         ) : null}
+        {isEditing ? (
+          <LiquidButton
+            className={`${neutralLiquidButtonClassName} ml-auto min-h-12 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-neutral-950`}
+            disabled={isSubmitting}
+            onClick={onCancelEdit}
+            type="button"
+          >
+            <XCircleIcon aria-hidden="true" className="size-5" />
+            {t("learning.exercise.cancelEdit")}
+          </LiquidButton>
+        ) : null}
         {finishedAction ? (
           <LiquidLink
-            className={`${emeraldLiquidButtonClassName} ${isEditable ? "" : "ml-auto"} min-h-12`}
+            className={`${emeraldLiquidButtonClassName} ${hasSecondaryAction ? "" : "ml-auto"} min-h-12`}
             data-app-link
             href={finishedAction.href}
           >
@@ -2007,7 +2124,7 @@ function ExerciseSubmitAction({
           </LiquidLink>
         ) : (
           <LiquidButton
-            className={`${emeraldLiquidButtonClassName} ${isEditable ? "" : "ml-auto"} min-h-12 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-neutral-950 ${disabled ? "" : "cursor-pointer"}`}
+            className={`${emeraldLiquidButtonClassName} ${hasSecondaryAction ? "" : "ml-auto"} min-h-12 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-neutral-950 ${disabled ? "" : "cursor-pointer"}`}
             disabled={disabled}
             onClick={onSubmit}
             type="button"

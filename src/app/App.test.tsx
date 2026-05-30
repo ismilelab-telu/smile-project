@@ -51,12 +51,20 @@ function getStoredLearningProgress() {
     lessonAnswers?: Record<
       string,
       {
+        datasetSourceAnswersByExerciseId?: Record<
+          string,
+          Record<string, { notes: string; url: string }>
+        >;
         selectedOptionIdsByExerciseId?: Record<string, string[]>;
       }
     >;
     submittedExerciseAnswers?: Record<
       string,
       {
+        datasetSourceAnswersByExerciseId?: Record<
+          string,
+          Record<string, { notes: string; url: string }>
+        >;
         selectedOptionIdsByExerciseId?: Record<string, string[]>;
       }
     >;
@@ -84,6 +92,7 @@ describe("App", () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     window.localStorage.clear();
     window.history.pushState(null, "", "/");
   });
@@ -751,6 +760,80 @@ describe("App", () => {
       screen.queryByText("Yang perlu dicek dari dataset food delivery"),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Jenis platform data terbuka")).not.toBeInTheDocument();
+  });
+
+  it("cancels dataset source edits and restores the submitted answer", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline validation")));
+    seedCompletedLessons([...module0LessonIds, "lesson-1-1-ml-tools-libraries"]);
+    window.history.pushState(null, "", lesson12Path);
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Pengumpulan Data" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByLabelText("Tetapkan output prediksi, unit baris, dan cakupan data."),
+    );
+    fireEvent.click(
+      screen.getByLabelText("Catat asal sumber, periode data, dan cara pengambilannya."),
+    );
+    fireEvent.click(screen.getByLabelText("Cek izin, privasi, dan batasan pemakaian field."));
+    fireEvent.click(
+      screen.getByLabelText(
+        "Pastikan variasi jarak, cuaca, trafik, waktu hari, kendaraan, dan kurir terwakili.",
+      ),
+    );
+    fireEvent.click(screen.getAllByRole("button", { name: "Kirim jawaban" })[0]);
+    expect(await screen.findByRole("button", { name: "Terkirim" })).toBeDisabled();
+
+    const submittedUrl = "https://www.kaggle.com/datasets/nama-pembuat/nama-dataset";
+    const submittedNotes = "Dataset berisi konteks pengiriman makanan untuk latihan regresi.";
+
+    fireEvent.change(screen.getByLabelText("Dataset food delivery: Link dataset"), {
+      target: { value: submittedUrl },
+    });
+    fireEvent.change(screen.getByLabelText("Dataset food delivery: Tentang dataset"), {
+      target: { value: submittedNotes },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Kirim jawaban" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+
+    const editedUrl = "https://www.kaggle.com/datasets/nama-pembuat/dataset-lain";
+    const editedNotes = "Catatan sementara yang harus dibatalkan.";
+
+    fireEvent.change(screen.getByLabelText("Dataset food delivery: Link dataset"), {
+      target: { value: editedUrl },
+    });
+    fireEvent.change(screen.getByLabelText("Dataset food delivery: Tentang dataset"), {
+      target: { value: editedNotes },
+    });
+
+    await waitFor(() => {
+      expect(
+        getStoredLearningProgress().lessonAnswers?.["lesson-1-2-data-collecting"]
+          ?.datasetSourceAnswersByExerciseId?.["exercise-1-2-open-source-data-search"]?.[
+          "demand-source"
+        ]?.url,
+      ).toBe(editedUrl);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Batal" }));
+
+    expect(screen.getByLabelText("Dataset food delivery: Link dataset")).toHaveValue(submittedUrl);
+    expect(screen.getByText(submittedNotes)).toBeInTheDocument();
+    expect(screen.queryByDisplayValue(editedNotes)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Batal" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        getStoredLearningProgress().lessonAnswers?.["lesson-1-2-data-collecting"]
+          ?.datasetSourceAnswersByExerciseId?.["exercise-1-2-open-source-data-search"]?.[
+          "demand-source"
+        ]?.url,
+      ).toBe(submittedUrl);
+    });
   });
 
   it("asks for confirmation before opening external lesson links", async () => {
