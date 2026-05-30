@@ -21,11 +21,14 @@ import {
   PencilSquareIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
+import { detectLanguage } from "@speed-highlight/core/detect";
+import { highlightText, type ShjLanguage } from "@speed-highlight/core";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { AnimatePresence, motion } from "motion/react";
 import {
   Fragment,
+  isValidElement,
   useCallback,
   useEffect,
   useId,
@@ -67,6 +70,7 @@ import type {
 } from "../types";
 import { LearningGridCanvas, LearningSheetExtensions } from "./LearningGridCanvas";
 import { LearningHeader } from "./LearningHeader";
+import { CopyButton } from "@/components/ui/copy-button";
 import { LinkPreview } from "@/components/ui/link-preview";
 import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
 import { useLocalization, type Locale } from "@/features/localization/localization";
@@ -85,7 +89,73 @@ const lessonSplitAsideGridClassName = "col-span-full [@media_(min-width:1024px)]
 const lessonInlineLinkClassName =
   "[&_a]:font-semibold [&_a]:text-sky-700 [&_a]:underline [&_a]:underline-offset-2";
 const lessonMarkdownContentClassName =
-  "grid gap-4 text-base leading-6 text-muted-foreground [&>*:first-child]:mt-0 [&_a]:font-semibold [&_a]:text-sky-700 [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:border-l-2 [&_blockquote]:border-sky-400 [&_blockquote]:pl-4 [&_blockquote]:font-medium [&_blockquote]:text-foreground [&_blockquote_p]:m-0 [&_code]:bg-neutral-100 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-sm [&_code]:font-semibold [&_code]:text-foreground [&_h2]:mt-3 [&_h2]:text-xl [&_h2]:leading-tight [&_h2]:font-semibold [&_h2]:text-foreground [&_h3]:mt-2 [&_h3]:text-lg [&_h3]:leading-tight [&_h3]:font-semibold [&_h3]:text-foreground [&_li]:pl-1 [&_ol]:grid [&_ol]:list-decimal [&_ol]:gap-2 [&_ol]:pl-6 [&_p]:m-0 [&_pre]:overflow-x-auto [&_pre]:bg-neutral-100 [&_pre]:p-4 [&_pre]:text-sm [&_pre]:leading-6 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_strong]:font-semibold [&_strong]:text-foreground [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-neutral-300 [&_td]:p-2 [&_td]:align-top [&_th]:border [&_th]:border-neutral-300 [&_th]:bg-neutral-100 [&_th]:p-2 [&_th]:text-left [&_th]:font-semibold [&_th]:text-foreground [&_ul]:grid [&_ul]:list-disc [&_ul]:gap-2 [&_ul]:pl-6";
+  "grid gap-4 text-base leading-6 text-muted-foreground [&>*:first-child]:mt-0 [&_a]:font-semibold [&_a]:text-sky-700 [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:border-l-2 [&_blockquote]:border-sky-400 [&_blockquote]:pl-4 [&_blockquote]:font-medium [&_blockquote]:text-foreground [&_blockquote_p]:m-0 [&_code:not(.lesson-code-block-code)]:bg-neutral-100 [&_code:not(.lesson-code-block-code)]:px-1.5 [&_code:not(.lesson-code-block-code)]:py-0.5 [&_code:not(.lesson-code-block-code)]:text-sm [&_code:not(.lesson-code-block-code)]:font-semibold [&_code:not(.lesson-code-block-code)]:text-foreground [&_h2]:mt-3 [&_h2]:text-xl [&_h2]:leading-tight [&_h2]:font-semibold [&_h2]:text-foreground [&_h3]:mt-2 [&_h3]:text-lg [&_h3]:leading-tight [&_h3]:font-semibold [&_h3]:text-foreground [&_li]:pl-1 [&_ol]:grid [&_ol]:list-decimal [&_ol]:gap-2 [&_ol]:pl-6 [&_p]:m-0 [&_strong]:font-semibold [&_strong]:text-foreground [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-neutral-300 [&_td]:p-2 [&_td]:align-top [&_th]:border [&_th]:border-neutral-300 [&_th]:bg-neutral-100 [&_th]:p-2 [&_th]:text-left [&_th]:font-semibold [&_th]:text-foreground [&_ul]:grid [&_ul]:list-disc [&_ul]:gap-2 [&_ul]:pl-6";
+const supportedCodeLanguages: ShjLanguage[] = [
+  "asm",
+  "bash",
+  "bf",
+  "c",
+  "css",
+  "csv",
+  "diff",
+  "docker",
+  "git",
+  "go",
+  "html",
+  "http",
+  "ini",
+  "java",
+  "js",
+  "jsdoc",
+  "json",
+  "leanpub-md",
+  "log",
+  "lua",
+  "make",
+  "md",
+  "pl",
+  "plain",
+  "py",
+  "regex",
+  "rs",
+  "sql",
+  "todo",
+  "toml",
+  "ts",
+  "uri",
+  "xml",
+  "yaml",
+];
+const supportedCodeLanguageSet = new Set<string>(supportedCodeLanguages);
+const codeLanguageAliases: Record<string, ShjLanguage> = {
+  dockerfile: "docker",
+  javascript: "js",
+  jsx: "js",
+  makefile: "make",
+  markdown: "md",
+  perl: "pl",
+  plaintext: "plain",
+  python: "py",
+  rust: "rs",
+  shell: "bash",
+  sh: "bash",
+  text: "plain",
+  tsx: "ts",
+  typescript: "ts",
+  yml: "yaml",
+  zsh: "bash",
+};
+const codeLanguageLabels: Partial<Record<ShjLanguage, string>> = {
+  js: "JavaScript",
+  json: "JSON",
+  md: "Markdown",
+  py: "Python",
+  rs: "Rust",
+  sql: "SQL",
+  ts: "TypeScript",
+  xml: "XML",
+  yaml: "YAML",
+};
 
 function isHttpHref(value: string) {
   return /^https?:\/\//i.test(value);
@@ -107,8 +177,132 @@ function LessonContentAnchor({ children, className, href, ...props }: ComponentP
   );
 }
 
+function escapeCodeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function getTextFromReactNode(node: ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") {
+    return String(node);
+  }
+
+  if (Array.isArray(node)) {
+    return node.map(getTextFromReactNode).join("");
+  }
+
+  if (isValidElement<{ children?: ReactNode }>(node)) {
+    return getTextFromReactNode(node.props.children);
+  }
+
+  return "";
+}
+
+function getCodeLanguageFromReactNode(node: ReactNode): string | undefined {
+  if (Array.isArray(node)) {
+    return node.map(getCodeLanguageFromReactNode).find(Boolean);
+  }
+
+  if (!isValidElement<{ children?: ReactNode; className?: string }>(node)) {
+    return undefined;
+  }
+
+  const className = node.props.className ?? "";
+  const languageMatch = /(?:language|shj-lang)-([\w-]+)/.exec(className);
+
+  return languageMatch?.[1] ?? getCodeLanguageFromReactNode(node.props.children);
+}
+
+function normalizeCodeLanguage(language: string | undefined, code: string): ShjLanguage {
+  const normalizedLanguage = language?.trim().toLowerCase();
+
+  if (!normalizedLanguage) {
+    return detectLanguage(code);
+  }
+
+  const aliasedLanguage = codeLanguageAliases[normalizedLanguage];
+
+  if (aliasedLanguage) {
+    return aliasedLanguage;
+  }
+
+  return supportedCodeLanguageSet.has(normalizedLanguage)
+    ? (normalizedLanguage as ShjLanguage)
+    : detectLanguage(code);
+}
+
+function getCodeLanguageLabel(language: ShjLanguage) {
+  return codeLanguageLabels[language] ?? language.toUpperCase();
+}
+
+function LessonCodeBlock({ code, language }: { code: string; language?: string }) {
+  const { locale } = useLocalization();
+  const codeLanguage = useMemo(() => normalizeCodeLanguage(language, code), [code, language]);
+  const [highlightedCode, setHighlightedCode] = useState(() => escapeCodeHtml(code));
+  const codeCopyAriaLabel = locale === "en" ? "Copy code" : "Salin kode";
+  const codeCopiedAriaLabel = locale === "en" ? "Code copied" : "Kode disalin";
+  const codeCopyLabel = locale === "en" ? "Copy" : "salin";
+  const codeCopiedLabel = locale === "en" ? "Copied!" : "disalin!";
+
+  useEffect(() => {
+    let isActive = true;
+
+    setHighlightedCode(escapeCodeHtml(code));
+    void highlightText(code, codeLanguage, false)
+      .then((nextHighlightedCode) => {
+        if (isActive) {
+          setHighlightedCode(nextHighlightedCode);
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setHighlightedCode(escapeCodeHtml(code));
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [code, codeLanguage]);
+
+  return (
+    <figure className="lesson-code-block overflow-hidden border border-neutral-300 bg-white">
+      <figcaption className="flex min-h-10 items-center justify-between gap-3 border-b border-neutral-200 bg-neutral-100 px-4 py-2">
+        <span className="font-mono text-xs font-semibold tracking-normal text-sky-700">
+          {getCodeLanguageLabel(codeLanguage)}
+        </span>
+        <CopyButton
+          className="h-9 min-w-24 px-3 text-sm"
+          copiedAriaLabel={codeCopiedAriaLabel}
+          copiedLabel={codeCopiedLabel}
+          copyAriaLabel={codeCopyAriaLabel}
+          copyLabel={codeCopyLabel}
+          value={code}
+        />
+      </figcaption>
+      <pre className="m-0 overflow-x-auto bg-white p-4 text-sm leading-6">
+        <code
+          className={`lesson-code-block-code shj-lang-${codeLanguage} block bg-transparent p-0 font-mono font-normal text-neutral-900`}
+          dangerouslySetInnerHTML={{ __html: highlightedCode }}
+        />
+      </pre>
+    </figure>
+  );
+}
+
+function LessonMdxPre({ children }: ComponentProps<"pre">) {
+  const code = getTextFromReactNode(children).replace(/\n$/, "");
+  const language = getCodeLanguageFromReactNode(children);
+
+  return <LessonCodeBlock code={code} language={language} />;
+}
+
 const lessonMdxComponents = {
   a: LessonContentAnchor,
+  pre: LessonMdxPre,
 } satisfies Record<string, ComponentType<Record<string, unknown>>>;
 
 type LessonPageProps = {
@@ -386,7 +580,7 @@ function getDatasetSourceAnswersWithValidationEvidence({
 
 type MarkdownBlock =
   | { blocks: MarkdownBlock[]; type: "blockquote" }
-  | { code: string; type: "code" }
+  | { code: string; language?: string; type: "code" }
   | { level: 2 | 3; text: string; type: "heading" }
   | { headers: string[]; rows: string[][]; type: "table" }
   | { items: string[]; type: "ordered-list" | "unordered-list" }
@@ -445,6 +639,7 @@ function parseMarkdownBlocks(value: string): MarkdownBlock[] {
 
     if (trimmedLine.startsWith("```")) {
       const codeLines: string[] = [];
+      const language = trimmedLine.slice(3).trim().split(/\s+/)[0] || undefined;
       index += 1;
 
       while (index < lines.length && !(lines[index] ?? "").trim().startsWith("```")) {
@@ -456,7 +651,7 @@ function parseMarkdownBlocks(value: string): MarkdownBlock[] {
         index += 1;
       }
 
-      blocks.push({ code: codeLines.join("\n"), type: "code" });
+      blocks.push({ code: codeLines.join("\n"), language, type: "code" });
       continue;
     }
 
@@ -765,11 +960,7 @@ function renderMarkdownBlock(block: MarkdownBlock, index: number): ReactNode {
   }
 
   if (block.type === "code") {
-    return (
-      <pre key={index}>
-        <code>{block.code}</code>
-      </pre>
-    );
+    return <LessonCodeBlock code={block.code} key={index} language={block.language} />;
   }
 
   return (
@@ -2357,12 +2548,12 @@ function OpenDatasetSourceExerciseView({
                     </span>
                     <input
                       aria-label={`${sourceInput.label}: ${exercise.urlLabel}`}
-                      className="learning-grid-control min-h-12 w-full border border-neutral-300 bg-white px-4 py-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-sky-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:bg-neutral-100 disabled:text-muted-foreground"
-                      disabled={isReviewMode}
+                      className="learning-grid-control min-h-12 w-full border border-neutral-300 bg-white px-4 py-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-sky-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 read-only:cursor-default"
                       onChange={(event) =>
                         onUpdateAnswer(sourceInput.id, "url", event.currentTarget.value)
                       }
                       placeholder={sourceInput.urlPlaceholder}
+                      readOnly={isReviewMode}
                       type="url"
                       value={sourceAnswer.url}
                     />

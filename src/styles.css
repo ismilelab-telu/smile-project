@@ -441,6 +441,55 @@
     white-space: nowrap;
     will-change: transform, opacity, filter;
   }
+
+  .lesson-code-block {
+    box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.8);
+  }
+
+  .lesson-code-block code {
+    tab-size: 2;
+    white-space: pre;
+  }
+
+  .lesson-code-block ::selection {
+    background: oklch(86% 0.08 220 / 0.55);
+  }
+
+  .lesson-code-block .shj-syn-cmnt {
+    color: oklch(49% 0 0);
+    font-style: italic;
+  }
+
+  .lesson-code-block .shj-syn-kwd,
+  .lesson-code-block .shj-syn-err,
+  .lesson-code-block .shj-syn-deleted {
+    color: oklch(52% 0.2 24);
+  }
+
+  .lesson-code-block .shj-syn-str,
+  .lesson-code-block .shj-syn-insert {
+    color: oklch(39% 0.12 150);
+  }
+
+  .lesson-code-block .shj-syn-num,
+  .lesson-code-block .shj-syn-bool,
+  .lesson-code-block .shj-syn-type,
+  .lesson-code-block .shj-syn-oper {
+    color: oklch(48% 0.15 245);
+  }
+
+  .lesson-code-block .shj-syn-func,
+  .lesson-code-block .shj-syn-section {
+    color: oklch(45% 0.16 280);
+  }
+
+  .lesson-code-block .shj-syn-class {
+    color: oklch(48% 0.14 68);
+  }
+
+  .lesson-code-block .shj-syn-var {
+    color: oklch(42% 0.13 205);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

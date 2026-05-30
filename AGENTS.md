@@ -63,11 +63,11 @@
 - The project theme is white, neutral, emerald, and sky.
 - Use white as the main background, neutral for text/surfaces/borders, emerald for success/progress/positive learning states, and sky for informational/interactive data states.
 - Avoid introducing new dominant color families unless the user explicitly approves the palette change.
-- The app uses Heroicons as its icon system for all new UI surfaces.
-- Use Heroicons through `@heroicons/react`, defaulting to `@heroicons/react/24/outline`.
-- Use `currentColor` sizing via Tailwind classes such as `size-5` or `size-[18px]`; avoid custom SVG icons when a Heroicons icon fits.
-- Do not mix Heroicons with Lucide, Tabler, or Hugeicons inside new UI surfaces. Existing non-Heroicons usage should be migrated when touched.
-- `components.json` may still reference Lucide for shadcn compatibility; replace generated Lucide imports with Heroicons before using the component in the app.
+- The app uses Hugeicons as its icon system for all new UI surfaces.
+- Use Hugeicons through `@hugeicons/react` with icons from `@hugeicons/core-free-icons`.
+- Use `currentColor` sizing via Tailwind classes such as `size-5` or `size-[18px]`; avoid custom SVG icons when a Hugeicons icon fits.
+- Do not mix Hugeicons with Lucide, Tabler, or Heroicons inside new UI surfaces. Existing non-Hugeicons usage should be migrated when touched.
+- `components.json` may still reference Lucide for shadcn compatibility; replace generated Lucide imports with Hugeicons before using the component in the app.
 
 # Testing Quality
 

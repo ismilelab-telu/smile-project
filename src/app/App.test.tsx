@@ -200,7 +200,7 @@ describe("App", () => {
         lazyRouteTimeout,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText("2/8")).toBeInTheDocument();
+    expect(screen.getByText("2/9")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Reset progres" }));
 
@@ -219,7 +219,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
-    expect(screen.getByText("2/8")).toBeInTheDocument();
+    expect(screen.getByText("2/9")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Reset progres" }));
 
@@ -229,7 +229,7 @@ describe("App", () => {
     fireEvent.click(within(secondDialog).getByRole("button", { name: "Reset progres" }));
 
     await waitFor(() => {
-      expect(screen.getByText("0/8")).toBeInTheDocument();
+      expect(screen.getByText("0/9")).toBeInTheDocument();
     });
     expect(getStoredCompletedLessonIds()).toEqual([]);
   });
@@ -769,7 +769,7 @@ describe("App", () => {
     );
   });
 
-  it("blocks direct access to a coming soon lesson", async () => {
+  it("opens lesson 1.3 after data collecting is complete", async () => {
     seedCompletedLessons([
       ...module0LessonIds,
       "lesson-1-1-ml-tools-libraries",
@@ -779,11 +779,13 @@ describe("App", () => {
     render(<App />);
 
     expect(
-      await screen.findByRole("heading", { name: "Lesson 1.3 segera hadir" }, lazyRouteTimeout),
+      await screen.findByRole("heading", { name: "Memuat Data" }, lazyRouteTimeout),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Materi ini sedang disiapkan dan belum bisa dibuka."),
+      screen.getByText("Setelah dataset dipilih, aksi mana yang termasuk tahap memuat data?"),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Kirim jawaban" })).not.toBeInTheDocument();
+    expect(screen.getByText("Python")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Salin kode" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Kirim jawaban" })).toBeInTheDocument();
   });
 });

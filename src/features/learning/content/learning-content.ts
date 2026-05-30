@@ -509,6 +509,7 @@ const lesson12OpenSourceExercise: OpenDatasetSourceExercise = {
     "Di kolom pencarian, ketik food deliv.",
     "Pilih hasil teratas yang relevan dengan prediksi waktu pengiriman makanan.",
     "Salin link halaman dataset, lalu tempel ke field Link dataset.",
+    "Jika link valid, kolom Tentang dataset akan terisi otomatis dari halaman dataset.",
   ],
   taskTitle: "Tugas pencarian",
   type: "open-dataset-source",
@@ -595,12 +596,11 @@ const laterLessons: Lesson[] = [
       { id: "preview-rows", label: "Melihat beberapa baris sebelum bekerja lebih jauh." },
       { id: "train-immediately", label: "Langsung melatih model setelah membuka file." },
     ],
-    prompt: "Aksi mana yang termasuk tahap memuat data?",
+    prompt: "Setelah dataset dipilih, aksi mana yang termasuk tahap memuat data?",
     summary: [
       "Tahap memuat data membawa data mentah ke bentuk yang bisa diperiksa project.",
       "Sebelum pembersihan atau pemodelan, pastikan tabel termuat dengan benar: baris ada, kolom sesuai ekspektasi, dan tipe data tidak mengejutkan.",
     ],
-    status: "coming-soon",
     title: "Memuat Data",
   }),
   multipleChoiceLesson({
