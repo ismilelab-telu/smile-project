@@ -16,11 +16,12 @@ import {
   CheckCircleIcon,
   ChevronDownIcon,
   InformationCircleIcon,
-  LightBulbIcon,
   LinkIcon,
   PencilSquareIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
+import { BulbIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { detectLanguage } from "@speed-highlight/core/detect";
 import { highlightText, type ShjLanguage } from "@speed-highlight/core";
 import { useGSAP } from "@gsap/react";
@@ -38,6 +39,7 @@ import {
   type ComponentProps,
   type ComponentType,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
 
@@ -1386,6 +1388,7 @@ export function LessonPage({
     Record<string, number>
   >({});
   const resultScrollTargetsByExerciseIdRef = useRef<Record<string, HTMLDivElement | null>>({});
+  const hintFooterScrollTargetRef = useRef<HTMLDivElement | null>(null);
   const [pendingResultScrollExerciseId, setPendingResultScrollExerciseId] = useState<string | null>(
     null,
   );
@@ -2171,6 +2174,7 @@ export function LessonPage({
                     onToggleHints={() =>
                       toggleHints(exercise.id, getExerciseHints(exercise, exerciseResult).length)
                     }
+                    scrollPinTargetRef={hintFooterScrollTargetRef}
                     visibleHintCount={visibleHintCountByExerciseId[exercise.id] ?? 0}
                   />
                 </>
@@ -2246,6 +2250,7 @@ export function LessonPage({
                       )
                     : undefined
                 }
+                scrollPinTargetRef={hintFooterScrollTargetRef}
                 visibleHintCount={
                   exerciseEntries[0]
                     ? (visibleHintCountByExerciseId[exerciseEntries[0].id] ?? 0)
@@ -2266,6 +2271,7 @@ export function LessonPage({
             <div
               aria-hidden="true"
               className={`learning-sheet-cell learning-extend-right learning-sheet-footer-cell ${lessonSplitAsideGridClassName} -mr-px`}
+              ref={hintFooterScrollTargetRef}
             />
             <LessonRightGutter />
           </>
@@ -2274,6 +2280,7 @@ export function LessonPage({
             <div
               aria-hidden="true"
               className={`learning-sheet-cell learning-extend-left learning-extend-right learning-sheet-footer-cell ${lessonFullCellGridClassName}`}
+              ref={hintFooterScrollTargetRef}
             />
           </LessonFullRow>
         )}
@@ -3477,20 +3484,61 @@ function LessonResult({
 function LessonHintPanel({
   hints,
   onToggleHints,
+  scrollPinTargetRef,
   visibleHintCount,
 }: {
   hints: string[];
   onToggleHints: () => void;
+  scrollPinTargetRef: RefObject<HTMLElement | null>;
   visibleHintCount: number;
 }) {
   const { t } = useLocalization();
   const areHintsVisible = visibleHintCount > 0;
   const areAllHintsVisible = visibleHintCount >= hints.length;
+  const reduceHintMotion = shouldReduceMotion();
+  const shouldPinHintScrollRef = useRef(false);
+  const visibleHints = hints.slice(0, visibleHintCount);
   const buttonLabel = areHintsVisible
     ? areAllHintsVisible
       ? t("learning.hint.hide")
       : t("learning.hint.showMore")
     : t("learning.hint.show");
+  const pinHintScrollToBottom = useCallback(() => {
+    if (!shouldPinHintScrollRef.current) {
+      return;
+    }
+
+    scrollPinTargetRef.current?.scrollIntoView?.({
+      behavior: "auto",
+      block: "end",
+      inline: "nearest",
+    });
+  }, [scrollPinTargetRef]);
+  const finishPinnedHintScroll = useCallback(() => {
+    pinHintScrollToBottom();
+    shouldPinHintScrollRef.current = false;
+  }, [pinHintScrollToBottom]);
+  const schedulePinnedHintScroll = useCallback(() => {
+    if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+      pinHintScrollToBottom();
+      return;
+    }
+
+    window.requestAnimationFrame(pinHintScrollToBottom);
+  }, [pinHintScrollToBottom]);
+  const togglePinnedHints = () => {
+    shouldPinHintScrollRef.current = true;
+    onToggleHints();
+    schedulePinnedHintScroll();
+  };
+
+  useEffect(() => {
+    if (!shouldPinHintScrollRef.current) {
+      return;
+    }
+
+    schedulePinnedHintScroll();
+  }, [schedulePinnedHintScroll, visibleHintCount]);
 
   return (
     <>
@@ -3498,21 +3546,88 @@ function LessonHintPanel({
         className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonSplitAsideGridClassName} -mr-px p-6`}
       >
         <h2 className="flex items-center gap-3 text-xl font-semibold text-foreground">
-          <LightBulbIcon aria-hidden="true" className="size-6 text-amber-500" />
+          <HugeiconsIcon aria-hidden="true" className="size-6 text-amber-500" icon={BulbIcon} />
           {t("learning.hint")}
         </h2>
-        {areHintsVisible ? (
-          <ol className="mt-6 grid gap-4 text-base leading-7 text-muted-foreground">
-            {hints.slice(0, visibleHintCount).map((hint, index) => (
-              <li className="learning-grid-panel-fill p-5" key={hint}>
-                {index + 1}. {hint}
-              </li>
-            ))}
-          </ol>
-        ) : null}
+        <AnimatePresence initial={false}>
+          {areHintsVisible ? (
+            <motion.ol
+              animate={{
+                filter: "blur(0px)",
+                height: "auto",
+                opacity: 1,
+                y: 0,
+              }}
+              className="mt-6 grid overflow-hidden text-base leading-7 text-muted-foreground"
+              exit={{
+                filter: reduceHintMotion ? "blur(0px)" : "blur(6px)",
+                height: 0,
+                opacity: 0,
+                y: reduceHintMotion ? 0 : -8,
+              }}
+              initial={{
+                filter: reduceHintMotion ? "blur(0px)" : "blur(8px)",
+                height: 0,
+                opacity: 0,
+                y: reduceHintMotion ? 0 : 8,
+              }}
+              transition={
+                reduceHintMotion
+                  ? { duration: 0.08 }
+                  : {
+                      duration: 0.24,
+                      ease: [0.22, 1, 0.36, 1],
+                    }
+              }
+              layout
+              onAnimationComplete={finishPinnedHintScroll}
+              onUpdate={pinHintScrollToBottom}
+            >
+              <AnimatePresence initial={false}>
+                {visibleHints.map((hint, index) => (
+                  <motion.li
+                    animate={{
+                      filter: "blur(0px)",
+                      opacity: 1,
+                      scale: 1,
+                      y: 0,
+                    }}
+                    className={`learning-grid-panel-fill p-5 ${index === 0 ? "" : "mt-4"}`}
+                    exit={{
+                      filter: reduceHintMotion ? "blur(0px)" : "blur(6px)",
+                      opacity: 0,
+                      scale: reduceHintMotion ? 1 : 0.98,
+                      y: reduceHintMotion ? 0 : -6,
+                    }}
+                    initial={{
+                      filter: reduceHintMotion ? "blur(0px)" : "blur(8px)",
+                      opacity: 0,
+                      scale: reduceHintMotion ? 1 : 0.98,
+                      y: reduceHintMotion ? 0 : 6,
+                    }}
+                    key={hint}
+                    layout
+                    onAnimationComplete={finishPinnedHintScroll}
+                    onUpdate={pinHintScrollToBottom}
+                    transition={
+                      reduceHintMotion
+                        ? { duration: 0.08 }
+                        : {
+                            duration: 0.2,
+                            ease: [0.22, 1, 0.36, 1],
+                          }
+                    }
+                  >
+                    {index + 1}. {hint}
+                  </motion.li>
+                ))}
+              </AnimatePresence>
+            </motion.ol>
+          ) : null}
+        </AnimatePresence>
         <LiquidButton
           className={`${amberLiquidButtonClassName} mt-5 w-full cursor-pointer`}
-          onClick={onToggleHints}
+          onClick={togglePinnedHints}
           type="button"
         >
           {buttonLabel}
