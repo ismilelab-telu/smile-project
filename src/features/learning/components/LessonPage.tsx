@@ -81,6 +81,8 @@ const amberLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-butto
 const lessonFullCellGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-12";
 const lessonSplitResultGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-8";
 const lessonSplitAsideGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-4";
+const lessonInlineLinkClassName =
+  "[&_a]:font-semibold [&_a]:text-sky-700 [&_a]:underline [&_a]:underline-offset-2";
 const lessonMarkdownContentClassName =
   "grid gap-4 text-base leading-6 text-muted-foreground [&>*:first-child]:mt-0 [&_a]:font-semibold [&_a]:text-sky-700 [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:border-l-2 [&_blockquote]:border-sky-400 [&_blockquote]:pl-4 [&_blockquote]:font-medium [&_blockquote]:text-foreground [&_blockquote_p]:m-0 [&_code]:bg-neutral-100 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-sm [&_code]:font-semibold [&_code]:text-foreground [&_h2]:mt-3 [&_h2]:text-xl [&_h2]:leading-tight [&_h2]:font-semibold [&_h2]:text-foreground [&_h3]:mt-2 [&_h3]:text-lg [&_h3]:leading-tight [&_h3]:font-semibold [&_h3]:text-foreground [&_li]:pl-1 [&_ol]:grid [&_ol]:list-decimal [&_ol]:gap-2 [&_ol]:pl-6 [&_p]:m-0 [&_pre]:overflow-x-auto [&_pre]:bg-neutral-100 [&_pre]:p-4 [&_pre]:text-sm [&_pre]:leading-6 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_strong]:font-semibold [&_strong]:text-foreground [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-neutral-300 [&_td]:p-2 [&_td]:align-top [&_th]:border [&_th]:border-neutral-300 [&_th]:bg-neutral-100 [&_th]:p-2 [&_th]:text-left [&_th]:font-semibold [&_th]:text-foreground [&_ul]:grid [&_ul]:list-disc [&_ul]:gap-2 [&_ul]:pl-6";
 
@@ -2189,9 +2191,22 @@ function OpenDatasetSourceExerciseView({
         >
           <p className="text-base font-medium text-sky-600">{exercise.taskTitle}</p>
           <h3 className="mt-3 text-xl font-semibold text-foreground">{exercise.prompt}</h3>
-          <p className="mt-4 max-w-4xl text-base leading-7 text-muted-foreground">
-            {exercise.taskDescription}
+          <p
+            className={`mt-4 max-w-4xl text-base leading-7 text-muted-foreground ${lessonInlineLinkClassName}`}
+          >
+            {renderInlineMarkdown(exercise.taskDescription, `${exercise.id}-task-description`)}
           </p>
+          {exercise.taskSteps?.length ? (
+            <ol
+              className={`mt-4 grid max-w-4xl list-decimal gap-2 pl-5 text-base leading-7 text-muted-foreground ${lessonInlineLinkClassName}`}
+            >
+              {exercise.taskSteps.map((step, stepIndex) => (
+                <li key={step}>
+                  {renderInlineMarkdown(step, `${exercise.id}-task-step-${stepIndex}`)}
+                </li>
+              ))}
+            </ol>
+          ) : null}
         </div>
       </LessonFullRow>
       <LessonFullRow>
@@ -2202,6 +2217,7 @@ function OpenDatasetSourceExerciseView({
             const sourceAnswer = displayedAnswers[sourceInput.id] ?? { notes: "", url: "" };
             const validationResult = validationResultBySourceId.get(sourceInput.id);
             const hasNotes = sourceAnswer.notes.trim() !== "";
+            const sourceDescription = sourceInput.description.trim();
 
             return (
               <section className="learning-grid-panel-fill p-5" key={sourceInput.id}>
@@ -2209,9 +2225,11 @@ function OpenDatasetSourceExerciseView({
                   <LinkIcon aria-hidden="true" className="mt-1 size-5 shrink-0 text-sky-600" />
                   <div className="min-w-0 flex-1">
                     <h4 className="text-lg font-semibold text-foreground">{sourceInput.label}</h4>
-                    <p className="mt-2 text-base leading-7 text-muted-foreground">
-                      {sourceInput.description}
-                    </p>
+                    {sourceDescription ? (
+                      <p className="mt-2 text-base leading-7 text-muted-foreground">
+                        {sourceDescription}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 

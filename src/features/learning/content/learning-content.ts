@@ -491,21 +491,28 @@ const lesson12OpenSourceExercise: OpenDatasetSourceExercise = {
   prompt: "Validasi dataset terbuka untuk kasus prediksi waktu pengiriman makanan.",
   sourceInputs: [
     {
-      description:
-        "Tempel link dataset Food Delivery Time Prediction. Jika halaman terbaca, bagian Tentang dataset akan diisi otomatis.",
+      description: "",
       id: "demand-source",
       label: "Dataset food delivery",
       notesPlaceholder:
         "Akan terisi otomatis dari halaman dataset jika terbaca. Jika tidak, tulis ringkasan About Dataset di sini.",
-      urlPlaceholder:
-        "https://www.kaggle.com/datasets/denkuznetz/food-delivery-time-prediction/data",
+      requiredUrlKind: "kaggle-dataset",
+      urlPlaceholder: "https://www.kaggle.com/datasets/nama-pembuat/nama-dataset",
     },
   ],
-  taskDescription:
-    "Tempel link dataset Food Delivery Time Prediction dari Kaggle; sistem akan mencoba membaca bagian About Dataset dan memindahkannya ke field Tentang dataset.",
+  taskDescription: "Ikuti langkah berikut, lalu tempel link dataset ke field di bawah.",
+  taskSteps: [
+    "Buka [Kaggle](https://www.kaggle.com/).",
+    "Di sidebar, pilih Data Hub > Datasets.",
+    "Buka Filters.",
+    "Ketik linear regression, lalu klik Apply.",
+    "Di kolom pencarian, ketik food deliv.",
+    "Pilih hasil teratas yang relevan dengan prediksi waktu pengiriman makanan.",
+    "Salin link halaman dataset, lalu tempel ke field Link dataset.",
+  ],
   taskTitle: "Tugas pencarian",
   type: "open-dataset-source",
-  urlLabel: "Link dataset atau halaman data",
+  urlLabel: "Link dataset",
 };
 
 const lesson12: Lesson = {

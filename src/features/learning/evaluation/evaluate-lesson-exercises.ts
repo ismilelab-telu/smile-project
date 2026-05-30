@@ -2,6 +2,7 @@ import type {
   DatasetSourceAnswer,
   EvaluationResult,
   MultipleChoiceExercise,
+  OpenDatasetSourceInput,
   OpenDatasetSourceExercise,
   OrderedStepsExercise,
 } from "../types";
@@ -73,6 +74,21 @@ function parseHttpUrl(value: string) {
   } catch {
     return null;
   }
+}
+
+function isKaggleDatasetUrl(url: URL) {
+  const hostname = url.hostname.toLowerCase().replace(/^www\./, "");
+  const pathSegments = url.pathname.split("/").filter(Boolean);
+
+  return hostname === "kaggle.com" && pathSegments[0] === "datasets" && pathSegments.length >= 3;
+}
+
+function doesUrlMatchSourceRequirement(url: URL, sourceInput: OpenDatasetSourceInput) {
+  if (sourceInput.requiredUrlKind === "kaggle-dataset") {
+    return isKaggleDatasetUrl(url);
+  }
+
+  return true;
 }
 
 export function evaluateOpenDatasetSourceExercise(
@@ -172,6 +188,39 @@ export function evaluateOpenDatasetSourceExercise(
           locale === "en"
             ? "Do not paste only the site name, dataset title, or search keywords."
             : "Jangan hanya menempel nama situs, judul dataset, atau kata kunci pencarian.",
+        ],
+        exercise.hints,
+      ),
+      title: title.partial,
+    });
+  }
+
+  const mismatchedRequiredUrls = linkedSources.filter(({ sourceInput }, index) => {
+    const parsedUrl = parsedSourceUrls[index];
+
+    return parsedUrl !== null && !doesUrlMatchSourceRequirement(parsedUrl, sourceInput);
+  });
+
+  if (mismatchedRequiredUrls.length > 0) {
+    return createResult({
+      message:
+        locale === "en"
+          ? "The link must point to a Kaggle dataset page."
+          : "Link harus mengarah ke halaman dataset Kaggle.",
+      nextStep:
+        locale === "en"
+          ? "Use a URL in this format: https://www.kaggle.com/datasets/creator-name/dataset-name."
+          : "Gunakan URL dengan format seperti ini: https://www.kaggle.com/datasets/nama-pembuat/nama-dataset.",
+      score: 60,
+      status: "partial",
+      suggestedHints: createSuggestedHints(
+        [
+          locale === "en"
+            ? "Do not paste a Kaggle search page, Kaggle homepage, article, video, or another public site."
+            : "Jangan tempel halaman pencarian Kaggle, homepage Kaggle, artikel, video, atau situs publik lain.",
+          locale === "en"
+            ? "Open the dataset result first, then copy the URL from that dataset page."
+            : "Buka hasil datasetnya dulu, lalu salin URL dari halaman dataset tersebut.",
         ],
         exercise.hints,
       ),

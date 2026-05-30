@@ -1,4 +1,4 @@
-After understanding the ML flow, we need to make sure the model has useful learning material: **data**.
+After understanding the ML workflow, the next step is making sure the model learns from suitable data.
 
 For food delivery time estimation, the goal is not to collect as many columns as possible. The goal is to find data that answers the core question:
 
@@ -90,16 +90,3 @@ Use this order when starting data collection:
 3. **Read dataset documentation**: description, column definitions, license, period, collection method, and limits.
 4. **Run early validation**: make sure the file opens, key columns exist, row counts make sense, and sample rows match the context.
 5. **Record decisions**: store the source, reason for choosing the dataset, unclear parts, and risks to inspect.
-
-## Practical Takeaway
-
-Good data collection starts from a question, not from a file that happens to exist.
-
-A dataset that is fit for ML needs:
-
-- **a clear connection to the target**;
-- **reasonable coverage**;
-- **usage permission**;
-- **auditable context**.
-
-If this stage is careless, problems usually appear later: biased models, unstable scores, features that are unavailable at prediction time, or results that are hard to trust.

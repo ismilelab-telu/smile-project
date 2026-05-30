@@ -51,6 +51,7 @@ const openDatasetSourceExercise: OpenDatasetSourceExercise = {
       id: "demand-source",
       label: "Waktu pengiriman",
       notesPlaceholder: "Catatan waktu pengiriman",
+      requiredUrlKind: "kaggle-dataset",
       urlPlaceholder: "https://...",
     },
   ],
@@ -184,6 +185,33 @@ describe("evaluateOpenDatasetSourceExercise", () => {
     expect(result.suggestedHints?.[0]).toBe(
       "URL valid dimulai dengan http:// atau https:// dan menyertakan domain.",
     );
+  });
+
+  it("requires the configured Kaggle dataset URL shape", () => {
+    const result = evaluateOpenDatasetSourceExercise(openDatasetSourceExercise, {
+      "demand-source": {
+        notes: "",
+        url: "https://www.youtube.com/watch?v=food-delivery-time",
+      },
+    });
+
+    expect(result.status).toBe("partial");
+    expect(result.message).toBe("Link harus mengarah ke halaman dataset Kaggle.");
+    expect(result.nextStep).toBe(
+      "Gunakan URL dengan format seperti ini: https://www.kaggle.com/datasets/nama-pembuat/nama-dataset.",
+    );
+  });
+
+  it("rejects Kaggle pages that are not dataset pages", () => {
+    const result = evaluateOpenDatasetSourceExercise(openDatasetSourceExercise, {
+      "demand-source": {
+        notes: "",
+        url: "https://www.kaggle.com/datasets",
+      },
+    });
+
+    expect(result.status).toBe("partial");
+    expect(result.message).toBe("Link harus mengarah ke halaman dataset Kaggle.");
   });
 
   it("accepts one complete food delivery dataset link without requiring notes", () => {

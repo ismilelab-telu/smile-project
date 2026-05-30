@@ -123,13 +123,13 @@ export const learningHintGlossaryByExerciseId = {
   },
   "exercise-1-2-open-source-data-search": {
     id: [
-      "Gunakan dataset Food Delivery Time Prediction dari Kaggle sebagai sumber latihan utama.",
-      "Baca halaman dataset sebelum submit, bukan hanya menyalin link.",
+      "Di Kaggle, buka Data Hub > Datasets, lalu gunakan Filters untuk mencari linear regression.",
+      "Setelah filter diterapkan, cari food deliv dan pilih hasil teratas yang relevan.",
       "Bagian Tentang dataset bisa terisi otomatis dari halaman sumber; jika tidak, isi manual dari deskripsi dataset.",
     ],
     en: [
-      "Use the Food Delivery Time Prediction dataset from Kaggle as the main practice source.",
-      "Read the dataset page before submitting, not just the link.",
+      "On Kaggle, open Data Hub > Datasets, then use Filters to search for linear regression.",
+      "After applying the filter, search for food deliv and choose the most relevant top result.",
       "The About dataset field can be filled automatically from the source page; if it is not, fill it manually from the dataset description.",
     ],
   },

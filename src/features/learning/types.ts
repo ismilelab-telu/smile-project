@@ -80,6 +80,7 @@ export type OpenDatasetSourceInput = {
   id: string;
   label: string;
   description: string;
+  requiredUrlKind?: "kaggle-dataset";
   urlPlaceholder: string;
   notesPlaceholder: string;
 };
@@ -111,6 +112,7 @@ export type OpenDatasetSourceExercise = LessonExerciseBase & {
   introParagraphs: string[];
   taskTitle: string;
   taskDescription: string;
+  taskSteps?: string[];
   urlLabel: string;
   notesLabel: string;
   sourceInputs: OpenDatasetSourceInput[];

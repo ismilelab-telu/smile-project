@@ -34,6 +34,7 @@ type ExerciseCopy = {
   >;
   steps?: Record<string, string>;
   taskDescription?: string;
+  taskSteps?: string[];
   taskTitle?: string;
   urlLabel?: string;
 };
@@ -256,19 +257,25 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
         prompt: "Validate an open dataset for the food delivery time prediction case.",
         sourceInputs: {
           "demand-source": {
-            description:
-              "Paste the Food Delivery Time Prediction dataset link. If the page is readable, the About dataset field will be filled automatically.",
+            description: "",
             label: "Food delivery dataset",
             notesPlaceholder:
               "This will be filled automatically from the dataset page if readable. If not, write the About Dataset summary here.",
-            urlPlaceholder:
-              "https://www.kaggle.com/datasets/denkuznetz/food-delivery-time-prediction/data",
+            urlPlaceholder: "https://www.kaggle.com/datasets/creator-name/dataset-name",
           },
         },
-        taskDescription:
-          "Paste the Kaggle Food Delivery Time Prediction dataset link; the system will try to read the About Dataset section and move it into the About dataset field.",
+        taskDescription: "Follow these steps, then paste the dataset link into the field below.",
+        taskSteps: [
+          "Open [Kaggle](https://www.kaggle.com/).",
+          "In the sidebar, choose Data Hub > Datasets.",
+          "Open Filters.",
+          "Type linear regression, then click Apply.",
+          "In the search field, type food deliv.",
+          "Choose the top result that is relevant to food delivery time prediction.",
+          "Copy the dataset page link, then paste it into the Dataset link field.",
+        ],
         taskTitle: "Search task",
-        urlLabel: "Dataset or data page link",
+        urlLabel: "Dataset link",
       },
     },
     objective:
@@ -471,6 +478,7 @@ function localizeExercise(
           copy.sourceInputs?.[sourceInput.id]?.urlPlaceholder ?? sourceInput.urlPlaceholder,
       })),
       taskDescription: copy.taskDescription ?? exercise.taskDescription,
+      taskSteps: copy.taskSteps ?? exercise.taskSteps,
       taskTitle: copy.taskTitle ?? exercise.taskTitle,
       urlLabel: copy.urlLabel ?? exercise.urlLabel,
     } satisfies OpenDatasetSourceExercise;
