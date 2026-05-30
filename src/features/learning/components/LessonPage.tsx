@@ -3555,19 +3555,22 @@ function LessonHintPanel({
               animate={{
                 filter: "blur(0px)",
                 height: "auto",
+                marginTop: 24,
                 opacity: 1,
                 y: 0,
               }}
-              className="mt-6 grid overflow-hidden text-base leading-7 text-muted-foreground"
+              className="grid overflow-hidden text-base leading-7 text-muted-foreground"
               exit={{
                 filter: reduceHintMotion ? "blur(0px)" : "blur(6px)",
                 height: 0,
+                marginTop: 0,
                 opacity: 0,
                 y: reduceHintMotion ? 0 : -8,
               }}
               initial={{
                 filter: reduceHintMotion ? "blur(0px)" : "blur(8px)",
                 height: 0,
+                marginTop: 0,
                 opacity: 0,
                 y: reduceHintMotion ? 0 : 8,
               }}
@@ -3625,13 +3628,26 @@ function LessonHintPanel({
             </motion.ol>
           ) : null}
         </AnimatePresence>
-        <LiquidButton
-          className={`${amberLiquidButtonClassName} mt-5 w-full cursor-pointer`}
-          onClick={togglePinnedHints}
-          type="button"
+        <motion.div
+          className="mt-5"
+          layout
+          transition={
+            reduceHintMotion
+              ? { duration: 0.08 }
+              : {
+                  duration: 0.2,
+                  ease: [0.22, 1, 0.36, 1],
+                }
+          }
         >
-          {buttonLabel}
-        </LiquidButton>
+          <LiquidButton
+            className={`${amberLiquidButtonClassName} w-full cursor-pointer`}
+            onClick={togglePinnedHints}
+            type="button"
+          >
+            {buttonLabel}
+          </LiquidButton>
+        </motion.div>
       </aside>
       <LessonRightGutter />
     </>
