@@ -244,8 +244,8 @@ function LessonCodeBlock({ code, language }: { code: string; language?: string }
   const [highlightedCode, setHighlightedCode] = useState(() => escapeCodeHtml(code));
   const codeCopyAriaLabel = locale === "en" ? "Copy code" : "Salin kode";
   const codeCopiedAriaLabel = locale === "en" ? "Code copied" : "Kode disalin";
-  const codeCopyLabel = locale === "en" ? "Copy" : "salin";
-  const codeCopiedLabel = locale === "en" ? "Copied!" : "disalin!";
+  const codeCopyLabel = locale === "en" ? "Copy" : "Salin";
+  const codeCopiedLabel = locale === "en" ? "Copied!" : "Disalin!";
 
   useEffect(() => {
     let isActive = true;
@@ -270,12 +270,12 @@ function LessonCodeBlock({ code, language }: { code: string; language?: string }
 
   return (
     <figure className="lesson-code-block overflow-hidden border border-neutral-300 bg-white">
-      <figcaption className="flex min-h-10 items-center justify-between gap-3 border-b border-neutral-200 bg-neutral-100 px-4 py-2">
-        <span className="font-mono text-xs font-semibold tracking-normal text-sky-700">
+      <figcaption className="flex min-h-10 items-center justify-between gap-3 px-4 py-2">
+        <span className="text-xs font-semibold tracking-normal text-neutral-950">
           {getCodeLanguageLabel(codeLanguage)}
         </span>
         <CopyButton
-          className="h-9 min-w-24 px-3 text-sm"
+          className="h-9 px-3 text-sm"
           copiedAriaLabel={codeCopiedAriaLabel}
           copiedLabel={codeCopiedLabel}
           copyAriaLabel={codeCopyAriaLabel}

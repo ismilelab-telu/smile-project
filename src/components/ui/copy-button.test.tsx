@@ -28,9 +28,9 @@ describe("CopyButton", () => {
     render(
       <CopyButton
         copiedAriaLabel="Kode disalin"
-        copiedLabel="disalin!"
+        copiedLabel="Disalin!"
         copyAriaLabel="Salin kode"
-        copyLabel="salin"
+        copyLabel="Salin"
         value="pd.read_csv('data.csv')"
       />,
     );
@@ -41,8 +41,8 @@ describe("CopyButton", () => {
       expect(writeText).toHaveBeenCalledWith("pd.read_csv('data.csv')");
     });
     expect(await screen.findByRole("button", { name: "Kode disalin" })).toBeInTheDocument();
-    expect(await screen.findByText("di")).toBeInTheDocument();
-    expect(screen.getByText("salin")).toBeInTheDocument();
+    expect(await screen.findByText("Dis")).toBeInTheDocument();
+    expect(screen.getByText("alin")).toBeInTheDocument();
     expect(screen.getByText("!")).toBeInTheDocument();
   });
 });
