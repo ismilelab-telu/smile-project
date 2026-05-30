@@ -1385,6 +1385,10 @@ export function LessonPage({
   const [visibleHintCountByExerciseId, setVisibleHintCountByExerciseId] = useState<
     Record<string, number>
   >({});
+  const resultScrollTargetsByExerciseIdRef = useRef<Record<string, HTMLDivElement | null>>({});
+  const [pendingResultScrollExerciseId, setPendingResultScrollExerciseId] = useState<string | null>(
+    null,
+  );
   const answerSnapshot = useMemo(
     () =>
       createLessonAnswerSnapshot({
@@ -1498,6 +1502,8 @@ export function LessonPage({
     setEditingAnswerSnapshotsByExerciseId({});
     setValidatingDatasetSourceExerciseId(null);
     setVisibleHintCountByExerciseId({});
+    resultScrollTargetsByExerciseIdRef.current = {};
+    setPendingResultScrollExerciseId(null);
   }, [
     initialAssignments,
     initialDatasetSourceAnswersByExerciseId,
@@ -1558,6 +1564,31 @@ export function LessonPage({
     lesson.id,
     onAnswerChange,
   ]);
+
+  useEffect(() => {
+    if (!pendingResultScrollExerciseId) {
+      return;
+    }
+
+    const result = exerciseResultsById[pendingResultScrollExerciseId];
+
+    if (!result) {
+      return;
+    }
+
+    if (result.status === "correct") {
+      setPendingResultScrollExerciseId(null);
+      return;
+    }
+
+    const target = resultScrollTargetsByExerciseIdRef.current[pendingResultScrollExerciseId];
+
+    target?.scrollIntoView?.({
+      behavior: shouldReduceMotion() ? "auto" : "smooth",
+      block: "start",
+    });
+    setPendingResultScrollExerciseId(null);
+  }, [exerciseResultsById, pendingResultScrollExerciseId]);
 
   if (tableColumnRoleExercise && !datasetView) {
     return (
@@ -1931,6 +1962,7 @@ export function LessonPage({
     }
     setExerciseResultsById(nextExerciseResultsById);
     setSubmittedAnswerSnapshotsByExerciseId(nextSubmittedAnswerSnapshotsByExerciseId);
+    setPendingResultScrollExerciseId(evaluation.status === "correct" ? null : exercise.id);
     if (evaluation.status === "correct") {
       setEditingExerciseIds((current) => {
         if (!current.has(exercise.id)) {
@@ -2128,7 +2160,12 @@ export function LessonPage({
               ) : null}
               {isMultiExerciseLesson && exerciseResult && exerciseResult.status !== "correct" ? (
                 <>
-                  <LessonResult result={exerciseResult} />
+                  <LessonResult
+                    result={exerciseResult}
+                    scrollTargetRef={(node) => {
+                      resultScrollTargetsByExerciseIdRef.current[exercise.id] = node;
+                    }}
+                  />
                   <LessonHintPanel
                     hints={getExerciseHints(exercise, exerciseResult)}
                     onToggleHints={() =>
@@ -2188,7 +2225,16 @@ export function LessonPage({
 
         {!isMultiExerciseLesson && lessonResult && lessonResult.status !== "correct" ? (
           <>
-            <LessonResult result={lessonResult} />
+            <LessonResult
+              result={lessonResult}
+              scrollTargetRef={(node) => {
+                const firstExercise = exerciseEntries[0];
+
+                if (firstExercise) {
+                  resultScrollTargetsByExerciseIdRef.current[firstExercise.id] = node;
+                }
+              }}
+            />
             {hasNotQuiteResult ? (
               <LessonHintPanel
                 hints={getExerciseHints(exerciseEntries[0], lessonResult)}
@@ -3378,7 +3424,13 @@ function OrderedStepsExerciseView({
   );
 }
 
-function LessonResult({ result }: { result: EvaluationResult }) {
+function LessonResult({
+  result,
+  scrollTargetRef,
+}: {
+  result: EvaluationResult;
+  scrollTargetRef?: (node: HTMLDivElement | null) => void;
+}) {
   const { t } = useLocalization();
   const resultCellClassName =
     result.status === "correct"
@@ -3392,6 +3444,7 @@ function LessonResult({ result }: { result: EvaluationResult }) {
       <div
         aria-live="polite"
         className={`learning-sheet-cell ${resultCellClassName} flex gap-4 p-6`}
+        ref={scrollTargetRef}
       >
         {result.status === "correct" ? (
           <CheckCircleIcon aria-hidden="true" className="size-7 shrink-0 text-emerald-500" />

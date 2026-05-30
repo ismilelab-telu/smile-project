@@ -401,6 +401,33 @@ describe("App", () => {
     expect(document.querySelector(`a[href="${lesson02Path}"]`)).toBeNull();
   });
 
+  it("scrolls feedback into view after an incorrect lesson submission", async () => {
+    const scrollIntoView = vi.fn();
+
+    Object.defineProperty(Element.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    window.history.pushState(null, "", lesson01Path);
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Apa Itu Machine Learning" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByLabelText(
+        "Komputer menjalankan daftar aturan tetap yang ditulis manusia untuk semua kondisi.",
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Kirim jawaban" }));
+
+    expect(await screen.findByRole("heading", { name: "Belum tepat" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: "start" }));
+    });
+  });
+
   it("keeps submitted option feedback visible while editing a new draft", async () => {
     window.history.pushState(null, "", lesson01Path);
     render(<App />);
