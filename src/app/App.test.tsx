@@ -9,8 +9,6 @@ const foundationsTrackPath = "/learn/track-machine-learning-foundations";
 const lesson01Path = `${foundationsTrackPath}/lesson-0-1-what-is-machine-learning`;
 const lesson02Path = `${foundationsTrackPath}/lesson-0-2-machine-learning-in-ai`;
 const lesson03Path = `${foundationsTrackPath}/lesson-0-3-core-components`;
-const lesson04Path = `${foundationsTrackPath}/lesson-0-4-learning-types`;
-const lesson05Path = `${foundationsTrackPath}/lesson-0-5-machine-learning-use-cases`;
 const lesson06Path = `${foundationsTrackPath}/lesson-0-6-formulating-ml-problems`;
 const lesson11Path = `${foundationsTrackPath}/lesson-1-1-ml-tools-libraries`;
 const lesson12Path = `${foundationsTrackPath}/lesson-1-2-data-collecting`;
@@ -119,26 +117,6 @@ describe("App", () => {
     expect(window.location.pathname).toBe("/explore");
   });
 
-  it("shows the Learning Mode track choices before a lesson list", async () => {
-    window.history.pushState(null, "", "/learn");
-    render(<App />);
-
-    expect(
-      await screen.findByRole("heading", { name: "Pilih jalur belajar" }, lazyRouteTimeout),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Dasar-Dasar Machine Learning" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Mulai jalur/ })).toHaveAttribute(
-      "href",
-      foundationsTrackPath,
-    );
-    expect(screen.getByText("Regresi")).toBeInTheDocument();
-    expect(screen.getByText("Clustering")).toBeInTheDocument();
-    expect(screen.getByText("Klasifikasi")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /Segera hadir/ })).toHaveLength(3);
-  });
-
   it("switches the Learning menu language and persists the preference", async () => {
     window.history.pushState(null, "", "/learn");
     render(<App />);
@@ -163,27 +141,6 @@ describe("App", () => {
     expect(screen.getByRole("link", { name: "Home" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Learning Mode" })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Close menu" }).length).toBeGreaterThan(0);
-  });
-
-  it("switches lesson content immediately after changing language", async () => {
-    window.history.pushState(null, "", lesson01Path);
-    render(<App />);
-
-    expect(
-      await screen.findByRole("heading", { name: "Apa Itu Machine Learning" }, lazyRouteTimeout),
-    ).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Buka menu" }));
-    fireEvent.click(screen.getByRole("button", { name: "Pilih bahasa" }));
-    fireEvent.click(screen.getByRole("button", { name: "Gunakan English" }));
-
-    expect(screen.getByRole("heading", { name: "What Is Machine Learning" })).toBeInTheDocument();
-    expect(screen.getByText("Which statement best explains machine learning?")).toBeInTheDocument();
-    expect(
-      screen.getByLabelText(
-        "The computer learns patterns from data so it can make predictions, recommendations, or decisions for new examples.",
-      ),
-    ).toBeInTheDocument();
   });
 
   it("switches submitted lesson feedback immediately after changing language", async () => {
@@ -401,34 +358,6 @@ describe("App", () => {
     expect(within(getFirstDatasetRow()).getByText("65")).toBeInTheDocument();
   });
 
-  it("marks correct and incorrect column role assignments after submit", async () => {
-    seedCompletedLessons(module0LessonIds.slice(0, 5));
-    window.history.pushState(null, "", lesson06Path);
-    render(<App />);
-
-    expect(
-      await screen.findByRole(
-        "heading",
-        { name: "Merumuskan Masalah dalam Machine Learning" },
-        lazyRouteTimeout,
-      ),
-    ).toBeInTheDocument();
-
-    await chooseColumnRole("Jarak", "Target");
-    await chooseColumnRole("Cuaca", "Fitur");
-    await chooseColumnRole("Level Trafik", "Fitur");
-    await chooseColumnRole("Waktu Pengiriman", "Metadata");
-
-    const submitButtons = screen.getAllByRole("button", { name: "Kirim jawaban" });
-    expect(submitButtons).toHaveLength(2);
-
-    fireEvent.click(submitButtons[1]);
-
-    expect(await screen.findByRole("heading", { name: "Belum tepat" })).toBeInTheDocument();
-    expect(screen.getAllByRole("heading", { name: "Benar" })).toHaveLength(6);
-    expect(screen.getAllByRole("heading", { name: "Salah" })).toHaveLength(3);
-  });
-
   it("keeps the next lesson locked after an incorrect answer", async () => {
     window.history.pushState(null, "", lesson01Path);
     render(<App />);
@@ -556,38 +485,6 @@ describe("App", () => {
     expect(await screen.findByRole("heading", { name: "Sebagian benar" })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { name: "Benar" })).toHaveLength(4);
     expect(screen.getByRole("heading", { name: "Salah" })).toBeInTheDocument();
-  });
-
-  it("submits the learning types lesson", async () => {
-    seedCompletedLessons(module0LessonIds.slice(0, 3));
-    window.history.pushState(null, "", lesson04Path);
-    render(<App />);
-
-    expect(
-      await screen.findByRole(
-        "heading",
-        { name: "Jenis-Jenis Machine Learning" },
-        lazyRouteTimeout,
-      ),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Sebelumnya$/ })).toHaveAttribute(
-      "href",
-      lesson03Path,
-    );
-
-    fireEvent.click(screen.getByLabelText("Regresi memprediksi nilai numerik."));
-    fireEvent.click(screen.getByLabelText("Klasifikasi memprediksi kategori."));
-    fireEvent.click(screen.getByLabelText("Clustering mengelompokkan data tanpa label jawaban."));
-    fireEvent.click(
-      screen.getByLabelText("Reinforcement learning belajar dari reward atas tindakan."),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Kirim jawaban" }));
-
-    expect(await screen.findAllByRole("heading", { name: "Benar" })).toHaveLength(4);
-    expect(screen.getByRole("link", { name: /^Lanjut$/ })).toHaveAttribute("href", lesson05Path);
-    await waitFor(() => {
-      expect(getStoredCompletedLessonIds()).toContain("lesson-0-4-learning-types");
-    });
   });
 
   it("submits the problem formulation lesson with both exercises", async () => {
@@ -725,41 +622,6 @@ describe("App", () => {
       await screen.findByRole("heading", { name: "Tool dan Library ML" }, lazyRouteTimeout),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Kirim jawaban" })).toBeInTheDocument();
-  });
-
-  it("keeps lesson 1.2 available before module 1.3 through 1.7 coming soon", async () => {
-    seedCompletedLessons([...module0LessonIds, "lesson-1-1-ml-tools-libraries"]);
-    window.history.pushState(null, "", foundationsTrackPath);
-    render(<App />);
-
-    expect(
-      await screen.findByRole(
-        "heading",
-        { name: "Dasar-Dasar Machine Learning" },
-        lazyRouteTimeout,
-      ),
-    ).toBeInTheDocument();
-
-    expect(screen.getAllByRole("button", { name: "Segera hadir" })).toHaveLength(5);
-    expect(document.querySelector(`a[href="${lesson12Path}"]`)).not.toBeNull();
-    expect(document.querySelector(`a[href="${lesson13Path}"]`)).toBeNull();
-    expect(screen.getByText("Pengumpulan Data")).toBeInTheDocument();
-    expect(screen.getByText("Pemodelan")).toBeInTheDocument();
-  });
-
-  it("opens lesson 1.2 without the dataset source guidance panel", async () => {
-    seedCompletedLessons([...module0LessonIds, "lesson-1-1-ml-tools-libraries"]);
-    window.history.pushState(null, "", lesson12Path);
-    render(<App />);
-
-    expect(
-      await screen.findByRole("heading", { name: "Pengumpulan Data" }, lazyRouteTimeout),
-    ).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "Kirim jawaban" })).toHaveLength(2);
-    expect(
-      screen.queryByText("Yang perlu dicek dari dataset food delivery"),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText("Jenis platform data terbuka")).not.toBeInTheDocument();
   });
 
   it("cancels dataset source edits and restores the submitted answer", async () => {

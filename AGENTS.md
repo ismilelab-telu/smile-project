@@ -72,9 +72,16 @@
 # Testing Quality
 
 - Tests should protect meaningful behavior, not implementation details.
+- Before adding a test, identify the specific regression it would catch. If the failure would not indicate a real user-facing, data-flow, state, validation, security, or integration bug, do not add it.
 - Prefer user-observable outcomes such as selected state, submitted data, interaction results, or rendered behavior that matters.
 - Avoid tests that only verify static markup, Tailwind classes, layout values, animation props, or that a component mounted.
+- Avoid tests that mostly assert static lesson/catalog copy, fixed item counts, headings, labels, or availability text unless that content is the behavior under test.
+- Do not duplicate pure logic coverage through page-level tests. Test evaluator, parser, validation, access-control, and state-transition rules directly at the function/module level.
+- Keep App/page-level tests sparse and reserved for cross-feature behavior such as routing, persistence, localization changes, lock/unlock flows, confirmation dialogs, guarded external links, and API interaction boundaries.
+- Each test should have one clear behavioral reason to exist. Split broad tests only when the behaviors are independently valuable; otherwise remove overlapping assertions.
+- Prefer representative lesson/content flows over testing every similar lesson path. Add broader coverage only when a new lesson introduces distinct logic or a known regression risk.
 - Do not add a new test for a low-risk visual-only tweak unless it guards a real regression.
+- When changing existing tests, delete stale or low-value assertions instead of preserving them by default. A smaller test that catches the real regression is preferred over a large brittle scenario.
 - Do not initiate end-to-end testing with Playwright MCP or the Playwright CLI unless the user explicitly asks for E2E, browser, or Playwright verification.
 
 # Git
