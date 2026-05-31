@@ -22,11 +22,12 @@ import {
   XCircleIcon,
 } from "@heroicons/react/24/outline";
 import {
-  Download04Icon,
+  ArrowUpRight01Icon,
   FileSpreadsheetIcon,
   FileZipIcon,
   Link03Icon,
   BulbIcon,
+  PlayIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { detectLanguage } from "@speed-highlight/core/detect";
@@ -161,9 +162,20 @@ type LearningBackendInspectResponse = {
 };
 
 type LearningBackendValidationResponse = {
+  columns?: string[];
+  expectedCode?: string;
   message?: string;
+  previewRows?: string[][];
   score?: number;
   status?: string;
+  tabularFilePath?: string;
+};
+
+type PandasCodeRunResult = {
+  columns: string[];
+  message: string;
+  rows: string[][];
+  status: EvaluationResult["status"];
 };
 
 function getLearningBackendUrl() {
@@ -625,6 +637,97 @@ async function validateGuidedDownloadCodeWithBackend({
   });
 }
 
+function getLearningBackendStatus(
+  status: LearningBackendValidationResponse["status"],
+): EvaluationResult["status"] {
+  return status === "correct" || status === "partial" || status === "incorrect"
+    ? status
+    : "partial";
+}
+
+function getExpectedPathFromBackendResult(backendResult: LearningBackendValidationResponse) {
+  if (backendResult.tabularFilePath?.trim()) {
+    return backendResult.tabularFilePath.trim();
+  }
+
+  const expectedCode = backendResult.expectedCode ?? "";
+  const expectedPathMatch = /pd\.read_csv\("([^"]+)"\)/.exec(expectedCode);
+
+  return expectedPathMatch?.[1] ?? "";
+}
+
+function getLearningBackendValidationMessage(
+  backendResult: LearningBackendValidationResponse,
+  locale: Locale,
+  fallbackMessage?: string,
+) {
+  const backendStatus = getLearningBackendStatus(backendResult.status);
+  const expectedPath = getExpectedPathFromBackendResult(backendResult);
+  const message = backendResult.message?.trim() ?? "";
+
+  if (backendStatus === "correct") {
+    return locale === "en"
+      ? "The Pandas CSV loading code is correct."
+      : "Kode Pandas untuk memuat CSV sudah benar.";
+  }
+
+  if (message === "Python syntax is not valid.") {
+    return locale === "en" ? message : "Sintaks Python belum valid.";
+  }
+
+  if (message === "Use exactly the import, read_csv assignment, and df.head() lines.") {
+    return locale === "en"
+      ? message
+      : "Gunakan tepat tiga bagian: import Pandas, assignment `pd.read_csv(...)`, lalu `df.head()`.";
+  }
+
+  if (message === "Start with `import pandas as pd`.") {
+    return locale === "en" ? message : "Mulai dengan `import pandas as pd`.";
+  }
+
+  if (message === "Load the extracted CSV with the expected `pd.read_csv(...)` path.") {
+    if (expectedPath) {
+      return locale === "en"
+        ? `Use this exact CSV path: ${expectedPath}. The path is case-sensitive.`
+        : `Path CSV harus sama persis: ${expectedPath}. Perhatikan huruf besar/kecil.`;
+    }
+
+    return locale === "en"
+      ? message
+      : "Path di `pd.read_csv(...)` belum sama dengan path CSV hasil upload.";
+  }
+
+  if (message === "End with `df.head()`.") {
+    return locale === "en" ? message : "Akhiri kode dengan `df.head()`.";
+  }
+
+  return (
+    message ||
+    fallbackMessage ||
+    (locale === "en" ? "Code validation failed." : "Validasi kode belum berhasil.")
+  );
+}
+
+function getPandasCodeRunMessage(backendResult: LearningBackendValidationResponse, locale: Locale) {
+  return getLearningBackendStatus(backendResult.status) === "correct"
+    ? ""
+    : getLearningBackendValidationMessage(backendResult, locale);
+}
+
+function createPandasCodeRunResult(
+  backendResult: LearningBackendValidationResponse,
+  locale: Locale,
+): PandasCodeRunResult {
+  return {
+    columns: Array.isArray(backendResult.columns) ? backendResult.columns.map(String) : [],
+    message: getPandasCodeRunMessage(backendResult, locale),
+    rows: Array.isArray(backendResult.previewRows)
+      ? backendResult.previewRows.map((row) => row.map(String))
+      : [],
+    status: getLearningBackendStatus(backendResult.status),
+  };
+}
+
 function getEvaluationTitle(status: EvaluationResult["status"], locale: Locale) {
   const titles: Record<Locale, Record<EvaluationResult["status"], string>> = {
     en: {
@@ -651,16 +754,11 @@ function getLearningBackendEvaluation({
   fallbackEvaluation: EvaluationResult;
   locale: Locale;
 }): EvaluationResult {
-  const backendStatus =
-    backendResult.status === "correct" ||
-    backendResult.status === "partial" ||
-    backendResult.status === "incorrect"
-      ? backendResult.status
-      : fallbackEvaluation.status;
+  const backendStatus = getLearningBackendStatus(backendResult.status);
 
   return {
     ...fallbackEvaluation,
-    message: backendResult.message ?? fallbackEvaluation.message,
+    message: getLearningBackendValidationMessage(backendResult, locale, fallbackEvaluation.message),
     score: typeof backendResult.score === "number" ? backendResult.score : fallbackEvaluation.score,
     status: backendStatus,
     suggestedHints: backendStatus === "correct" ? [] : fallbackEvaluation.suggestedHints,
@@ -1299,7 +1397,7 @@ function getGuidedDownloadExpectedCode(
     : exercise.codePlaceholder;
 }
 
-function getGuidedDownloadGhostCode(expectedCode: string, typedCode: string) {
+function getExpectedCodeGhostText(expectedCode: string, typedCode: string) {
   const normalizedTypedCode = typedCode.replace(/\r\n?/g, "\n");
   let sharedPrefixLength = 0;
 
@@ -1688,6 +1786,12 @@ export function LessonPage({
   const [guidedDownloadArchivesByExerciseId, setGuidedDownloadArchivesByExerciseId] = useState<
     Record<string, GuidedDownloadArchiveState>
   >({});
+  const [pandasCodeRunResultsByExerciseId, setPandasCodeRunResultsByExerciseId] = useState<
+    Record<string, PandasCodeRunResult>
+  >({});
+  const [runningPandasCodeExerciseId, setRunningPandasCodeExerciseId] = useState<string | null>(
+    null,
+  );
   const [
     datasetSourceValidationResultsByExerciseId,
     setDatasetSourceValidationResultsByExerciseId,
@@ -1824,6 +1928,8 @@ export function LessonPage({
       initialGuidedDownloadExtractedFilePathsByExerciseId,
     );
     setGuidedDownloadArchivesByExerciseId({});
+    setPandasCodeRunResultsByExerciseId({});
+    setRunningPandasCodeExerciseId(null);
     setOrderedStepIdsByExerciseId(initialOrderedStepIds);
     setExerciseResultsById(initialExerciseResultsById);
     setSubmittedAnswerSnapshotsByExerciseId(initialSubmittedAnswerSnapshotsByExerciseId);
@@ -2045,9 +2151,29 @@ export function LessonPage({
       ...current,
       [exerciseId]: value,
     }));
+    setPandasCodeRunResultsByExerciseId((current) => {
+      if (!current[exerciseId]) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[exerciseId];
+
+      return next;
+    });
   };
 
   const uploadGuidedDownloadArchive = async (exerciseId: string, file: File) => {
+    setPandasCodeRunResultsByExerciseId((current) => {
+      if (!current[exerciseId]) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[exerciseId];
+
+      return next;
+    });
     setGuidedDownloadArchivesByExerciseId((current) => ({
       ...current,
       [exerciseId]: {
@@ -2088,6 +2214,74 @@ export function LessonPage({
           isReading: false,
         },
       }));
+    }
+  };
+
+  const runPandasCode = async (exercise: GuidedDownloadExercise) => {
+    const archive = guidedDownloadArchivesByExerciseId[exercise.id];
+    const extractedFilePath = guidedDownloadExtractedFilePathsByExerciseId[exercise.id] ?? "";
+    const code = guidedDownloadCodeByExerciseId[exercise.id] ?? "";
+
+    if (!archive?.objectKey || extractedFilePath.trim() === "") {
+      setPandasCodeRunResultsByExerciseId((current) => ({
+        ...current,
+        [exercise.id]: {
+          columns: [],
+          message:
+            locale === "en"
+              ? "Upload the Kaggle ZIP first, then run the code."
+              : "Upload ZIP Kaggle dulu, lalu jalankan kodenya.",
+          rows: [],
+          status: "incorrect",
+        },
+      }));
+      return;
+    }
+
+    if (code.trim() === "") {
+      setPandasCodeRunResultsByExerciseId((current) => ({
+        ...current,
+        [exercise.id]: {
+          columns: [],
+          message:
+            locale === "en"
+              ? "Type the Pandas code first, then run it."
+              : "Ketik kode Pandas dulu, lalu jalankan.",
+          rows: [],
+          status: "partial",
+        },
+      }));
+      return;
+    }
+
+    setRunningPandasCodeExerciseId(exercise.id);
+
+    try {
+      const backendResult = await validateGuidedDownloadCodeWithBackend({
+        code,
+        extractedFilePath,
+        objectKey: archive.objectKey,
+      });
+
+      setPandasCodeRunResultsByExerciseId((current) => ({
+        ...current,
+        [exercise.id]: createPandasCodeRunResult(backendResult, locale),
+      }));
+    } catch {
+      setPandasCodeRunResultsByExerciseId((current) => ({
+        ...current,
+        [exercise.id]: {
+          columns: [],
+          message:
+            locale === "en"
+              ? "The code could not be run. Check the uploaded ZIP and try again."
+              : "Kode tidak bisa dijalankan. Cek ZIP yang diupload, lalu coba lagi.",
+          rows: [],
+          status: "incorrect",
+        },
+      }));
+    } finally {
+      setRunningPandasCodeExerciseId((current) => (current === exercise.id ? null : current));
     }
   };
 
@@ -2251,6 +2445,10 @@ export function LessonPage({
           extractedFilePath,
           objectKey: archive.objectKey,
         });
+        setPandasCodeRunResultsByExerciseId((current) => ({
+          ...current,
+          [exercise.id]: createPandasCodeRunResult(backendResult, locale),
+        }));
 
         return {
           evaluation: getLearningBackendEvaluation({
@@ -2548,8 +2746,13 @@ export function LessonPage({
                 guidedDownloadExtractedFilePath={
                   guidedDownloadExtractedFilePathsByExerciseId[exercise.id] ?? ""
                 }
+                pandasCodeRunResult={pandasCodeRunResultsByExerciseId[exercise.id]}
                 guidedDownloadSourceAnswer={guidedDownloadSourceAnswer}
+                isPandasCodeRunning={runningPandasCodeExerciseId === exercise.id}
                 onMoveStep={(index, direction) => moveStep(exercise.id, index, direction)}
+                onRunPandasCode={
+                  exercise.type === "guided-download" ? () => runPandasCode(exercise) : undefined
+                }
                 onToggleOption={(optionId) => toggleOption(exercise.id, optionId)}
                 onUpdateAssignment={updateAssignment}
                 onUpdateDatasetSourceAnswer={(sourceInputId, field, value) =>
@@ -2841,8 +3044,11 @@ function ExerciseSection({
   guidedDownloadArchive,
   guidedDownloadCode,
   guidedDownloadExtractedFilePath,
+  pandasCodeRunResult,
   guidedDownloadSourceAnswer,
+  isPandasCodeRunning,
   onMoveStep,
+  onRunPandasCode,
   onToggleOption,
   onUpdateAssignment,
   onUpdateDatasetSourceAnswer,
@@ -2869,8 +3075,11 @@ function ExerciseSection({
   guidedDownloadArchive: GuidedDownloadArchiveState | undefined;
   guidedDownloadCode: string;
   guidedDownloadExtractedFilePath: string;
+  pandasCodeRunResult: PandasCodeRunResult | undefined;
   guidedDownloadSourceAnswer: DatasetSourceAnswer | undefined;
+  isPandasCodeRunning: boolean;
   onMoveStep: (index: number, direction: -1 | 1) => void;
+  onRunPandasCode?: () => void;
   onToggleOption: (optionId: string) => void;
   onUpdateAssignment: (columnId: string, role: ColumnRole) => void;
   onUpdateDatasetSourceAnswer: (
@@ -2976,8 +3185,11 @@ function ExerciseSection({
           exercise={exercise}
           extractedFilePath={guidedDownloadExtractedFilePath}
           isReviewMode={isReviewMode}
+          isRunningPandasCode={isPandasCodeRunning}
+          onRunPandasCode={onRunPandasCode}
           onUpdateCode={onUpdateGuidedDownloadCode}
           onUploadArchive={onUploadGuidedDownloadArchive}
+          pandasCodeRunResult={pandasCodeRunResult}
           sourceAnswer={guidedDownloadSourceAnswer}
           submittedCode={submittedGuidedDownloadCode}
           submittedExtractedFilePath={submittedGuidedDownloadExtractedFilePath}
@@ -3007,8 +3219,11 @@ function GuidedDownloadExerciseView({
   exercise,
   extractedFilePath,
   isReviewMode,
+  isRunningPandasCode,
+  onRunPandasCode,
   onUpdateCode,
   onUploadArchive,
+  pandasCodeRunResult,
   sourceAnswer,
   submittedCode,
   submittedExtractedFilePath,
@@ -3019,13 +3234,17 @@ function GuidedDownloadExerciseView({
   exercise: GuidedDownloadExercise;
   extractedFilePath: string;
   isReviewMode: boolean;
+  isRunningPandasCode: boolean;
+  onRunPandasCode?: () => void;
   onUpdateCode: (value: string) => void;
   onUploadArchive: (file: File) => void;
+  pandasCodeRunResult: PandasCodeRunResult | undefined;
   sourceAnswer: DatasetSourceAnswer | undefined;
   submittedCode: string;
   submittedExtractedFilePath: string;
 }) {
   const { locale } = useLocalization();
+  const uploadInputId = useId();
   const sourceUrl = sourceAnswer?.url.trim() ?? "";
   const hasSourceUrl = sourceUrl !== "";
   const displayedExtractedFilePath =
@@ -3035,14 +3254,20 @@ function GuidedDownloadExerciseView({
   const hasExtractedFilePath = displayedExtractedFilePath.trim() !== "";
   const expectedCode = getGuidedDownloadExpectedCode(exercise, displayedExtractedFilePath);
   const displayedCode = isReviewMode && submittedCode.trim() !== "" ? submittedCode : code;
-  const ghostCode = isReviewMode ? "" : getGuidedDownloadGhostCode(expectedCode, displayedCode);
-  const openLinkLabel = locale === "en" ? "Open Kaggle link" : "Buka link Kaggle";
+  const expectedCodeGhostText = isReviewMode
+    ? ""
+    : getExpectedCodeGhostText(expectedCode, displayedCode);
+  const openLinkLabel = locale === "en" ? "Open dataset page" : "Buka halaman dataset";
   const copyLinkLabel = locale === "en" ? "Copy link" : "Salin link";
   const copyLinkButtonLabel = locale === "en" ? "Copy" : "Salin";
   const copiedLinkLabel = locale === "en" ? "Link copied" : "Link disalin";
   const copiedLinkButtonLabel = locale === "en" ? "Copied!" : "Disalin!";
-  const uploadedFileLabel = locale === "en" ? "Uploaded ZIP" : "ZIP terupload";
   const extractedFileLabel = locale === "en" ? "CSV path" : "Path CSV";
+  const chooseFileLabel = locale === "en" ? "Choose file" : "Pilih file";
+  const noFileSelectedLabel = locale === "en" ? "No file selected" : "Belum ada file";
+  const runPandasCodeLabel = locale === "en" ? "Run code" : "Jalankan kode";
+  const runningPandasCodeLabel = locale === "en" ? "Running code..." : "Menjalankan kode...";
+  const isUploadDisabled = !hasSourceUrl || isReviewMode || archive?.isReading === true;
 
   return (
     <>
@@ -3086,9 +3311,12 @@ function GuidedDownloadExerciseView({
                   {exercise.sourceLinkLabel}
                 </h4>
                 {hasSourceUrl ? (
-                  <p className="mt-2 break-all text-base leading-7 text-muted-foreground">
+                  <LinkPreview
+                    className="mt-2 block break-all text-base leading-7 font-medium text-sky-700 underline underline-offset-2"
+                    url={sourceUrl}
+                  >
                     {sourceUrl}
-                  </p>
+                  </LinkPreview>
                 ) : (
                   <p className="mt-2 text-base leading-7 text-muted-foreground">
                     {exercise.missingSourceMessage}
@@ -3097,19 +3325,21 @@ function GuidedDownloadExerciseView({
               </div>
             </div>
             {hasSourceUrl ? (
-              <div className="mt-5 flex flex-wrap items-center gap-3">
-                <LinkPreview
-                  className={`${emeraldLiquidButtonClassName} min-h-12 no-underline`}
-                  url={sourceUrl}
+              <div className="mt-5 ml-8 flex flex-wrap items-center gap-3">
+                <a
+                  className="inline-flex h-9 items-center justify-center gap-2 bg-sky-600 px-3 text-sm font-semibold text-neutral-50 no-underline transition-colors hover:bg-sky-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+                  href={sourceUrl}
+                  rel="noreferrer"
+                  target="_blank"
                 >
                   <HugeiconsIcon
                     aria-hidden="true"
-                    className="size-5"
-                    icon={Download04Icon}
-                    size={20}
+                    className="size-4"
+                    icon={ArrowUpRight01Icon}
+                    size={16}
                   />
                   {openLinkLabel}
-                </LinkPreview>
+                </a>
                 <CopyButton
                   className="h-9 bg-neutral-950 px-3 text-sm text-neutral-50"
                   copiedAriaLabel={copiedLinkLabel}
@@ -3131,34 +3361,45 @@ function GuidedDownloadExerciseView({
                 size={20}
               />
               <div className="min-w-0 flex-1">
-                <label className="grid gap-3">
+                <div className="grid gap-3">
                   <span className="text-lg font-semibold text-foreground">
                     {exercise.uploadLabel}
                   </span>
                   <span className="text-base leading-7 text-muted-foreground">
                     {exercise.uploadDescription}
                   </span>
-                  <input
-                    accept=".zip,application/zip,application/x-zip-compressed"
-                    aria-label={exercise.uploadLabel}
-                    className="learning-grid-control min-h-12 w-full border border-neutral-300 bg-white px-4 py-3 text-base text-foreground file:mr-4 file:cursor-pointer file:border-0 file:bg-neutral-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-neutral-50 focus:border-sky-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:bg-neutral-100"
-                    disabled={!hasSourceUrl || isReviewMode || archive?.isReading === true}
-                    onChange={(event) => {
-                      const file = event.currentTarget.files?.[0];
+                  <div className="learning-grid-control flex min-h-12 w-full items-center gap-4 border border-neutral-300 bg-white px-4 py-3 text-base text-foreground">
+                    <label
+                      aria-disabled={isUploadDisabled}
+                      className={`inline-flex h-9 shrink-0 items-center justify-center bg-neutral-950 px-4 text-sm font-semibold text-neutral-50 transition-colors ${
+                        isUploadDisabled
+                          ? "cursor-not-allowed opacity-50"
+                          : "cursor-pointer hover:bg-neutral-800"
+                      }`}
+                      htmlFor={uploadInputId}
+                    >
+                      {chooseFileLabel}
+                    </label>
+                    <span className="min-w-0 truncate text-base text-foreground">
+                      {archive?.fileName ?? noFileSelectedLabel}
+                    </span>
+                    <input
+                      accept=".zip,application/zip,application/x-zip-compressed"
+                      aria-label={exercise.uploadLabel}
+                      className="sr-only"
+                      disabled={isUploadDisabled}
+                      id={uploadInputId}
+                      onChange={(event) => {
+                        const file = event.currentTarget.files?.[0];
 
-                      if (file) {
-                        void onUploadArchive(file);
-                      }
-                    }}
-                    type="file"
-                  />
-                </label>
-                {archive?.fileName ? (
-                  <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                    <span className="font-semibold text-foreground">{uploadedFileLabel}: </span>
-                    {archive.fileName}
-                  </p>
-                ) : null}
+                        if (file) {
+                          void onUploadArchive(file);
+                        }
+                      }}
+                      type="file"
+                    />
+                  </div>
+                </div>
                 {archive?.isReading ? (
                   <p className="mt-3 text-sm font-medium text-sky-700">
                     {locale === "en"
@@ -3192,13 +3433,13 @@ function GuidedDownloadExerciseView({
                   <span className="text-lg font-semibold text-foreground">
                     {exercise.codeLabel}
                   </span>
-                  <div className="learning-grid-control relative min-h-32 border border-neutral-300 bg-neutral-950 transition-colors focus-within:border-sky-500 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-sky-500">
-                    {ghostCode ? (
+                  <div className="relative min-h-32 border border-neutral-300 bg-neutral-950 transition-colors focus-within:border-sky-500">
+                    {expectedCodeGhostText ? (
                       <pre
                         aria-hidden="true"
                         className="pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre-wrap px-4 py-3 font-mono text-sm leading-6 text-neutral-500"
                       >
-                        {ghostCode}
+                        {expectedCodeGhostText}
                       </pre>
                     ) : null}
                     <textarea
@@ -3206,18 +3447,104 @@ function GuidedDownloadExerciseView({
                       className="relative z-10 min-h-32 w-full resize-y bg-transparent px-4 py-3 font-mono text-sm leading-6 text-neutral-50 caret-neutral-50 outline-none disabled:bg-transparent disabled:text-neutral-400"
                       disabled={(!hasSourceUrl || !hasExtractedFilePath) && !isReviewMode}
                       onChange={(event) => onUpdateCode(event.currentTarget.value)}
+                      placeholder={expectedCode}
                       readOnly={isReviewMode}
                       spellCheck={false}
                       value={displayedCode}
                     />
                   </div>
                 </label>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <button
+                    className="inline-flex min-h-11 items-center justify-center gap-2 border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-950 transition-colors hover:border-emerald-500 hover:text-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-muted-foreground"
+                    disabled={
+                      !hasSourceUrl ||
+                      !hasExtractedFilePath ||
+                      isReviewMode ||
+                      isRunningPandasCode ||
+                      archive?.isReading === true ||
+                      !onRunPandasCode
+                    }
+                    onClick={onRunPandasCode}
+                    type="button"
+                  >
+                    <HugeiconsIcon aria-hidden="true" className="size-4" icon={PlayIcon} />
+                    {isRunningPandasCode ? runningPandasCodeLabel : runPandasCodeLabel}
+                  </button>
+                </div>
+                <PandasCodeRunOutput result={pandasCodeRunResult} />
               </div>
             </div>
           </section>
         </div>
       </LessonFullRow>
     </>
+  );
+}
+
+function PandasCodeRunOutput({ result }: { result: PandasCodeRunResult | undefined }) {
+  const { locale } = useLocalization();
+
+  if (!result) {
+    return null;
+  }
+
+  const isCorrect = result.status === "correct";
+  const messageClassName = isCorrect ? "text-emerald-700" : "text-rose-700";
+  const outputLabel = locale === "en" ? "Output" : "Output";
+  const emptyRowsLabel = locale === "en" ? "No preview rows returned." : "Tidak ada baris preview.";
+
+  return (
+    <div className="mt-5 border border-neutral-300 bg-white">
+      <div className="border-b border-neutral-300 px-4 py-3">
+        <p className="text-sm font-semibold text-foreground">{outputLabel}</p>
+        {result.message ? (
+          <p className={`mt-1 text-sm leading-6 ${messageClassName}`}>{result.message}</p>
+        ) : null}
+      </div>
+      {isCorrect ? (
+        result.columns.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-max border-collapse text-left text-sm">
+              <thead>
+                <tr className="bg-neutral-100">
+                  {result.columns.map((column, columnIndex) => (
+                    <th
+                      className="border-r border-neutral-300 px-3 py-2 font-semibold text-foreground last:border-r-0"
+                      key={`${column}-${columnIndex}`}
+                    >
+                      {column}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {result.rows.length > 0 ? (
+                  result.rows.map((row, rowIndex) => (
+                    <tr className="border-t border-neutral-300" key={rowIndex}>
+                      {result.columns.map((column, columnIndex) => (
+                        <td
+                          className="max-w-64 border-r border-neutral-300 px-3 py-2 text-muted-foreground last:border-r-0"
+                          key={`${column}-${columnIndex}`}
+                        >
+                          <span className="line-clamp-2 break-words">{row[columnIndex] ?? ""}</span>
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : (
+                  <tr className="border-t border-neutral-300">
+                    <td className="px-3 py-2 text-muted-foreground" colSpan={result.columns.length}>
+                      {emptyRowsLabel}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : null
+      ) : null}
+    </div>
   );
 }
 

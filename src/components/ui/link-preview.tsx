@@ -52,11 +52,16 @@ type LinkPreviewItem = {
   width: number;
 };
 
+type LinkPreviewPointer = {
+  x: number;
+  y: number;
+};
+
 type LinkPreviewContextValue = {
   hidePreview: (id?: string) => void;
   keepPreviewOpen: () => void;
-  movePreview: (id: string, anchor: HTMLElement) => void;
-  showPreview: (item: LinkPreviewItem, anchor: HTMLElement) => void;
+  movePreview: (id: string, pointer: LinkPreviewPointer) => void;
+  showPreview: (item: LinkPreviewItem, anchor: HTMLElement, pointer?: LinkPreviewPointer) => void;
 };
 
 const previewSpringConfig = { damping: 24, stiffness: 210 } satisfies SpringOptions;
@@ -122,11 +127,34 @@ function getClampedPreviewPosition(anchor: HTMLElement, item: LinkPreviewItem) {
   return { x, y };
 }
 
+function getClampedPointerPreviewPosition(pointer: LinkPreviewPointer, item: LinkPreviewItem) {
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const maxX = Math.max(
+    previewViewportPadding,
+    viewportWidth - item.width - previewViewportPadding,
+  );
+  const centeredX = pointer.x - item.width / 2;
+  const x = Math.min(Math.max(centeredX, previewViewportPadding), maxX);
+  const yAbove = pointer.y - item.height - previewGap;
+  const yBelow = pointer.y + previewGap;
+  const fitsAbove = yAbove >= previewViewportPadding;
+  const maxY = Math.max(
+    previewViewportPadding,
+    viewportHeight - item.height - previewViewportPadding,
+  );
+  const preferredY = fitsAbove ? yAbove : yBelow;
+  const y = Math.min(Math.max(preferredY, previewViewportPadding), maxY);
+
+  return { x, y };
+}
+
 export function LinkPreviewProvider({ children }: { children: ReactNode }) {
   const [activePreview, setActivePreview] = useState<LinkPreviewItem | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const activePreviewRef = useRef<LinkPreviewItem | null>(null);
   const activeAnchorRef = useRef<HTMLElement | null>(null);
+  const activePointerRef = useRef<LinkPreviewPointer | null>(null);
   const isVisibleRef = useRef(false);
   const hideTimerRef = useRef<number | undefined>(undefined);
   const clearTimerRef = useRef<number | undefined>(undefined);
@@ -148,8 +176,14 @@ export function LinkPreviewProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updatePosition = useCallback(
-    (anchor: HTMLElement, item: LinkPreviewItem, immediate = false) => {
-      const nextPosition = getClampedPreviewPosition(anchor, item);
+    (
+      item: LinkPreviewItem,
+      input: { anchor: HTMLElement; pointer?: LinkPreviewPointer | null },
+      immediate = false,
+    ) => {
+      const nextPosition = input.pointer
+        ? getClampedPointerPreviewPosition(input.pointer, item)
+        : getClampedPreviewPosition(input.anchor, item);
 
       if (immediate) {
         previewX.jump(nextPosition.x);
@@ -170,15 +204,16 @@ export function LinkPreviewProvider({ children }: { children: ReactNode }) {
   }, [clearTimers]);
 
   const showPreview = useCallback(
-    (item: LinkPreviewItem, anchor: HTMLElement) => {
+    (item: LinkPreviewItem, anchor: HTMLElement, pointer?: LinkPreviewPointer) => {
       clearTimers();
       const shouldJumpToAnchor = !isVisibleRef.current || activePreviewRef.current === null;
 
       activePreviewRef.current = item;
       activeAnchorRef.current = anchor;
+      activePointerRef.current = pointer ?? null;
 
       setActivePreview(item);
-      updatePosition(anchor, item, shouldJumpToAnchor);
+      updatePosition(item, { anchor, pointer }, shouldJumpToAnchor);
       isVisibleRef.current = true;
       setIsVisible(true);
     },
@@ -186,15 +221,16 @@ export function LinkPreviewProvider({ children }: { children: ReactNode }) {
   );
 
   const movePreview = useCallback(
-    (id: string, anchor: HTMLElement) => {
+    (id: string, pointer: LinkPreviewPointer) => {
       const activePreviewItem = activePreviewRef.current;
+      const activeAnchor = activeAnchorRef.current;
 
-      if (!activePreviewItem || activePreviewItem.id !== id) {
+      if (!activePreviewItem || !activeAnchor || activePreviewItem.id !== id) {
         return;
       }
 
-      activeAnchorRef.current = anchor;
-      updatePosition(anchor, activePreviewItem);
+      activePointerRef.current = pointer;
+      updatePosition(activePreviewItem, { anchor: activeAnchor, pointer });
     },
     [updatePosition],
   );
@@ -212,6 +248,7 @@ export function LinkPreviewProvider({ children }: { children: ReactNode }) {
       isVisibleRef.current = false;
       setIsVisible(false);
       activeAnchorRef.current = null;
+      activePointerRef.current = null;
       hideTimerRef.current = undefined;
       clearTimerRef.current = window.setTimeout(() => {
         activePreviewRef.current = null;
@@ -229,9 +266,10 @@ export function LinkPreviewProvider({ children }: { children: ReactNode }) {
     const syncActivePosition = () => {
       const activePreviewItem = activePreviewRef.current;
       const activeAnchor = activeAnchorRef.current;
+      const activePointer = activePointerRef.current;
 
       if (activePreviewItem && activeAnchor) {
-        updatePosition(activeAnchor, activePreviewItem);
+        updatePosition(activePreviewItem, { anchor: activeAnchor, pointer: activePointer });
       }
     };
 
@@ -351,11 +389,17 @@ export function LinkPreview({
   );
 
   const handleMouseEnter = (event: MouseEvent<HTMLAnchorElement>) => {
-    linkPreviewContext?.showPreview(previewItem, event.currentTarget);
+    linkPreviewContext?.showPreview(previewItem, event.currentTarget, {
+      x: event.clientX,
+      y: event.clientY,
+    });
   };
 
   const handleMouseMove = (event: MouseEvent<HTMLAnchorElement>) => {
-    linkPreviewContext?.movePreview(previewItem.id, event.currentTarget);
+    linkPreviewContext?.movePreview(previewItem.id, {
+      x: event.clientX,
+      y: event.clientY,
+    });
   };
 
   const handleFocus = (event: FocusEvent<HTMLAnchorElement>) => {

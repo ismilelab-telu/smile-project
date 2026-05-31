@@ -327,8 +327,7 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
           "Type the Pandas code shown as the placeholder, then submit your answer.",
         ],
         taskTitle: "Download task",
-        uploadDescription:
-          "Upload the ZIP downloaded from Kaggle. The system will find the first `.csv` file and show the path to use in `pd.read_csv`.",
+        uploadDescription: "Upload the ZIP downloaded from Kaggle.",
         uploadLabel: "Upload dataset ZIP",
       },
     },

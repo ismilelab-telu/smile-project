@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "next-themes";
+import "@fontsource-variable/jetbrains-mono/index.css";
 import "@fontsource-variable/lexend/index.css";
 
 import { App } from "./app/App";

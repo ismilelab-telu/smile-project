@@ -576,8 +576,7 @@ const lesson13KaggleZipExercise: GuidedDownloadExercise = {
   ],
   taskTitle: "Tugas download",
   type: "guided-download",
-  uploadDescription:
-    "Upload ZIP hasil download dari Kaggle. Sistem akan mencari file `.csv` pertama dan menampilkan path yang perlu dipakai di `pd.read_csv`.",
+  uploadDescription: "Upload ZIP hasil download dari Kaggle.",
   uploadLabel: "Upload ZIP dataset",
 };
 
