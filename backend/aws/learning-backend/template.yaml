@@ -18,13 +18,28 @@ Globals:
     Environment:
       Variables:
         UPLOAD_BUCKET: !Ref DatasetUploadBucket
+        LEARNING_PROGRESS_TABLE: !Ref LearningProgressTable
         MAX_ZIP_BYTES: "52428800"
         MAX_UNZIPPED_BYTES: "104857600"
+        MAX_PROGRESS_JSON_BYTES: "300000"
         COGNITO_USER_POOL_ID: !Ref SmileUserPool
         COGNITO_CLIENT_ID: !Ref SmileUserPoolClient
         COGNITO_REGION: !Ref AWS::Region
 
 Resources:
+  LearningProgressTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
   SmileUserPool:
     Type: AWS::Cognito::UserPool
     Properties:
@@ -108,6 +123,8 @@ Resources:
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref DatasetUploadBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LearningProgressTable
       FunctionUrlConfig:
         AuthType: NONE
         Cors:
@@ -115,6 +132,7 @@ Resources:
           AllowMethods:
             - GET
             - POST
+            - PUT
           AllowHeaders:
             - authorization
             - content-type
@@ -136,3 +154,6 @@ Outputs:
   DatasetUploadBucketName:
     Description: Private temporary dataset upload bucket.
     Value: !Ref DatasetUploadBucket
+  LearningProgressTableName:
+    Description: DynamoDB table storing synced learning progress per Cognito user.
+    Value: !Ref LearningProgressTable

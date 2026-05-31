@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from app import (
     build_expected_pandas_code,
     inspect_zip_bytes,
+    is_valid_learning_progress,
     sanitize_file_name,
     validate_pandas_loading_code,
 )
@@ -61,6 +62,23 @@ class LearningBackendTest(unittest.TestCase):
     def test_sanitizes_uploaded_file_names(self) -> None:
         self.assertEqual(sanitize_file_name("../Food Delivery (final).zip"), "Food-Delivery-final-.zip")
         self.assertEqual(sanitize_file_name("dataset"), "dataset.zip")
+
+    def test_validates_learning_progress_shape(self) -> None:
+        self.assertTrue(
+            is_valid_learning_progress(
+                {
+                    "attempts": {},
+                    "completedLessonIds": ["lesson-1"],
+                    "lessonAnswers": {},
+                    "submittedExerciseAnswers": {},
+                    "version": 1,
+                }
+            )
+        )
+        self.assertFalse(is_valid_learning_progress({"completedLessonIds": ["lesson-1"]}))
+        self.assertFalse(
+            is_valid_learning_progress({"completedLessonIds": [123], "version": 1})
+        )
 
 
 if __name__ == "__main__":

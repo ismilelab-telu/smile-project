@@ -7,6 +7,7 @@ import io
 import json
 import os
 import re
+import time
 import uuid
 import zipfile
 from typing import Any
@@ -38,16 +39,19 @@ except ImportError:  # pragma: no cover - Lambda and SAM builds install boto3.
 
 
 UPLOAD_BUCKET = os.environ.get("UPLOAD_BUCKET", "")
+LEARNING_PROGRESS_TABLE = os.environ.get("LEARNING_PROGRESS_TABLE", "")
 AWS_REGION = os.environ.get("AWS_REGION", "ap-southeast-1")
 COGNITO_REGION = os.environ.get("COGNITO_REGION", AWS_REGION)
 COGNITO_USER_POOL_ID = os.environ.get("COGNITO_USER_POOL_ID", "")
 COGNITO_CLIENT_ID = os.environ.get("COGNITO_CLIENT_ID", "")
 MAX_ZIP_BYTES = int(os.environ.get("MAX_ZIP_BYTES", "52428800"))
 MAX_UNZIPPED_BYTES = int(os.environ.get("MAX_UNZIPPED_BYTES", "104857600"))
+MAX_PROGRESS_JSON_BYTES = int(os.environ.get("MAX_PROGRESS_JSON_BYTES", "300000"))
 MAX_ZIP_ENTRIES = 512
 PRESIGN_EXPIRES_IN_SECONDS = 600
 
 _s3_client = None
+_dynamodb_client = None
 _jwks_client = None
 
 
@@ -75,6 +79,12 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             return response(200, {"ok": True})
 
         user = require_authenticated_user(event)
+
+        if method == "GET" and path == "/progress":
+            return response(200, get_learning_progress(user))
+
+        if method == "PUT" and path == "/progress":
+            return response(200, save_learning_progress(parse_json_body(event), user))
 
         if method == "POST" and path == "/uploads/presign":
             return response(200, create_presigned_upload(parse_json_body(event), user))
@@ -193,7 +203,7 @@ def parse_json_body(event: dict[str, Any]) -> dict[str, Any]:
     if event.get("isBase64Encoded"):
         raw_body = base64.b64decode(raw_body).decode("utf-8")
 
-    if len(raw_body) > 65536:
+    if len(raw_body.encode("utf-8")) > MAX_PROGRESS_JSON_BYTES:
         raise ClientInputError("Request body is too large.")
 
     try:
@@ -205,6 +215,56 @@ def parse_json_body(event: dict[str, Any]) -> dict[str, Any]:
         raise ClientInputError("Request body must be a JSON object.")
 
     return body
+
+
+def get_learning_progress(user: dict[str, Any]) -> dict[str, Any]:
+    item = get_dynamodb_client().get_item(
+        TableName=LEARNING_PROGRESS_TABLE,
+        Key={"userId": {"S": user["sub"]}},
+        ConsistentRead=True,
+    ).get("Item")
+
+    if not item:
+        return {"progress": None, "updatedAt": None}
+
+    raw_progress = item.get("progressJson", {}).get("S", "null")
+    try:
+        progress = json.loads(raw_progress)
+    except json.JSONDecodeError:
+        progress = None
+
+    if not is_valid_learning_progress(progress):
+        progress = None
+
+    updated_at = item.get("updatedAt", {}).get("N")
+
+    return {
+        "progress": progress,
+        "updatedAt": int(updated_at) if isinstance(updated_at, str) and updated_at.isdigit() else None,
+    }
+
+
+def save_learning_progress(body: dict[str, Any], user: dict[str, Any]) -> dict[str, Any]:
+    progress = body.get("progress")
+
+    if not is_valid_learning_progress(progress):
+        raise ClientInputError("Learning progress payload is not valid.")
+
+    progress_json = json.dumps(progress, separators=(",", ":"))
+    if len(progress_json.encode("utf-8")) > MAX_PROGRESS_JSON_BYTES:
+        raise ClientInputError("Learning progress is too large.")
+
+    updated_at = int(time.time())
+    get_dynamodb_client().put_item(
+        TableName=LEARNING_PROGRESS_TABLE,
+        Item={
+            "progressJson": {"S": progress_json},
+            "updatedAt": {"N": str(updated_at)},
+            "userId": {"S": user["sub"]},
+        },
+    )
+
+    return {"ok": True, "updatedAt": updated_at}
 
 
 def create_presigned_upload(body: dict[str, Any], user: dict[str, Any]) -> dict[str, Any]:
@@ -470,6 +530,32 @@ def require_upload_object_key(body: dict[str, Any], user: dict[str, Any]) -> str
     return object_key
 
 
+def is_valid_learning_progress(value: Any) -> bool:
+    if not isinstance(value, dict):
+        return False
+
+    if value.get("version") != 1:
+        return False
+
+    completed_lesson_ids = value.get("completedLessonIds")
+    if not isinstance(completed_lesson_ids, list) or not all(
+        isinstance(lesson_id, str) for lesson_id in completed_lesson_ids
+    ):
+        return False
+
+    for dict_key in (
+        "attempts",
+        "lessonAnswers",
+        "submittedExerciseAnswers",
+    ):
+        field_value = value.get(dict_key)
+        if field_value is not None and not isinstance(field_value, dict):
+            return False
+
+    current_lesson_id = value.get("currentLessonId")
+    return current_lesson_id is None or isinstance(current_lesson_id, str)
+
+
 def get_required_string(body: dict[str, Any], key: str) -> str:
     value = body.get(key)
     if not isinstance(value, str) or not value.strip():
@@ -497,3 +583,22 @@ def get_s3_client():
         )
 
     return _s3_client
+
+
+def get_dynamodb_client():
+    global _dynamodb_client
+
+    if boto3 is None:
+        raise RuntimeError("boto3 is required for AWS storage operations.")
+
+    if not LEARNING_PROGRESS_TABLE:
+        raise AuthConfigurationError("Learning progress table is not configured.")
+
+    if _dynamodb_client is None:
+        _dynamodb_client = boto3.client(
+            "dynamodb",
+            config=Config(),
+            region_name=AWS_REGION,
+        )
+
+    return _dynamodb_client
