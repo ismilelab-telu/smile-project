@@ -380,6 +380,23 @@ function LearningMenu() {
               </li>
             ))}
           </ul>
+          <div className="absolute bottom-8 left-7 z-20 flex items-center gap-3 font-mono text-sm font-semibold tracking-normal text-neutral-500">
+            <a
+              className="transition-colors hover:text-neutral-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+              data-app-link
+              href="/login"
+            >
+              Login
+            </a>
+            <span aria-hidden="true">/</span>
+            <a
+              className="transition-colors hover:text-neutral-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+              data-app-link
+              href="/register"
+            >
+              Create Account
+            </a>
+          </div>
           <div className="absolute right-7 bottom-7 z-20 flex flex-col items-end">
             <AnimatePresence>
               {isLanguageSelectorOpen ? (
