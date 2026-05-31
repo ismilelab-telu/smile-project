@@ -3305,6 +3305,7 @@ function MultipleChoiceExerciseView({
   const shouldShowCorrectIndicator = result?.status === "correct";
   const shouldShowSubmittedOptionFeedback = result !== null && result.status !== "correct";
   const isSingleOptionExercise = exercise.correctOptionIds.length === 1;
+  const reduceOptionFeedbackMotion = shouldReduceMotion();
 
   return (
     <LessonFullRow>
@@ -3324,23 +3325,55 @@ function MultipleChoiceExerciseView({
 
           return (
             <div className="grid" key={option.id}>
-              {shouldShowOptionFeedback ? (
-                <div className="flex min-h-16 items-center gap-3 border border-b-0 learning-grid-border px-5 py-4">
-                  {isPositiveFeedback ? (
-                    <CheckCircleIcon
-                      aria-hidden="true"
-                      className="size-6 shrink-0 text-emerald-500"
-                    />
-                  ) : (
-                    <XCircleIcon aria-hidden="true" className="size-6 shrink-0 text-rose-500" />
-                  )}
-                  <h3 className="text-xl font-semibold text-foreground">
-                    {isPositiveFeedback
-                      ? t("learning.feedback.correct")
-                      : t("learning.feedback.incorrect")}
-                  </h3>
-                </div>
-              ) : null}
+              <AnimatePresence initial={false}>
+                {shouldShowOptionFeedback ? (
+                  <motion.div
+                    animate={{
+                      filter: "blur(0px)",
+                      height: "auto",
+                      opacity: 1,
+                      y: 0,
+                    }}
+                    className="overflow-hidden"
+                    exit={{
+                      filter: reduceOptionFeedbackMotion ? "blur(0px)" : "blur(6px)",
+                      height: 0,
+                      opacity: 0,
+                      y: reduceOptionFeedbackMotion ? 0 : -6,
+                    }}
+                    initial={{
+                      filter: reduceOptionFeedbackMotion ? "blur(0px)" : "blur(8px)",
+                      height: 0,
+                      opacity: 0,
+                      y: reduceOptionFeedbackMotion ? 0 : 6,
+                    }}
+                    transition={
+                      reduceOptionFeedbackMotion
+                        ? { duration: 0.08 }
+                        : {
+                            duration: 0.2,
+                            ease: [0.22, 1, 0.36, 1],
+                          }
+                    }
+                  >
+                    <div className="flex min-h-16 items-center gap-3 border border-b-0 learning-grid-border px-5 py-4">
+                      {isPositiveFeedback ? (
+                        <CheckCircleIcon
+                          aria-hidden="true"
+                          className="size-6 shrink-0 text-emerald-500"
+                        />
+                      ) : (
+                        <XCircleIcon aria-hidden="true" className="size-6 shrink-0 text-rose-500" />
+                      )}
+                      <h3 className="text-xl font-semibold text-foreground">
+                        {isPositiveFeedback
+                          ? t("learning.feedback.correct")
+                          : t("learning.feedback.incorrect")}
+                      </h3>
+                    </div>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
               <label
                 className={`flex min-h-16 items-center gap-4 border learning-grid-border px-5 py-4 ${
                   isReviewMode ? "cursor-not-allowed" : "cursor-pointer"
