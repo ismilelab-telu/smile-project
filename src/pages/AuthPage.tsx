@@ -174,9 +174,6 @@ export function AuthPage({ closeHref = "/learn", mode }: AuthPageProps) {
   useEffect(() => {
     setPortalTarget(document.body);
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         closePortal();
@@ -186,7 +183,6 @@ export function AuthPage({ closeHref = "/learn", mode }: AuthPageProps) {
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [closePortal]);
@@ -252,7 +248,10 @@ export function AuthPage({ closeHref = "/learn", mode }: AuthPageProps) {
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] overflow-y-auto px-4 md:px-8" data-auth-portal>
+    <div
+      className="fixed inset-0 z-[100] overflow-y-auto overscroll-contain px-4 md:px-8"
+      data-auth-portal
+    >
       <motion.button
         animate={isClosing ? authPortalBackdropHidden : authPortalBackdropVisible}
         aria-label={locale === "en" ? "Close authentication" : "Tutup autentikasi"}
