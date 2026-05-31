@@ -358,6 +358,40 @@ function LearningMenu() {
           type="button"
         />
 
+        <section
+          aria-label={locale === "en" ? "Profile summary" : "Ringkasan profil"}
+          className="relative z-10 flex min-h-28 w-[min(700px,calc(100vw_-_2rem))] transform-gpu items-center gap-4 rounded-none border-2 border-neutral-950 bg-neutral-100 px-7 py-5 text-neutral-950 shadow-2xl will-change-transform"
+          data-learning-menu-panel
+        >
+          <div
+            aria-hidden="true"
+            className="flex size-14 shrink-0 items-center justify-center border border-neutral-300 bg-white font-mono text-sm font-semibold text-neutral-950"
+          >
+            SM
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-3 text-lg font-semibold tracking-normal">
+              <a
+                className="transition-colors hover:text-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+                data-app-link
+                href="/login"
+              >
+                {locale === "en" ? "Login" : "Masuk"}
+              </a>
+              <span aria-hidden="true" className="text-neutral-400">
+                /
+              </span>
+              <a
+                className="transition-colors hover:text-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+                data-app-link
+                href="/register"
+              >
+                {locale === "en" ? "Register" : "Daftar"}
+              </a>
+            </div>
+          </div>
+        </section>
+
         <nav
           aria-label={t("menu.navLabel")}
           className="relative z-10 flex min-h-[420px] w-[min(700px,calc(100vw_-_2rem))] flex-1 transform-gpu flex-col rounded-none border-2 border-neutral-950 bg-neutral-100 px-7 pt-16 pb-7 text-neutral-950 shadow-2xl will-change-transform"
@@ -380,29 +414,12 @@ function LearningMenu() {
               </li>
             ))}
           </ul>
-          <div className="absolute bottom-8 left-7 z-20 flex items-center gap-3 font-mono text-sm font-semibold tracking-normal text-neutral-500">
-            <a
-              className="transition-colors hover:text-neutral-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
-              data-app-link
-              href="/login"
-            >
-              Login
-            </a>
-            <span aria-hidden="true">/</span>
-            <a
-              className="transition-colors hover:text-neutral-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
-              data-app-link
-              href="/register"
-            >
-              Create Account
-            </a>
-          </div>
-          <div className="absolute right-7 bottom-7 z-20 flex flex-col items-end">
+          <div className="absolute bottom-7 left-7 z-20 flex flex-col items-start">
             <AnimatePresence>
               {isLanguageSelectorOpen ? (
                 <motion.div
                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                  className="absolute right-0 bottom-full mb-3 grid origin-bottom-right overflow-hidden border border-neutral-300 bg-white shadow-lg"
+                  className="absolute bottom-full left-0 mb-3 grid origin-bottom-left overflow-hidden border border-neutral-300 bg-white shadow-lg"
                   exit={{ opacity: 0, scale: 0.98, y: 8 }}
                   initial={{ opacity: 0, scale: 0.98, y: 8 }}
                   style={languageSelectorWidth ? { width: languageSelectorWidth } : undefined}
