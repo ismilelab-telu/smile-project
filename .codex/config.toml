@@ -49,6 +49,49 @@ enabled = false
 url = "https://mcp.exa.ai/mcp?tools=web_search_exa,web_search_advanced_exa,get_code_context_exa,crawling_exa,company_research_exa,people_search_exa,deep_researcher_start,deep_researcher_check,deep_search_exa"
 enabled = true
 
+[mcp_servers.aws-knowledge]
+url = "https://knowledge-mcp.global.api.aws"
+enabled = true
+
+[mcp_servers.aws-mcp]
+command = "uvx"
+args = [
+  "mcp-proxy-for-aws@latest",
+  "https://aws-mcp.us-east-1.api.aws/mcp",
+  "--profile",
+  "smile-dev",
+  "--region",
+  "ap-southeast-1",
+  "--metadata",
+  "AWS_REGION=ap-southeast-1",
+  "--read-only",
+  "--log-level",
+  "ERROR",
+]
+startup_timeout_sec = 60
+enabled = true
+
+[mcp_servers.awslabs-aws-documentation]
+command = "uvx"
+args = ["awslabs.aws-documentation-mcp-server@latest"]
+startup_timeout_sec = 60
+enabled = true
+
+[mcp_servers.awslabs-aws-documentation.env]
+AWS_DOCUMENTATION_PARTITION = "aws"
+FASTMCP_LOG_LEVEL = "ERROR"
+
+[mcp_servers.awslabs-aws-serverless]
+command = "uvx"
+args = ["awslabs.aws-serverless-mcp-server@latest"]
+startup_timeout_sec = 60
+enabled = true
+
+[mcp_servers.awslabs-aws-serverless.env]
+AWS_PROFILE = "smile-dev"
+AWS_REGION = "ap-southeast-1"
+FASTMCP_LOG_LEVEL = "ERROR"
+
 [mcp_servers.notion]
 url = "https://mcp.notion.com/mcp"
 enabled = false
