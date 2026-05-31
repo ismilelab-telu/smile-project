@@ -7,7 +7,6 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import { autoUpdate, flip, offset, shift, size, useFloating } from "@floating-ui/react-dom";
-import { unzip } from "fflate";
 import {
   ArrowDownIcon,
   ArrowLeftIcon,
@@ -140,6 +139,41 @@ const supportedCodeLanguages: ShjLanguage[] = [
   "yaml",
 ];
 const supportedCodeLanguageSet = new Set<string>(supportedCodeLanguages);
+const defaultLearningBackendUrl =
+  "https://zr2esakjqcpiypbnq257nml72e0wjaco.lambda-url.ap-southeast-1.on.aws";
+
+type ViteImportMeta = ImportMeta & {
+  env?: {
+    VITE_LEARNING_BACKEND_URL?: string;
+  };
+};
+
+type LearningBackendPresignResponse = {
+  contentType?: string;
+  objectKey?: string;
+  uploadUrl?: string;
+};
+
+type LearningBackendInspectResponse = {
+  csvPath?: string;
+  expectedCode?: string;
+  tabularFilePath?: string;
+};
+
+type LearningBackendValidationResponse = {
+  message?: string;
+  score?: number;
+  status?: string;
+};
+
+function getLearningBackendUrl() {
+  return (
+    (import.meta as ViteImportMeta).env?.VITE_LEARNING_BACKEND_URL ?? defaultLearningBackendUrl
+  )
+    .trim()
+    .replace(/\/+$/, "");
+}
+
 const codeLanguageAliases: Record<string, ShjLanguage> = {
   dockerfile: "docker",
   javascript: "js",
@@ -341,6 +375,7 @@ type GuidedDownloadArchiveState = {
   error?: string;
   fileName?: string;
   isReading: boolean;
+  objectKey?: string;
   tabularFilePath?: string;
 };
 
@@ -507,6 +542,130 @@ async function validateDatasetSourcePages({
   return Array.isArray(body.results)
     ? body.results.filter(isDatasetSourcePageValidationResult)
     : [];
+}
+
+async function readLearningBackendJson<T>(response: Response): Promise<T> {
+  const body = (await response.json().catch(() => ({}))) as { message?: string };
+
+  if (!response.ok) {
+    throw new Error(body.message ?? "Learning backend request failed.");
+  }
+
+  return body as T;
+}
+
+async function postLearningBackendJson<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${getLearningBackendUrl()}${path}`, {
+    body: JSON.stringify(body),
+    headers: {
+      "content-type": "application/json",
+    },
+    method: "POST",
+  });
+
+  return readLearningBackendJson<T>(response);
+}
+
+async function inspectGuidedDownloadArchiveWithBackend(file: File) {
+  const contentType = file.type || "application/zip";
+  const presign = await postLearningBackendJson<LearningBackendPresignResponse>(
+    "/uploads/presign",
+    {
+      contentType,
+      fileName: file.name,
+    },
+  );
+
+  if (!presign.objectKey || !presign.uploadUrl) {
+    throw new Error("Learning backend did not return an upload URL.");
+  }
+
+  const uploadResponse = await fetch(presign.uploadUrl, {
+    body: file,
+    headers: {
+      "content-type": presign.contentType || contentType,
+    },
+    method: "PUT",
+  });
+
+  if (!uploadResponse.ok) {
+    throw new Error("ZIP upload failed.");
+  }
+
+  const inspection = await postLearningBackendJson<LearningBackendInspectResponse>(
+    "/datasets/inspect",
+    {
+      objectKey: presign.objectKey,
+    },
+  );
+
+  if (!inspection.tabularFilePath) {
+    throw new Error("Learning backend did not return a CSV path.");
+  }
+
+  return {
+    objectKey: presign.objectKey,
+    tabularFilePath: inspection.tabularFilePath,
+  };
+}
+
+async function validateGuidedDownloadCodeWithBackend({
+  code,
+  extractedFilePath,
+  objectKey,
+}: {
+  code: string;
+  extractedFilePath: string;
+  objectKey: string;
+}) {
+  return postLearningBackendJson<LearningBackendValidationResponse>("/pandas/validate", {
+    code,
+    csvPath: extractedFilePath,
+    objectKey,
+  });
+}
+
+function getEvaluationTitle(status: EvaluationResult["status"], locale: Locale) {
+  const titles: Record<Locale, Record<EvaluationResult["status"], string>> = {
+    en: {
+      correct: "Correct",
+      incorrect: "Not quite",
+      partial: "Partially correct",
+    },
+    id: {
+      correct: "Benar",
+      incorrect: "Belum tepat",
+      partial: "Sebagian benar",
+    },
+  };
+
+  return titles[locale][status];
+}
+
+function getLearningBackendEvaluation({
+  backendResult,
+  fallbackEvaluation,
+  locale,
+}: {
+  backendResult: LearningBackendValidationResponse;
+  fallbackEvaluation: EvaluationResult;
+  locale: Locale;
+}): EvaluationResult {
+  const backendStatus =
+    backendResult.status === "correct" ||
+    backendResult.status === "partial" ||
+    backendResult.status === "incorrect"
+      ? backendResult.status
+      : fallbackEvaluation.status;
+
+  return {
+    ...fallbackEvaluation,
+    message: backendResult.message ?? fallbackEvaluation.message,
+    score: typeof backendResult.score === "number" ? backendResult.score : fallbackEvaluation.score,
+    status: backendStatus,
+    suggestedHints: backendStatus === "correct" ? [] : fallbackEvaluation.suggestedHints,
+    title: getEvaluationTitle(backendStatus, locale),
+  };
 }
 
 function haveSameOrderedValues(left: string[], right: string[]) {
@@ -1127,31 +1286,6 @@ function getGuidedDownloadSourceAnswer(
   }
 
   return sourceAnswer;
-}
-
-function unzipArchiveEntries(file: File) {
-  return file.arrayBuffer().then(
-    (arrayBuffer) =>
-      new Promise<Record<string, Uint8Array>>((resolve, reject) => {
-        unzip(new Uint8Array(arrayBuffer), (error, entries) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-
-          resolve(entries);
-        });
-      }),
-  );
-}
-
-function getFirstCsvPathFromZipEntries(entries: Record<string, Uint8Array>) {
-  return (
-    Object.keys(entries)
-      .filter((entryName) => !entryName.endsWith("/") && /\.csv$/i.test(entryName))
-      .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }))[0] ??
-    null
-  );
 }
 
 function getGuidedDownloadExpectedCode(
@@ -1905,40 +2039,19 @@ export function LessonPage({
     }));
 
     try {
-      const entries = await unzipArchiveEntries(file);
-      const csvPath = getFirstCsvPathFromZipEntries(entries);
-
-      if (!csvPath) {
-        setGuidedDownloadExtractedFilePathsByExerciseId((current) => ({
-          ...current,
-          [exerciseId]: "",
-        }));
-        setGuidedDownloadArchivesByExerciseId((current) => ({
-          ...current,
-          [exerciseId]: {
-            error:
-              locale === "en"
-                ? "The ZIP was readable, but no CSV file was found inside it."
-                : "ZIP berhasil dibaca, tapi file CSV tidak ditemukan di dalamnya.",
-            fileName: file.name,
-            isReading: false,
-          },
-        }));
-        return;
-      }
-
-      const extractedPath = `data/${csvPath}`;
+      const inspection = await inspectGuidedDownloadArchiveWithBackend(file);
 
       setGuidedDownloadExtractedFilePathsByExerciseId((current) => ({
         ...current,
-        [exerciseId]: extractedPath,
+        [exerciseId]: inspection.tabularFilePath,
       }));
       setGuidedDownloadArchivesByExerciseId((current) => ({
         ...current,
         [exerciseId]: {
           fileName: file.name,
           isReading: false,
-          tabularFilePath: extractedPath,
+          objectKey: inspection.objectKey,
+          tabularFilePath: inspection.tabularFilePath,
         },
       }));
     } catch {
@@ -1951,8 +2064,8 @@ export function LessonPage({
         [exerciseId]: {
           error:
             locale === "en"
-              ? "The selected file could not be read as a ZIP archive."
-              : "File yang dipilih tidak bisa dibaca sebagai arsip ZIP.",
+              ? "The ZIP could not be uploaded or read by the learning backend."
+              : "ZIP tidak bisa diupload atau dibaca oleh backend learning.",
           fileName: file.name,
           isReading: false,
         },
@@ -2098,17 +2211,41 @@ export function LessonPage({
         initialSubmittedAnswersByExerciseId,
       );
       const extractedFilePath = guidedDownloadExtractedFilePathsByExerciseId[exercise.id] ?? "";
+      const localEvaluation = evaluateGuidedDownloadExercise(
+        exercise,
+        guidedDownloadCodeByExerciseId[exercise.id] ?? "",
+        getGuidedDownloadExpectedCode(exercise, extractedFilePath),
+        sourceAnswer !== undefined,
+        extractedFilePath.trim() !== "",
+        locale,
+      );
+      const archive = guidedDownloadArchivesByExerciseId[exercise.id];
 
-      return {
-        evaluation: evaluateGuidedDownloadExercise(
-          exercise,
-          guidedDownloadCodeByExerciseId[exercise.id] ?? "",
-          getGuidedDownloadExpectedCode(exercise, extractedFilePath),
-          sourceAnswer !== undefined,
-          extractedFilePath.trim() !== "",
-          locale,
-        ),
-      };
+      if (localEvaluation.status !== "correct" || !archive?.objectKey) {
+        return {
+          evaluation: localEvaluation,
+        };
+      }
+
+      try {
+        const backendResult = await validateGuidedDownloadCodeWithBackend({
+          code: guidedDownloadCodeByExerciseId[exercise.id] ?? "",
+          extractedFilePath,
+          objectKey: archive.objectKey,
+        });
+
+        return {
+          evaluation: getLearningBackendEvaluation({
+            backendResult,
+            fallbackEvaluation: localEvaluation,
+            locale,
+          }),
+        };
+      } catch {
+        return {
+          evaluation: localEvaluation,
+        };
+      }
     }
 
     if (exercise.type === "open-dataset-source") {
@@ -3005,7 +3142,9 @@ function GuidedDownloadExerciseView({
                 ) : null}
                 {archive?.isReading ? (
                   <p className="mt-3 text-sm font-medium text-sky-700">
-                    {locale === "en" ? "Reading ZIP..." : "Membaca ZIP..."}
+                    {locale === "en"
+                      ? "Uploading and reading ZIP..."
+                      : "Mengupload dan membaca ZIP..."}
                   </p>
                 ) : null}
                 {archive?.error ? (
