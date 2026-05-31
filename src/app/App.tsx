@@ -5,6 +5,7 @@ import { ExternalLinkGuard } from "@/components/ExternalLinkGuard";
 import { LinkPreviewProvider } from "@/components/ui/link-preview";
 import LiquidEther from "@/components/ui/liquid-ether";
 import { LocalizationProvider } from "@/features/localization/localization";
+import { AuthPage } from "@/pages/AuthPage";
 import { ExplorePage } from "@/pages/ExplorePage";
 import { LearningPage } from "@/pages/LearningPage";
 
@@ -24,7 +25,7 @@ type ViewTransitionDocument = Document & {
 };
 
 function getRouteTheme(pathname: string): RouteTheme {
-  return pathname === "/" || isLearningRoute(pathname) ? "light" : "dark";
+  return pathname === "/" || isLearningRoute(pathname) || isAuthRoute(pathname) ? "light" : "dark";
 }
 
 function getRouteOrder(pathname: string) {
@@ -36,11 +37,19 @@ function getRouteOrder(pathname: string) {
     return 1;
   }
 
+  if (isAuthRoute(pathname)) {
+    return 2;
+  }
+
   return 2;
 }
 
 function isLearningRoute(pathname: string) {
   return pathname === "/learn" || pathname.startsWith("/learn/");
+}
+
+function isAuthRoute(pathname: string) {
+  return pathname === "/login" || pathname === "/register";
 }
 
 function shouldShowSharedExploreBackground(pathname: string) {
@@ -149,8 +158,9 @@ function AppRoutes() {
 
       const viewTransitionDocument = document as ViewTransitionDocument;
       const startViewTransition = viewTransitionDocument.startViewTransition?.bind(document);
+      const isAuthSwitch = isAuthRoute(currentPath) && isAuthRoute(url.pathname);
 
-      if (!shouldReduceRouteTransition && startViewTransition) {
+      if (!shouldReduceRouteTransition && startViewTransition && !isAuthSwitch) {
         document.documentElement.dataset.routeTransition = getRouteTransition(
           currentPath,
           url.pathname,
@@ -206,6 +216,10 @@ function AppRoutes() {
           />
         ) : path === "/explore" ? (
           <ExplorePage />
+        ) : path === "/login" ? (
+          <AuthPage mode="login" />
+        ) : path === "/register" ? (
+          <AuthPage mode="register" />
         ) : isLearningRoute(path) ? (
           <LearningPage path={path} />
         ) : (
