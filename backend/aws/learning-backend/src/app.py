@@ -516,7 +516,7 @@ def run_pandas_loading_code(code: str, expected_path: str, csv_content: bytes) -
 
 
 def run_restricted_pandas_plan(
-    runtime_plan: dict[str, str],
+    runtime_plan: dict[str, Any],
     sandbox_dir: str,
     pd_module: Any,
 ) -> Any:
@@ -525,7 +525,9 @@ def run_restricted_pandas_plan(
     try:
         os.chdir(sandbox_dir)
         dataframe = pd_module.read_csv(runtime_plan["readCsvPath"])
-        return dataframe.head()
+        head_rows = runtime_plan.get("headRows")
+
+        return dataframe.head(head_rows) if isinstance(head_rows, int) else dataframe.head()
     finally:
         os.chdir(old_cwd)
 
@@ -540,7 +542,7 @@ def write_runtime_csv(sandbox_dir: str, expected_path: str, csv_content: bytes) 
     destination.write_bytes(csv_content)
 
 
-def get_restricted_pandas_runtime_plan(tree: ast.Module) -> tuple[dict[str, str], str]:
+def get_restricted_pandas_runtime_plan(tree: ast.Module) -> tuple[dict[str, Any], str]:
     body = [node for node in tree.body if not isinstance(node, ast.Pass)]
 
     if len(body) != 3:
@@ -557,11 +559,11 @@ def get_restricted_pandas_runtime_plan(tree: ast.Module) -> tuple[dict[str, str]
     if assignment_error:
         return {}, assignment_error
 
-    head_error = get_restricted_head_expression(head_node, target_name)
+    head_rows, head_error = get_restricted_head_expression(head_node, target_name)
     if head_error:
         return {}, head_error
 
-    return {"readCsvPath": read_csv_path}, ""
+    return {"headRows": head_rows, "readCsvPath": read_csv_path}, ""
 
 
 def get_restricted_read_csv_assignment(node: ast.Assign) -> tuple[str, str, str]:
@@ -598,9 +600,9 @@ def get_restricted_read_csv_assignment(node: ast.Assign) -> tuple[str, str, str]
     return target_name, read_csv_path, ""
 
 
-def get_restricted_head_expression(node: ast.AST, target_name: str) -> str:
+def get_restricted_head_expression(node: ast.AST, target_name: str) -> tuple[int | None, str]:
     if not isinstance(node, ast.Expr):
-        return "Put `df.head()` on the last line so the runtime can display output."
+        return None, "Put `df.head()` on the last line so the runtime can display output."
 
     value = node.value
     if (
@@ -610,12 +612,29 @@ def get_restricted_head_expression(node: ast.AST, target_name: str) -> str:
         or value.func.value.id != target_name
         or value.func.attr != "head"
     ):
-        return f"Only `{target_name}.head()` can produce output in this lesson runtime."
+        return None, f"Only `{target_name}.head()` can produce output in this lesson runtime."
 
-    if value.args or value.keywords:
-        return "`df.head()` arguments are not enabled yet."
+    if value.keywords:
+        return None, "`df.head(...)` keyword arguments are not enabled yet."
 
-    return ""
+    if len(value.args) > 1:
+        return None, "`df.head(...)` accepts at most one row count."
+
+    if not value.args:
+        return None, ""
+
+    head_rows = value.args[0]
+    if (
+        not isinstance(head_rows, ast.Constant)
+        or not isinstance(head_rows.value, int)
+        or isinstance(head_rows.value, bool)
+    ):
+        return None, "`df.head(...)` row count must be an integer from 0 to 10."
+
+    if head_rows.value < 0 or head_rows.value > 10:
+        return None, "`df.head(...)` row count must be between 0 and 10."
+
+    return head_rows.value, ""
 
 
 def is_allowed_pandas_import(node: ast.Import) -> bool:

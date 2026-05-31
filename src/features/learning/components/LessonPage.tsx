@@ -735,6 +735,17 @@ function getLearningBackendValidationMessage(
           .replace("Python syntax error:", "Error syntax Python:");
   }
 
+  if (
+    message.startsWith("Python runtime error: PermissionError: Only `") &&
+    message.includes(".head()` can produce output in this lesson runtime.")
+  ) {
+    const headCall = /Only `([^`]+\.head\(\))`/.exec(message)?.[1] ?? "df.head()";
+
+    return locale === "en"
+      ? `Python runtime output error: call \`${headCall}\` on the last line. Make sure the parentheses are typed.`
+      : `Python runtime output error: panggil \`${headCall}\` di baris terakhir. Pastikan tanda kurung \`()\` ikut diketik.`;
+  }
+
   if (message === "Use exactly the import, read_csv assignment, and df.head() lines.") {
     return locale === "en"
       ? message
@@ -814,19 +825,20 @@ function getGuidedDownloadUploadErrorMessage(error: unknown, locale: Locale) {
     : "ZIP tidak bisa diupload atau dibaca oleh backend learning.";
 }
 
-function getPandasCodeRunMessage(backendResult: LearningBackendValidationResponse, locale: Locale) {
-  return getLearningBackendStatus(backendResult.status) === "correct"
-    ? ""
-    : getLearningBackendValidationMessage(backendResult, locale);
+function getPandasCodeRunMessage(backendResult: LearningBackendValidationResponse) {
+  if (getLearningBackendStatus(backendResult.status) === "correct") {
+    return "";
+  }
+
+  return backendResult.message?.trim() || "Code validation failed.";
 }
 
 function createPandasCodeRunResult(
   backendResult: LearningBackendValidationResponse,
-  locale: Locale,
 ): PandasCodeRunResult {
   return {
     columns: Array.isArray(backendResult.columns) ? backendResult.columns.map(String) : [],
-    message: getPandasCodeRunMessage(backendResult, locale),
+    message: getPandasCodeRunMessage(backendResult),
     rows: Array.isArray(backendResult.previewRows)
       ? backendResult.previewRows.map((row) => row.map(String))
       : [],
@@ -2393,10 +2405,7 @@ export function LessonPage({
         ...current,
         [exercise.id]: {
           columns: [],
-          message:
-            locale === "en"
-              ? "Upload the Kaggle ZIP first, then run the code."
-              : "Upload ZIP Kaggle dulu, lalu jalankan kodenya.",
+          message: "Upload the Kaggle ZIP first, then run the code.",
           rows: [],
           status: "incorrect",
         },
@@ -2409,10 +2418,7 @@ export function LessonPage({
         ...current,
         [exercise.id]: {
           columns: [],
-          message:
-            locale === "en"
-              ? "Type the Pandas code first, then run it."
-              : "Ketik kode Pandas dulu, lalu jalankan.",
+          message: "Type the Pandas code first, then run it.",
           rows: [],
           status: "partial",
         },
@@ -2431,17 +2437,14 @@ export function LessonPage({
 
       setPandasCodeRunResultsByExerciseId((current) => ({
         ...current,
-        [exercise.id]: createPandasCodeRunResult(backendResult, locale),
+        [exercise.id]: createPandasCodeRunResult(backendResult),
       }));
     } catch {
       setPandasCodeRunResultsByExerciseId((current) => ({
         ...current,
         [exercise.id]: {
           columns: [],
-          message:
-            locale === "en"
-              ? "The code could not be run. Check the uploaded ZIP and try again."
-              : "Kode tidak bisa dijalankan. Cek ZIP yang diupload, lalu coba lagi.",
+          message: "The code could not be run. Check the uploaded ZIP and try again.",
           rows: [],
           status: "incorrect",
         },
@@ -2614,7 +2617,7 @@ export function LessonPage({
         });
         setPandasCodeRunResultsByExerciseId((current) => ({
           ...current,
-          [exercise.id]: createPandasCodeRunResult(backendResult, locale),
+          [exercise.id]: createPandasCodeRunResult(backendResult),
         }));
 
         return {
@@ -3609,7 +3612,7 @@ function GuidedDownloadExerciseView({
                     {expectedCodeGhostText ? (
                       <pre
                         aria-hidden="true"
-                        className="pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre-wrap px-4 py-3 font-mono text-sm leading-6 text-neutral-500"
+                        className="pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre-wrap px-4 py-3 font-mono text-sm leading-6 text-neutral-700"
                       >
                         {expectedCodeGhostText}
                       </pre>
