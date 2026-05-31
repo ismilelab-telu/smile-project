@@ -200,7 +200,14 @@ export function AuthPage({ closeHref = "/learn", mode }: AuthPageProps) {
         transition={authPortalBackdropTransition}
         type="button"
       />
-      <div className="relative z-10 flex min-h-full items-center justify-center py-5 md:py-8">
+      <div
+        className="relative z-10 flex min-h-full items-center justify-center py-5 md:py-8"
+        onClick={(event) => {
+          if (event.target === event.currentTarget) {
+            closePortal();
+          }
+        }}
+      >
         <motion.main
           animate={isClosing ? authPortalPanelHidden : authPortalPanelVisible}
           aria-labelledby="auth-dialog-title"
@@ -227,7 +234,7 @@ export function AuthPage({ closeHref = "/learn", mode }: AuthPageProps) {
               strokeWidth={2}
             />
           </button>
-          <AuthLanguageSwitcher />
+          <AuthLanguageSwitcher isRegister={isRegister} />
           <AuthMatrixRain />
           <LayoutGroup id="auth-form-layout">
             <section
@@ -250,7 +257,7 @@ export function AuthPage({ closeHref = "/learn", mode }: AuthPageProps) {
   );
 }
 
-function AuthLanguageSwitcher() {
+function AuthLanguageSwitcher({ isRegister }: { isRegister: boolean }) {
   const { locale, setLocale, t } = useLocalization();
   const rootRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -274,15 +281,21 @@ function AuthLanguageSwitcher() {
   }, [isOpen]);
 
   return (
-    <div
-      className="absolute right-5 bottom-5 z-30 flex w-[215px] max-w-[calc(100%_-_2.5rem)] flex-col items-stretch md:right-7 md:bottom-7"
+    <motion.div
+      className={`absolute bottom-5 z-30 flex w-[215px] max-w-[calc(100%_-_2.5rem)] flex-col items-stretch md:bottom-7 ${
+        isRegister ? "left-5 md:left-7" : "right-5 md:right-7"
+      }`}
+      layout="position"
       ref={rootRef}
+      transition={authSharedLayoutTransition}
     >
       <AnimatePresence>
         {isOpen ? (
           <motion.div
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="absolute right-0 bottom-full mb-3 grid w-full origin-bottom-right overflow-hidden border border-neutral-300 bg-white shadow-lg"
+            className={`absolute bottom-full mb-3 grid w-full overflow-hidden border border-neutral-300 bg-white shadow-lg ${
+              isRegister ? "left-0 origin-bottom-left" : "right-0 origin-bottom-right"
+            }`}
             exit={{ opacity: 0, scale: 0.98, y: 8 }}
             initial={{ opacity: 0, scale: 0.98, y: 8 }}
             transition={{ duration: 0.16, ease: "easeOut" }}
@@ -347,7 +360,7 @@ function AuthLanguageSwitcher() {
           strokeWidth={2}
         />
       </button>
-    </div>
+    </motion.div>
   );
 }
 
@@ -364,12 +377,21 @@ function AuthFormPanel({ className, mode }: { className: string; mode: AuthMode 
   const [confirmationDestination, setConfirmationDestination] = useState("");
   const [confirmationEmail, setConfirmationEmail] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [isNameTouched, setNameTouched] = useState(false);
+  const [isEmailTouched, setEmailTouched] = useState(false);
   const [isPasswordTouched, setPasswordTouched] = useState(false);
   const [isConfirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
+  const usernameError = getUsernameValidationMessage(name, locale);
+  const trimmedEmail = email.trim();
+  const isEmailValid = isValidEmailAddress(trimmedEmail);
+  const showNameValidation =
+    isRegister && isNameTouched && name.trim().length > 0 && usernameError !== "";
+  const showEmailValidation = isEmailTouched && trimmedEmail.length > 0 && !isEmailValid;
   const passwordRuleState = getPasswordRuleState(password);
   const passwordError = getPasswordValidationMessage(password, locale);
+  const canShowConfirmPassword = isRegister && password.length > 0 && passwordError === "";
   const showPasswordError = isRegister && isPasswordTouched && passwordError !== "";
   const confirmPasswordError = getConfirmPasswordValidationMessage(
     password,
@@ -391,6 +413,8 @@ function AuthFormPanel({ className, mode }: { className: string; mode: AuthMode 
     setErrorMessage("");
     setName("");
     setPassword("");
+    setNameTouched(false);
+    setEmailTouched(false);
     setPasswordTouched(false);
     setConfirmPasswordTouched(false);
     setStatusMessage("");
@@ -409,17 +433,31 @@ function AuthFormPanel({ className, mode }: { className: string; mode: AuthMode 
       return;
     }
 
+    if (!isValidEmailAddress(normalizedEmail)) {
+      setEmailTouched(true);
+      setErrorMessage(
+        locale === "en" ? "Enter a valid email address." : "Masukkan email yang valid.",
+      );
+      return;
+    }
+
     if (!password) {
       setErrorMessage(locale === "en" ? "Password is required." : "Sandi wajib diisi.");
       return;
     }
 
     if (isRegister && !isConfirmingAccount) {
+      setNameTouched(true);
       setPasswordTouched(true);
       setConfirmPasswordTouched(true);
 
       if (!name.trim()) {
-        setErrorMessage(locale === "en" ? "Full name is required." : "Nama lengkap wajib diisi.");
+        setErrorMessage(locale === "en" ? "Username is required." : "Username wajib diisi.");
+        return;
+      }
+
+      if (usernameError) {
+        setErrorMessage(usernameError);
         return;
       }
 
@@ -567,7 +605,11 @@ function AuthFormPanel({ className, mode }: { className: string; mode: AuthMode 
     }: { className?: string; isDisabled?: boolean; layoutId?: string } = {},
   ) => {
     const validationContent =
-      isRegister && field.id === "auth-password" ? (
+      isRegister && field.id === "auth-name" ? (
+        <UsernameStatus isVisible={showNameValidation} locale={locale} message={usernameError} />
+      ) : field.id === "auth-email" ? (
+        <EmailStatus isVisible={showEmailValidation} locale={locale} />
+      ) : isRegister && field.id === "auth-password" ? (
         <PasswordRequirements
           error={showPasswordError ? passwordError : ""}
           locale={locale}
@@ -577,35 +619,45 @@ function AuthFormPanel({ className, mode }: { className: string; mode: AuthMode 
       ) : isRegister && field.id === "auth-confirm-password" ? (
         <ConfirmPasswordStatus
           isMatch={confirmPassword.length > 0 && password === confirmPassword}
-          isVisible={confirmPassword.length > 0 || showConfirmPasswordError}
+          isVisible={showConfirmPasswordError}
           locale={locale}
-          message={showConfirmPasswordError ? confirmPasswordError : ""}
+          message={confirmPasswordError}
         />
       ) : undefined;
 
     return (
       <AuthInput
         ariaDescribedBy={
-          isRegister && field.id === "auth-password"
-            ? "password-requirements"
-            : isRegister && field.id === "auth-confirm-password"
-              ? "confirm-password-status"
-              : undefined
+          isRegister && field.id === "auth-name"
+            ? "username-status"
+            : field.id === "auth-email"
+              ? "email-status"
+              : isRegister && field.id === "auth-password"
+                ? "password-requirements"
+                : isRegister && field.id === "auth-confirm-password"
+                  ? "confirm-password-status"
+                  : undefined
         }
         className={className}
         field={field}
         isDisabled={isDisabled}
         isInvalid={
+          (field.id === "auth-name" && showNameValidation) ||
+          (field.id === "auth-email" && showEmailValidation && !isEmailValid) ||
           (field.id === "auth-password" && showPasswordError) ||
           (field.id === "auth-confirm-password" && showConfirmPasswordError)
         }
         layoutId={layoutId}
         onBlur={
-          isRegister && field.id === "auth-password"
-            ? () => setPasswordTouched(true)
-            : isRegister && field.id === "auth-confirm-password"
-              ? () => setConfirmPasswordTouched(true)
-              : undefined
+          isRegister && field.id === "auth-name"
+            ? () => setNameTouched(true)
+            : field.id === "auth-email"
+              ? () => setEmailTouched(true)
+              : isRegister && field.id === "auth-password"
+                ? () => setPasswordTouched(true)
+                : isRegister && field.id === "auth-confirm-password"
+                  ? () => setConfirmPasswordTouched(true)
+                  : undefined
         }
         onChange={getFieldChangeHandler(field.id)}
         value={getFieldValue(field.id)}
@@ -656,9 +708,9 @@ function AuthFormPanel({ className, mode }: { className: string; mode: AuthMode 
             </AuthRevealSlot>
             {renderAuthInput(emailField)}
             {renderAuthInput(passwordField, { className: "mt-6" })}
-            <AuthRevealSlot isVisible={isRegister} spacing="before">
+            <AuthRevealSlot isVisible={canShowConfirmPassword} spacing="before">
               {renderAuthInput(confirmPasswordField, {
-                isDisabled: !isRegister,
+                isDisabled: !canShowConfirmPassword,
                 layoutId: "auth-register-confirm-password-field",
               })}
             </AuthRevealSlot>
@@ -699,7 +751,7 @@ function AuthFormPanel({ className, mode }: { className: string; mode: AuthMode 
             ) : null}
 
             <motion.button
-              className="mt-6 inline-flex h-10 w-full items-center justify-center rounded-none bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:bg-zinc-400"
+              className="mt-6 inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-none bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:bg-zinc-400"
               disabled={isSubmitting}
               layout="position"
               layoutId="auth-submit-button"
@@ -808,12 +860,12 @@ function AuthRevealSlot({
     <motion.div
       animate={{
         height: isVisible ? "auto" : 0,
-        marginBottom: spacing === "after" && isVisible ? 24 : 0,
-        marginTop: spacing === "before" && isVisible ? 24 : 0,
+        marginBottom: spacing === "after" && isVisible ? 20 : 0,
+        marginTop: spacing === "before" && isVisible ? 20 : 0,
         opacity: isVisible ? 1 : 0,
       }}
       aria-hidden={!isVisible}
-      className="overflow-hidden"
+      className="-m-1 overflow-hidden p-1"
       initial={false}
       layout
       transition={authRegisterFieldRevealTransition}
@@ -895,6 +947,62 @@ function PasswordRequirementItem({ isValid, label }: { isValid: boolean; label: 
         />
       </span>
     </li>
+  );
+}
+
+function UsernameStatus({
+  isVisible,
+  locale,
+  message,
+}: {
+  isVisible: boolean;
+  locale: Locale;
+  message: string;
+}) {
+  return (
+    <FieldErrorStatus
+      id="username-status"
+      isVisible={isVisible}
+      message={message || (locale === "en" ? "Check your username." : "Cek username kamu.")}
+    />
+  );
+}
+
+function EmailStatus({ isVisible, locale }: { isVisible: boolean; locale: Locale }) {
+  return (
+    <FieldErrorStatus
+      id="email-status"
+      isVisible={isVisible}
+      message={locale === "en" ? "Email format is not valid." : "Format email belum valid."}
+    />
+  );
+}
+
+function FieldErrorStatus({
+  id,
+  isVisible,
+  message,
+}: {
+  id: string;
+  isVisible: boolean;
+  message: string;
+}) {
+  return (
+    <p
+      aria-live="polite"
+      className={`mt-1.5 flex items-center gap-1.5 overflow-hidden text-xs leading-4 font-medium transition-[max-height,opacity,transform,color] duration-300 ease-out ${
+        isVisible ? "max-h-8 translate-y-0 opacity-100" : "max-h-0 -translate-y-1 opacity-0"
+      } text-rose-700`}
+      id={id}
+    >
+      <span
+        aria-hidden="true"
+        className="inline-flex size-3.5 shrink-0 items-center justify-center"
+      >
+        <HugeiconsIcon className="size-3.5" icon={Cancel01Icon} strokeWidth={2.4} />
+      </span>
+      <span>{message}</span>
+    </p>
   );
 }
 
@@ -1107,7 +1215,7 @@ function getAuthFields(locale: Locale, mode: AuthMode): AuthField[] {
       confirmPasswordHelper: "Please confirm your password.",
       email: "Email",
       emailHelper: "",
-      name: "Full Name",
+      name: "Username",
       nameHelper: "",
       password: "Password",
       passwordHelper: "",
@@ -1117,7 +1225,7 @@ function getAuthFields(locale: Locale, mode: AuthMode): AuthField[] {
       confirmPasswordHelper: "Ulangi sandi yang sama.",
       email: "Email",
       emailHelper: "",
-      name: "Nama Lengkap",
+      name: "Username",
       nameHelper: "",
       password: "Sandi",
       passwordHelper: "",
@@ -1146,11 +1254,11 @@ function getAuthFields(locale: Locale, mode: AuthMode): AuthField[] {
 
   return [
     {
-      autoComplete: "name",
+      autoComplete: "username",
       helper: copy.nameHelper,
       id: "auth-name",
       label: copy.name,
-      placeholder: "John Doe",
+      placeholder: "john_doe",
       type: "text",
     },
     {
@@ -1330,6 +1438,38 @@ function getConfirmPasswordValidationMessage(
   return locale === "en"
     ? "Password confirmation does not match."
     : "Konfirmasi sandi tidak cocok.";
+}
+
+function getUsernameValidationMessage(value: string, locale: Locale) {
+  const username = value.trim();
+
+  if (username.length === 0) {
+    return "";
+  }
+
+  if (username.length < 3) {
+    return locale === "en"
+      ? "Username must be at least 3 characters."
+      : "Username minimal 3 karakter.";
+  }
+
+  if (!/^[A-Za-z0-9._-]+$/.test(username)) {
+    return locale === "en"
+      ? "Use only letters, numbers, dots, underscores, or hyphens."
+      : "Gunakan hanya huruf, angka, titik, underscore, atau tanda hubung.";
+  }
+
+  if (/^[._-]|[._-]$/.test(username)) {
+    return locale === "en"
+      ? "Username cannot start or end with punctuation."
+      : "Username tidak boleh diawali atau diakhiri tanda baca.";
+  }
+
+  return "";
+}
+
+function isValidEmailAddress(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 function random(min: number, max: number) {
