@@ -1299,6 +1299,24 @@ function getGuidedDownloadExpectedCode(
     : exercise.codePlaceholder;
 }
 
+function getGuidedDownloadGhostCode(expectedCode: string, typedCode: string) {
+  const normalizedTypedCode = typedCode.replace(/\r\n?/g, "\n");
+  let sharedPrefixLength = 0;
+
+  while (
+    sharedPrefixLength < expectedCode.length &&
+    sharedPrefixLength < normalizedTypedCode.length &&
+    expectedCode[sharedPrefixLength] === normalizedTypedCode[sharedPrefixLength]
+  ) {
+    sharedPrefixLength += 1;
+  }
+
+  return (
+    expectedCode.slice(0, sharedPrefixLength).replace(/[^\n]/g, " ") +
+    expectedCode.slice(sharedPrefixLength)
+  );
+}
+
 function evaluateExerciseAnswerSnapshot(
   exercise: LessonExercise,
   answer: LessonAnswer,
@@ -3017,6 +3035,7 @@ function GuidedDownloadExerciseView({
   const hasExtractedFilePath = displayedExtractedFilePath.trim() !== "";
   const expectedCode = getGuidedDownloadExpectedCode(exercise, displayedExtractedFilePath);
   const displayedCode = isReviewMode && submittedCode.trim() !== "" ? submittedCode : code;
+  const ghostCode = isReviewMode ? "" : getGuidedDownloadGhostCode(expectedCode, displayedCode);
   const openLinkLabel = locale === "en" ? "Open Kaggle link" : "Buka link Kaggle";
   const copyLinkLabel = locale === "en" ? "Copy link" : "Salin link";
   const copyLinkButtonLabel = locale === "en" ? "Copy" : "Salin";
@@ -3173,16 +3192,25 @@ function GuidedDownloadExerciseView({
                   <span className="text-lg font-semibold text-foreground">
                     {exercise.codeLabel}
                   </span>
-                  <textarea
-                    aria-label={exercise.codeLabel}
-                    className="learning-grid-control min-h-32 w-full resize-y border border-neutral-300 bg-neutral-950 px-4 py-3 font-mono text-sm leading-6 text-neutral-50 outline-none transition-colors placeholder:text-neutral-400 focus:border-sky-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:bg-neutral-900 disabled:text-neutral-400"
-                    disabled={(!hasSourceUrl || !hasExtractedFilePath) && !isReviewMode}
-                    onChange={(event) => onUpdateCode(event.currentTarget.value)}
-                    placeholder={expectedCode}
-                    readOnly={isReviewMode}
-                    spellCheck={false}
-                    value={displayedCode}
-                  />
+                  <div className="learning-grid-control relative min-h-32 border border-neutral-300 bg-neutral-950 transition-colors focus-within:border-sky-500 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-sky-500">
+                    {ghostCode ? (
+                      <pre
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre-wrap px-4 py-3 font-mono text-sm leading-6 text-neutral-500"
+                      >
+                        {ghostCode}
+                      </pre>
+                    ) : null}
+                    <textarea
+                      aria-label={exercise.codeLabel}
+                      className="relative z-10 min-h-32 w-full resize-y bg-transparent px-4 py-3 font-mono text-sm leading-6 text-neutral-50 caret-neutral-50 outline-none disabled:bg-transparent disabled:text-neutral-400"
+                      disabled={(!hasSourceUrl || !hasExtractedFilePath) && !isReviewMode}
+                      onChange={(event) => onUpdateCode(event.currentTarget.value)}
+                      readOnly={isReviewMode}
+                      spellCheck={false}
+                      value={displayedCode}
+                    />
+                  </div>
                 </label>
               </div>
             </div>
