@@ -33,6 +33,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -3496,7 +3497,9 @@ function LessonHintPanel({
   const areHintsVisible = visibleHintCount > 0;
   const areAllHintsVisible = visibleHintCount >= hints.length;
   const reduceHintMotion = shouldReduceMotion();
+  const hintListContentRef = useRef<HTMLOListElement | null>(null);
   const shouldPinHintScrollRef = useRef(false);
+  const [hintListHeight, setHintListHeight] = useState(0);
   const visibleHints = hints.slice(0, visibleHintCount);
   const buttonLabel = areHintsVisible
     ? areAllHintsVisible
@@ -3540,6 +3543,36 @@ function LessonHintPanel({
     schedulePinnedHintScroll();
   }, [schedulePinnedHintScroll, visibleHintCount]);
 
+  useLayoutEffect(() => {
+    if (!areHintsVisible) {
+      setHintListHeight(0);
+      return;
+    }
+
+    const hintListContent = hintListContentRef.current;
+
+    if (!hintListContent) {
+      return;
+    }
+
+    const updateHintListHeight = () => {
+      setHintListHeight(hintListContent.scrollHeight);
+    };
+
+    updateHintListHeight();
+
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver(updateHintListHeight);
+    resizeObserver.observe(hintListContent);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [areHintsVisible, hints, visibleHintCount]);
+
   return (
     <>
       <aside
@@ -3551,10 +3584,10 @@ function LessonHintPanel({
         </h2>
         <AnimatePresence initial={false}>
           {areHintsVisible ? (
-            <motion.ol
+            <motion.div
               animate={{
                 filter: "blur(0px)",
-                height: "auto",
+                height: hintListHeight,
                 marginTop: 24,
                 opacity: 1,
                 y: 0,
@@ -3582,64 +3615,54 @@ function LessonHintPanel({
                       ease: [0.22, 1, 0.36, 1],
                     }
               }
-              layout
               onAnimationComplete={finishPinnedHintScroll}
               onUpdate={pinHintScrollToBottom}
             >
-              <AnimatePresence initial={false}>
-                {visibleHints.map((hint, index) => (
-                  <motion.li
-                    animate={{
-                      filter: "blur(0px)",
-                      opacity: 1,
-                      scale: 1,
-                      y: 0,
-                    }}
-                    className={`learning-grid-panel-fill p-5 ${index === 0 ? "" : "mt-4"}`}
-                    exit={{
-                      filter: reduceHintMotion ? "blur(0px)" : "blur(6px)",
-                      opacity: 0,
-                      scale: reduceHintMotion ? 1 : 0.98,
-                      y: reduceHintMotion ? 0 : -6,
-                    }}
-                    initial={{
-                      filter: reduceHintMotion ? "blur(0px)" : "blur(8px)",
-                      opacity: 0,
-                      scale: reduceHintMotion ? 1 : 0.98,
-                      y: reduceHintMotion ? 0 : 6,
-                    }}
-                    key={hint}
-                    layout
-                    onAnimationComplete={finishPinnedHintScroll}
-                    onUpdate={pinHintScrollToBottom}
-                    transition={
-                      reduceHintMotion
-                        ? { duration: 0.08 }
-                        : {
-                            duration: 0.2,
-                            ease: [0.22, 1, 0.36, 1],
-                          }
-                    }
-                  >
-                    {index + 1}. {hint}
-                  </motion.li>
-                ))}
-              </AnimatePresence>
-            </motion.ol>
+              <ol
+                className="grid gap-4 text-base leading-7 text-muted-foreground"
+                ref={hintListContentRef}
+              >
+                <AnimatePresence initial={false}>
+                  {visibleHints.map((hint, index) => (
+                    <motion.li
+                      animate={{
+                        filter: "blur(0px)",
+                        opacity: 1,
+                        scale: 1,
+                        y: 0,
+                      }}
+                      className="learning-grid-panel-fill p-5"
+                      exit={{
+                        filter: reduceHintMotion ? "blur(0px)" : "blur(6px)",
+                        opacity: 0,
+                        scale: reduceHintMotion ? 1 : 0.98,
+                        y: reduceHintMotion ? 0 : -6,
+                      }}
+                      initial={{
+                        filter: reduceHintMotion ? "blur(0px)" : "blur(8px)",
+                        opacity: 0,
+                        scale: reduceHintMotion ? 1 : 0.98,
+                        y: reduceHintMotion ? 0 : 6,
+                      }}
+                      key={hint}
+                      transition={
+                        reduceHintMotion
+                          ? { duration: 0.08 }
+                          : {
+                              duration: 0.2,
+                              ease: [0.22, 1, 0.36, 1],
+                            }
+                      }
+                    >
+                      {index + 1}. {hint}
+                    </motion.li>
+                  ))}
+                </AnimatePresence>
+              </ol>
+            </motion.div>
           ) : null}
         </AnimatePresence>
-        <motion.div
-          className="mt-5"
-          layout
-          transition={
-            reduceHintMotion
-              ? { duration: 0.08 }
-              : {
-                  duration: 0.2,
-                  ease: [0.22, 1, 0.36, 1],
-                }
-          }
-        >
+        <div className="mt-5">
           <LiquidButton
             className={`${amberLiquidButtonClassName} w-full cursor-pointer`}
             onClick={togglePinnedHints}
@@ -3647,7 +3670,7 @@ function LessonHintPanel({
           >
             {buttonLabel}
           </LiquidButton>
-        </motion.div>
+        </div>
       </aside>
       <LessonRightGutter />
     </>
