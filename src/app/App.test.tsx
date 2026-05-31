@@ -257,7 +257,7 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Kirim jawaban" }));
 
-    expect(await screen.findAllByRole("heading", { name: "Benar" })).toHaveLength(1);
+    expect(await screen.findByRole("img", { name: "Benar" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Kirim jawaban" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /^Lanjut$/ })).toHaveAttribute("href", lesson02Path);
     expect(getStoredCompletedLessonIds()).toContain("lesson-0-1-what-is-machine-learning");
@@ -285,7 +285,7 @@ describe("App", () => {
         "Komputer belajar pola dari data agar dapat membuat prediksi, rekomendasi, atau keputusan untuk contoh baru.",
       ),
     ).toBeChecked();
-    expect(screen.getByRole("heading", { name: "Benar" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Benar" })).toBeInTheDocument();
   });
 
   it("keeps a draft answer when leaving before submit", async () => {
@@ -447,7 +447,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Kirim jawaban" }));
 
     expect(await screen.findByRole("heading", { name: "Belum tepat" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Salah" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Salah" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Tampilkan petunjuk" }));
 
     expect(screen.getByText(/sistem belajar pola dari data untuk contoh baru/)).toBeInTheDocument();
@@ -457,13 +457,13 @@ describe("App", () => {
     expect(correctSingleOption).toBeChecked();
     expect(wrongSingleOption).not.toBeChecked();
     expect(screen.getByRole("heading", { name: "Belum tepat" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Salah" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Salah" })).toBeInTheDocument();
     expect(screen.getByText(/sistem belajar pola dari data untuk contoh baru/)).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Benar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "Benar" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Kirim jawaban" }));
 
-    expect(await screen.findAllByRole("heading", { name: "Benar" })).toHaveLength(1);
+    expect(await screen.findByRole("img", { name: "Benar" })).toBeInTheDocument();
   });
 
   it("blocks direct access to locked Learning Mode lessons", async () => {
@@ -510,8 +510,8 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Kirim jawaban" }));
 
     expect(await screen.findByRole("heading", { name: "Sebagian benar" })).toBeInTheDocument();
-    expect(screen.getAllByRole("heading", { name: "Benar" })).toHaveLength(4);
-    expect(screen.getByRole("heading", { name: "Salah" })).toBeInTheDocument();
+    expect(screen.getAllByRole("img", { name: "Benar" })).toHaveLength(4);
+    expect(screen.getByRole("img", { name: "Salah" })).toBeInTheDocument();
   });
 
   it("submits the problem formulation lesson with both exercises", async () => {
@@ -566,7 +566,8 @@ describe("App", () => {
     fireEvent.click(nextSubmitButton);
 
     await waitFor(() => {
-      expect(screen.getAllByRole("heading", { name: "Benar" })).toHaveLength(13);
+      expect(screen.getAllByRole("heading", { name: "Benar" })).toHaveLength(9);
+      expect(screen.getAllByRole("img", { name: "Benar" })).toHaveLength(4);
     });
     expect(screen.getByRole("link", { name: /^Lanjut$/ })).toBeInTheDocument();
     await waitFor(() => {
@@ -637,7 +638,7 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Terkirim" })).toBeDisabled();
     expect(screen.getAllByRole("button", { name: "Kirim jawaban" })).toHaveLength(1);
-    expect(screen.getAllByRole("heading", { name: "Benar" })).toHaveLength(4);
+    expect(screen.getAllByRole("img", { name: "Benar" })).toHaveLength(4);
   });
 
   it("unlocks the first lesson in the next module after the previous module is complete", async () => {

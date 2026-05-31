@@ -18,6 +18,7 @@ import {
   InformationCircleIcon,
   LinkIcon,
   PencilSquareIcon,
+  XMarkIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
 import { BulbIcon } from "@hugeicons/core-free-icons";
@@ -1388,9 +1389,9 @@ export function LessonPage({
   const [visibleHintCountByExerciseId, setVisibleHintCountByExerciseId] = useState<
     Record<string, number>
   >({});
-  const resultScrollTargetsByExerciseIdRef = useRef<Record<string, HTMLDivElement | null>>({});
+  const exerciseScrollTargetsByExerciseIdRef = useRef<Record<string, HTMLDivElement | null>>({});
   const hintFooterScrollTargetRef = useRef<HTMLDivElement | null>(null);
-  const [pendingResultScrollExerciseId, setPendingResultScrollExerciseId] = useState<string | null>(
+  const [pendingSubmitScrollExerciseId, setPendingSubmitScrollExerciseId] = useState<string | null>(
     null,
   );
   const answerSnapshot = useMemo(
@@ -1506,8 +1507,8 @@ export function LessonPage({
     setEditingAnswerSnapshotsByExerciseId({});
     setValidatingDatasetSourceExerciseId(null);
     setVisibleHintCountByExerciseId({});
-    resultScrollTargetsByExerciseIdRef.current = {};
-    setPendingResultScrollExerciseId(null);
+    exerciseScrollTargetsByExerciseIdRef.current = {};
+    setPendingSubmitScrollExerciseId(null);
   }, [
     initialAssignments,
     initialDatasetSourceAnswersByExerciseId,
@@ -1570,29 +1571,24 @@ export function LessonPage({
   ]);
 
   useEffect(() => {
-    if (!pendingResultScrollExerciseId) {
+    if (!pendingSubmitScrollExerciseId) {
       return;
     }
 
-    const result = exerciseResultsById[pendingResultScrollExerciseId];
+    const result = exerciseResultsById[pendingSubmitScrollExerciseId];
 
     if (!result) {
       return;
     }
 
-    if (result.status === "correct") {
-      setPendingResultScrollExerciseId(null);
-      return;
-    }
-
-    const target = resultScrollTargetsByExerciseIdRef.current[pendingResultScrollExerciseId];
+    const target = exerciseScrollTargetsByExerciseIdRef.current[pendingSubmitScrollExerciseId];
 
     target?.scrollIntoView?.({
       behavior: shouldReduceMotion() ? "auto" : "smooth",
       block: "start",
     });
-    setPendingResultScrollExerciseId(null);
-  }, [exerciseResultsById, pendingResultScrollExerciseId]);
+    setPendingSubmitScrollExerciseId(null);
+  }, [exerciseResultsById, pendingSubmitScrollExerciseId]);
 
   if (tableColumnRoleExercise && !datasetView) {
     return (
@@ -1966,7 +1962,7 @@ export function LessonPage({
     }
     setExerciseResultsById(nextExerciseResultsById);
     setSubmittedAnswerSnapshotsByExerciseId(nextSubmittedAnswerSnapshotsByExerciseId);
-    setPendingResultScrollExerciseId(evaluation.status === "correct" ? null : exercise.id);
+    setPendingSubmitScrollExerciseId(exercise.id);
     if (evaluation.status === "correct") {
       setEditingExerciseIds((current) => {
         if (!current.has(exercise.id)) {
@@ -2113,6 +2109,9 @@ export function LessonPage({
                 }
                 orderedStepIds={orderedStepIdsByExerciseId[exercise.id] ?? []}
                 result={exerciseResult}
+                scrollTargetRef={(node) => {
+                  exerciseScrollTargetsByExerciseIdRef.current[exercise.id] = node;
+                }}
                 isReviewMode={isExerciseReadOnly}
                 submittedColumnRoleAssignments={
                   submittedAnswerSnapshotsByExerciseId[exercise.id]
@@ -2164,12 +2163,7 @@ export function LessonPage({
               ) : null}
               {isMultiExerciseLesson && exerciseResult && exerciseResult.status !== "correct" ? (
                 <>
-                  <LessonResult
-                    result={exerciseResult}
-                    scrollTargetRef={(node) => {
-                      resultScrollTargetsByExerciseIdRef.current[exercise.id] = node;
-                    }}
-                  />
+                  <LessonResult result={exerciseResult} />
                   <LessonHintPanel
                     hints={getExerciseHints(exercise, exerciseResult)}
                     onToggleHints={() =>
@@ -2230,16 +2224,7 @@ export function LessonPage({
 
         {!isMultiExerciseLesson && lessonResult && lessonResult.status !== "correct" ? (
           <>
-            <LessonResult
-              result={lessonResult}
-              scrollTargetRef={(node) => {
-                const firstExercise = exerciseEntries[0];
-
-                if (firstExercise) {
-                  resultScrollTargetsByExerciseIdRef.current[firstExercise.id] = node;
-                }
-              }}
-            />
+            <LessonResult result={lessonResult} />
             {hasNotQuiteResult ? (
               <LessonHintPanel
                 hints={getExerciseHints(exerciseEntries[0], lessonResult)}
@@ -2399,6 +2384,7 @@ function ExerciseSection({
   onUpdateDatasetSourceAnswer,
   orderedStepIds,
   result,
+  scrollTargetRef,
   isReviewMode,
   sourceValidationResults,
   submittedColumnRoleAssignments,
@@ -2422,6 +2408,7 @@ function ExerciseSection({
   ) => void;
   orderedStepIds: string[];
   result: EvaluationResult | null;
+  scrollTargetRef: (node: HTMLDivElement | null) => void;
   isReviewMode: boolean;
   sourceValidationResults: DatasetSourcePageValidationResult[];
   submittedColumnRoleAssignments: Record<string, ColumnRole>;
@@ -2442,6 +2429,7 @@ function ExerciseSection({
       <LessonFullRow>
         <div
           className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${edgeCompensationClassName} p-6`}
+          ref={scrollTargetRef}
         >
           <p className="text-base font-medium text-sky-600">{exerciseLabel}</p>
           <h2 className="mt-3 text-xl font-semibold text-foreground">
@@ -3324,58 +3312,9 @@ function MultipleChoiceExerciseView({
           const isPositiveFeedback = isCorrectOption;
 
           return (
-            <div className="grid" key={option.id}>
-              <AnimatePresence initial={false}>
-                {shouldShowOptionFeedback ? (
-                  <motion.div
-                    animate={{
-                      filter: "blur(0px)",
-                      height: "auto",
-                      opacity: 1,
-                      y: 0,
-                    }}
-                    className="overflow-hidden"
-                    exit={{
-                      filter: reduceOptionFeedbackMotion ? "blur(0px)" : "blur(6px)",
-                      height: 0,
-                      opacity: 0,
-                      y: reduceOptionFeedbackMotion ? 0 : -6,
-                    }}
-                    initial={{
-                      filter: reduceOptionFeedbackMotion ? "blur(0px)" : "blur(8px)",
-                      height: 0,
-                      opacity: 0,
-                      y: reduceOptionFeedbackMotion ? 0 : 6,
-                    }}
-                    transition={
-                      reduceOptionFeedbackMotion
-                        ? { duration: 0.08 }
-                        : {
-                            duration: 0.2,
-                            ease: [0.22, 1, 0.36, 1],
-                          }
-                    }
-                  >
-                    <div className="flex min-h-16 items-center gap-3 border border-b-0 learning-grid-border px-5 py-4">
-                      {isPositiveFeedback ? (
-                        <CheckCircleIcon
-                          aria-hidden="true"
-                          className="size-6 shrink-0 text-emerald-500"
-                        />
-                      ) : (
-                        <XCircleIcon aria-hidden="true" className="size-6 shrink-0 text-rose-500" />
-                      )}
-                      <h3 className="text-xl font-semibold text-foreground">
-                        {isPositiveFeedback
-                          ? t("learning.feedback.correct")
-                          : t("learning.feedback.incorrect")}
-                      </h3>
-                    </div>
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
+            <div className="relative grid" key={option.id}>
               <label
-                className={`flex min-h-16 items-center gap-4 border learning-grid-border px-5 py-4 ${
+                className={`flex min-h-16 items-center gap-4 border learning-grid-border py-4 pr-16 pl-5 ${
                   isReviewMode ? "cursor-not-allowed" : "cursor-pointer"
                 }`}
               >
@@ -3390,8 +3329,59 @@ function MultipleChoiceExerciseView({
                 <span className="flex size-5 shrink-0 items-center justify-center border border-neutral-300 bg-white text-transparent transition-colors peer-checked:border-emerald-500 peer-checked:bg-emerald-500 peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-emerald-500">
                   <CheckIcon aria-hidden="true" className="size-4 stroke-[3.25]" />
                 </span>
-                <span className="text-base leading-7 text-foreground">{option.label}</span>
+                <span className="min-w-0 text-base leading-7 text-foreground">{option.label}</span>
               </label>
+              <AnimatePresence initial={false}>
+                {shouldShowOptionFeedback ? (
+                  <motion.span
+                    animate={{
+                      filter: "blur(0px)",
+                      opacity: 1,
+                      scale: 1,
+                      y: "-50%",
+                    }}
+                    aria-label={
+                      isPositiveFeedback
+                        ? t("learning.feedback.correct")
+                        : t("learning.feedback.incorrect")
+                    }
+                    className="pointer-events-none absolute top-1/2 right-5 inline-flex size-8 items-center justify-center"
+                    exit={{
+                      filter: reduceOptionFeedbackMotion ? "blur(0px)" : "blur(6px)",
+                      opacity: 0,
+                      scale: reduceOptionFeedbackMotion ? 1 : 0.96,
+                      y: reduceOptionFeedbackMotion ? "-50%" : "calc(-50% - 4px)",
+                    }}
+                    initial={{
+                      filter: reduceOptionFeedbackMotion ? "blur(0px)" : "blur(8px)",
+                      opacity: 0,
+                      scale: reduceOptionFeedbackMotion ? 1 : 0.96,
+                      y: reduceOptionFeedbackMotion ? "-50%" : "calc(-50% + 4px)",
+                    }}
+                    transition={
+                      reduceOptionFeedbackMotion
+                        ? { duration: 0.08 }
+                        : {
+                            duration: 0.18,
+                            ease: [0.22, 1, 0.36, 1],
+                          }
+                    }
+                    role="img"
+                  >
+                    {isPositiveFeedback ? (
+                      <CheckIcon
+                        aria-hidden="true"
+                        className="size-8 shrink-0 stroke-[3] text-emerald-500"
+                      />
+                    ) : (
+                      <XMarkIcon
+                        aria-hidden="true"
+                        className="size-8 shrink-0 stroke-[3] text-rose-500"
+                      />
+                    )}
+                  </motion.span>
+                ) : null}
+              </AnimatePresence>
             </div>
           );
         })}
@@ -3465,13 +3455,7 @@ function OrderedStepsExerciseView({
   );
 }
 
-function LessonResult({
-  result,
-  scrollTargetRef,
-}: {
-  result: EvaluationResult;
-  scrollTargetRef?: (node: HTMLDivElement | null) => void;
-}) {
+function LessonResult({ result }: { result: EvaluationResult }) {
   const { t } = useLocalization();
   const resultCellClassName =
     result.status === "correct"
@@ -3485,7 +3469,6 @@ function LessonResult({
       <div
         aria-live="polite"
         className={`learning-sheet-cell ${resultCellClassName} flex gap-4 p-6`}
-        ref={scrollTargetRef}
       >
         {result.status === "correct" ? (
           <CheckCircleIcon aria-hidden="true" className="size-7 shrink-0 text-emerald-500" />
