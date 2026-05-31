@@ -566,8 +566,7 @@ const lesson13KaggleZipExercise: GuidedDownloadExercise = {
     sourceInputId: "demand-source",
   },
   sourceLinkLabel: "Link dataset dari Lesson 1.2",
-  taskDescription:
-    "Gunakan link di bawah supaya kamu tidak perlu kembali ke lesson sebelumnya. Setelah ZIP diupload, sistem akan membaca isi ZIP dan menyiapkan path CSV untuk kode Pandas.",
+  taskDescription: "",
   taskSteps: [
     "Buka link dataset Kaggle yang sudah kamu submit.",
     "Di halaman Kaggle, klik Download untuk mengunduh dataset sebagai file ZIP.",

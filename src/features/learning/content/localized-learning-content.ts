@@ -318,8 +318,7 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
           "The Kaggle dataset link from Lesson 1.2 was not found. Complete and submit the source-data exercise first so the link can appear here.",
         prompt: "Upload the Kaggle ZIP, then write Pandas code to load the extracted CSV.",
         sourceLinkLabel: "Dataset link from Lesson 1.2",
-        taskDescription:
-          "Use the link below so you do not need to return to the previous lesson. After the ZIP is uploaded, the system will read the ZIP contents and prepare the CSV path for the Pandas code.",
+        taskDescription: "",
         taskSteps: [
           "Open the Kaggle dataset link you submitted.",
           "On the Kaggle page, click Download to download the dataset as a ZIP file.",

@@ -9,9 +9,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from app import (
+    AuthenticationError,
     build_expected_pandas_code,
     inspect_zip_bytes,
     is_valid_learning_progress,
+    require_learning_backend_user,
     sanitize_file_name,
     validate_pandas_loading_code,
 )
@@ -79,6 +81,16 @@ class LearningBackendTest(unittest.TestCase):
         self.assertFalse(
             is_valid_learning_progress({"completedLessonIds": [123], "version": 1})
         )
+
+    def test_accepts_valid_guest_session_for_dataset_tools(self) -> None:
+        user = require_learning_backend_user({"headers": {}}, {"guestId": "guest_12345678"})
+
+        self.assertEqual(user["sub"], "guest/guest_12345678")
+        self.assertTrue(user["isGuest"])
+
+    def test_rejects_invalid_guest_session_for_dataset_tools(self) -> None:
+        with self.assertRaises(AuthenticationError):
+            require_learning_backend_user({"headers": {}}, {"guestId": "../bad"})
 
 
 if __name__ == "__main__":

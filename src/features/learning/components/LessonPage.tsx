@@ -143,6 +143,8 @@ const supportedCodeLanguages: ShjLanguage[] = [
 const supportedCodeLanguageSet = new Set<string>(supportedCodeLanguages);
 const defaultLearningBackendUrl =
   "https://zr2esakjqcpiypbnq257nml72e0wjaco.lambda-url.ap-southeast-1.on.aws";
+const learningBackendGuestIdStorageKey = "smile-learning-backend-guest-id-v1";
+const learningBackendGuestIdPattern = /^[A-Za-z0-9][A-Za-z0-9_-]{7,127}$/;
 
 type ViteImportMeta = ImportMeta & {
   env?: {
@@ -569,8 +571,9 @@ async function readLearningBackendJson<T>(response: Response): Promise<T> {
 
 async function postLearningBackendJson<T>(path: string, body: unknown): Promise<T> {
   const authorization = getAuthAuthorizationHeader();
+  const requestBody = authorization ? body : addLearningBackendGuestId(body);
   const response = await fetch(`${getLearningBackendUrl()}${path}`, {
-    body: JSON.stringify(body),
+    body: JSON.stringify(requestBody),
     headers: {
       ...(authorization ? { authorization } : {}),
       "content-type": "application/json",
@@ -579,6 +582,43 @@ async function postLearningBackendJson<T>(path: string, body: unknown): Promise<
   });
 
   return readLearningBackendJson<T>(response);
+}
+
+function addLearningBackendGuestId(body: unknown) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return body;
+  }
+
+  return {
+    ...(body as Record<string, unknown>),
+    guestId: getLearningBackendGuestId(),
+  };
+}
+
+function getLearningBackendGuestId() {
+  if (typeof window === "undefined") {
+    return createLearningBackendGuestId();
+  }
+
+  const storedGuestId = window.localStorage.getItem(learningBackendGuestIdStorageKey);
+  if (storedGuestId && learningBackendGuestIdPattern.test(storedGuestId)) {
+    return storedGuestId;
+  }
+
+  const guestId = createLearningBackendGuestId();
+  window.localStorage.setItem(learningBackendGuestIdStorageKey, guestId);
+
+  return guestId;
+}
+
+function createLearningBackendGuestId() {
+  const cryptoApi = globalThis.crypto;
+  const randomPart =
+    typeof cryptoApi?.randomUUID === "function"
+      ? cryptoApi.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+
+  return `guest_${randomPart.replace(/[^A-Za-z0-9_-]/g, "")}`.slice(0, 128);
 }
 
 async function inspectGuidedDownloadArchiveWithBackend(file: File) {
@@ -715,6 +755,52 @@ function getLearningBackendValidationMessage(
     fallbackMessage ||
     (locale === "en" ? "Code validation failed." : "Validasi kode belum berhasil.")
   );
+}
+
+function getGuidedDownloadUploadErrorMessage(error: unknown, locale: Locale) {
+  const message = error instanceof Error ? error.message.trim() : "";
+  const normalizedMessage = message.toLowerCase();
+
+  if (
+    normalizedMessage.includes("sign in before using this lesson backend") ||
+    normalizedMessage.includes("guest session") ||
+    normalizedMessage.includes("auth token") ||
+    normalizedMessage.includes("authorization") ||
+    normalizedMessage.includes("bearer token")
+  ) {
+    return locale === "en"
+      ? "The guest session could not be used. Reload this page, then upload the ZIP again."
+      : "Sesi guest belum bisa dipakai. Muat ulang halaman, lalu upload ZIP lagi.";
+  }
+
+  if (message === "ZIP upload failed." || message === "AWS storage operation failed.") {
+    return locale === "en"
+      ? "The ZIP upload failed while connecting to storage. Try uploading it again."
+      : "Upload ZIP gagal saat tersambung ke storage. Coba upload ulang.";
+  }
+
+  if (
+    message === "The uploaded file is not a readable ZIP archive." ||
+    message === "No CSV file was found in the uploaded ZIP." ||
+    message === "Uploaded ZIP is empty." ||
+    message === "Uploaded ZIP is too large for this lesson." ||
+    message === "ZIP contains too many files for this lesson." ||
+    message === "ZIP contents are too large for this lesson." ||
+    message === "CSV file is empty." ||
+    message === "CSV encoding is not readable."
+  ) {
+    return locale === "en" ? message : `ZIP belum bisa dibaca: ${message}`;
+  }
+
+  if (message) {
+    return locale === "en"
+      ? `The ZIP could not be uploaded or read: ${message}`
+      : `ZIP tidak bisa diupload atau dibaca: ${message}`;
+  }
+
+  return locale === "en"
+    ? "The ZIP could not be uploaded or read by the learning backend."
+    : "ZIP tidak bisa diupload atau dibaca oleh backend learning.";
 }
 
 function getPandasCodeRunMessage(backendResult: LearningBackendValidationResponse, locale: Locale) {
@@ -2266,7 +2352,7 @@ export function LessonPage({
           tabularFilePath: inspection.tabularFilePath,
         },
       }));
-    } catch {
+    } catch (error) {
       setGuidedDownloadExtractedFilePathsByExerciseId((current) => ({
         ...current,
         [exerciseId]: "",
@@ -2278,10 +2364,7 @@ export function LessonPage({
       setGuidedDownloadArchivesByExerciseId((current) => ({
         ...current,
         [exerciseId]: {
-          error:
-            locale === "en"
-              ? "The ZIP could not be uploaded or read by the learning backend."
-              : "ZIP tidak bisa diupload atau dibaca oleh backend learning.",
+          error: getGuidedDownloadUploadErrorMessage(error, locale),
           fileName: file.name,
           isReading: false,
         },
@@ -3351,13 +3434,17 @@ function GuidedDownloadExerciseView({
         >
           <p className="text-base font-medium text-sky-600">{exercise.taskTitle}</p>
           <h3 className="mt-3 text-xl font-semibold text-foreground">{exercise.prompt}</h3>
-          <p
-            className={`mt-4 max-w-4xl text-base leading-7 text-muted-foreground ${lessonInlineLinkClassName}`}
-          >
-            {renderInlineMarkdown(exercise.taskDescription, `${exercise.id}-task-description`)}
-          </p>
+          {exercise.taskDescription.trim() ? (
+            <p
+              className={`mt-4 max-w-4xl text-base leading-7 text-muted-foreground ${lessonInlineLinkClassName}`}
+            >
+              {renderInlineMarkdown(exercise.taskDescription, `${exercise.id}-task-description`)}
+            </p>
+          ) : null}
           <ol
-            className={`mt-4 grid max-w-4xl list-decimal gap-2 pl-5 text-base leading-7 text-muted-foreground ${lessonInlineLinkClassName}`}
+            className={`grid max-w-4xl list-decimal gap-2 pl-5 text-base leading-7 text-muted-foreground ${lessonInlineLinkClassName} ${
+              exercise.taskDescription.trim() ? "mt-4" : "mt-5"
+            }`}
           >
             {exercise.taskSteps.map((step, stepIndex) => (
               <li key={step}>

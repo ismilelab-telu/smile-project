@@ -49,6 +49,7 @@ MAX_UNZIPPED_BYTES = int(os.environ.get("MAX_UNZIPPED_BYTES", "104857600"))
 MAX_PROGRESS_JSON_BYTES = int(os.environ.get("MAX_PROGRESS_JSON_BYTES", "300000"))
 MAX_ZIP_ENTRIES = 512
 PRESIGN_EXPIRES_IN_SECONDS = 600
+GUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{7,127}$")
 
 _s3_client = None
 _dynamodb_client = None
@@ -78,22 +79,28 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         if method == "GET" and path == "/health":
             return response(200, {"ok": True})
 
-        user = require_authenticated_user(event)
-
         if method == "GET" and path == "/progress":
+            user = require_authenticated_user(event)
             return response(200, get_learning_progress(user))
 
         if method == "PUT" and path == "/progress":
+            user = require_authenticated_user(event)
             return response(200, save_learning_progress(parse_json_body(event), user))
 
         if method == "POST" and path == "/uploads/presign":
-            return response(200, create_presigned_upload(parse_json_body(event), user))
+            body = parse_json_body(event)
+            user = require_learning_backend_user(event, body)
+            return response(200, create_presigned_upload(body, user))
 
         if method == "POST" and path == "/datasets/inspect":
-            return response(200, inspect_uploaded_dataset(parse_json_body(event), user))
+            body = parse_json_body(event)
+            user = require_learning_backend_user(event, body)
+            return response(200, inspect_uploaded_dataset(body, user))
 
         if method == "POST" and path == "/pandas/validate":
-            return response(200, validate_uploaded_dataset_code(parse_json_body(event), user))
+            body = parse_json_body(event)
+            user = require_learning_backend_user(event, body)
+            return response(200, validate_uploaded_dataset_code(body, user))
 
         return response(404, {"message": "Route not found."})
     except AuthenticationError as error:
@@ -131,6 +138,24 @@ def require_authenticated_user(event: dict[str, Any]) -> dict[str, Any]:
         raise AuthenticationError("Bearer token is empty.")
 
     return verify_cognito_token(token)
+
+
+def require_learning_backend_user(event: dict[str, Any], body: dict[str, Any]) -> dict[str, Any]:
+    if get_header(event, "authorization"):
+        return require_authenticated_user(event)
+
+    guest_id = get_optional_string(body, "guestId")
+    if not guest_id:
+        raise AuthenticationError("Sign in or use a guest session before using this lesson backend.")
+
+    if not GUEST_ID_PATTERN.fullmatch(guest_id):
+        raise AuthenticationError("Guest session is not valid.")
+
+    return {
+        "email": "",
+        "isGuest": True,
+        "sub": f"guest/{guest_id}",
+    }
 
 
 def verify_cognito_token(token: str) -> dict[str, Any]:
