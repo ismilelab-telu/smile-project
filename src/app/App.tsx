@@ -4,6 +4,7 @@ import { flushSync } from "react-dom";
 import { ExternalLinkGuard } from "@/components/ExternalLinkGuard";
 import { LinkPreviewProvider } from "@/components/ui/link-preview";
 import LiquidEther from "@/components/ui/liquid-ether";
+import { AuthProvider } from "@/features/auth/auth-context";
 import { LocalizationProvider } from "@/features/localization/localization";
 import { AuthPage } from "@/pages/AuthPage";
 import { ExplorePage } from "@/pages/ExplorePage";
@@ -84,10 +85,12 @@ function isLocalAppLink(element: HTMLAnchorElement) {
 export function App() {
   return (
     <LocalizationProvider>
-      <LinkPreviewProvider>
-        <ExternalLinkGuard />
-        <AppRoutes />
-      </LinkPreviewProvider>
+      <AuthProvider>
+        <LinkPreviewProvider>
+          <ExternalLinkGuard />
+          <AppRoutes />
+        </LinkPreviewProvider>
+      </AuthProvider>
     </LocalizationProvider>
   );
 }

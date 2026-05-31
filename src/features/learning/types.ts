@@ -190,6 +190,7 @@ export type LessonAnswer = {
   datasetSourceAnswersByExerciseId?: Record<string, Record<string, DatasetSourceAnswer>>;
   guidedDownloadCodeByExerciseId?: Record<string, string>;
   guidedDownloadExtractedFilePathsByExerciseId?: Record<string, string>;
+  guidedDownloadObjectKeysByExerciseId?: Record<string, string>;
   orderedStepIdsByExerciseId?: Record<string, string[]>;
   selectedOptionIdsByExerciseId?: Record<string, string[]>;
 };

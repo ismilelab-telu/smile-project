@@ -1,8 +1,18 @@
 import { Cancel01Icon, CheckIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { animate } from "motion";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 
+import { useAuth } from "@/features/auth/auth-context";
+import { CognitoAuthError } from "@/features/auth/cognito-auth";
 import { useLocalization, type Locale } from "@/features/localization/localization";
 
 type AuthMode = "login" | "register";
@@ -195,17 +205,25 @@ export function AuthPage({ mode }: AuthPageProps) {
 }
 
 function AuthFormPanel({ mode, onSwitchStart }: { mode: AuthMode; onSwitchStart: () => void }) {
+  const auth = useAuth();
   const { locale } = useLocalization();
   const copy = authCopy[locale][mode];
   const isRegister = mode === "register";
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmationCode, setConfirmationCode] = useState("");
+  const [confirmationDestination, setConfirmationDestination] = useState("");
+  const [confirmationEmail, setConfirmationEmail] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
   const [isPasswordTouched, setPasswordTouched] = useState(false);
   const [isConfirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
   const passwordRuleState = getPasswordRuleState(password);
   const passwordError = getPasswordValidationMessage(password, locale);
-  const showPasswordError =
-    isRegister && isPasswordTouched && password.length > 0 && passwordError !== "";
+  const showPasswordError = isRegister && isPasswordTouched && passwordError !== "";
   const confirmPasswordError = getConfirmPasswordValidationMessage(
     password,
     confirmPassword,
@@ -215,6 +233,177 @@ function AuthFormPanel({ mode, onSwitchStart }: { mode: AuthMode; onSwitchStart:
     isRegister &&
     Boolean(confirmPasswordError) &&
     (confirmPassword.length > 0 || isConfirmPasswordTouched);
+  const isConfirmingAccount = confirmationEmail.length > 0;
+
+  useEffect(() => {
+    setConfirmationCode("");
+    setConfirmationDestination("");
+    setConfirmationEmail("");
+    setConfirmPassword("");
+    setEmail("");
+    setErrorMessage("");
+    setName("");
+    setPassword("");
+    setPasswordTouched(false);
+    setConfirmPasswordTouched(false);
+    setStatusMessage("");
+  }, [mode]);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    setErrorMessage("");
+    setStatusMessage("");
+
+    if (!normalizedEmail) {
+      setErrorMessage(locale === "en" ? "Email is required." : "Email wajib diisi.");
+      return;
+    }
+
+    if (!password) {
+      setErrorMessage(locale === "en" ? "Password is required." : "Password wajib diisi.");
+      return;
+    }
+
+    if (isRegister && !isConfirmingAccount) {
+      setPasswordTouched(true);
+      setConfirmPasswordTouched(true);
+
+      if (!name.trim()) {
+        setErrorMessage(locale === "en" ? "Full name is required." : "Nama lengkap wajib diisi.");
+        return;
+      }
+
+      if (passwordError || confirmPasswordError || !confirmPassword) {
+        setErrorMessage(
+          locale === "en"
+            ? "Check the password and confirmation first."
+            : "Cek password dan konfirmasinya dulu.",
+        );
+        return;
+      }
+    }
+
+    if (isConfirmingAccount && !confirmationCode.trim()) {
+      setErrorMessage(
+        locale === "en" ? "Verification code is required." : "Kode verifikasi wajib diisi.",
+      );
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      if (isRegister && !isConfirmingAccount) {
+        const signUpResult = await auth.signUp({
+          email: normalizedEmail,
+          name: name.trim(),
+          password,
+        });
+
+        if (signUpResult.userConfirmed) {
+          await auth.signIn({ email: normalizedEmail, password });
+          redirectToLearning();
+          return;
+        }
+
+        setConfirmationDestination(signUpResult.destination ?? "");
+        setConfirmationEmail(normalizedEmail);
+        setStatusMessage(getConfirmationSentMessage(locale, signUpResult.destination));
+        return;
+      }
+
+      if (isConfirmingAccount) {
+        await auth.confirmSignUp({
+          code: confirmationCode.trim(),
+          email: confirmationEmail,
+        });
+        await auth.signIn({ email: confirmationEmail, password });
+        redirectToLearning();
+        return;
+      }
+
+      await auth.signIn({ email: normalizedEmail, password });
+      redirectToLearning();
+    } catch (error) {
+      if (error instanceof CognitoAuthError && error.code === "UserNotConfirmedException") {
+        setConfirmationEmail(normalizedEmail);
+        setStatusMessage(
+          locale === "en"
+            ? "This account still needs the verification code from email."
+            : "Akun ini masih perlu kode verifikasi dari email.",
+        );
+        return;
+      }
+
+      setErrorMessage(getAuthErrorMessage(error, locale));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    const resendEmail = confirmationEmail || email.trim().toLowerCase();
+
+    if (!resendEmail || isSubmitting) {
+      return;
+    }
+
+    setErrorMessage("");
+    setStatusMessage("");
+    setIsSubmitting(true);
+
+    try {
+      await auth.resendConfirmationCode(resendEmail);
+      setStatusMessage(getConfirmationSentMessage(locale, confirmationDestination));
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error, locale));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const getFieldValue = (fieldId: string) => {
+    if (fieldId === "auth-name") {
+      return name;
+    }
+
+    if (fieldId === "auth-email") {
+      return email;
+    }
+
+    if (fieldId === "auth-password") {
+      return password;
+    }
+
+    if (fieldId === "auth-confirm-password") {
+      return confirmPassword;
+    }
+
+    return "";
+  };
+
+  const getFieldChangeHandler = (fieldId: string) => {
+    if (fieldId === "auth-name") {
+      return setName;
+    }
+
+    if (fieldId === "auth-email") {
+      return setEmail;
+    }
+
+    if (fieldId === "auth-password") {
+      return setPassword;
+    }
+
+    if (fieldId === "auth-confirm-password") {
+      return setConfirmPassword;
+    }
+
+    return undefined;
+  };
 
   return (
     <div
@@ -240,19 +429,7 @@ function AuthFormPanel({ mode, onSwitchStart }: { mode: AuthMode; onSwitchStart:
             ) : null}
           </div>
 
-          <form
-            className="mt-8 space-y-6"
-            onSubmit={(event) => {
-              event.preventDefault();
-
-              if (!isRegister) {
-                return;
-              }
-
-              setPasswordTouched(true);
-              setConfirmPasswordTouched(true);
-            }}
-          >
+          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             {getAuthFields(locale, mode).map((field) => {
               const validationContent =
                 isRegister && field.id === "auth-password" ? (
@@ -293,31 +470,60 @@ function AuthFormPanel({ mode, onSwitchStart }: { mode: AuthMode; onSwitchStart:
                         ? () => setConfirmPasswordTouched(true)
                         : undefined
                   }
-                  onChange={
-                    isRegister && field.id === "auth-password"
-                      ? setPassword
-                      : isRegister && field.id === "auth-confirm-password"
-                        ? setConfirmPassword
-                        : undefined
-                  }
-                  value={
-                    isRegister && field.id === "auth-password"
-                      ? password
-                      : isRegister && field.id === "auth-confirm-password"
-                        ? confirmPassword
-                        : undefined
-                  }
+                  onChange={getFieldChangeHandler(field.id)}
+                  value={getFieldValue(field.id)}
                 >
                   {validationContent}
                 </AuthInput>
               );
             })}
 
+            {isConfirmingAccount ? (
+              <div className="space-y-3 border border-sky-200 bg-sky-50/70 p-4">
+                <AuthInput
+                  field={{
+                    autoComplete: "one-time-code",
+                    id: "auth-confirmation-code",
+                    label: locale === "en" ? "Verification Code" : "Kode Verifikasi",
+                    placeholder: "123456",
+                    type: "text",
+                  }}
+                  onChange={setConfirmationCode}
+                  value={confirmationCode}
+                />
+                <button
+                  className="text-xs font-semibold text-sky-700 underline underline-offset-4 transition-colors hover:text-sky-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+                  disabled={isSubmitting}
+                  onClick={handleResendCode}
+                  type="button"
+                >
+                  {locale === "en" ? "Resend code" : "Kirim ulang kode"}
+                </button>
+              </div>
+            ) : null}
+
+            {errorMessage ? (
+              <p className="text-sm leading-6 font-medium text-rose-700" role="alert">
+                {errorMessage}
+              </p>
+            ) : null}
+            {statusMessage ? (
+              <p className="text-sm leading-6 font-medium text-sky-700" aria-live="polite">
+                {statusMessage}
+              </p>
+            ) : null}
+
             <button
-              className="inline-flex h-10 w-full items-center justify-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300"
+              className="inline-flex h-10 w-full items-center justify-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:bg-zinc-400"
+              disabled={isSubmitting}
               type="submit"
             >
-              {copy.submit}
+              {getSubmitLabel({
+                isConfirmingAccount,
+                isSubmitting,
+                locale,
+                submit: copy.submit,
+              })}
             </button>
           </form>
 
@@ -370,9 +576,11 @@ function AuthInput({
             : "border-zinc-300 focus:border-zinc-500 focus:ring-zinc-500/45"
         }`}
         id={field.id}
+        name={field.id}
         onBlur={onBlur}
         onChange={onChange ? (event) => onChange(event.target.value) : undefined}
         placeholder={field.placeholder}
+        required
         type={field.type}
         value={value}
       />
@@ -396,21 +604,18 @@ function PasswordRequirements({
   ruleState: Record<PasswordRule, boolean>;
 }) {
   const hasPassword = password.length > 0;
-  const defaultMessage =
-    locale === "en"
-      ? "Must be at least 8 characters long, with uppercase, lowercase, and number."
-      : "Minimal 8 karakter, dengan huruf besar, huruf kecil, dan angka.";
+  const shouldShowHint = !hasPassword && error.length > 0;
 
   return (
     <>
-      <p
-        className={`mt-1.5 overflow-hidden text-xs leading-4 transition-[max-height,opacity,transform,color] duration-200 ease-out ${
-          hasPassword ? "max-h-0 -translate-y-1 opacity-0" : "max-h-8 translate-y-0 opacity-100"
-        } ${error ? "text-rose-700" : "text-muted-foreground"}`}
-        id="password-requirements-hint"
-      >
-        {error || defaultMessage}
-      </p>
+      {shouldShowHint ? (
+        <p
+          className="mt-1.5 overflow-hidden text-xs leading-4 text-rose-700 transition-[max-height,opacity,transform,color] duration-200 ease-out"
+          id="password-requirements-hint"
+        >
+          {error}
+        </p>
+      ) : null}
       <ul
         aria-label={locale === "en" ? "Password requirements" : "Syarat password"}
         className={`space-y-1.5 overflow-hidden pl-0.5 transition-[max-height,opacity,transform,margin] duration-200 ease-out ${
@@ -688,17 +893,17 @@ function getAuthFields(locale: Locale, mode: AuthMode): AuthField[] {
       confirmPassword: "Confirm Password",
       confirmPasswordHelper: "Please confirm your password.",
       email: "Email",
-      emailHelper: "Optional for display. Not used in the demo login process.",
+      emailHelper: "",
       name: "Full Name",
-      nameHelper: "This name is used as the username on the welcome page.",
+      nameHelper: "",
       password: "Password",
-      passwordHelper: "Must be at least 8 characters long, with uppercase, lowercase, and number.",
+      passwordHelper: "",
     },
     id: {
       confirmPassword: "Konfirmasi Password",
       confirmPasswordHelper: "Ulangi password yang sama.",
       email: "Email",
-      emailHelper: "Opsional untuk tampilan. Tidak dipakai pada proses login demo ini.",
+      emailHelper: "",
       name: "Nama Lengkap",
       nameHelper: "",
       password: "Password",
@@ -760,6 +965,85 @@ function getAuthFields(locale: Locale, mode: AuthMode): AuthField[] {
       type: "password",
     },
   ];
+}
+
+function getSubmitLabel({
+  isConfirmingAccount,
+  isSubmitting,
+  locale,
+  submit,
+}: {
+  isConfirmingAccount: boolean;
+  isSubmitting: boolean;
+  locale: Locale;
+  submit: string;
+}) {
+  if (isSubmitting) {
+    return locale === "en" ? "Processing..." : "Memproses...";
+  }
+
+  if (isConfirmingAccount) {
+    return locale === "en" ? "Verify Account" : "Verifikasi Akun";
+  }
+
+  return submit;
+}
+
+function getConfirmationSentMessage(locale: Locale, destination?: string) {
+  if (locale === "en") {
+    return destination
+      ? `Verification code sent to ${destination}.`
+      : "Verification code sent to your email.";
+  }
+
+  return destination
+    ? `Kode verifikasi dikirim ke ${destination}.`
+    : "Kode verifikasi dikirim ke email kamu.";
+}
+
+function getAuthErrorMessage(error: unknown, locale: Locale) {
+  if (error instanceof CognitoAuthError) {
+    const messages: Record<string, Record<Locale, string>> = {
+      AuthNotConfigured: {
+        en: "Auth is not configured yet. Deploy the backend and set the Cognito env values.",
+        id: "Auth belum dikonfigurasi. Deploy backend dulu lalu isi env Cognito.",
+      },
+      CodeMismatchException: {
+        en: "The verification code is not correct.",
+        id: "Kode verifikasi belum benar.",
+      },
+      ExpiredCodeException: {
+        en: "The verification code has expired. Send a new code.",
+        id: "Kode verifikasi sudah kedaluwarsa. Kirim ulang kode.",
+      },
+      InvalidPasswordException: {
+        en: "Password must be at least 8 characters and include uppercase, lowercase, and number.",
+        id: "Password minimal 8 karakter dan punya huruf besar, huruf kecil, serta angka.",
+      },
+      NotAuthorizedException: {
+        en: "Email or password is not correct.",
+        id: "Email atau password belum sesuai.",
+      },
+      UsernameExistsException: {
+        en: "This email is already registered. Sign in instead.",
+        id: "Email ini sudah terdaftar. Masuk saja.",
+      },
+      UserNotFoundException: {
+        en: "No account was found for this email.",
+        id: "Akun dengan email ini belum ditemukan.",
+      },
+    };
+
+    return messages[error.code]?.[locale] ?? error.message;
+  }
+
+  return locale === "en" ? "Auth request failed." : "Permintaan auth gagal.";
+}
+
+function redirectToLearning() {
+  window.history.pushState(null, "", "/learn");
+  window.dispatchEvent(new PopStateEvent("popstate"));
+  window.scrollTo({ top: 0 });
 }
 
 function shouldReduceMotion() {

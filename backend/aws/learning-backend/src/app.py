@@ -12,6 +12,20 @@ import zipfile
 from typing import Any
 
 try:
+    import jwt
+    from jwt import InvalidTokenError, PyJWKClient
+    from jwt.exceptions import PyJWKClientError
+except ImportError:  # pragma: no cover - Lambda and SAM builds install PyJWT.
+    jwt = None
+    PyJWKClient = None
+
+    class InvalidTokenError(Exception):
+        pass
+
+    class PyJWKClientError(Exception):
+        pass
+
+try:
     import boto3
     from botocore.config import Config
     from botocore.exceptions import ClientError
@@ -25,15 +39,27 @@ except ImportError:  # pragma: no cover - Lambda and SAM builds install boto3.
 
 UPLOAD_BUCKET = os.environ.get("UPLOAD_BUCKET", "")
 AWS_REGION = os.environ.get("AWS_REGION", "ap-southeast-1")
+COGNITO_REGION = os.environ.get("COGNITO_REGION", AWS_REGION)
+COGNITO_USER_POOL_ID = os.environ.get("COGNITO_USER_POOL_ID", "")
+COGNITO_CLIENT_ID = os.environ.get("COGNITO_CLIENT_ID", "")
 MAX_ZIP_BYTES = int(os.environ.get("MAX_ZIP_BYTES", "52428800"))
 MAX_UNZIPPED_BYTES = int(os.environ.get("MAX_UNZIPPED_BYTES", "104857600"))
 MAX_ZIP_ENTRIES = 512
 PRESIGN_EXPIRES_IN_SECONDS = 600
 
 _s3_client = None
+_jwks_client = None
 
 
 class ClientInputError(ValueError):
+    pass
+
+
+class AuthenticationError(ValueError):
+    pass
+
+
+class AuthConfigurationError(RuntimeError):
     pass
 
 
@@ -48,16 +74,22 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         if method == "GET" and path == "/health":
             return response(200, {"ok": True})
 
+        user = require_authenticated_user(event)
+
         if method == "POST" and path == "/uploads/presign":
-            return response(200, create_presigned_upload(parse_json_body(event)))
+            return response(200, create_presigned_upload(parse_json_body(event), user))
 
         if method == "POST" and path == "/datasets/inspect":
-            return response(200, inspect_uploaded_dataset(parse_json_body(event)))
+            return response(200, inspect_uploaded_dataset(parse_json_body(event), user))
 
         if method == "POST" and path == "/pandas/validate":
-            return response(200, validate_uploaded_dataset_code(parse_json_body(event)))
+            return response(200, validate_uploaded_dataset_code(parse_json_body(event), user))
 
         return response(404, {"message": "Route not found."})
+    except AuthenticationError as error:
+        return response(401, {"message": str(error)})
+    except AuthConfigurationError:
+        return response(500, {"message": "Auth is not configured for this backend."})
     except ClientInputError as error:
         return response(400, {"message": str(error)})
     except ClientError:
@@ -72,6 +104,88 @@ def response(status_code: int, body: dict[str, Any]) -> dict[str, Any]:
         "headers": {"content-type": "application/json; charset=utf-8"},
         "body": json.dumps(body),
     }
+
+
+def require_authenticated_user(event: dict[str, Any]) -> dict[str, Any]:
+    authorization = get_header(event, "authorization")
+
+    if not authorization:
+        raise AuthenticationError("Sign in before using this lesson backend.")
+
+    prefix = "bearer "
+    if not authorization.lower().startswith(prefix):
+        raise AuthenticationError("Authorization header must use a bearer token.")
+
+    token = authorization[len(prefix) :].strip()
+    if not token:
+        raise AuthenticationError("Bearer token is empty.")
+
+    return verify_cognito_token(token)
+
+
+def verify_cognito_token(token: str) -> dict[str, Any]:
+    if jwt is None or PyJWKClient is None:
+        raise AuthConfigurationError("PyJWT is required for auth.")
+
+    if not COGNITO_USER_POOL_ID or not COGNITO_CLIENT_ID:
+        raise AuthConfigurationError("Cognito environment variables are missing.")
+
+    issuer = get_cognito_issuer()
+
+    try:
+        signing_key = get_jwks_client().get_signing_key_from_jwt(token).key
+        claims = jwt.decode(
+            token,
+            signing_key,
+            algorithms=["RS256"],
+            issuer=issuer,
+            options={"verify_aud": False},
+        )
+    except (InvalidTokenError, PyJWKClientError) as error:
+        raise AuthenticationError("Auth token is invalid or expired.") from error
+
+    token_use = claims.get("token_use")
+    if token_use == "id":
+        if claims.get("aud") != COGNITO_CLIENT_ID:
+            raise AuthenticationError("Auth token is not for this app.")
+    elif token_use == "access":
+        if claims.get("client_id") != COGNITO_CLIENT_ID:
+            raise AuthenticationError("Auth token is not for this app.")
+    else:
+        raise AuthenticationError("Auth token type is not supported.")
+
+    subject = claims.get("sub")
+    if not isinstance(subject, str) or not subject:
+        raise AuthenticationError("Auth token is missing a user id.")
+
+    return {
+        "email": claims.get("email", ""),
+        "sub": subject,
+    }
+
+
+def get_header(event: dict[str, Any], name: str) -> str:
+    headers = event.get("headers") or {}
+    for key, value in headers.items():
+        if key.lower() == name.lower() and isinstance(value, str):
+            return value
+    return ""
+
+
+def get_cognito_issuer() -> str:
+    return f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}"
+
+
+def get_jwks_client():
+    global _jwks_client
+
+    if PyJWKClient is None:
+        raise AuthConfigurationError("PyJWT is required for auth.")
+
+    if _jwks_client is None:
+        _jwks_client = PyJWKClient(f"{get_cognito_issuer()}/.well-known/jwks.json")
+
+    return _jwks_client
 
 
 def parse_json_body(event: dict[str, Any]) -> dict[str, Any]:
@@ -93,11 +207,11 @@ def parse_json_body(event: dict[str, Any]) -> dict[str, Any]:
     return body
 
 
-def create_presigned_upload(body: dict[str, Any]) -> dict[str, Any]:
+def create_presigned_upload(body: dict[str, Any], user: dict[str, Any]) -> dict[str, Any]:
     file_name = get_required_string(body, "fileName")
     content_type = get_optional_string(body, "contentType") or "application/zip"
     safe_file_name = sanitize_file_name(file_name)
-    object_key = f"uploads/{uuid.uuid4()}/{safe_file_name}"
+    object_key = f"uploads/{user['sub']}/{uuid.uuid4()}/{safe_file_name}"
 
     upload_url = get_s3_client().generate_presigned_url(
         ClientMethod="put_object",
@@ -118,8 +232,8 @@ def create_presigned_upload(body: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def inspect_uploaded_dataset(body: dict[str, Any]) -> dict[str, Any]:
-    object_key = require_upload_object_key(body)
+def inspect_uploaded_dataset(body: dict[str, Any], user: dict[str, Any]) -> dict[str, Any]:
+    object_key = require_upload_object_key(body, user)
     archive = download_archive(object_key)
     inspection = inspect_zip_bytes(archive)
 
@@ -133,8 +247,8 @@ def inspect_uploaded_dataset(body: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def validate_uploaded_dataset_code(body: dict[str, Any]) -> dict[str, Any]:
-    object_key = require_upload_object_key(body)
+def validate_uploaded_dataset_code(body: dict[str, Any], user: dict[str, Any]) -> dict[str, Any]:
+    object_key = require_upload_object_key(body, user)
     csv_path = get_required_string(body, "csvPath")
     submitted_code = get_required_string(body, "code")
 
@@ -348,10 +462,11 @@ def normalize_data_path(path: str) -> str:
     return normalized
 
 
-def require_upload_object_key(body: dict[str, Any]) -> str:
+def require_upload_object_key(body: dict[str, Any], user: dict[str, Any]) -> str:
     object_key = get_required_string(body, "objectKey")
-    if not object_key.startswith("uploads/"):
-        raise ClientInputError("Object key is outside the upload area.")
+    expected_prefix = f"uploads/{user['sub']}/"
+    if not object_key.startswith(expected_prefix):
+        raise ClientInputError("Object key is outside your upload area.")
     return object_key
 
 

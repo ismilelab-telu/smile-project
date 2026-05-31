@@ -86,6 +86,7 @@ import { LearningHeader } from "./LearningHeader";
 import { CopyButton } from "@/components/ui/copy-button";
 import { LinkPreview } from "@/components/ui/link-preview";
 import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
+import { getAuthAuthorizationHeader } from "@/features/auth/auth-session";
 import { useLocalization, type Locale } from "@/features/localization/localization";
 import { shouldReduceMotion } from "@/lib/motion";
 
@@ -567,9 +568,11 @@ async function readLearningBackendJson<T>(response: Response): Promise<T> {
 }
 
 async function postLearningBackendJson<T>(path: string, body: unknown): Promise<T> {
+  const authorization = getAuthAuthorizationHeader();
   const response = await fetch(`${getLearningBackendUrl()}${path}`, {
     body: JSON.stringify(body),
     headers: {
+      ...(authorization ? { authorization } : {}),
       "content-type": "application/json",
     },
     method: "POST",
@@ -654,6 +657,12 @@ function getExpectedPathFromBackendResult(backendResult: LearningBackendValidati
   const expectedPathMatch = /pd\.read_csv\("([^"]+)"\)/.exec(expectedCode);
 
   return expectedPathMatch?.[1] ?? "";
+}
+
+function getFileNameFromObjectKey(objectKey: string) {
+  const fileName = objectKey.split("/").pop()?.trim();
+
+  return fileName || "dataset.zip";
 }
 
 function getLearningBackendValidationMessage(
@@ -1294,6 +1303,7 @@ function createLessonAnswerSnapshot({
   exercises,
   guidedDownloadCodeByExerciseId,
   guidedDownloadExtractedFilePathsByExerciseId,
+  guidedDownloadObjectKeysByExerciseId,
   orderedStepIdsByExerciseId,
   selectedOptionIdsByExerciseId,
 }: {
@@ -1302,6 +1312,7 @@ function createLessonAnswerSnapshot({
   exercises: LessonExercise[];
   guidedDownloadCodeByExerciseId: Record<string, string>;
   guidedDownloadExtractedFilePathsByExerciseId: Record<string, string>;
+  guidedDownloadObjectKeysByExerciseId: Record<string, string>;
   orderedStepIdsByExerciseId: Record<string, string[]>;
   selectedOptionIdsByExerciseId: Record<string, string[]>;
 }): LessonAnswer {
@@ -1310,6 +1321,7 @@ function createLessonAnswerSnapshot({
     datasetSourceAnswersByExerciseId: {},
     guidedDownloadCodeByExerciseId: {},
     guidedDownloadExtractedFilePathsByExerciseId: {},
+    guidedDownloadObjectKeysByExerciseId: {},
     orderedStepIdsByExerciseId: {},
     selectedOptionIdsByExerciseId: {},
   };
@@ -1342,6 +1354,8 @@ function createLessonAnswerSnapshot({
         guidedDownloadCodeByExerciseId[exercise.id] ?? "";
       answer.guidedDownloadExtractedFilePathsByExerciseId[exercise.id] =
         guidedDownloadExtractedFilePathsByExerciseId[exercise.id] ?? "";
+      answer.guidedDownloadObjectKeysByExerciseId[exercise.id] =
+        guidedDownloadObjectKeysByExerciseId[exercise.id] ?? "";
     }
   }
 
@@ -1501,7 +1515,9 @@ function doesSubmittedAnswerMatchCurrentSnapshot(
       (currentAnswer.guidedDownloadCodeByExerciseId?.[exercise.id] ?? "") ===
         (submittedAnswer.guidedDownloadCodeByExerciseId?.[exercise.id] ?? "") &&
       (currentAnswer.guidedDownloadExtractedFilePathsByExerciseId?.[exercise.id] ?? "") ===
-        (submittedAnswer.guidedDownloadExtractedFilePathsByExerciseId?.[exercise.id] ?? "")
+        (submittedAnswer.guidedDownloadExtractedFilePathsByExerciseId?.[exercise.id] ?? "") &&
+      (currentAnswer.guidedDownloadObjectKeysByExerciseId?.[exercise.id] ?? "") ===
+        (submittedAnswer.guidedDownloadObjectKeysByExerciseId?.[exercise.id] ?? "")
     );
   }
 
@@ -1706,6 +1722,46 @@ export function LessonPage({
       }, {}),
     [exerciseEntries, initialAnswer],
   );
+  const initialGuidedDownloadObjectKeysByExerciseId = useMemo(
+    () =>
+      exerciseEntries.reduce<Record<string, string>>((objectKeysByExerciseId, exercise) => {
+        if (exercise.type === "guided-download") {
+          objectKeysByExerciseId[exercise.id] =
+            initialAnswer?.guidedDownloadObjectKeysByExerciseId?.[exercise.id] ?? "";
+        }
+
+        return objectKeysByExerciseId;
+      }, {}),
+    [exerciseEntries, initialAnswer],
+  );
+  const initialGuidedDownloadArchivesByExerciseId = useMemo(
+    () =>
+      exerciseEntries.reduce<Record<string, GuidedDownloadArchiveState>>((archives, exercise) => {
+        if (exercise.type !== "guided-download") {
+          return archives;
+        }
+
+        const objectKey = initialGuidedDownloadObjectKeysByExerciseId[exercise.id] ?? "";
+        const tabularFilePath =
+          initialGuidedDownloadExtractedFilePathsByExerciseId[exercise.id] ?? "";
+
+        if (objectKey && tabularFilePath) {
+          archives[exercise.id] = {
+            fileName: getFileNameFromObjectKey(objectKey),
+            isReading: false,
+            objectKey,
+            tabularFilePath,
+          };
+        }
+
+        return archives;
+      }, {}),
+    [
+      exerciseEntries,
+      initialGuidedDownloadExtractedFilePathsByExerciseId,
+      initialGuidedDownloadObjectKeysByExerciseId,
+    ],
+  );
   const initialSubmittedAnswerSnapshotsByExerciseId = useMemo(
     () =>
       exerciseEntries.reduce<Record<string, LessonAnswer>>((submittedAnswers, exercise) => {
@@ -1783,9 +1839,12 @@ export function LessonPage({
     guidedDownloadExtractedFilePathsByExerciseId,
     setGuidedDownloadExtractedFilePathsByExerciseId,
   ] = useState<Record<string, string>>(initialGuidedDownloadExtractedFilePathsByExerciseId);
+  const [guidedDownloadObjectKeysByExerciseId, setGuidedDownloadObjectKeysByExerciseId] = useState<
+    Record<string, string>
+  >(initialGuidedDownloadObjectKeysByExerciseId);
   const [guidedDownloadArchivesByExerciseId, setGuidedDownloadArchivesByExerciseId] = useState<
     Record<string, GuidedDownloadArchiveState>
-  >({});
+  >(initialGuidedDownloadArchivesByExerciseId);
   const [pandasCodeRunResultsByExerciseId, setPandasCodeRunResultsByExerciseId] = useState<
     Record<string, PandasCodeRunResult>
   >({});
@@ -1819,6 +1878,7 @@ export function LessonPage({
         exercises: exerciseEntries,
         guidedDownloadCodeByExerciseId,
         guidedDownloadExtractedFilePathsByExerciseId,
+        guidedDownloadObjectKeysByExerciseId,
         orderedStepIdsByExerciseId,
         selectedOptionIdsByExerciseId,
       }),
@@ -1828,6 +1888,7 @@ export function LessonPage({
       exerciseEntries,
       guidedDownloadCodeByExerciseId,
       guidedDownloadExtractedFilePathsByExerciseId,
+      guidedDownloadObjectKeysByExerciseId,
       orderedStepIdsByExerciseId,
       selectedOptionIdsByExerciseId,
     ],
@@ -1927,7 +1988,8 @@ export function LessonPage({
     setGuidedDownloadExtractedFilePathsByExerciseId(
       initialGuidedDownloadExtractedFilePathsByExerciseId,
     );
-    setGuidedDownloadArchivesByExerciseId({});
+    setGuidedDownloadObjectKeysByExerciseId(initialGuidedDownloadObjectKeysByExerciseId);
+    setGuidedDownloadArchivesByExerciseId(initialGuidedDownloadArchivesByExerciseId);
     setPandasCodeRunResultsByExerciseId({});
     setRunningPandasCodeExerciseId(null);
     setOrderedStepIdsByExerciseId(initialOrderedStepIds);
@@ -1947,6 +2009,8 @@ export function LessonPage({
     initialExerciseResultsById,
     initialGuidedDownloadCodeByExerciseId,
     initialGuidedDownloadExtractedFilePathsByExerciseId,
+    initialGuidedDownloadArchivesByExerciseId,
+    initialGuidedDownloadObjectKeysByExerciseId,
     initialOrderedStepIds,
     initialSelectedOptionIdsByExerciseId,
     initialSubmittedAnswerSnapshotsByExerciseId,
@@ -2189,6 +2253,10 @@ export function LessonPage({
         ...current,
         [exerciseId]: inspection.tabularFilePath,
       }));
+      setGuidedDownloadObjectKeysByExerciseId((current) => ({
+        ...current,
+        [exerciseId]: inspection.objectKey,
+      }));
       setGuidedDownloadArchivesByExerciseId((current) => ({
         ...current,
         [exerciseId]: {
@@ -2200,6 +2268,10 @@ export function LessonPage({
       }));
     } catch {
       setGuidedDownloadExtractedFilePathsByExerciseId((current) => ({
+        ...current,
+        [exerciseId]: "",
+      }));
+      setGuidedDownloadObjectKeysByExerciseId((current) => ({
         ...current,
         [exerciseId]: "",
       }));
@@ -2373,6 +2445,7 @@ export function LessonPage({
       exercises: exerciseEntries,
       guidedDownloadCodeByExerciseId,
       guidedDownloadExtractedFilePathsByExerciseId,
+      guidedDownloadObjectKeysByExerciseId,
       orderedStepIdsByExerciseId,
       selectedOptionIdsByExerciseId,
     });
@@ -2573,6 +2646,7 @@ export function LessonPage({
           exercises: exerciseEntries,
           guidedDownloadCodeByExerciseId,
           guidedDownloadExtractedFilePathsByExerciseId,
+          guidedDownloadObjectKeysByExerciseId,
           orderedStepIdsByExerciseId,
           selectedOptionIdsByExerciseId,
         });

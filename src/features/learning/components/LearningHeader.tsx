@@ -1,17 +1,20 @@
 import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
+  ArrowLeft02Icon,
+  ArrowRight02Icon,
   CheckIcon,
   ChevronUpIcon,
-  HomeIcon,
-  LanguageIcon,
+  Home01Icon,
+  LanguageSkillIcon,
+  Logout03Icon,
   SparklesIcon,
-} from "@heroicons/react/24/outline";
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useRef, useState } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { AnimatePresence, motion } from "motion/react";
 
+import { useAuth } from "@/features/auth/auth-context";
 import { localeOptions, useLocalization } from "@/features/localization/localization";
 import { shouldReduceMotion } from "@/lib/motion";
 
@@ -39,7 +42,12 @@ export function LearningHeader({ backHref, backLabel }: LearningHeaderProps) {
         data-app-link
         href={backHref}
       >
-        <ArrowLeftIcon aria-hidden="true" className="size-5" />
+        <HugeiconsIcon
+          aria-hidden="true"
+          className="size-5"
+          icon={ArrowLeft02Icon}
+          strokeWidth={2}
+        />
       </a>
       <LearningMenu />
     </header>
@@ -47,6 +55,7 @@ export function LearningHeader({ backHref, backLabel }: LearningHeaderProps) {
 }
 
 function LearningMenu() {
+  const { isAuthenticated, session, signOut } = useAuth();
   const { locale, setLocale, t } = useLocalization();
   const rootRef = useRef<HTMLDivElement>(null);
   const languageTriggerRef = useRef<HTMLButtonElement>(null);
@@ -285,6 +294,11 @@ function LearningMenu() {
     timeline.timeScale(1).play();
   });
 
+  const handleSignOut = () => {
+    signOut();
+    setMenuOpen(false);
+  };
+
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -363,33 +377,67 @@ function LearningMenu() {
           className="relative z-10 flex min-h-28 w-[min(700px,calc(100vw_-_2rem))] transform-gpu items-center gap-4 rounded-none border-2 border-neutral-950 bg-neutral-100 px-7 py-5 text-neutral-950 shadow-2xl will-change-transform"
           data-learning-menu-panel
         >
-          <div
-            aria-hidden="true"
-            className="flex size-14 shrink-0 items-center justify-center border border-neutral-300 bg-white font-mono text-sm font-semibold text-neutral-950"
-          >
-            SM
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-3 text-lg font-semibold tracking-normal">
-              <a
-                className="transition-colors hover:text-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
-                data-app-link
-                href="/login"
+          {isAuthenticated && session ? (
+            <>
+              <div
+                aria-hidden="true"
+                className="flex size-14 shrink-0 items-center justify-center border border-neutral-300 bg-white font-mono text-sm font-semibold text-neutral-950"
               >
-                {locale === "en" ? "Login" : "Masuk"}
-              </a>
-              <span aria-hidden="true" className="text-neutral-400">
-                /
-              </span>
-              <a
-                className="transition-colors hover:text-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
-                data-app-link
-                href="/register"
+                {session.user.initials}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-lg font-semibold tracking-normal">
+                  {session.user.name}
+                </p>
+                <p className="truncate font-mono text-xs font-semibold text-neutral-500">
+                  {session.user.email}
+                </p>
+              </div>
+              <button
+                className="ml-auto inline-flex size-11 cursor-pointer items-center justify-center border border-neutral-300 bg-white text-neutral-950 transition-colors hover:border-rose-500 hover:text-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400"
+                onClick={handleSignOut}
+                title={locale === "en" ? "Sign out" : "Keluar"}
+                type="button"
               >
-                {locale === "en" ? "Register" : "Daftar"}
-              </a>
-            </div>
-          </div>
+                <HugeiconsIcon
+                  aria-hidden="true"
+                  className="size-5"
+                  icon={Logout03Icon}
+                  strokeWidth={2}
+                />
+              </button>
+            </>
+          ) : (
+            <>
+              <div
+                aria-hidden="true"
+                className="flex size-14 shrink-0 items-center justify-center border border-neutral-300 bg-white font-mono text-sm font-semibold text-neutral-950"
+              >
+                SM
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-3 text-lg font-semibold tracking-normal">
+                  <a
+                    className="transition-colors hover:text-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+                    data-app-link
+                    href="/login"
+                  >
+                    {locale === "en" ? "Login" : "Masuk"}
+                  </a>
+                  <span aria-hidden="true" className="text-neutral-400">
+                    /
+                  </span>
+                  <a
+                    className="transition-colors hover:text-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+                    data-app-link
+                    href="/register"
+                  >
+                    {locale === "en" ? "Register" : "Daftar"}
+                  </a>
+                </div>
+              </div>
+            </>
+          )}
         </section>
 
         <nav
@@ -449,7 +497,12 @@ function LearningMenu() {
                         </span>
                         <span>{label}</span>
                         {isSelected ? (
-                          <CheckIcon aria-hidden="true" className="ml-auto size-5" />
+                          <HugeiconsIcon
+                            aria-hidden="true"
+                            className="ml-auto size-5"
+                            icon={CheckIcon}
+                            strokeWidth={2}
+                          />
                         ) : null}
                       </button>
                     );
@@ -465,16 +518,23 @@ function LearningMenu() {
               ref={languageTriggerRef}
               type="button"
             >
-              <LanguageIcon aria-hidden="true" className="size-5" />
+              <HugeiconsIcon
+                aria-hidden="true"
+                className="size-5"
+                icon={LanguageSkillIcon}
+                strokeWidth={2}
+              />
               <span>{t("language.trigger")}</span>
               <span className="font-normal text-neutral-500">
                 {t(locale === "id" ? "language.option.id" : "language.option.en")}
               </span>
-              <ChevronUpIcon
+              <HugeiconsIcon
                 aria-hidden="true"
                 className={`size-4 transition-transform ${
                   isLanguageSelectorOpen ? "rotate-180" : ""
                 }`}
+                icon={ChevronUpIcon}
+                strokeWidth={2}
               />
             </button>
           </div>
@@ -490,7 +550,12 @@ function LearningMenu() {
           </p>
           <div className="mt-4 flex items-center gap-4">
             <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-none bg-neutral-950/10 text-neutral-950">
-              <SparklesIcon aria-hidden="true" className="size-6" />
+              <HugeiconsIcon
+                aria-hidden="true"
+                className="size-6"
+                icon={SparklesIcon}
+                strokeWidth={2}
+              />
             </span>
             <div>
               <h2 className="text-xl leading-tight font-semibold tracking-normal">
@@ -507,7 +572,12 @@ function LearningMenu() {
             href="/learn"
           >
             {t("menu.startPath")}
-            <ArrowRightIcon aria-hidden="true" className="size-4" />
+            <HugeiconsIcon
+              aria-hidden="true"
+              className="size-4"
+              icon={ArrowRight02Icon}
+              strokeWidth={2}
+            />
           </a>
         </section>
 
@@ -532,7 +602,12 @@ function LearningMenu() {
               </a>
             </li>
           </ul>
-          <HomeIcon aria-hidden="true" className="ml-auto size-10 text-emerald-300" />
+          <HugeiconsIcon
+            aria-hidden="true"
+            className="ml-auto size-10 text-emerald-300"
+            icon={Home01Icon}
+            strokeWidth={1.8}
+          />
         </div>
       </div>
     </div>
