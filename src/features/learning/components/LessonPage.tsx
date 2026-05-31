@@ -3423,6 +3423,10 @@ function GuidedDownloadExerciseView({
 }) {
   const { locale } = useLocalization();
   const uploadInputId = useId();
+  const [codeEditorScrollOffset, setCodeEditorScrollOffset] = useState({
+    left: 0,
+    top: 0,
+  });
   const sourceUrl = sourceAnswer?.url.trim() ?? "";
   const hasSourceUrl = sourceUrl !== "";
   const displayedExtractedFilePath =
@@ -3616,21 +3620,30 @@ function GuidedDownloadExerciseView({
                   <span className="text-lg font-semibold text-foreground">
                     {exercise.codeLabel}
                   </span>
-                  <div className="relative min-h-32 border border-neutral-300 bg-neutral-950 transition-colors focus-within:border-sky-500">
+                  <div className="relative min-h-32 overflow-hidden border border-neutral-300 bg-neutral-950 transition-colors focus-within:border-sky-500">
                     <div
                       aria-hidden="true"
                       className="pointer-events-none absolute inset-y-0 left-0 z-20 w-11 border-r border-neutral-800 bg-neutral-950 py-3 font-mono text-sm leading-6 text-neutral-600"
                     >
-                      {codeLineNumbers.map((lineNumber) => (
-                        <div className="h-6 pr-3 text-right" key={lineNumber}>
-                          {lineNumber}
-                        </div>
-                      ))}
+                      <div
+                        style={{
+                          transform: `translateY(-${codeEditorScrollOffset.top}px)`,
+                        }}
+                      >
+                        {codeLineNumbers.map((lineNumber) => (
+                          <div className="h-6 pr-3 text-right" key={lineNumber}>
+                            {lineNumber}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                     {expectedCodeGhostText ? (
                       <pre
                         aria-hidden="true"
-                        className="pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre py-3 pr-4 pl-14 font-mono text-sm leading-6 text-neutral-700"
+                        className="pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre-wrap break-words py-3 pr-4 pl-14 font-mono text-sm leading-6 text-neutral-700"
+                        style={{
+                          transform: `translate(${-codeEditorScrollOffset.left}px, ${-codeEditorScrollOffset.top}px)`,
+                        }}
                       >
                         {expectedCodeGhostText}
                       </pre>
@@ -3640,11 +3653,20 @@ function GuidedDownloadExerciseView({
                       className="relative z-10 min-h-32 w-full resize-y bg-transparent py-3 pr-4 pl-14 font-mono text-sm leading-6 text-neutral-50 caret-neutral-50 outline-none disabled:bg-transparent disabled:text-neutral-400"
                       disabled={(!hasSourceUrl || !hasExtractedFilePath) && !isReviewMode}
                       onChange={(event) => onUpdateCode(event.currentTarget.value)}
+                      onScroll={(event) => {
+                        const nextLeft = event.currentTarget.scrollLeft;
+                        const nextTop = event.currentTarget.scrollTop;
+
+                        setCodeEditorScrollOffset((current) =>
+                          current.left === nextLeft && current.top === nextTop
+                            ? current
+                            : { left: nextLeft, top: nextTop },
+                        );
+                      }}
                       placeholder={expectedCode}
                       readOnly={isReviewMode}
                       spellCheck={false}
                       value={displayedCode}
-                      wrap="off"
                     />
                   </div>
                 </label>
