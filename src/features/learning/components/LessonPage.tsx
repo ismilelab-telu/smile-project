@@ -3310,11 +3310,16 @@ function MultipleChoiceExerciseView({
           const shouldShowOptionFeedback =
             shouldShowCorrectForOption || shouldShowSubmittedFeedbackForOption;
           const isPositiveFeedback = isCorrectOption;
+          const optionFeedbackClassName = shouldShowOptionFeedback
+            ? isPositiveFeedback
+              ? "learning-option-feedback-correct"
+              : "learning-option-feedback-incorrect"
+            : "";
 
           return (
             <div className="relative grid" key={option.id}>
               <label
-                className={`flex min-h-16 items-center gap-4 border learning-grid-border py-4 pr-16 pl-5 ${
+                className={`flex min-h-16 items-center gap-4 border learning-grid-border py-4 pr-16 pl-5 transition-[background,border-color] duration-200 ${optionFeedbackClassName} ${
                   isReviewMode ? "cursor-not-allowed" : "cursor-pointer"
                 }`}
               >
