@@ -141,7 +141,7 @@ export function CopyButton({
       animate={buttonWidth ? { width: buttonWidth } : undefined}
       aria-label={ariaLabel}
       className={cn(
-        "group relative inline-flex h-10 w-fit cursor-pointer items-center justify-center rounded-none border-0 bg-transparent px-4 text-sm font-semibold tracking-normal whitespace-nowrap text-white shadow-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500",
+        "group relative inline-flex h-9 w-fit cursor-pointer items-center justify-center rounded-none border-0 bg-transparent px-4 text-sm font-semibold tracking-normal whitespace-nowrap text-white shadow-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500",
         isCopied && "text-emerald-400",
         className,
       )}
@@ -161,7 +161,7 @@ export function CopyButton({
       <span
         aria-hidden="true"
         className={cn(
-          "pointer-events-none invisible absolute top-0 left-0 z-[-1] inline-flex h-10 items-center justify-center gap-2.5 rounded-none border-0 bg-transparent px-4 text-sm font-semibold tracking-normal whitespace-nowrap",
+          "pointer-events-none invisible absolute top-0 left-0 z-[-1] inline-flex h-9 items-center justify-center gap-2.5 rounded-none border-0 bg-transparent px-4 text-sm font-semibold tracking-normal whitespace-nowrap",
           className,
         )}
         ref={copyMeasureRef}
@@ -172,7 +172,7 @@ export function CopyButton({
       <span
         aria-hidden="true"
         className={cn(
-          "pointer-events-none invisible absolute top-0 left-0 z-[-1] inline-flex h-10 items-center justify-center gap-2.5 rounded-none border-0 bg-transparent px-4 text-sm font-semibold tracking-normal whitespace-nowrap",
+          "pointer-events-none invisible absolute top-0 left-0 z-[-1] inline-flex h-9 items-center justify-center gap-2.5 rounded-none border-0 bg-transparent px-4 text-sm font-semibold tracking-normal whitespace-nowrap",
           className,
         )}
         ref={copiedMeasureRef}

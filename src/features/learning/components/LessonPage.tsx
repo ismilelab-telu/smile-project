@@ -2882,7 +2882,9 @@ function GuidedDownloadExerciseView({
   const displayedCode = isReviewMode && submittedCode.trim() !== "" ? submittedCode : code;
   const openLinkLabel = locale === "en" ? "Open Kaggle link" : "Buka link Kaggle";
   const copyLinkLabel = locale === "en" ? "Copy link" : "Salin link";
+  const copyLinkButtonLabel = locale === "en" ? "Copy" : "Salin";
   const copiedLinkLabel = locale === "en" ? "Link copied" : "Link disalin";
+  const copiedLinkButtonLabel = locale === "en" ? "Copied!" : "Disalin!";
   const uploadedFileLabel = locale === "en" ? "Uploaded ZIP" : "ZIP terupload";
   const extractedFileLabel = locale === "en" ? "CSV path" : "Path CSV";
 
@@ -2953,11 +2955,11 @@ function GuidedDownloadExerciseView({
                   {openLinkLabel}
                 </LinkPreview>
                 <CopyButton
-                  className="h-12 bg-neutral-950 px-5 text-base text-neutral-50"
+                  className="h-9 bg-neutral-950 px-3 text-sm text-neutral-50"
                   copiedAriaLabel={copiedLinkLabel}
-                  copiedLabel={copiedLinkLabel}
+                  copiedLabel={copiedLinkButtonLabel}
                   copyAriaLabel={copyLinkLabel}
-                  copyLabel={copyLinkLabel}
+                  copyLabel={copyLinkButtonLabel}
                   value={sourceUrl}
                 />
               </div>
