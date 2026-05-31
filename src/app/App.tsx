@@ -97,21 +97,32 @@ export function App() {
 
 function AppRoutes() {
   const [path, setPath] = useState(getCurrentPath);
+  const [backgroundPath, setBackgroundPath] = useState(() => {
+    const currentPath = getCurrentPath();
+
+    return isAuthRoute(currentPath) ? "/learn" : currentPath;
+  });
   const hasRenderedLandingRef = useRef(false);
-  const shouldSkipLandingIntro = path === "/" && hasRenderedLandingRef.current;
+  const visiblePath = isAuthRoute(path) ? backgroundPath : path;
+  const shouldSkipLandingIntro = visiblePath === "/" && hasRenderedLandingRef.current;
   const pathRef = useRef(path);
+  const backgroundPathRef = useRef(backgroundPath);
 
   useEffect(() => {
     pathRef.current = path;
   }, [path]);
+
+  useEffect(() => {
+    backgroundPathRef.current = backgroundPath;
+  }, [backgroundPath]);
 
   const handleLandingRendered = useCallback(() => {
     hasRenderedLandingRef.current = true;
   }, []);
 
   useLayoutEffect(() => {
-    document.documentElement.dataset.routeTheme = getRouteTheme(path);
-  }, [path]);
+    document.documentElement.dataset.routeTheme = getRouteTheme(visiblePath);
+  }, [visiblePath]);
 
   useEffect(() => {
     if ("scrollRestoration" in window.history) {
@@ -119,8 +130,21 @@ function AppRoutes() {
     }
 
     const navigateTo = (pathname: string) => {
+      const currentPath = pathRef.current;
+
       window.history.pushState(null, "", pathname);
       setPath(pathname);
+
+      if (isAuthRoute(pathname)) {
+        if (!isAuthRoute(currentPath)) {
+          backgroundPathRef.current = currentPath;
+          setBackgroundPath(currentPath);
+        }
+        return;
+      }
+
+      backgroundPathRef.current = pathname;
+      setBackgroundPath(pathname);
       window.scrollTo({ top: 0 });
     };
     const shouldReduceRouteTransition =
@@ -133,7 +157,14 @@ function AppRoutes() {
     }, 0);
 
     const handlePopState = () => {
-      setPath(getCurrentPath());
+      const nextPath = getCurrentPath();
+
+      setPath(nextPath);
+
+      if (!isAuthRoute(nextPath)) {
+        backgroundPathRef.current = nextPath;
+        setBackgroundPath(nextPath);
+      }
     };
 
     const handleDocumentClick = (event: MouseEvent) => {
@@ -161,9 +192,9 @@ function AppRoutes() {
 
       const viewTransitionDocument = document as ViewTransitionDocument;
       const startViewTransition = viewTransitionDocument.startViewTransition?.bind(document);
-      const isAuthSwitch = isAuthRoute(currentPath) && isAuthRoute(url.pathname);
+      const involvesAuthRoute = isAuthRoute(currentPath) || isAuthRoute(url.pathname);
 
-      if (!shouldReduceRouteTransition && startViewTransition && !isAuthSwitch) {
+      if (!shouldReduceRouteTransition && startViewTransition && !involvesAuthRoute) {
         document.documentElement.dataset.routeTransition = getRouteTransition(
           currentPath,
           url.pathname,
@@ -202,33 +233,34 @@ function AppRoutes() {
 
   return (
     <>
-      {shouldShowSharedExploreBackground(path) ? <SharedExploreBackground /> : null}
+      {shouldShowSharedExploreBackground(visiblePath) ? <SharedExploreBackground /> : null}
       <Suspense
         fallback={
           <main
             className={`min-h-screen ${
-              getRouteTheme(path) === "dark" ? "bg-neutral-950" : "bg-background"
+              getRouteTheme(visiblePath) === "dark" ? "bg-neutral-950" : "bg-background"
             }`}
           />
         }
       >
-        {path === "/" ? (
+        {visiblePath === "/" ? (
           <LandingPage
             onRendered={handleLandingRendered}
             skipIntroAnimation={shouldSkipLandingIntro}
           />
-        ) : path === "/explore" ? (
+        ) : visiblePath === "/explore" ? (
           <ExplorePage />
-        ) : path === "/login" ? (
-          <AuthPage mode="login" />
-        ) : path === "/register" ? (
-          <AuthPage mode="register" />
-        ) : isLearningRoute(path) ? (
-          <LearningPage path={path} />
+        ) : isLearningRoute(visiblePath) ? (
+          <LearningPage path={visiblePath} />
         ) : (
-          <FuzzyTextPage path={path} />
+          <FuzzyTextPage path={visiblePath} />
         )}
       </Suspense>
+      {path === "/login" ? (
+        <AuthPage closeHref={backgroundPath} mode="login" />
+      ) : path === "/register" ? (
+        <AuthPage closeHref={backgroundPath} mode="register" />
+      ) : null}
     </>
   );
 }

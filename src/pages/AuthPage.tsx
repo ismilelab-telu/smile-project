@@ -1,6 +1,7 @@
 import { Cancel01Icon, CheckIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { animate } from "motion";
+import { motion } from "motion/react";
 import {
   useCallback,
   useEffect,
@@ -10,6 +11,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 
 import { useAuth } from "@/features/auth/auth-context";
 import { CognitoAuthError } from "@/features/auth/cognito-auth";
@@ -18,6 +20,7 @@ import { useLocalization, type Locale } from "@/features/localization/localizati
 type AuthMode = "login" | "register";
 
 type AuthPageProps = {
+  closeHref?: string;
   mode: AuthMode;
 };
 
@@ -113,19 +116,84 @@ const passwordRules: Array<{ id: PasswordRule; label: Record<Locale, string> }> 
   { id: "case", label: { en: "Uppercase and lowercase", id: "Huruf besar dan kecil" } },
   { id: "number", label: { en: "Number", id: "Angka" } },
 ];
+const authPortalBackdropVisible = { filter: "blur(0px)", opacity: 1 };
+const authPortalBackdropHidden = { filter: "blur(4px)", opacity: 0 };
+const authPortalPanelHidden = {
+  filter: "blur(4px)",
+  opacity: 0,
+  transform: "perspective(500px) rotateX(-20deg) scale(0.8)",
+};
+const authPortalPanelVisible = {
+  filter: "blur(0px)",
+  opacity: 1,
+  transform: "perspective(500px) rotateX(0deg) scale(1)",
+};
+const authPortalBackdropTransition = { duration: 0.2, ease: "easeInOut" };
+const authPortalPanelTransition = { damping: 25, stiffness: 150, type: "spring" };
 
 let previousAuthPanelRect: DOMRect | null = null;
 
-export function AuthPage({ mode }: AuthPageProps) {
+export function AuthPage({ closeHref = "/learn", mode }: AuthPageProps) {
   const rootRef = useRef<HTMLElement>(null);
   const previousModeRef = useRef(mode);
+  const [isClosing, setIsClosing] = useState(false);
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   const { locale } = useLocalization();
+  const safeCloseHref = isAuthHref(closeHref) ? "/learn" : closeHref;
 
   const rememberPanelRect = useCallback(() => {
     previousAuthPanelRect =
       rootRef.current?.querySelector<HTMLElement>("[data-auth-panel]")?.getBoundingClientRect() ??
       null;
   }, []);
+
+  const navigateToCloseHref = useCallback(() => {
+    window.history.pushState(null, "", safeCloseHref);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }, [safeCloseHref]);
+
+  const closePortal = useCallback(() => {
+    if (isClosing) {
+      return;
+    }
+
+    if (shouldReduceMotion()) {
+      navigateToCloseHref();
+      return;
+    }
+
+    setIsClosing(true);
+  }, [isClosing, navigateToCloseHref]);
+
+  const handlePanelAnimationComplete = useCallback(() => {
+    if (isClosing) {
+      navigateToCloseHref();
+    }
+  }, [isClosing, navigateToCloseHref]);
+
+  useEffect(() => {
+    setPortalTarget(document.body);
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closePortal();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [closePortal]);
+
+  useEffect(() => {
+    rootRef.current?.focus();
+  }, [mode]);
 
   useLayoutEffect(() => {
     const previousMode = previousModeRef.current;
@@ -179,28 +247,72 @@ export function AuthPage({ mode }: AuthPageProps) {
 
   const isRegister = mode === "register";
 
-  return (
-    <main
-      className="relative min-h-screen overflow-hidden bg-white text-foreground"
-      data-auth-mode={mode}
-      ref={rootRef}
-    >
-      <AuthMatrixRain />
-      <section className="relative z-10 grid min-h-screen lg:grid-cols-2" data-auth-layout="split">
-        {isRegister ? (
-          <>
-            <AuthFormPanel mode="register" onSwitchStart={rememberPanelRect} />
-            <div className="hidden min-h-screen lg:block" />
-          </>
-        ) : (
-          <>
-            <div className="hidden min-h-screen lg:block" />
-            <AuthFormPanel mode="login" onSwitchStart={rememberPanelRect} />
-          </>
-        )}
-      </section>
-      <span className="sr-only">{authCopy[locale][mode].title}</span>
-    </main>
+  if (!portalTarget) {
+    return null;
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] overflow-y-auto px-4 md:px-8" data-auth-portal>
+      <motion.button
+        animate={isClosing ? authPortalBackdropHidden : authPortalBackdropVisible}
+        aria-label={locale === "en" ? "Close authentication" : "Tutup autentikasi"}
+        className="fixed inset-0 cursor-default bg-neutral-950/35"
+        initial={authPortalBackdropHidden}
+        onClick={closePortal}
+        transition={authPortalBackdropTransition}
+        type="button"
+      />
+      <div className="relative z-10 flex min-h-full items-center justify-center py-5 md:py-8">
+        <motion.main
+          animate={isClosing ? authPortalPanelHidden : authPortalPanelVisible}
+          aria-labelledby="auth-dialog-title"
+          aria-modal="true"
+          className="relative grid min-h-[min(720px,calc(100vh_-_2.5rem))] w-full max-w-5xl transform-gpu overflow-hidden border-2 border-neutral-950 bg-white text-foreground shadow-2xl outline-none md:min-h-[min(760px,calc(100vh_-_4rem))]"
+          data-auth-mode={mode}
+          initial={authPortalPanelHidden}
+          onAnimationComplete={handlePanelAnimationComplete}
+          ref={rootRef}
+          role="dialog"
+          tabIndex={-1}
+          transition={authPortalPanelTransition}
+        >
+          <button
+            aria-label={locale === "en" ? "Close" : "Tutup"}
+            className="absolute top-5 right-5 z-30 inline-flex size-10 cursor-pointer items-center justify-center bg-white/90 text-neutral-950 transition-colors hover:text-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+            onClick={closePortal}
+            type="button"
+          >
+            <HugeiconsIcon
+              aria-hidden="true"
+              className="size-5"
+              icon={Cancel01Icon}
+              strokeWidth={2}
+            />
+          </button>
+          <AuthMatrixRain />
+          <section
+            className="relative z-10 grid min-h-[min(720px,calc(100vh_-_2.5rem))] lg:grid-cols-2 md:min-h-[min(760px,calc(100vh_-_4rem))]"
+            data-auth-layout="split"
+          >
+            {isRegister ? (
+              <>
+                <AuthFormPanel mode="register" onSwitchStart={rememberPanelRect} />
+                <div className="hidden min-h-full lg:block" />
+              </>
+            ) : (
+              <>
+                <div className="hidden min-h-full lg:block" />
+                <AuthFormPanel mode="login" onSwitchStart={rememberPanelRect} />
+              </>
+            )}
+          </section>
+          <span className="sr-only" id="auth-dialog-title">
+            {authCopy[locale][mode].title}
+          </span>
+        </motion.main>
+      </div>
+    </div>,
+    portalTarget,
   );
 }
 
@@ -407,17 +519,10 @@ function AuthFormPanel({ mode, onSwitchStart }: { mode: AuthMode; onSwitchStart:
 
   return (
     <div
-      className="relative flex min-h-screen flex-col bg-white p-7 text-foreground md:p-8"
+      className="relative flex min-h-full flex-col bg-white p-7 text-foreground md:p-8"
       data-auth-panel={mode}
       data-page-surface="auth-panel"
     >
-      <div className="absolute top-7 left-7 flex items-center justify-start md:top-8 md:left-8">
-        {isRegister ? <AuthMark /> : null}
-      </div>
-      <div className="absolute top-7 right-7 flex items-center justify-end md:top-8 md:right-8">
-        {isRegister ? null : <AuthMark alignRight />}
-      </div>
-
       <div className="flex flex-1 items-center justify-center py-20">
         <div className="w-full max-w-sm text-foreground">
           <div className="space-y-1 text-left">
@@ -711,24 +816,6 @@ function ConfirmPasswordStatus({
   );
 }
 
-function AuthMark({ alignRight = false }: { alignRight?: boolean }) {
-  const { locale } = useLocalization();
-
-  return (
-    <a
-      className={`inline-flex items-end text-sm font-semibold tracking-tight text-foreground ${
-        alignRight ? "text-right" : ""
-      }`}
-      data-app-link
-      href="/"
-    >
-      <span className="block translate-y-0.5 text-xl leading-none font-extrabold">
-        {authCopy[locale].brand}
-      </span>
-    </a>
-  );
-}
-
 function AuthMatrixRain() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -881,7 +968,7 @@ function AuthMatrixRain() {
   }, []);
 
   return (
-    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 bg-white">
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 bg-white">
       <canvas className="absolute inset-0 h-full w-full" ref={canvasRef} />
     </div>
   );
@@ -1044,6 +1131,10 @@ function redirectToLearning() {
   window.history.pushState(null, "", "/learn");
   window.dispatchEvent(new PopStateEvent("popstate"));
   window.scrollTo({ top: 0 });
+}
+
+function isAuthHref(value: string) {
+  return value === "/login" || value === "/register";
 }
 
 function shouldReduceMotion() {
