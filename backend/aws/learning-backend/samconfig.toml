@@ -1,0 +1,14 @@
+version = 0.1
+
+[default.global.parameters]
+stack_name = "smile-learning-backend"
+region = "ap-southeast-1"
+profile = "smile-dev"
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true
+fail_on_empty_changeset = false
+parameter_overrides = "AllowedOrigins=\"http://127.0.0.1:5317,http://localhost:5317\""
+tags = "Project=\"Smile\" Environment=\"dev\""

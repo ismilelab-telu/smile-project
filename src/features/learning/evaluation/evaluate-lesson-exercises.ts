@@ -1,6 +1,7 @@
 import type {
   DatasetSourceAnswer,
   EvaluationResult,
+  GuidedDownloadExercise,
   MultipleChoiceExercise,
   OpenDatasetSourceInput,
   OpenDatasetSourceExercise,
@@ -60,6 +61,15 @@ function getMultipleChoiceSuggestedHints(
   );
 
   return missedAnswerHints.length > 0 ? missedAnswerHints : answerHints;
+}
+
+function normalizeSubmittedCode(value: string) {
+  return value
+    .replace(/\r\n?/g, "\n")
+    .trim()
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .join("\n");
 }
 
 function sameOrder(left: string[], right: string[]) {
@@ -404,6 +414,100 @@ export function evaluateMultipleChoice(
     status: "incorrect",
     suggestedHints: getMultipleChoiceSuggestedHints(exercise, selectedOptionIds, locale),
     title: title.incorrect,
+  });
+}
+
+export function evaluateGuidedDownloadExercise(
+  exercise: GuidedDownloadExercise,
+  submittedCode: string,
+  expectedCode: string,
+  hasSourceUrl: boolean,
+  hasExtractedFile: boolean,
+  locale: Locale = "id",
+): EvaluationResult {
+  const title = resultTitleCopy[locale];
+  const normalizedSubmittedCode = normalizeSubmittedCode(submittedCode);
+  const normalizedExpectedCode = normalizeSubmittedCode(expectedCode);
+
+  if (!hasSourceUrl) {
+    return createResult({
+      message:
+        locale === "en"
+          ? "The Kaggle dataset link from the previous lesson is not available yet."
+          : "Link dataset Kaggle dari lesson sebelumnya belum tersedia.",
+      nextStep:
+        locale === "en"
+          ? "Submit the Kaggle dataset link in Lesson 1.2 first, then return here."
+          : "Submit link dataset Kaggle di Lesson 1.2 dulu, lalu kembali ke sini.",
+      score: 20,
+      status: "incorrect",
+      suggestedHints: exercise.hints,
+      title: title.incorrect,
+    });
+  }
+
+  if (!hasExtractedFile) {
+    return createResult({
+      message:
+        locale === "en"
+          ? "The Kaggle ZIP has not been uploaded and read yet."
+          : "ZIP Kaggle belum diupload dan dibaca.",
+      nextStep:
+        locale === "en"
+          ? "Upload the ZIP downloaded from Kaggle so the CSV path can be prepared."
+          : "Upload ZIP hasil download dari Kaggle agar path CSV bisa disiapkan.",
+      score: 35,
+      status: "incorrect",
+      suggestedHints: exercise.hints,
+      title: title.incorrect,
+    });
+  }
+
+  if (normalizedSubmittedCode === "") {
+    return createResult({
+      message:
+        locale === "en" ? "The Pandas code has not been typed yet." : "Kode Pandas belum diketik.",
+      nextStep:
+        locale === "en"
+          ? "Type the code shown in the code editor placeholder, then submit again."
+          : "Ketik kode yang ditampilkan di placeholder code editor, lalu kirim ulang.",
+      score: 45,
+      status: "partial",
+      suggestedHints: exercise.hints,
+      title: title.partial,
+    });
+  }
+
+  if (normalizedSubmittedCode !== normalizedExpectedCode) {
+    return createResult({
+      message:
+        locale === "en"
+          ? "The code does not match the Pandas CSV loading code yet."
+          : "Kode belum sesuai dengan Pandas untuk memuat CSV.",
+      nextStep:
+        locale === "en"
+          ? "Check the CSV path, `pd.read_csv`, and the final `df.head()` line shown in the placeholder."
+          : "Cek path CSV, `pd.read_csv`, dan baris akhir `df.head()` sesuai placeholder.",
+      score: 55,
+      status: "partial",
+      suggestedHints: exercise.hints,
+      title: title.partial,
+    });
+  }
+
+  return createResult({
+    message:
+      locale === "en"
+        ? "The Pandas CSV loading code is correct."
+        : "Kode Pandas untuk memuat CSV sudah benar.",
+    nextStep:
+      locale === "en"
+        ? "Use this pattern when loading the extracted dataset into a DataFrame."
+        : "Pakai pola ini saat memuat dataset hasil ekstraksi ke DataFrame.",
+    score: 100,
+    status: "correct",
+    suggestedHints: [],
+    title: title.correct,
   });
 }
 

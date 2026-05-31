@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  evaluateGuidedDownloadExercise,
   evaluateMultipleChoice,
   evaluateOpenDatasetSourceExercise,
   evaluateOrderedSteps,
@@ -9,6 +10,7 @@ import { learningHintGlossaryByExerciseId } from "../content/learning-hint-gloss
 import { lessons } from "../content/learning-content";
 import { localizeLesson } from "../content/localized-learning-content";
 import type {
+  GuidedDownloadExercise,
   MultipleChoiceExercise,
   OpenDatasetSourceExercise,
   OrderedStepsExercise,
@@ -74,6 +76,28 @@ const orderedStepsExercise: OrderedStepsExercise = {
     { id: "evaluation", label: "Evaluasi model" },
   ],
   type: "ordered-steps",
+};
+
+const guidedDownloadExercise: GuidedDownloadExercise = {
+  codeLabel: "Kode Pandas",
+  codePlaceholder: 'import pandas as pd\n\ndf = pd.read_csv("data/nama-file.csv")\ndf.head()',
+  hints: ["Kode Pandas perlu memakai path CSV hasil upload ZIP."],
+  id: "exercise-guided-download",
+  introParagraphs: [],
+  introTitle: "Download ZIP",
+  missingSourceMessage: "Link belum ada.",
+  prompt: "Download ZIP dataset.",
+  sourceAnswerReference: {
+    exerciseId: "exercise-source",
+    sourceInputId: "source",
+  },
+  sourceLinkLabel: "Link dataset",
+  taskDescription: "Download ZIP.",
+  taskSteps: ["Ketik kode Pandas."],
+  taskTitle: "Tugas",
+  type: "guided-download",
+  uploadDescription: "Upload ZIP.",
+  uploadLabel: "Upload ZIP dataset",
 };
 
 describe("evaluateMultipleChoice", () => {
@@ -224,6 +248,36 @@ describe("evaluateOpenDatasetSourceExercise", () => {
 
     expect(result.status).toBe("correct");
     expect(result.score).toBe(100);
+  });
+});
+
+describe("evaluateGuidedDownloadExercise", () => {
+  it("validates the typed Pandas CSV loading code", () => {
+    const result = evaluateGuidedDownloadExercise(
+      guidedDownloadExercise,
+      'import pandas as pd\n\ndf = pd.read_csv("data/Food_Delivery_Times.csv")\ndf.head()',
+      'import pandas as pd\n\ndf = pd.read_csv("data/Food_Delivery_Times.csv")\ndf.head()',
+      true,
+      true,
+    );
+
+    expect(result.status).toBe("correct");
+    expect(result.message).toBe("Kode Pandas untuk memuat CSV sudah benar.");
+  });
+
+  it("rejects Pandas code with the wrong CSV path", () => {
+    const result = evaluateGuidedDownloadExercise(
+      guidedDownloadExercise,
+      'import pandas as pd\n\ndf = pd.read_csv("data/wrong.csv")\ndf.head()',
+      'import pandas as pd\n\ndf = pd.read_csv("data/Food_Delivery_Times.csv")\ndf.head()',
+      true,
+      true,
+    );
+
+    expect(result.status).toBe("partial");
+    expect(result.nextStep).toBe(
+      "Cek path CSV, `pd.read_csv`, dan baris akhir `df.head()` sesuai placeholder.",
+    );
   });
 });
 

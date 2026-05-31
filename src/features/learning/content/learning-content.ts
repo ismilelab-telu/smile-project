@@ -1,5 +1,6 @@
 import type {
   ChoiceExerciseOption,
+  GuidedDownloadExercise,
   LearningModule,
   LearningTrack,
   Lesson,
@@ -533,6 +534,69 @@ const lesson12: Lesson = {
   title: "Pengumpulan Data",
 };
 
+const lesson13DataLoadingExercise: MultipleChoiceExercise = {
+  correctOptionIds: ["read-into-table", "check-schema", "preview-rows"],
+  hints: getLearningExerciseHints("exercise-1-3-data-loading", "id"),
+  id: "exercise-1-3-data-loading",
+  options: [
+    { id: "read-into-table", label: "Membaca sumber data menjadi tabel atau dataframe." },
+    { id: "check-schema", label: "Memeriksa nama kolom, tipe data, dan field yang diharapkan." },
+    { id: "preview-rows", label: "Melihat beberapa baris sebelum bekerja lebih jauh." },
+    { id: "train-immediately", label: "Langsung melatih model setelah membuka file." },
+  ],
+  prompt: "Setelah dataset dipilih, aksi mana yang termasuk tahap memuat data?",
+  type: "multiple-choice",
+};
+
+const lesson13KaggleZipExercise: GuidedDownloadExercise = {
+  codeLabel: "Kode Pandas",
+  codePlaceholder: 'import pandas as pd\n\ndf = pd.read_csv("data/nama-file.csv")\ndf.head()',
+  hints: getLearningExerciseHints("exercise-1-3-kaggle-zip-loading", "id"),
+  id: "exercise-1-3-kaggle-zip-loading",
+  introParagraphs: [
+    "Sekarang gunakan dataset yang sudah kamu pilih sebelumnya. Kita belum masuk ke cleaning atau modeling; target latihan ini hanya memastikan file mentah dari Kaggle sudah ada di mesinmu.",
+    "Kaggle biasanya memberikan dataset sebagai file ZIP. Simpan ZIP itu dulu, karena tahap berikutnya baru memilih file tabular yang akan dimuat ke DataFrame.",
+  ],
+  introTitle: "Mengunduh ZIP Dataset Kaggle",
+  missingSourceMessage:
+    "Link dataset Kaggle dari Lesson 1.2 belum ditemukan. Selesaikan dan submit latihan sumber data dulu agar linknya muncul di sini.",
+  prompt: "Upload ZIP Kaggle, lalu tulis kode Pandas untuk memuat CSV hasil ekstraksi.",
+  sourceAnswerReference: {
+    exerciseId: "exercise-1-2-open-source-data-search",
+    sourceInputId: "demand-source",
+  },
+  sourceLinkLabel: "Link dataset dari Lesson 1.2",
+  taskDescription:
+    "Gunakan link di bawah supaya kamu tidak perlu kembali ke lesson sebelumnya. Setelah ZIP diupload, sistem akan membaca isi ZIP dan menyiapkan path CSV untuk kode Pandas.",
+  taskSteps: [
+    "Buka link dataset Kaggle yang sudah kamu submit.",
+    "Di halaman Kaggle, klik Download untuk mengunduh dataset sebagai file ZIP.",
+    "Upload file ZIP ke latihan ini agar CSV di dalamnya bisa dibaca di belakang layar.",
+    "Ketik kode Pandas yang muncul sebagai placeholder, lalu kirim jawaban.",
+  ],
+  taskTitle: "Tugas download",
+  type: "guided-download",
+  uploadDescription:
+    "Upload ZIP hasil download dari Kaggle. Sistem akan mencari file `.csv` pertama dan menampilkan path yang perlu dipakai di `pd.read_csv`.",
+  uploadLabel: "Upload ZIP dataset",
+};
+
+const lesson13: Lesson = {
+  estimatedMinutes: 7,
+  exercise: lesson13DataLoadingExercise,
+  exerciseId: lesson13DataLoadingExercise.id,
+  exercises: [lesson13DataLoadingExercise, lesson13KaggleZipExercise],
+  id: "lesson-1-3-data-loading",
+  moduleId: "module-1-data-understanding",
+  numberLabel: "Lesson 1.3",
+  objective: "Kamu bisa menjelaskan apa yang perlu dicek saat data dimuat ke project.",
+  summary: [
+    "Tahap memuat data membawa data mentah ke bentuk yang bisa diperiksa project.",
+    "Sebelum pembersihan atau pemodelan, pastikan tabel termuat dengan benar: baris ada, kolom sesuai ekspektasi, dan tipe data tidak mengejutkan.",
+  ],
+  title: "Memuat Data",
+};
+
 const laterLessons: Lesson[] = [
   multipleChoiceLesson({
     correctOptionIds: [
@@ -582,27 +646,7 @@ const laterLessons: Lesson[] = [
     title: "Tool dan Library ML",
   }),
   lesson12,
-  multipleChoiceLesson({
-    correctOptionIds: ["read-into-table", "check-schema", "preview-rows"],
-    estimatedMinutes: 5,
-    exerciseId: "exercise-1-3-data-loading",
-    id: "lesson-1-3-data-loading",
-    moduleId: "module-1-data-understanding",
-    numberLabel: "Lesson 1.3",
-    objective: "Kamu bisa menjelaskan apa yang perlu dicek saat data dimuat ke project.",
-    options: [
-      { id: "read-into-table", label: "Membaca sumber data menjadi tabel atau dataframe." },
-      { id: "check-schema", label: "Memeriksa nama kolom, tipe data, dan field yang diharapkan." },
-      { id: "preview-rows", label: "Melihat beberapa baris sebelum bekerja lebih jauh." },
-      { id: "train-immediately", label: "Langsung melatih model setelah membuka file." },
-    ],
-    prompt: "Setelah dataset dipilih, aksi mana yang termasuk tahap memuat data?",
-    summary: [
-      "Tahap memuat data membawa data mentah ke bentuk yang bisa diperiksa project.",
-      "Sebelum pembersihan atau pemodelan, pastikan tabel termuat dengan benar: baris ada, kolom sesuai ekspektasi, dan tipe data tidak mengejutkan.",
-    ],
-    title: "Memuat Data",
-  }),
+  lesson13,
   multipleChoiceLesson({
     correctOptionIds: ["handle-missing", "standardize-values", "create-safe-fields"],
     estimatedMinutes: 6,

@@ -51,55 +51,18 @@ df = pd.read_csv("food_delivery.csv")
 
 After that code runs, `df` becomes a DataFrame that can be checked before it is processed further.
 
-## Output from Loading Data
-
-For tabular ML work, data loading usually produces a table or dataframe.
-
-In a food delivery dataset:
-
-- one row should represent one order or one delivery;
-- columns can contain distance, weather, traffic level, time of day, vehicle type, preparation time, courier experience, and delivery time;
-- target and features should still be distinguishable after the data is loaded.
-
-If the table shape is wrong, every stage after it becomes less trustworthy. A model can still be trained on a wrongly shaped table, but the result may not be meaningful.
-
-## First Checks
+## After the Data Enters
 
 Do not train a model immediately after opening a file. First make sure the loaded data matches expectations.
 
-Check:
+Check the first signals:
 
-- number of rows and columns;
+- a few first rows with `df.head()`;
+- table size with `df.shape`;
 - column names and expected fields;
-- data types such as number, text, category, date, or boolean;
-- preview of the first few rows;
-- missing values that appear in unexpected places;
-- parsing issues, such as numbers read as text or dates read incorrectly;
-- duplicate rows caused by joins or exports;
-- units and formats that do not match the project context.
+- data types with `df.dtypes`;
+- missing values with a blank-value check.
 
-## Quiet Loading Mistakes
+If the dataset comes from Kaggle, the file often arrives as a ZIP. Download the ZIP from the dataset page, extract it, then choose the main tabular file such as `.csv` before reading it with Pandas.
 
-Loading mistakes can spread without being obvious. Examples:
-
-- decimal separators make numbers read as text;
-- date parsing swaps day and month;
-- headers are read as data rows;
-- the CSV delimiter is wrong, shifting columns;
-- joins or exports duplicate rows;
-- missing values become text such as `"NA"` or `"-"`.
-
-Problems like these are much easier to catch right after loading the data than after the model has already been trained.
-
-## Practical Rule
-
-When you start loading a dataset, use this sequence:
-
-1. Identify the data source and format.
-2. Choose the right loader function, such as `read_csv`, `read_excel`, or `read_sql_query`.
-3. Store the result in a table structure such as a DataFrame.
-4. Preview a few rows.
-5. Check the initial schema: columns, data types, table size, and missing values.
-6. Then continue to cleaning, EDA, or feature preparation.
-
-The key idea: **data loading is not just opening a file**. It is the stage where the collected dataset enters the project in a form we can trust.
+After the first checks look safe, continue to cleaning, EDA, or feature preparation.

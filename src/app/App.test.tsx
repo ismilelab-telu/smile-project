@@ -798,11 +798,33 @@ describe("App", () => {
   });
 
   it("opens lesson 1.3 after data collecting is complete", async () => {
-    seedCompletedLessons([
-      ...module0LessonIds,
-      "lesson-1-1-ml-tools-libraries",
-      "lesson-1-2-data-collecting",
-    ]);
+    const submittedUrl =
+      "https://www.kaggle.com/datasets/denkuznetz/food-delivery-time-prediction/data";
+
+    window.localStorage.setItem(
+      learningProgressStorageKey,
+      JSON.stringify({
+        attempts: {},
+        completedLessonIds: [
+          ...module0LessonIds,
+          "lesson-1-1-ml-tools-libraries",
+          "lesson-1-2-data-collecting",
+        ],
+        submittedExerciseAnswers: {
+          "exercise-1-2-open-source-data-search": {
+            datasetSourceAnswersByExerciseId: {
+              "exercise-1-2-open-source-data-search": {
+                "demand-source": {
+                  notes: "Dataset berisi konteks pengiriman makanan.",
+                  url: submittedUrl,
+                },
+              },
+            },
+          },
+        },
+        version: 1,
+      }),
+    );
     window.history.pushState(null, "", lesson13Path);
     render(<App />);
 
@@ -812,8 +834,19 @@ describe("App", () => {
     expect(
       screen.getByText("Setelah dataset dipilih, aksi mana yang termasuk tahap memuat data?"),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Upload ZIP Kaggle, lalu tulis kode Pandas untuk memuat CSV hasil ekstraksi.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(submittedUrl)).toBeInTheDocument();
+    expect(screen.getByLabelText("Upload ZIP dataset")).toBeInTheDocument();
+    expect(screen.getByLabelText("Kode Pandas")).toHaveAttribute(
+      "placeholder",
+      'import pandas as pd\n\ndf = pd.read_csv("data/nama-file.csv")\ndf.head()',
+    );
     expect(screen.getByText("Python")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Salin kode" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Kirim jawaban" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Kirim jawaban" })).toHaveLength(2);
   });
 });

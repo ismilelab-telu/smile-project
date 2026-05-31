@@ -51,55 +51,18 @@ df = pd.read_csv("food_delivery.csv")
 
 Setelah kode itu berjalan, `df` menjadi DataFrame yang bisa dicek sebelum diolah lebih jauh.
 
-## Output dari Proses Memuat Data
-
-Untuk pekerjaan ML tabular, hasil data loading biasanya berupa tabel atau dataframe.
-
-Pada dataset food delivery:
-
-- satu baris sebaiknya mewakili satu order atau satu pengiriman;
-- kolom bisa berisi jarak, cuaca, level trafik, waktu hari, kendaraan, waktu persiapan, pengalaman kurir, dan waktu pengiriman;
-- target dan fitur harus tetap bisa dibedakan setelah data dimuat.
-
-Jika bentuk tabel salah, semua tahap setelahnya menjadi kurang bisa dipercaya. Model tetap bisa dilatih pada tabel yang salah bentuk, tetapi hasilnya belum tentu bermakna.
-
-## Pengecekan Pertama
+## Setelah Data Masuk
 
 Jangan langsung melatih model setelah membuka file. Pastikan dulu data yang dimuat sesuai ekspektasi.
 
-Cek:
+Cek hal awal:
 
-- jumlah baris dan jumlah kolom;
+- beberapa baris pertama dengan `df.head()`;
+- ukuran tabel dengan `df.shape`;
 - nama kolom dan field yang diharapkan;
-- tipe data seperti angka, teks, kategori, tanggal, atau boolean;
-- preview beberapa baris pertama;
-- missing values yang muncul di tempat tidak terduga;
-- masalah parsing, misalnya angka terbaca sebagai teks atau tanggal terbaca salah;
-- duplikasi baris akibat join atau export;
-- unit dan format yang tidak sesuai konteks project.
+- tipe data dengan `df.dtypes`;
+- missing values dengan pengecekan nilai kosong.
 
-## Kesalahan yang Sering Diam
+Jika dataset berasal dari Kaggle, file sering berbentuk ZIP. Unduh ZIP dari halaman dataset, extract isinya, lalu pilih file tabular utama seperti `.csv` sebelum dibaca dengan Pandas.
 
-Kesalahan saat memuat data bisa menyebar tanpa terlihat. Beberapa contoh:
-
-- pemisah desimal membuat angka terbaca sebagai teks;
-- parser tanggal menukar hari dan bulan;
-- header terbaca sebagai baris data;
-- delimiter CSV tidak sesuai sehingga kolom bergeser;
-- hasil join atau export menggandakan baris;
-- nilai kosong berubah menjadi teks seperti `"NA"` atau `"-"`.
-
-Masalah seperti ini jauh lebih mudah ditangkap setelah data dimuat daripada setelah model terlanjur dilatih.
-
-## Pegangan Praktis
-
-Saat mulai memuat dataset, gunakan urutan ini:
-
-1. Tentukan sumber dan format data.
-2. Pilih fungsi loader yang sesuai, seperti `read_csv`, `read_excel`, atau `read_sql_query`.
-3. Simpan hasilnya ke struktur tabel seperti DataFrame.
-4. Preview beberapa baris.
-5. Periksa schema awal: kolom, tipe data, ukuran tabel, dan nilai kosong.
-6. Baru lanjut ke cleaning, EDA, atau persiapan fitur.
-
-Intinya, **data loading bukan sekadar membuka file**. Ini adalah tahap memastikan dataset yang sudah dikumpulkan benar-benar masuk ke project dalam bentuk yang bisa dipercaya.
+Setelah cek awal aman, baru lanjut ke cleaning, EDA, atau persiapan fitur.

@@ -4,6 +4,7 @@ import type {
   DatasetRow,
   DatasetView,
   GeneratedDataset,
+  GuidedDownloadExercise,
   LearningModule,
   LearningTrack,
   Lesson,
@@ -16,13 +17,17 @@ import type {
 import { getLearningExerciseHints } from "./learning-hint-glossary";
 
 type ExerciseCopy = {
+  codeLabel?: string;
+  codePlaceholder?: string;
   datasetContext?: string;
   introParagraphs?: string[];
   introTitle?: string;
   instruction?: string;
+  missingSourceMessage?: string;
   notesLabel?: string;
   options?: Record<string, string>;
   prompt?: string;
+  sourceLinkLabel?: string;
   sourceInputs?: Record<
     string,
     {
@@ -36,6 +41,8 @@ type ExerciseCopy = {
   taskDescription?: string;
   taskSteps?: string[];
   taskTitle?: string;
+  uploadDescription?: string;
+  uploadLabel?: string;
   urlLabel?: string;
 };
 
@@ -299,6 +306,31 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
         },
         prompt: "After a dataset is chosen, which actions belong in data loading?",
       },
+      "exercise-1-3-kaggle-zip-loading": {
+        codeLabel: "Pandas code",
+        codePlaceholder: 'import pandas as pd\n\ndf = pd.read_csv("data/file-name.csv")\ndf.head()',
+        introParagraphs: [
+          "Now use the dataset you chose earlier. We are not cleaning or modeling yet; this exercise only makes sure the raw Kaggle file is ready on your machine.",
+          "Kaggle usually provides datasets as ZIP files. Keep the ZIP first, because the next step is choosing the tabular file to load into a DataFrame.",
+        ],
+        introTitle: "Downloading a Kaggle Dataset ZIP",
+        missingSourceMessage:
+          "The Kaggle dataset link from Lesson 1.2 was not found. Complete and submit the source-data exercise first so the link can appear here.",
+        prompt: "Upload the Kaggle ZIP, then write Pandas code to load the extracted CSV.",
+        sourceLinkLabel: "Dataset link from Lesson 1.2",
+        taskDescription:
+          "Use the link below so you do not need to return to the previous lesson. After the ZIP is uploaded, the system will read the ZIP contents and prepare the CSV path for the Pandas code.",
+        taskSteps: [
+          "Open the Kaggle dataset link you submitted.",
+          "On the Kaggle page, click Download to download the dataset as a ZIP file.",
+          "Upload the ZIP file to this exercise so the CSV inside it can be read behind the scenes.",
+          "Type the Pandas code shown as the placeholder, then submit your answer.",
+        ],
+        taskTitle: "Download task",
+        uploadDescription:
+          "Upload the ZIP downloaded from Kaggle. The system will find the first `.csv` file and show the path to use in `pd.read_csv`.",
+        uploadLabel: "Upload dataset ZIP",
+      },
     },
     objective: "You can explain what to check when data is loaded into a project.",
     summary: [
@@ -483,6 +515,23 @@ function localizeExercise(
       taskTitle: copy.taskTitle ?? exercise.taskTitle,
       urlLabel: copy.urlLabel ?? exercise.urlLabel,
     } satisfies OpenDatasetSourceExercise;
+  }
+
+  if (exercise.type === "guided-download") {
+    return {
+      ...baseExercise,
+      codeLabel: copy.codeLabel ?? exercise.codeLabel,
+      codePlaceholder: copy.codePlaceholder ?? exercise.codePlaceholder,
+      introParagraphs: copy.introParagraphs ?? exercise.introParagraphs,
+      introTitle: copy.introTitle ?? exercise.introTitle,
+      missingSourceMessage: copy.missingSourceMessage ?? exercise.missingSourceMessage,
+      sourceLinkLabel: copy.sourceLinkLabel ?? exercise.sourceLinkLabel,
+      taskDescription: copy.taskDescription ?? exercise.taskDescription,
+      taskSteps: copy.taskSteps ?? exercise.taskSteps,
+      taskTitle: copy.taskTitle ?? exercise.taskTitle,
+      uploadDescription: copy.uploadDescription ?? exercise.uploadDescription,
+      uploadLabel: copy.uploadLabel ?? exercise.uploadLabel,
+    } satisfies GuidedDownloadExercise;
   }
 
   return {

@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Smile learning backend for dataset ZIP upload and Pandas loading validation.
+
+Parameters:
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Default: "http://127.0.0.1:5317,http://localhost:5317"
+    Description: Browser origins allowed to call the Lambda Function URL and upload to S3.
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures:
+      - arm64
+    Timeout: 30
+    MemorySize: 1024
+    Environment:
+      Variables:
+        UPLOAD_BUCKET: !Ref DatasetUploadBucket
+        MAX_ZIP_BYTES: "52428800"
+        MAX_UNZIPPED_BYTES: "104857600"
+
+Resources:
+  DatasetUploadBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - PUT
+            AllowedOrigins: !Ref AllowedOrigins
+            ExposedHeaders:
+              - ETag
+            MaxAge: 300
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteTemporaryUploads
+            Status: Enabled
+            Prefix: uploads/
+            ExpirationInDays: 1
+
+  LearningBackendFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref DatasetUploadBucket
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins: !Ref AllowedOrigins
+          AllowMethods:
+            - GET
+            - POST
+          AllowHeaders:
+            - content-type
+          MaxAge: 300
+
+Outputs:
+  LearningBackendFunctionUrl:
+    Description: Public HTTPS endpoint for the learning backend.
+    Value: !GetAtt LearningBackendFunctionUrl.FunctionUrl
+  DatasetUploadBucketName:
+    Description: Private temporary dataset upload bucket.
+    Value: !Ref DatasetUploadBucket

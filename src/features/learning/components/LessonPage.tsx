@@ -7,6 +7,7 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import { autoUpdate, flip, offset, shift, size, useFloating } from "@floating-ui/react-dom";
+import { unzip } from "fflate";
 import {
   ArrowDownIcon,
   ArrowLeftIcon,
@@ -21,7 +22,13 @@ import {
   XMarkIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
-import { BulbIcon } from "@hugeicons/core-free-icons";
+import {
+  Download04Icon,
+  FileSpreadsheetIcon,
+  FileZipIcon,
+  Link03Icon,
+  BulbIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { detectLanguage } from "@speed-highlight/core/detect";
 import { highlightText, type ShjLanguage } from "@speed-highlight/core";
@@ -49,6 +56,7 @@ import { getDatasetView } from "../datasets/registry";
 import { lessonMdxContentByLocaleAndId } from "../content/lesson-mdx-content";
 import { localizeDatasetView, localizeLesson } from "../content/localized-learning-content";
 import {
+  evaluateGuidedDownloadExercise,
   evaluateOpenDatasetSourceExercise,
   evaluateMultipleChoice,
   evaluateOrderedSteps,
@@ -64,6 +72,7 @@ import type {
   DatasetSourceAnswer,
   DatasetSourcePageValidationResult,
   EvaluationResult,
+  GuidedDownloadExercise,
   Lesson,
   LessonAnswer,
   LessonExercise,
@@ -326,6 +335,13 @@ type LessonPageProps = {
   }) => void;
   onSubmitResult: (result: EvaluationResult, answer: LessonAnswer) => void;
   previousLessonHref?: string;
+};
+
+type GuidedDownloadArchiveState = {
+  error?: string;
+  fileName?: string;
+  isReading: boolean;
+  tabularFilePath?: string;
 };
 
 const roleOptions: ColumnRole[] = ["target", "safe-feature", "metadata"];
@@ -1019,18 +1035,24 @@ function createLessonAnswerSnapshot({
   assignments,
   datasetSourceAnswersByExerciseId,
   exercises,
+  guidedDownloadCodeByExerciseId,
+  guidedDownloadExtractedFilePathsByExerciseId,
   orderedStepIdsByExerciseId,
   selectedOptionIdsByExerciseId,
 }: {
   assignments: Record<string, ColumnRole>;
   datasetSourceAnswersByExerciseId: Record<string, Record<string, DatasetSourceAnswer>>;
   exercises: LessonExercise[];
+  guidedDownloadCodeByExerciseId: Record<string, string>;
+  guidedDownloadExtractedFilePathsByExerciseId: Record<string, string>;
   orderedStepIdsByExerciseId: Record<string, string[]>;
   selectedOptionIdsByExerciseId: Record<string, string[]>;
 }): LessonAnswer {
   const answer: LessonAnswer = {
     columnRoleAssignmentsByExerciseId: {},
     datasetSourceAnswersByExerciseId: {},
+    guidedDownloadCodeByExerciseId: {},
+    guidedDownloadExtractedFilePathsByExerciseId: {},
     orderedStepIdsByExerciseId: {},
     selectedOptionIdsByExerciseId: {},
   };
@@ -1056,6 +1078,13 @@ function createLessonAnswerSnapshot({
       answer.datasetSourceAnswersByExerciseId[exercise.id] = {
         ...datasetSourceAnswersByExerciseId[exercise.id],
       };
+    }
+
+    if (exercise.type === "guided-download") {
+      answer.guidedDownloadCodeByExerciseId[exercise.id] =
+        guidedDownloadCodeByExerciseId[exercise.id] ?? "";
+      answer.guidedDownloadExtractedFilePathsByExerciseId[exercise.id] =
+        guidedDownloadExtractedFilePathsByExerciseId[exercise.id] ?? "";
     }
   }
 
@@ -1083,10 +1112,65 @@ function getDatasetSourceAnswersFromAnswer(
   );
 }
 
+function getGuidedDownloadSourceAnswer(
+  exercise: GuidedDownloadExercise,
+  submittedAnswersByExerciseId: Record<string, LessonAnswer>,
+) {
+  const reference = exercise.sourceAnswerReference;
+  const sourceAnswer =
+    submittedAnswersByExerciseId[reference.exerciseId]?.datasetSourceAnswersByExerciseId?.[
+      reference.exerciseId
+    ]?.[reference.sourceInputId];
+
+  if (!sourceAnswer || sourceAnswer.url.trim() === "") {
+    return undefined;
+  }
+
+  return sourceAnswer;
+}
+
+function unzipArchiveEntries(file: File) {
+  return file.arrayBuffer().then(
+    (arrayBuffer) =>
+      new Promise<Record<string, Uint8Array>>((resolve, reject) => {
+        unzip(new Uint8Array(arrayBuffer), (error, entries) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve(entries);
+        });
+      }),
+  );
+}
+
+function getFirstCsvPathFromZipEntries(entries: Record<string, Uint8Array>) {
+  return (
+    Object.keys(entries)
+      .filter((entryName) => !entryName.endsWith("/") && /\.csv$/i.test(entryName))
+      .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }))[0] ??
+    null
+  );
+}
+
+function getGuidedDownloadExpectedCode(
+  exercise: GuidedDownloadExercise,
+  extractedFilePath: string | undefined,
+) {
+  const normalizedPath = extractedFilePath?.trim();
+
+  return normalizedPath
+    ? `import pandas as pd\n\ndf = pd.read_csv("${normalizedPath}")\ndf.head()`
+    : exercise.codePlaceholder;
+}
+
 function evaluateExerciseAnswerSnapshot(
   exercise: LessonExercise,
   answer: LessonAnswer,
   locale: Locale,
+  guidedDownloadSourceAnswer?: DatasetSourceAnswer,
+  guidedDownloadExtractedFilePath?: string,
 ) {
   if (exercise.type === "multiple-choice") {
     return evaluateMultipleChoice(
@@ -1108,6 +1192,19 @@ function evaluateExerciseAnswerSnapshot(
     return evaluateOpenDatasetSourceExercise(
       exercise,
       answer.datasetSourceAnswersByExerciseId?.[exercise.id] ?? {},
+      locale,
+    );
+  }
+
+  if (exercise.type === "guided-download") {
+    const submittedCode = answer.guidedDownloadCodeByExerciseId?.[exercise.id] ?? "";
+
+    return evaluateGuidedDownloadExercise(
+      exercise,
+      submittedCode,
+      getGuidedDownloadExpectedCode(exercise, guidedDownloadExtractedFilePath),
+      guidedDownloadSourceAnswer !== undefined,
+      (guidedDownloadExtractedFilePath ?? "").trim() !== "",
       locale,
     );
   }
@@ -1149,6 +1246,15 @@ function doesSubmittedAnswerMatchCurrentSnapshot(
     );
   }
 
+  if (exercise.type === "guided-download") {
+    return (
+      (currentAnswer.guidedDownloadCodeByExerciseId?.[exercise.id] ?? "") ===
+        (submittedAnswer.guidedDownloadCodeByExerciseId?.[exercise.id] ?? "") &&
+      (currentAnswer.guidedDownloadExtractedFilePathsByExerciseId?.[exercise.id] ?? "") ===
+        (submittedAnswer.guidedDownloadExtractedFilePathsByExerciseId?.[exercise.id] ?? "")
+    );
+  }
+
   return haveSameColumnRoleAssignments(
     currentAnswer.columnRoleAssignmentsByExerciseId?.[exercise.id] ?? {},
     submittedAnswer.columnRoleAssignmentsByExerciseId?.[exercise.id] ?? {},
@@ -1157,17 +1263,27 @@ function doesSubmittedAnswerMatchCurrentSnapshot(
 
 function getExerciseResultFromSubmittedAnswer({
   exercise,
+  guidedDownloadExtractedFilePath,
+  guidedDownloadSourceAnswer,
   isCompletedForCurrentExerciseSet,
   locale,
   submittedAnswer,
 }: {
   exercise: LessonExercise;
+  guidedDownloadExtractedFilePath?: string;
+  guidedDownloadSourceAnswer?: DatasetSourceAnswer;
   isCompletedForCurrentExerciseSet: boolean;
   locale: Locale;
   submittedAnswer: LessonAnswer | undefined;
 }) {
   if (submittedAnswer) {
-    return evaluateExerciseAnswerSnapshot(exercise, submittedAnswer, locale);
+    return evaluateExerciseAnswerSnapshot(
+      exercise,
+      submittedAnswer,
+      locale,
+      guidedDownloadSourceAnswer,
+      guidedDownloadExtractedFilePath,
+    );
   }
 
   return isCompletedForCurrentExerciseSet ? createRestoredCorrectResult(locale) : undefined;
@@ -1316,6 +1432,30 @@ export function LessonPage({
       ),
     [exerciseEntries, initialAnswer],
   );
+  const initialGuidedDownloadCodeByExerciseId = useMemo(
+    () =>
+      exerciseEntries.reduce<Record<string, string>>((codeByExerciseId, exercise) => {
+        if (exercise.type === "guided-download") {
+          codeByExerciseId[exercise.id] =
+            initialAnswer?.guidedDownloadCodeByExerciseId?.[exercise.id] ?? "";
+        }
+
+        return codeByExerciseId;
+      }, {}),
+    [exerciseEntries, initialAnswer],
+  );
+  const initialGuidedDownloadExtractedFilePathsByExerciseId = useMemo(
+    () =>
+      exerciseEntries.reduce<Record<string, string>>((filePathsByExerciseId, exercise) => {
+        if (exercise.type === "guided-download") {
+          filePathsByExerciseId[exercise.id] =
+            initialAnswer?.guidedDownloadExtractedFilePathsByExerciseId?.[exercise.id] ?? "";
+        }
+
+        return filePathsByExerciseId;
+      }, {}),
+    [exerciseEntries, initialAnswer],
+  );
   const initialSubmittedAnswerSnapshotsByExerciseId = useMemo(
     () =>
       exerciseEntries.reduce<Record<string, LessonAnswer>>((submittedAnswers, exercise) => {
@@ -1339,8 +1479,18 @@ export function LessonPage({
     () =>
       exerciseEntries.reduce<Record<string, EvaluationResult>>((results, exercise) => {
         const submittedAnswer = initialSubmittedAnswerSnapshotsByExerciseId[exercise.id];
+        const guidedDownloadSourceAnswer =
+          exercise.type === "guided-download"
+            ? getGuidedDownloadSourceAnswer(exercise, initialSubmittedAnswersByExerciseId)
+            : undefined;
+        const guidedDownloadExtractedFilePath =
+          exercise.type === "guided-download"
+            ? (submittedAnswer?.guidedDownloadExtractedFilePathsByExerciseId?.[exercise.id] ?? "")
+            : undefined;
         const nextResult = getExerciseResultFromSubmittedAnswer({
           exercise,
+          guidedDownloadExtractedFilePath,
+          guidedDownloadSourceAnswer,
           isCompletedForCurrentExerciseSet,
           locale,
           submittedAnswer,
@@ -1355,6 +1505,7 @@ export function LessonPage({
     [
       exerciseEntries,
       initialSubmittedAnswerSnapshotsByExerciseId,
+      initialSubmittedAnswersByExerciseId,
       isCompletedForCurrentExerciseSet,
       locale,
     ],
@@ -1375,6 +1526,16 @@ export function LessonPage({
   const [datasetSourceAnswersByExerciseId, setDatasetSourceAnswersByExerciseId] = useState<
     Record<string, Record<string, DatasetSourceAnswer>>
   >(initialDatasetSourceAnswersByExerciseId);
+  const [guidedDownloadCodeByExerciseId, setGuidedDownloadCodeByExerciseId] = useState<
+    Record<string, string>
+  >(initialGuidedDownloadCodeByExerciseId);
+  const [
+    guidedDownloadExtractedFilePathsByExerciseId,
+    setGuidedDownloadExtractedFilePathsByExerciseId,
+  ] = useState<Record<string, string>>(initialGuidedDownloadExtractedFilePathsByExerciseId);
+  const [guidedDownloadArchivesByExerciseId, setGuidedDownloadArchivesByExerciseId] = useState<
+    Record<string, GuidedDownloadArchiveState>
+  >({});
   const [
     datasetSourceValidationResultsByExerciseId,
     setDatasetSourceValidationResultsByExerciseId,
@@ -1400,6 +1561,8 @@ export function LessonPage({
         assignments,
         datasetSourceAnswersByExerciseId,
         exercises: exerciseEntries,
+        guidedDownloadCodeByExerciseId,
+        guidedDownloadExtractedFilePathsByExerciseId,
         orderedStepIdsByExerciseId,
         selectedOptionIdsByExerciseId,
       }),
@@ -1407,6 +1570,8 @@ export function LessonPage({
       assignments,
       datasetSourceAnswersByExerciseId,
       exerciseEntries,
+      guidedDownloadCodeByExerciseId,
+      guidedDownloadExtractedFilePathsByExerciseId,
       orderedStepIdsByExerciseId,
       selectedOptionIdsByExerciseId,
     ],
@@ -1433,6 +1598,10 @@ export function LessonPage({
       return Object.values(datasetSourceAnswersByExerciseId[exercise.id] ?? {}).some(
         (answer) => answer.url.trim() !== "" || answer.notes.trim() !== "",
       );
+    }
+
+    if (exercise.type === "guided-download") {
+      return (guidedDownloadCodeByExerciseId[exercise.id] ?? "").trim() !== "";
     }
 
     const currentStepIds = orderedStepIdsByExerciseId[exercise.id] ?? [];
@@ -1498,6 +1667,11 @@ export function LessonPage({
     mountedLessonIdRef.current = lesson.id;
     setAssignments(initialAssignments);
     setDatasetSourceAnswersByExerciseId(initialDatasetSourceAnswersByExerciseId);
+    setGuidedDownloadCodeByExerciseId(initialGuidedDownloadCodeByExerciseId);
+    setGuidedDownloadExtractedFilePathsByExerciseId(
+      initialGuidedDownloadExtractedFilePathsByExerciseId,
+    );
+    setGuidedDownloadArchivesByExerciseId({});
     setOrderedStepIdsByExerciseId(initialOrderedStepIds);
     setExerciseResultsById(initialExerciseResultsById);
     setSubmittedAnswerSnapshotsByExerciseId(initialSubmittedAnswerSnapshotsByExerciseId);
@@ -1513,6 +1687,8 @@ export function LessonPage({
     initialAssignments,
     initialDatasetSourceAnswersByExerciseId,
     initialExerciseResultsById,
+    initialGuidedDownloadCodeByExerciseId,
+    initialGuidedDownloadExtractedFilePathsByExerciseId,
     initialOrderedStepIds,
     initialSelectedOptionIdsByExerciseId,
     initialSubmittedAnswerSnapshotsByExerciseId,
@@ -1529,11 +1705,22 @@ export function LessonPage({
           continue;
         }
 
+        const guidedDownloadSourceAnswer =
+          exercise.type === "guided-download"
+            ? getGuidedDownloadSourceAnswer(exercise, initialSubmittedAnswersByExerciseId)
+            : undefined;
+        const submittedAnswer = submittedAnswerSnapshotsByExerciseId[exercise.id];
+        const guidedDownloadExtractedFilePath =
+          exercise.type === "guided-download"
+            ? (submittedAnswer?.guidedDownloadExtractedFilePathsByExerciseId?.[exercise.id] ?? "")
+            : undefined;
         const nextResult = getExerciseResultFromSubmittedAnswer({
           exercise,
+          guidedDownloadExtractedFilePath,
+          guidedDownloadSourceAnswer,
           isCompletedForCurrentExerciseSet,
           locale,
-          submittedAnswer: submittedAnswerSnapshotsByExerciseId[exercise.id],
+          submittedAnswer,
         });
 
         if (!nextResult) {
@@ -1548,6 +1735,7 @@ export function LessonPage({
     });
   }, [
     exerciseEntries,
+    initialSubmittedAnswersByExerciseId,
     isCompletedForCurrentExerciseSet,
     locale,
     submittedAnswerSnapshotsByExerciseId,
@@ -1700,6 +1888,78 @@ export function LessonPage({
     });
   };
 
+  const updateGuidedDownloadCode = (exerciseId: string, value: string) => {
+    setGuidedDownloadCodeByExerciseId((current) => ({
+      ...current,
+      [exerciseId]: value,
+    }));
+  };
+
+  const uploadGuidedDownloadArchive = async (exerciseId: string, file: File) => {
+    setGuidedDownloadArchivesByExerciseId((current) => ({
+      ...current,
+      [exerciseId]: {
+        fileName: file.name,
+        isReading: true,
+      },
+    }));
+
+    try {
+      const entries = await unzipArchiveEntries(file);
+      const csvPath = getFirstCsvPathFromZipEntries(entries);
+
+      if (!csvPath) {
+        setGuidedDownloadExtractedFilePathsByExerciseId((current) => ({
+          ...current,
+          [exerciseId]: "",
+        }));
+        setGuidedDownloadArchivesByExerciseId((current) => ({
+          ...current,
+          [exerciseId]: {
+            error:
+              locale === "en"
+                ? "The ZIP was readable, but no CSV file was found inside it."
+                : "ZIP berhasil dibaca, tapi file CSV tidak ditemukan di dalamnya.",
+            fileName: file.name,
+            isReading: false,
+          },
+        }));
+        return;
+      }
+
+      const extractedPath = `data/${csvPath}`;
+
+      setGuidedDownloadExtractedFilePathsByExerciseId((current) => ({
+        ...current,
+        [exerciseId]: extractedPath,
+      }));
+      setGuidedDownloadArchivesByExerciseId((current) => ({
+        ...current,
+        [exerciseId]: {
+          fileName: file.name,
+          isReading: false,
+          tabularFilePath: extractedPath,
+        },
+      }));
+    } catch {
+      setGuidedDownloadExtractedFilePathsByExerciseId((current) => ({
+        ...current,
+        [exerciseId]: "",
+      }));
+      setGuidedDownloadArchivesByExerciseId((current) => ({
+        ...current,
+        [exerciseId]: {
+          error:
+            locale === "en"
+              ? "The selected file could not be read as a ZIP archive."
+              : "File yang dipilih tidak bisa dibaca sebagai arsip ZIP.",
+          fileName: file.name,
+          isReading: false,
+        },
+      }));
+    }
+  };
+
   const startEditingExercise = (exerciseId: string) => {
     setEditingExerciseIds((current) => {
       const next = new Set(current);
@@ -1786,6 +2046,8 @@ export function LessonPage({
       assignments,
       datasetSourceAnswersByExerciseId: nextDatasetSourceAnswersByExerciseId,
       exercises: exerciseEntries,
+      guidedDownloadCodeByExerciseId,
+      guidedDownloadExtractedFilePathsByExerciseId,
       orderedStepIdsByExerciseId,
       selectedOptionIdsByExerciseId,
     });
@@ -1825,6 +2087,25 @@ export function LessonPage({
         evaluation: evaluateOrderedSteps(
           exercise,
           orderedStepIdsByExerciseId[exercise.id] ?? [],
+          locale,
+        ),
+      };
+    }
+
+    if (exercise.type === "guided-download") {
+      const sourceAnswer = getGuidedDownloadSourceAnswer(
+        exercise,
+        initialSubmittedAnswersByExerciseId,
+      );
+      const extractedFilePath = guidedDownloadExtractedFilePathsByExerciseId[exercise.id] ?? "";
+
+      return {
+        evaluation: evaluateGuidedDownloadExercise(
+          exercise,
+          guidedDownloadCodeByExerciseId[exercise.id] ?? "",
+          getGuidedDownloadExpectedCode(exercise, extractedFilePath),
+          sourceAnswer !== undefined,
+          extractedFilePath.trim() !== "",
           locale,
         ),
       };
@@ -1937,6 +2218,8 @@ export function LessonPage({
           assignments,
           datasetSourceAnswersByExerciseId: nextDatasetSourceAnswersByExerciseId,
           exercises: exerciseEntries,
+          guidedDownloadCodeByExerciseId,
+          guidedDownloadExtractedFilePathsByExerciseId,
           orderedStepIdsByExerciseId,
           selectedOptionIdsByExerciseId,
         });
@@ -2084,6 +2367,10 @@ export function LessonPage({
             exercise.type === "open-dataset-source" && isExerciseCorrect && !isExerciseEditing;
           const isExerciseReadOnly = isReviewMode || (isExerciseCorrect && !isExerciseEditing);
           const isExerciseSubmitting = validatingDatasetSourceExerciseId === exercise.id;
+          const guidedDownloadSourceAnswer =
+            exercise.type === "guided-download"
+              ? getGuidedDownloadSourceAnswer(exercise, initialSubmittedAnswersByExerciseId)
+              : undefined;
 
           return (
             <Fragment key={exercise.id}>
@@ -2101,11 +2388,21 @@ export function LessonPage({
                 edgeCompensationClassName={rightEdgeCompensationClassName}
                 exercise={exercise}
                 exerciseLabel={exerciseLabel}
+                guidedDownloadArchive={guidedDownloadArchivesByExerciseId[exercise.id]}
+                guidedDownloadCode={guidedDownloadCodeByExerciseId[exercise.id] ?? ""}
+                guidedDownloadExtractedFilePath={
+                  guidedDownloadExtractedFilePathsByExerciseId[exercise.id] ?? ""
+                }
+                guidedDownloadSourceAnswer={guidedDownloadSourceAnswer}
                 onMoveStep={(index, direction) => moveStep(exercise.id, index, direction)}
                 onToggleOption={(optionId) => toggleOption(exercise.id, optionId)}
                 onUpdateAssignment={updateAssignment}
                 onUpdateDatasetSourceAnswer={(sourceInputId, field, value) =>
                   updateDatasetSourceAnswer(exercise.id, sourceInputId, field, value)
+                }
+                onUpdateGuidedDownloadCode={(value) => updateGuidedDownloadCode(exercise.id, value)}
+                onUploadGuidedDownloadArchive={(file) =>
+                  uploadGuidedDownloadArchive(exercise.id, file)
                 }
                 orderedStepIds={orderedStepIdsByExerciseId[exercise.id] ?? []}
                 result={exerciseResult}
@@ -2123,6 +2420,14 @@ export function LessonPage({
                 }
                 sourceValidationResults={
                   datasetSourceValidationResultsByExerciseId[exercise.id] ?? []
+                }
+                submittedGuidedDownloadCode={
+                  submittedAnswerSnapshotsByExerciseId[exercise.id]
+                    ?.guidedDownloadCodeByExerciseId?.[exercise.id] ?? ""
+                }
+                submittedGuidedDownloadExtractedFilePath={
+                  submittedAnswerSnapshotsByExerciseId[exercise.id]
+                    ?.guidedDownloadExtractedFilePathsByExerciseId?.[exercise.id] ?? ""
                 }
                 submittedSelectedOptionIds={
                   submittedAnswerSnapshotsByExerciseId[exercise.id]
@@ -2378,10 +2683,16 @@ function ExerciseSection({
   edgeCompensationClassName,
   exercise,
   exerciseLabel,
+  guidedDownloadArchive,
+  guidedDownloadCode,
+  guidedDownloadExtractedFilePath,
+  guidedDownloadSourceAnswer,
   onMoveStep,
   onToggleOption,
   onUpdateAssignment,
   onUpdateDatasetSourceAnswer,
+  onUpdateGuidedDownloadCode,
+  onUploadGuidedDownloadArchive,
   orderedStepIds,
   result,
   scrollTargetRef,
@@ -2389,6 +2700,8 @@ function ExerciseSection({
   sourceValidationResults,
   submittedColumnRoleAssignments,
   submittedDatasetSourceAnswers,
+  submittedGuidedDownloadCode,
+  submittedGuidedDownloadExtractedFilePath,
   submittedSelectedOptionIds,
   selectedOptionIds,
 }: {
@@ -2398,6 +2711,10 @@ function ExerciseSection({
   edgeCompensationClassName: string;
   exercise: LessonExercise;
   exerciseLabel: string;
+  guidedDownloadArchive: GuidedDownloadArchiveState | undefined;
+  guidedDownloadCode: string;
+  guidedDownloadExtractedFilePath: string;
+  guidedDownloadSourceAnswer: DatasetSourceAnswer | undefined;
   onMoveStep: (index: number, direction: -1 | 1) => void;
   onToggleOption: (optionId: string) => void;
   onUpdateAssignment: (columnId: string, role: ColumnRole) => void;
@@ -2406,6 +2723,8 @@ function ExerciseSection({
     field: keyof DatasetSourceAnswer,
     value: string,
   ) => void;
+  onUpdateGuidedDownloadCode: (value: string) => void;
+  onUploadGuidedDownloadArchive: (file: File) => void;
   orderedStepIds: string[];
   result: EvaluationResult | null;
   scrollTargetRef: (node: HTMLDivElement | null) => void;
@@ -2413,6 +2732,8 @@ function ExerciseSection({
   sourceValidationResults: DatasetSourcePageValidationResult[];
   submittedColumnRoleAssignments: Record<string, ColumnRole>;
   submittedDatasetSourceAnswers: Record<string, DatasetSourceAnswer>;
+  submittedGuidedDownloadCode: string;
+  submittedGuidedDownloadExtractedFilePath: string;
   submittedSelectedOptionIds: string[];
   selectedOptionIds: string[];
 }) {
@@ -2433,9 +2754,11 @@ function ExerciseSection({
         >
           <p className="text-base font-medium text-sky-600">{exerciseLabel}</p>
           <h2 className="mt-3 text-xl font-semibold text-foreground">
-            {exercise.type === "open-dataset-source" ? exercise.introTitle : exercise.prompt}
+            {exercise.type === "open-dataset-source" || exercise.type === "guided-download"
+              ? exercise.introTitle
+              : exercise.prompt}
           </h2>
-          {exercise.type === "open-dataset-source" ? (
+          {exercise.type === "open-dataset-source" || exercise.type === "guided-download" ? (
             <div className="mt-5 grid gap-5 text-base leading-7 text-muted-foreground">
               {exercise.introParagraphs.map((paragraph) => (
                 <p key={paragraph}>{paragraph}</p>
@@ -2490,6 +2813,22 @@ function ExerciseSection({
         />
       ) : null}
 
+      {exercise.type === "guided-download" ? (
+        <GuidedDownloadExerciseView
+          archive={guidedDownloadArchive}
+          code={guidedDownloadCode}
+          edgeCompensationClassName={edgeCompensationClassName}
+          exercise={exercise}
+          extractedFilePath={guidedDownloadExtractedFilePath}
+          isReviewMode={isReviewMode}
+          onUpdateCode={onUpdateGuidedDownloadCode}
+          onUploadArchive={onUploadGuidedDownloadArchive}
+          sourceAnswer={guidedDownloadSourceAnswer}
+          submittedCode={submittedGuidedDownloadCode}
+          submittedExtractedFilePath={submittedGuidedDownloadExtractedFilePath}
+        />
+      ) : null}
+
       {exercise.type === "table-column-role-assignment" && datasetView ? (
         <ColumnRoleExerciseView
           assignments={assignments}
@@ -2502,6 +2841,213 @@ function ExerciseSection({
           submittedAssignments={submittedColumnRoleAssignments}
         />
       ) : null}
+    </>
+  );
+}
+
+function GuidedDownloadExerciseView({
+  archive,
+  code,
+  edgeCompensationClassName,
+  exercise,
+  extractedFilePath,
+  isReviewMode,
+  onUpdateCode,
+  onUploadArchive,
+  sourceAnswer,
+  submittedCode,
+  submittedExtractedFilePath,
+}: {
+  archive: GuidedDownloadArchiveState | undefined;
+  code: string;
+  edgeCompensationClassName: string;
+  exercise: GuidedDownloadExercise;
+  extractedFilePath: string;
+  isReviewMode: boolean;
+  onUpdateCode: (value: string) => void;
+  onUploadArchive: (file: File) => void;
+  sourceAnswer: DatasetSourceAnswer | undefined;
+  submittedCode: string;
+  submittedExtractedFilePath: string;
+}) {
+  const { locale } = useLocalization();
+  const sourceUrl = sourceAnswer?.url.trim() ?? "";
+  const hasSourceUrl = sourceUrl !== "";
+  const displayedExtractedFilePath =
+    isReviewMode && submittedExtractedFilePath.trim() !== ""
+      ? submittedExtractedFilePath
+      : extractedFilePath;
+  const hasExtractedFilePath = displayedExtractedFilePath.trim() !== "";
+  const expectedCode = getGuidedDownloadExpectedCode(exercise, displayedExtractedFilePath);
+  const displayedCode = isReviewMode && submittedCode.trim() !== "" ? submittedCode : code;
+  const openLinkLabel = locale === "en" ? "Open Kaggle link" : "Buka link Kaggle";
+  const copyLinkLabel = locale === "en" ? "Copy link" : "Salin link";
+  const copiedLinkLabel = locale === "en" ? "Link copied" : "Link disalin";
+  const uploadedFileLabel = locale === "en" ? "Uploaded ZIP" : "ZIP terupload";
+  const extractedFileLabel = locale === "en" ? "CSV path" : "Path CSV";
+
+  return (
+    <>
+      <LessonFullRow>
+        <div
+          className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${edgeCompensationClassName} p-6`}
+        >
+          <p className="text-base font-medium text-sky-600">{exercise.taskTitle}</p>
+          <h3 className="mt-3 text-xl font-semibold text-foreground">{exercise.prompt}</h3>
+          <p
+            className={`mt-4 max-w-4xl text-base leading-7 text-muted-foreground ${lessonInlineLinkClassName}`}
+          >
+            {renderInlineMarkdown(exercise.taskDescription, `${exercise.id}-task-description`)}
+          </p>
+          <ol
+            className={`mt-4 grid max-w-4xl list-decimal gap-2 pl-5 text-base leading-7 text-muted-foreground ${lessonInlineLinkClassName}`}
+          >
+            {exercise.taskSteps.map((step, stepIndex) => (
+              <li key={step}>
+                {renderInlineMarkdown(step, `${exercise.id}-task-step-${stepIndex}`)}
+              </li>
+            ))}
+          </ol>
+        </div>
+      </LessonFullRow>
+
+      <LessonFullRow>
+        <div
+          className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${edgeCompensationClassName} grid gap-5 p-6`}
+        >
+          <section className="learning-grid-panel-fill p-5">
+            <div className="flex gap-3">
+              <HugeiconsIcon
+                aria-hidden="true"
+                className="mt-1 size-5 shrink-0 text-sky-600"
+                icon={Link03Icon}
+                size={20}
+              />
+              <div className="min-w-0 flex-1">
+                <h4 className="text-lg font-semibold text-foreground">
+                  {exercise.sourceLinkLabel}
+                </h4>
+                {hasSourceUrl ? (
+                  <p className="mt-2 break-all text-base leading-7 text-muted-foreground">
+                    {sourceUrl}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-base leading-7 text-muted-foreground">
+                    {exercise.missingSourceMessage}
+                  </p>
+                )}
+              </div>
+            </div>
+            {hasSourceUrl ? (
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <LinkPreview
+                  className={`${emeraldLiquidButtonClassName} min-h-12 no-underline`}
+                  url={sourceUrl}
+                >
+                  <HugeiconsIcon
+                    aria-hidden="true"
+                    className="size-5"
+                    icon={Download04Icon}
+                    size={20}
+                  />
+                  {openLinkLabel}
+                </LinkPreview>
+                <CopyButton
+                  className="h-12 bg-neutral-950 px-5 text-base text-neutral-50"
+                  copiedAriaLabel={copiedLinkLabel}
+                  copiedLabel={copiedLinkLabel}
+                  copyAriaLabel={copyLinkLabel}
+                  copyLabel={copyLinkLabel}
+                  value={sourceUrl}
+                />
+              </div>
+            ) : null}
+          </section>
+
+          <section className="learning-grid-panel-fill p-5">
+            <div className="flex gap-3">
+              <HugeiconsIcon
+                aria-hidden="true"
+                className="mt-1 size-5 shrink-0 text-sky-600"
+                icon={FileZipIcon}
+                size={20}
+              />
+              <div className="min-w-0 flex-1">
+                <label className="grid gap-3">
+                  <span className="text-lg font-semibold text-foreground">
+                    {exercise.uploadLabel}
+                  </span>
+                  <span className="text-base leading-7 text-muted-foreground">
+                    {exercise.uploadDescription}
+                  </span>
+                  <input
+                    accept=".zip,application/zip,application/x-zip-compressed"
+                    aria-label={exercise.uploadLabel}
+                    className="learning-grid-control min-h-12 w-full border border-neutral-300 bg-white px-4 py-3 text-base text-foreground file:mr-4 file:cursor-pointer file:border-0 file:bg-neutral-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-neutral-50 focus:border-sky-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:bg-neutral-100"
+                    disabled={!hasSourceUrl || isReviewMode || archive?.isReading === true}
+                    onChange={(event) => {
+                      const file = event.currentTarget.files?.[0];
+
+                      if (file) {
+                        void onUploadArchive(file);
+                      }
+                    }}
+                    type="file"
+                  />
+                </label>
+                {archive?.fileName ? (
+                  <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                    <span className="font-semibold text-foreground">{uploadedFileLabel}: </span>
+                    {archive.fileName}
+                  </p>
+                ) : null}
+                {archive?.isReading ? (
+                  <p className="mt-3 text-sm font-medium text-sky-700">
+                    {locale === "en" ? "Reading ZIP..." : "Membaca ZIP..."}
+                  </p>
+                ) : null}
+                {archive?.error ? (
+                  <p className="mt-3 text-sm font-medium text-rose-700">{archive.error}</p>
+                ) : null}
+                {hasExtractedFilePath ? (
+                  <p className="mt-3 break-all text-sm leading-6 text-emerald-700">
+                    <span className="font-semibold text-emerald-800">{extractedFileLabel}: </span>
+                    {displayedExtractedFilePath}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </section>
+
+          <section className="learning-grid-panel-fill p-5">
+            <div className="flex gap-3">
+              <HugeiconsIcon
+                aria-hidden="true"
+                className="mt-1 size-5 shrink-0 text-emerald-600"
+                icon={FileSpreadsheetIcon}
+                size={20}
+              />
+              <div className="min-w-0 flex-1">
+                <label className="grid gap-3">
+                  <span className="text-lg font-semibold text-foreground">
+                    {exercise.codeLabel}
+                  </span>
+                  <textarea
+                    aria-label={exercise.codeLabel}
+                    className="learning-grid-control min-h-32 w-full resize-y border border-neutral-300 bg-neutral-950 px-4 py-3 font-mono text-sm leading-6 text-neutral-50 outline-none transition-colors placeholder:text-neutral-400 focus:border-sky-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:bg-neutral-900 disabled:text-neutral-400"
+                    disabled={(!hasSourceUrl || !hasExtractedFilePath) && !isReviewMode}
+                    onChange={(event) => onUpdateCode(event.currentTarget.value)}
+                    placeholder={expectedCode}
+                    readOnly={isReviewMode}
+                    spellCheck={false}
+                    value={displayedCode}
+                  />
+                </label>
+              </div>
+            </div>
+          </section>
+        </div>
+      </LessonFullRow>
     </>
   );
 }

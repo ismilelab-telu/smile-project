@@ -7,6 +7,7 @@ bun.lockb
 # Build output
 dist/
 coverage/
+.aws-sam/
 playwright-report/
 test-results/
 .vitest-attachments/
@@ -23,3 +24,7 @@ models/*
 # Local config
 .env
 .env.*
+
+# Python
+__pycache__/
+*.py[cod]

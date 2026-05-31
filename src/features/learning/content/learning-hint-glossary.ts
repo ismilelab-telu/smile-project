@@ -153,6 +153,18 @@ export const learningHintGlossaryByExerciseId = {
       "Previewing a few rows helps catch rough loading issues.",
     ],
   },
+  "exercise-1-3-kaggle-zip-loading": {
+    id: [
+      "Mulai dari link dataset Kaggle yang sudah kamu submit sebelumnya.",
+      "Download ZIP dilakukan manual dari halaman Kaggle, bukan lewat command terminal.",
+      "Setelah ZIP diupload, gunakan path CSV yang muncul untuk menulis `pd.read_csv`.",
+    ],
+    en: [
+      "Start from the Kaggle dataset link you submitted earlier.",
+      "Download the ZIP manually from the Kaggle page, not through a terminal command.",
+      "After uploading the ZIP, use the displayed CSV path to write `pd.read_csv`.",
+    ],
+  },
   "exercise-1-3-mark-first-look-issues": {
     id: [
       "A blank feature value is a missing-value issue.",

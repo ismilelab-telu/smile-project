@@ -5,6 +5,7 @@ export type LessonAvailabilityStatus = "available" | "coming-soon";
 
 export type EvaluationStatus = "correct" | "partial" | "incorrect";
 export type ExerciseType =
+  | "guided-download"
   | "multiple-choice"
   | "open-dataset-source"
   | "ordered-steps"
@@ -120,7 +121,27 @@ export type OpenDatasetSourceExercise = LessonExerciseBase & {
   minimumDistinctDomains: number;
 };
 
+export type GuidedDownloadExercise = LessonExerciseBase & {
+  type: "guided-download";
+  introTitle: string;
+  introParagraphs: string[];
+  taskTitle: string;
+  taskDescription: string;
+  taskSteps: string[];
+  sourceLinkLabel: string;
+  uploadLabel: string;
+  uploadDescription: string;
+  codeLabel: string;
+  codePlaceholder: string;
+  missingSourceMessage: string;
+  sourceAnswerReference: {
+    exerciseId: string;
+    sourceInputId: string;
+  };
+};
+
 export type LessonExercise =
+  | GuidedDownloadExercise
   | MultipleChoiceExercise
   | OpenDatasetSourceExercise
   | OrderedStepsExercise
@@ -167,6 +188,8 @@ export type ExerciseAttempt = {
 export type LessonAnswer = {
   columnRoleAssignmentsByExerciseId?: Record<string, Record<string, ColumnRole>>;
   datasetSourceAnswersByExerciseId?: Record<string, Record<string, DatasetSourceAnswer>>;
+  guidedDownloadCodeByExerciseId?: Record<string, string>;
+  guidedDownloadExtractedFilePathsByExerciseId?: Record<string, string>;
   orderedStepIdsByExerciseId?: Record<string, string[]>;
   selectedOptionIdsByExerciseId?: Record<string, string[]>;
 };
