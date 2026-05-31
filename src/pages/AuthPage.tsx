@@ -1,21 +1,17 @@
-import { Cancel01Icon, CheckIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { animate } from "motion";
-import { motion } from "motion/react";
 import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
+  Cancel01Icon,
+  CheckIcon,
+  ChevronUpIcon,
+  LanguageSkillIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { AnimatePresence, LayoutGroup, motion } from "motion/react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import { useAuth } from "@/features/auth/auth-context";
 import { CognitoAuthError } from "@/features/auth/cognito-auth";
-import { useLocalization, type Locale } from "@/features/localization/localization";
+import { localeOptions, useLocalization, type Locale } from "@/features/localization/localization";
 
 type AuthMode = "login" | "register";
 
@@ -57,7 +53,7 @@ const authCopy = {
   en: {
     brand: "Smile Project",
     login: {
-      description: "Enter your credentials below to sign in to your account",
+      description: "",
       submit: "Sign In",
       switchAction: "Create one",
       switchHref: "/register",
@@ -65,7 +61,7 @@ const authCopy = {
       title: "Sign in to your account",
     },
     register: {
-      description: "Fill in the form below to create your account",
+      description: "",
       submit: "Create Account",
       switchAction: "Sign in",
       switchHref: "/login",
@@ -130,22 +126,15 @@ const authPortalPanelVisible = {
 };
 const authPortalBackdropTransition = { duration: 0.2, ease: "easeInOut" };
 const authPortalPanelTransition = { damping: 25, stiffness: 150, type: "spring" };
-
-let previousAuthPanelRect: DOMRect | null = null;
+const authSharedLayoutTransition = { damping: 32, mass: 0.9, stiffness: 260, type: "spring" };
+const authRegisterFieldRevealTransition = { duration: 0.24, ease: "easeOut" };
 
 export function AuthPage({ closeHref = "/learn", mode }: AuthPageProps) {
   const rootRef = useRef<HTMLElement>(null);
-  const previousModeRef = useRef(mode);
   const [isClosing, setIsClosing] = useState(false);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   const { locale } = useLocalization();
   const safeCloseHref = isAuthHref(closeHref) ? "/learn" : closeHref;
-
-  const rememberPanelRect = useCallback(() => {
-    previousAuthPanelRect =
-      rootRef.current?.querySelector<HTMLElement>("[data-auth-panel]")?.getBoundingClientRect() ??
-      null;
-  }, []);
 
   const navigateToCloseHref = useCallback(() => {
     window.history.pushState(null, "", safeCloseHref);
@@ -191,56 +180,6 @@ export function AuthPage({ closeHref = "/learn", mode }: AuthPageProps) {
     rootRef.current?.focus();
   }, [mode]);
 
-  useLayoutEffect(() => {
-    const previousMode = previousModeRef.current;
-
-    if (previousMode === mode) {
-      return;
-    }
-
-    previousModeRef.current = mode;
-
-    const incomingPanel = rootRef.current?.querySelector<HTMLElement>("[data-auth-panel]");
-    const previousRect = previousAuthPanelRect;
-
-    if (!incomingPanel || !previousRect || shouldReduceMotion()) {
-      previousAuthPanelRect = null;
-      return;
-    }
-
-    const incomingRect = incomingPanel.getBoundingClientRect();
-    const deltaX = previousRect.left - incomingRect.left;
-    const deltaY = previousRect.top - incomingRect.top;
-
-    previousAuthPanelRect = null;
-
-    if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) {
-      return;
-    }
-
-    incomingPanel.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`;
-    incomingPanel.style.willChange = "transform";
-    incomingPanel.getBoundingClientRect();
-
-    const controls = animate(
-      incomingPanel,
-      {
-        transform: [`translate3d(${deltaX}px, ${deltaY}px, 0)`, "translate3d(0, 0, 0)"],
-      },
-      {
-        damping: 30,
-        mass: 1,
-        stiffness: 220,
-        type: "spring",
-      },
-    );
-
-    void controls.finished.finally(() => {
-      incomingPanel.style.transform = "";
-      incomingPanel.style.willChange = "";
-    });
-  }, [mode]);
-
   const isRegister = mode === "register";
 
   if (!portalTarget) {
@@ -255,7 +194,7 @@ export function AuthPage({ closeHref = "/learn", mode }: AuthPageProps) {
       <motion.button
         animate={isClosing ? authPortalBackdropHidden : authPortalBackdropVisible}
         aria-label={locale === "en" ? "Close authentication" : "Tutup autentikasi"}
-        className="fixed inset-0 cursor-default bg-neutral-950/35"
+        className="fixed inset-0 cursor-default bg-neutral-950/55"
         initial={authPortalBackdropHidden}
         onClick={closePortal}
         transition={authPortalBackdropTransition}
@@ -288,23 +227,19 @@ export function AuthPage({ closeHref = "/learn", mode }: AuthPageProps) {
               strokeWidth={2}
             />
           </button>
+          <AuthLanguageSwitcher />
           <AuthMatrixRain />
-          <section
-            className="relative z-10 grid min-h-[min(720px,calc(100vh_-_2.5rem))] lg:grid-cols-2 md:min-h-[min(760px,calc(100vh_-_4rem))]"
-            data-auth-layout="split"
-          >
-            {isRegister ? (
-              <>
-                <AuthFormPanel mode="register" onSwitchStart={rememberPanelRect} />
-                <div className="hidden min-h-full lg:block" />
-              </>
-            ) : (
-              <>
-                <div className="hidden min-h-full lg:block" />
-                <AuthFormPanel mode="login" onSwitchStart={rememberPanelRect} />
-              </>
-            )}
-          </section>
+          <LayoutGroup id="auth-form-layout">
+            <section
+              className="relative z-10 grid min-h-[min(720px,calc(100vh_-_2.5rem))] lg:grid-cols-2 md:min-h-[min(760px,calc(100vh_-_4rem))]"
+              data-auth-layout="split"
+            >
+              <AuthFormPanel
+                className={isRegister ? "lg:col-start-1" : "lg:col-start-2"}
+                mode={mode}
+              />
+            </section>
+          </LayoutGroup>
           <span className="sr-only" id="auth-dialog-title">
             {authCopy[locale][mode].title}
           </span>
@@ -315,7 +250,108 @@ export function AuthPage({ closeHref = "/learn", mode }: AuthPageProps) {
   );
 }
 
-function AuthFormPanel({ mode, onSwitchStart }: { mode: AuthMode; onSwitchStart: () => void }) {
+function AuthLanguageSwitcher() {
+  const { locale, setLocale, t } = useLocalization();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node | null)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [isOpen]);
+
+  return (
+    <div
+      className="absolute right-5 bottom-5 z-30 flex w-[215px] max-w-[calc(100%_-_2.5rem)] flex-col items-stretch md:right-7 md:bottom-7"
+      ref={rootRef}
+    >
+      <AnimatePresence>
+        {isOpen ? (
+          <motion.div
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="absolute right-0 bottom-full mb-3 grid w-full origin-bottom-right overflow-hidden border border-neutral-300 bg-white shadow-lg"
+            exit={{ opacity: 0, scale: 0.98, y: 8 }}
+            initial={{ opacity: 0, scale: 0.98, y: 8 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+          >
+            {localeOptions.map((option) => {
+              const isSelected = option.value === locale;
+              const label = t(option.labelKey);
+              const ariaLabel = option.value === "id" ? t("language.use.id") : t("language.use.en");
+
+              return (
+                <button
+                  aria-label={ariaLabel}
+                  className={`flex min-h-12 cursor-pointer items-center gap-3 px-4 py-3 text-left text-sm font-semibold transition-colors hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-emerald-400 ${
+                    isSelected ? "bg-emerald-50 text-emerald-700" : "text-neutral-950"
+                  }`}
+                  key={option.value}
+                  onClick={() => {
+                    setLocale(option.value);
+                    setIsOpen(false);
+                  }}
+                  type="button"
+                >
+                  <span aria-hidden="true" className="text-xl leading-none">
+                    {option.flag}
+                  </span>
+                  <span>{label}</span>
+                  {isSelected ? (
+                    <HugeiconsIcon
+                      aria-hidden="true"
+                      className="ml-auto size-5"
+                      icon={CheckIcon}
+                      strokeWidth={2}
+                    />
+                  ) : null}
+                </button>
+              );
+            })}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+      <button
+        aria-expanded={isOpen}
+        aria-label={t("language.triggerAria")}
+        className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-none border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-950 transition-colors hover:border-emerald-500 hover:text-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+        onClick={() => setIsOpen((current) => !current)}
+        type="button"
+      >
+        <HugeiconsIcon
+          aria-hidden="true"
+          className="size-5"
+          icon={LanguageSkillIcon}
+          strokeWidth={2}
+        />
+        <span>{t("language.trigger")}</span>
+        <span className="font-normal text-neutral-500">
+          {t(locale === "id" ? "language.option.id" : "language.option.en")}
+        </span>
+        <HugeiconsIcon
+          aria-hidden="true"
+          className={`ml-auto size-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          icon={ChevronUpIcon}
+          strokeWidth={2}
+        />
+      </button>
+    </div>
+  );
+}
+
+function AuthFormPanel({ className, mode }: { className: string; mode: AuthMode }) {
   const auth = useAuth();
   const { locale } = useLocalization();
   const copy = authCopy[locale][mode];
@@ -374,7 +410,7 @@ function AuthFormPanel({ mode, onSwitchStart }: { mode: AuthMode; onSwitchStart:
     }
 
     if (!password) {
-      setErrorMessage(locale === "en" ? "Password is required." : "Password wajib diisi.");
+      setErrorMessage(locale === "en" ? "Password is required." : "Sandi wajib diisi.");
       return;
     }
 
@@ -391,7 +427,7 @@ function AuthFormPanel({ mode, onSwitchStart }: { mode: AuthMode; onSwitchStart:
         setErrorMessage(
           locale === "en"
             ? "Check the password and confirmation first."
-            : "Cek password dan konfirmasinya dulu.",
+            : "Cek sandi dan konfirmasinya dulu.",
         );
         return;
       }
@@ -515,75 +551,120 @@ function AuthFormPanel({ mode, onSwitchStart }: { mode: AuthMode; onSwitchStart:
 
     return undefined;
   };
+  const currentFields = getAuthFields(locale, mode);
+  const registerFields = getAuthFields(locale, "register");
+  const nameField = findAuthField(registerFields, "auth-name");
+  const emailField = findAuthField(currentFields, "auth-email");
+  const passwordField = findAuthField(currentFields, "auth-password");
+  const confirmPasswordField = findAuthField(registerFields, "auth-confirm-password");
+
+  const renderAuthInput = (
+    field: AuthField,
+    {
+      className = "",
+      isDisabled = false,
+      layoutId,
+    }: { className?: string; isDisabled?: boolean; layoutId?: string } = {},
+  ) => {
+    const validationContent =
+      isRegister && field.id === "auth-password" ? (
+        <PasswordRequirements
+          error={showPasswordError ? passwordError : ""}
+          locale={locale}
+          password={password}
+          ruleState={passwordRuleState}
+        />
+      ) : isRegister && field.id === "auth-confirm-password" ? (
+        <ConfirmPasswordStatus
+          isMatch={confirmPassword.length > 0 && password === confirmPassword}
+          isVisible={confirmPassword.length > 0 || showConfirmPasswordError}
+          locale={locale}
+          message={showConfirmPasswordError ? confirmPasswordError : ""}
+        />
+      ) : undefined;
+
+    return (
+      <AuthInput
+        ariaDescribedBy={
+          isRegister && field.id === "auth-password"
+            ? "password-requirements"
+            : isRegister && field.id === "auth-confirm-password"
+              ? "confirm-password-status"
+              : undefined
+        }
+        className={className}
+        field={field}
+        isDisabled={isDisabled}
+        isInvalid={
+          (field.id === "auth-password" && showPasswordError) ||
+          (field.id === "auth-confirm-password" && showConfirmPasswordError)
+        }
+        layoutId={layoutId}
+        onBlur={
+          isRegister && field.id === "auth-password"
+            ? () => setPasswordTouched(true)
+            : isRegister && field.id === "auth-confirm-password"
+              ? () => setConfirmPasswordTouched(true)
+              : undefined
+        }
+        onChange={getFieldChangeHandler(field.id)}
+        value={getFieldValue(field.id)}
+      >
+        {validationContent}
+      </AuthInput>
+    );
+  };
 
   return (
-    <div
-      className="relative flex min-h-full flex-col bg-white p-7 text-foreground md:p-8"
+    <motion.div
+      className={`relative flex min-h-full flex-col bg-white p-7 text-foreground md:p-8 ${className}`}
       data-auth-panel={mode}
       data-page-surface="auth-panel"
+      layout
+      transition={authSharedLayoutTransition}
     >
       <div className="flex flex-1 items-center justify-center py-20">
         <div className="w-full max-w-sm text-foreground">
-          <div className="space-y-1 text-left">
-            <h1 className="text-[2rem] leading-tight font-semibold tracking-normal text-foreground">
+          <motion.div
+            className="space-y-1 text-left"
+            layout
+            transition={authSharedLayoutTransition}
+          >
+            <motion.h1
+              className="text-[2rem] leading-tight font-semibold tracking-normal text-foreground"
+              layout="position"
+              transition={authSharedLayoutTransition}
+            >
               {copy.title}
-            </h1>
+            </motion.h1>
             {copy.description ? (
               <p className="text-sm leading-6 text-muted-foreground">{copy.description}</p>
             ) : null}
-          </div>
+          </motion.div>
 
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            {getAuthFields(locale, mode).map((field) => {
-              const validationContent =
-                isRegister && field.id === "auth-password" ? (
-                  <PasswordRequirements
-                    error={showPasswordError ? passwordError : ""}
-                    locale={locale}
-                    password={password}
-                    ruleState={passwordRuleState}
-                  />
-                ) : isRegister && field.id === "auth-confirm-password" ? (
-                  <ConfirmPasswordStatus
-                    isMatch={confirmPassword.length > 0 && password === confirmPassword}
-                    isVisible={confirmPassword.length > 0 || showConfirmPasswordError}
-                    locale={locale}
-                    message={showConfirmPasswordError ? confirmPasswordError : ""}
-                  />
-                ) : undefined;
-
-              return (
-                <AuthInput
-                  ariaDescribedBy={
-                    isRegister && field.id === "auth-password"
-                      ? "password-requirements"
-                      : isRegister && field.id === "auth-confirm-password"
-                        ? "confirm-password-status"
-                        : undefined
-                  }
-                  isInvalid={
-                    (field.id === "auth-password" && showPasswordError) ||
-                    (field.id === "auth-confirm-password" && showConfirmPasswordError)
-                  }
-                  key={field.id}
-                  field={field}
-                  onBlur={
-                    isRegister && field.id === "auth-password"
-                      ? () => setPasswordTouched(true)
-                      : isRegister && field.id === "auth-confirm-password"
-                        ? () => setConfirmPasswordTouched(true)
-                        : undefined
-                  }
-                  onChange={getFieldChangeHandler(field.id)}
-                  value={getFieldValue(field.id)}
-                >
-                  {validationContent}
-                </AuthInput>
-              );
-            })}
+          <motion.form
+            className="mt-8"
+            layout
+            onSubmit={handleSubmit}
+            transition={authSharedLayoutTransition}
+          >
+            <AuthRevealSlot isVisible={isRegister} spacing="after">
+              {renderAuthInput(nameField, {
+                isDisabled: !isRegister,
+                layoutId: "auth-register-name-field",
+              })}
+            </AuthRevealSlot>
+            {renderAuthInput(emailField)}
+            {renderAuthInput(passwordField, { className: "mt-6" })}
+            <AuthRevealSlot isVisible={isRegister} spacing="before">
+              {renderAuthInput(confirmPasswordField, {
+                isDisabled: !isRegister,
+                layoutId: "auth-register-confirm-password-field",
+              })}
+            </AuthRevealSlot>
 
             {isConfirmingAccount ? (
-              <div className="space-y-3 border border-sky-200 bg-sky-50/70 p-4">
+              <div className="mt-6 space-y-3 border border-sky-200 bg-sky-50/70 p-4">
                 <AuthInput
                   field={{
                     autoComplete: "one-time-code",
@@ -607,19 +688,22 @@ function AuthFormPanel({ mode, onSwitchStart }: { mode: AuthMode; onSwitchStart:
             ) : null}
 
             {errorMessage ? (
-              <p className="text-sm leading-6 font-medium text-rose-700" role="alert">
+              <p className="mt-6 text-sm leading-6 font-medium text-rose-700" role="alert">
                 {errorMessage}
               </p>
             ) : null}
             {statusMessage ? (
-              <p className="text-sm leading-6 font-medium text-sky-700" aria-live="polite">
+              <p className="mt-6 text-sm leading-6 font-medium text-sky-700" aria-live="polite">
                 {statusMessage}
               </p>
             ) : null}
 
-            <button
-              className="inline-flex h-10 w-full items-center justify-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:bg-zinc-400"
+            <motion.button
+              className="mt-6 inline-flex h-10 w-full items-center justify-center rounded-none bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:bg-zinc-400"
               disabled={isSubmitting}
+              layout="position"
+              layoutId="auth-submit-button"
+              transition={authSharedLayoutTransition}
               type="submit"
             >
               {getSubmitLabel({
@@ -628,45 +712,59 @@ function AuthFormPanel({ mode, onSwitchStart }: { mode: AuthMode; onSwitchStart:
                 locale,
                 submit: copy.submit,
               })}
-            </button>
-          </form>
+            </motion.button>
+          </motion.form>
 
-          <p className="mt-4 text-center text-sm text-muted-foreground">
+          <motion.p
+            className="mt-4 min-h-5 text-center text-sm text-muted-foreground"
+            layout="position"
+            transition={authSharedLayoutTransition}
+          >
             {copy.switchLabel}{" "}
             <a
               className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
               data-app-link
               href={copy.switchHref}
-              onClick={onSwitchStart}
             >
               {copy.switchAction}
             </a>
-          </p>
+          </motion.p>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
 function AuthInput({
   ariaDescribedBy,
   children,
+  className = "",
   field,
+  isDisabled = false,
   isInvalid = false,
+  layoutId,
   onBlur,
   onChange,
   value,
 }: {
   ariaDescribedBy?: string;
   children?: ReactNode;
+  className?: string;
   field: AuthField;
+  isDisabled?: boolean;
   isInvalid?: boolean;
+  layoutId?: string;
   onBlur?: () => void;
   onChange?: (value: string) => void;
   value?: string;
 }) {
   return (
-    <div>
+    <motion.div
+      className={className}
+      layout="position"
+      layoutId={layoutId ?? `auth-field-${field.id}`}
+      transition={authSharedLayoutTransition}
+    >
       <label className="mb-2.5 block text-[13px] font-semibold text-foreground" htmlFor={field.id}>
         {field.label}
       </label>
@@ -674,17 +772,18 @@ function AuthInput({
         aria-describedby={ariaDescribedBy}
         aria-invalid={isInvalid}
         autoComplete={field.autoComplete}
-        className={`flex h-10 w-full rounded-md border bg-white/92 px-3 text-sm text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.02)] outline-none transition-colors placeholder:text-zinc-400 hover:border-zinc-500 focus:ring-2 ${
+        className={`flex h-10 w-full rounded-none border bg-white/92 px-3 text-sm text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.02)] outline-none transition-colors placeholder:text-zinc-400 hover:border-zinc-500 focus:ring-2 ${
           isInvalid
             ? "border-rose-500 shadow-[0_0_0_2px_rgb(253_164_175_/_0.55),0_1px_2px_rgba(0,0,0,0.02)] focus:border-rose-500 focus:ring-rose-300/55"
             : "border-zinc-300 focus:border-zinc-500 focus:ring-zinc-500/45"
         }`}
+        disabled={isDisabled}
         id={field.id}
         name={field.id}
         onBlur={onBlur}
         onChange={onChange ? (event) => onChange(event.target.value) : undefined}
         placeholder={field.placeholder}
-        required
+        required={!isDisabled}
         type={field.type}
         value={value}
       />
@@ -692,7 +791,35 @@ function AuthInput({
         (field.helper ? (
           <p className="mt-1.5 text-xs leading-4 text-muted-foreground">{field.helper}</p>
         ) : null)}
-    </div>
+    </motion.div>
+  );
+}
+
+function AuthRevealSlot({
+  children,
+  isVisible,
+  spacing,
+}: {
+  children: ReactNode;
+  isVisible: boolean;
+  spacing: "after" | "before";
+}) {
+  return (
+    <motion.div
+      animate={{
+        height: isVisible ? "auto" : 0,
+        marginBottom: spacing === "after" && isVisible ? 24 : 0,
+        marginTop: spacing === "before" && isVisible ? 24 : 0,
+        opacity: isVisible ? 1 : 0,
+      }}
+      aria-hidden={!isVisible}
+      className="overflow-hidden"
+      initial={false}
+      layout
+      transition={authRegisterFieldRevealTransition}
+    >
+      <div className={isVisible ? "" : "pointer-events-none"}>{children}</div>
+    </motion.div>
   );
 }
 
@@ -714,15 +841,15 @@ function PasswordRequirements({
     <>
       {shouldShowHint ? (
         <p
-          className="mt-1.5 overflow-hidden text-xs leading-4 text-rose-700 transition-[max-height,opacity,transform,color] duration-200 ease-out"
+          className="mt-1.5 overflow-hidden text-xs leading-4 text-rose-700 transition-[max-height,opacity,transform,color] duration-300 ease-out"
           id="password-requirements-hint"
         >
           {error}
         </p>
       ) : null}
       <ul
-        aria-label={locale === "en" ? "Password requirements" : "Syarat password"}
-        className={`space-y-1.5 overflow-hidden pl-0.5 transition-[max-height,opacity,transform,margin] duration-200 ease-out ${
+        aria-label={locale === "en" ? "Password requirements" : "Syarat sandi"}
+        className={`space-y-1.5 overflow-hidden pl-0.5 transition-[max-height,opacity,transform,margin] duration-300 ease-out ${
           hasPassword
             ? "mt-2 max-h-32 translate-y-0 overflow-visible opacity-100"
             : "mt-0 max-h-0 translate-y-1 opacity-0"
@@ -750,7 +877,7 @@ function PasswordRequirementItem({ isValid, label }: { isValid: boolean; label: 
     >
       <span
         aria-hidden="true"
-        className={`inline-flex size-4 shrink-0 items-center justify-center rounded-[5px] border transition-[background-color,border-color,color,transform] duration-200 ease-out ${
+        className={`inline-flex size-4 shrink-0 items-center justify-center rounded-none border transition-[background-color,border-color,color,transform] duration-300 ease-out ${
           isValid
             ? "scale-105 border-emerald-700 bg-emerald-700 text-white"
             : "scale-100 border-zinc-400 bg-white text-transparent"
@@ -762,7 +889,7 @@ function PasswordRequirementItem({ isValid, label }: { isValid: boolean; label: 
         {label}
         <span
           aria-hidden="true"
-          className={`absolute right-0 left-0 top-1/2 h-px origin-left -translate-y-1/2 bg-current transition-transform duration-200 ease-out ${
+          className={`absolute right-0 left-0 top-1/2 h-px origin-left -translate-y-1/2 bg-current transition-transform duration-300 ease-out ${
             isValid ? "scale-x-100" : "scale-x-0"
           }`}
         />
@@ -787,15 +914,15 @@ function ConfirmPasswordStatus({
     (isMatch
       ? locale === "en"
         ? "matches password"
-        : "cocok dengan password"
+        : "cocok dengan sandi"
       : locale === "en"
         ? "does not match password"
-        : "tidak cocok dengan password");
+        : "tidak cocok dengan sandi");
 
   return (
     <p
       aria-live="polite"
-      className={`mt-1.5 flex items-center gap-1.5 overflow-hidden text-xs leading-4 font-medium transition-[max-height,opacity,transform,color] duration-200 ease-out ${
+      className={`mt-1.5 flex items-center gap-1.5 overflow-hidden text-xs leading-4 font-medium transition-[max-height,opacity,transform,color] duration-300 ease-out ${
         isVisible ? "max-h-8 translate-y-0 opacity-100" : "max-h-0 -translate-y-1 opacity-0"
       } ${isMatch ? "text-emerald-700" : "text-rose-700"}`}
       id="confirm-password-status"
@@ -986,13 +1113,13 @@ function getAuthFields(locale: Locale, mode: AuthMode): AuthField[] {
       passwordHelper: "",
     },
     id: {
-      confirmPassword: "Konfirmasi Password",
-      confirmPasswordHelper: "Ulangi password yang sama.",
+      confirmPassword: "Konfirmasi Sandi",
+      confirmPasswordHelper: "Ulangi sandi yang sama.",
       email: "Email",
       emailHelper: "",
       name: "Nama Lengkap",
       nameHelper: "",
-      password: "Password",
+      password: "Sandi",
       passwordHelper: "",
     },
   } satisfies Record<Locale, Record<string, string>>;
@@ -1053,6 +1180,16 @@ function getAuthFields(locale: Locale, mode: AuthMode): AuthField[] {
   ];
 }
 
+function findAuthField(fields: AuthField[], fieldId: string) {
+  const field = fields.find((candidate) => candidate.id === fieldId);
+
+  if (!field) {
+    throw new Error(`Missing auth field: ${fieldId}`);
+  }
+
+  return field;
+}
+
 function getSubmitLabel({
   isConfirmingAccount,
   isSubmitting,
@@ -1104,11 +1241,11 @@ function getAuthErrorMessage(error: unknown, locale: Locale) {
       },
       InvalidPasswordException: {
         en: "Password must be at least 8 characters and include uppercase, lowercase, and number.",
-        id: "Password minimal 8 karakter dan punya huruf besar, huruf kecil, serta angka.",
+        id: "Sandi minimal 8 karakter dan punya huruf besar, huruf kecil, serta angka.",
       },
       NotAuthorizedException: {
         en: "Email or password is not correct.",
-        id: "Email atau password belum sesuai.",
+        id: "Email atau sandi belum sesuai.",
       },
       UsernameExistsException: {
         en: "This email is already registered. Sign in instead.",
@@ -1161,17 +1298,17 @@ function getPasswordValidationMessage(password: string, locale: Locale) {
   if (!ruleState.length) {
     return locale === "en"
       ? "Password must be at least 8 characters."
-      : "Password minimal 8 karakter.";
+      : "Sandi minimal 8 karakter.";
   }
 
   if (!ruleState.case) {
     return locale === "en"
       ? "Password must include lowercase and uppercase letters."
-      : "Password harus punya huruf kecil dan huruf besar.";
+      : "Sandi harus punya huruf kecil dan huruf besar.";
   }
 
   if (!ruleState.number) {
-    return locale === "en" ? "Password must include a number." : "Password harus punya angka.";
+    return locale === "en" ? "Password must include a number." : "Sandi harus punya angka.";
   }
 
   return "";
@@ -1192,7 +1329,7 @@ function getConfirmPasswordValidationMessage(
 
   return locale === "en"
     ? "Password confirmation does not match."
-    : "Konfirmasi password tidak cocok.";
+    : "Konfirmasi sandi tidak cocok.";
 }
 
 function random(min: number, max: number) {
