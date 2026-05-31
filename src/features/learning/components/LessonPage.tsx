@@ -1538,6 +1538,13 @@ function getExpectedCodeGhostText(expectedCode: string, typedCode: string) {
   );
 }
 
+function getCodeLineNumbers(value: string) {
+  const normalizedCode = value.replace(/\r\n?/g, "\n");
+  const lineCount = Math.max(1, normalizedCode.split("\n").length);
+
+  return Array.from({ length: lineCount }, (_, index) => index + 1);
+}
+
 function evaluateExerciseAnswerSnapshot(
   exercise: LessonExercise,
   answer: LessonAnswer,
@@ -3428,6 +3435,7 @@ function GuidedDownloadExerciseView({
   const expectedCodeGhostText = isReviewMode
     ? ""
     : getExpectedCodeGhostText(expectedCode, displayedCode);
+  const codeLineNumbers = getCodeLineNumbers(displayedCode || expectedCode);
   const openLinkLabel = locale === "en" ? "Open dataset page" : "Buka halaman dataset";
   const copyLinkLabel = locale === "en" ? "Copy link" : "Salin link";
   const copyLinkButtonLabel = locale === "en" ? "Copy" : "Salin";
@@ -3609,23 +3617,34 @@ function GuidedDownloadExerciseView({
                     {exercise.codeLabel}
                   </span>
                   <div className="relative min-h-32 border border-neutral-300 bg-neutral-950 transition-colors focus-within:border-sky-500">
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-y-0 left-0 z-20 w-11 border-r border-neutral-800 bg-neutral-950 py-3 font-mono text-sm leading-6 text-neutral-600"
+                    >
+                      {codeLineNumbers.map((lineNumber) => (
+                        <div className="h-6 pr-3 text-right" key={lineNumber}>
+                          {lineNumber}
+                        </div>
+                      ))}
+                    </div>
                     {expectedCodeGhostText ? (
                       <pre
                         aria-hidden="true"
-                        className="pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre-wrap px-4 py-3 font-mono text-sm leading-6 text-neutral-700"
+                        className="pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre py-3 pr-4 pl-14 font-mono text-sm leading-6 text-neutral-700"
                       >
                         {expectedCodeGhostText}
                       </pre>
                     ) : null}
                     <textarea
                       aria-label={exercise.codeLabel}
-                      className="relative z-10 min-h-32 w-full resize-y bg-transparent px-4 py-3 font-mono text-sm leading-6 text-neutral-50 caret-neutral-50 outline-none disabled:bg-transparent disabled:text-neutral-400"
+                      className="relative z-10 min-h-32 w-full resize-y bg-transparent py-3 pr-4 pl-14 font-mono text-sm leading-6 text-neutral-50 caret-neutral-50 outline-none disabled:bg-transparent disabled:text-neutral-400"
                       disabled={(!hasSourceUrl || !hasExtractedFilePath) && !isReviewMode}
                       onChange={(event) => onUpdateCode(event.currentTarget.value)}
                       placeholder={expectedCode}
                       readOnly={isReviewMode}
                       spellCheck={false}
                       value={displayedCode}
+                      wrap="off"
                     />
                   </div>
                 </label>
