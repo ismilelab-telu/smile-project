@@ -13,15 +13,18 @@ from typing import Any
 
 try:
     import boto3
+    from botocore.config import Config
     from botocore.exceptions import ClientError
 except ImportError:  # pragma: no cover - Lambda and SAM builds install boto3.
     boto3 = None
+    Config = None
 
     class ClientError(Exception):
         pass
 
 
 UPLOAD_BUCKET = os.environ.get("UPLOAD_BUCKET", "")
+AWS_REGION = os.environ.get("AWS_REGION", "ap-southeast-1")
 MAX_ZIP_BYTES = int(os.environ.get("MAX_ZIP_BYTES", "52428800"))
 MAX_UNZIPPED_BYTES = int(os.environ.get("MAX_UNZIPPED_BYTES", "104857600"))
 MAX_ZIP_ENTRIES = 512
@@ -371,6 +374,11 @@ def get_s3_client():
         raise RuntimeError("boto3 is required for AWS storage operations.")
 
     if _s3_client is None:
-        _s3_client = boto3.client("s3")
+        _s3_client = boto3.client(
+            "s3",
+            config=Config(signature_version="s3v4"),
+            endpoint_url=f"https://s3.{AWS_REGION}.amazonaws.com",
+            region_name=AWS_REGION,
+        )
 
     return _s3_client
