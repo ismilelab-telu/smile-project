@@ -724,6 +724,17 @@ function getLearningBackendValidationMessage(
     return locale === "en" ? message : "Sintaks Python belum valid.";
   }
 
+  if (
+    message.startsWith("Python syntax error:") ||
+    message.startsWith("Python runtime error: SyntaxError:")
+  ) {
+    return locale === "en"
+      ? message
+      : message
+          .replace("Python runtime error: SyntaxError:", "Error syntax Python:")
+          .replace("Python syntax error:", "Error syntax Python:");
+  }
+
   if (message === "Use exactly the import, read_csv assignment, and df.head() lines.") {
     return locale === "en"
       ? message
@@ -2589,7 +2600,7 @@ export function LessonPage({
       );
       const archive = guidedDownloadArchivesByExerciseId[exercise.id];
 
-      if (localEvaluation.status !== "correct" || !archive?.objectKey) {
+      if (!archive?.objectKey) {
         return {
           evaluation: localEvaluation,
         };

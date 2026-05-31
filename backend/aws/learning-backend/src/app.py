@@ -6,7 +6,9 @@ import csv
 import io
 import json
 import os
+from pathlib import Path
 import re
+import tempfile
 import time
 import uuid
 import zipfile
@@ -338,15 +340,20 @@ def validate_uploaded_dataset_code(body: dict[str, Any], user: dict[str, Any]) -
     submitted_code = get_required_string(body, "code")
 
     archive = download_archive(object_key)
-    inspection = inspect_zip_bytes(archive, expected_csv_path=csv_path)
-    expected_path = f"data/{inspection['csvPath']}"
-    validation = validate_pandas_loading_code(submitted_code, expected_path)
+    extracted_csv = extract_csv_from_zip(archive, expected_csv_path=csv_path)
+    expected_path = f"data/{extracted_csv['csvPath']}"
+    columns, preview_rows = read_csv_preview(extracted_csv["content"])
+    validation = run_pandas_loading_code(submitted_code, expected_path, extracted_csv["content"])
+
+    if validation["status"] == "correct":
+        columns = validation["columns"]
+        preview_rows = validation["previewRows"]
 
     return {
-        "columns": inspection["columns"],
+        "columns": columns,
         "expectedCode": build_expected_pandas_code(expected_path),
         "message": validation["message"],
-        "previewRows": inspection["previewRows"],
+        "previewRows": preview_rows,
         "score": validation["score"],
         "status": validation["status"],
         "tabularFilePath": expected_path,
@@ -367,6 +374,21 @@ def download_archive(object_key: str) -> bytes:
 
 
 def inspect_zip_bytes(archive: bytes, expected_csv_path: str | None = None) -> dict[str, Any]:
+    extracted_csv = extract_csv_from_zip(archive, expected_csv_path)
+    columns, preview_rows = read_csv_preview(extracted_csv["content"])
+
+    return {
+        "columns": columns,
+        "csvPath": extracted_csv["csvPath"],
+        "fileName": extracted_csv["fileName"],
+        "previewRows": preview_rows,
+    }
+
+
+def extract_csv_from_zip(
+    archive: bytes,
+    expected_csv_path: str | None = None,
+) -> dict[str, Any]:
     if len(archive) > MAX_ZIP_BYTES:
         raise ClientInputError("Uploaded ZIP is too large for this lesson.")
 
@@ -383,13 +405,13 @@ def inspect_zip_bytes(archive: bytes, expected_csv_path: str | None = None) -> d
         if csv_info is None:
             raise ClientInputError("No CSV file was found in the uploaded ZIP.")
 
-        columns, preview_rows = read_csv_preview(zip_file, csv_info)
+        with zip_file.open(csv_info) as file:
+            content = file.read()
 
     return {
-        "columns": columns,
+        "content": content,
         "csvPath": csv_info.filename,
         "fileName": csv_info.filename.rsplit("/", 1)[-1],
-        "previewRows": preview_rows,
     }
 
 
@@ -416,14 +438,8 @@ def find_csv_entry(
     return sorted(candidates, key=lambda info: info.filename)[0] if candidates else None
 
 
-def read_csv_preview(
-    zip_file: zipfile.ZipFile,
-    csv_info: zipfile.ZipInfo,
-) -> tuple[list[str], list[list[str]]]:
-    with zip_file.open(csv_info) as file:
-        sample = file.read(65536)
-
-    text = decode_csv_sample(sample)
+def read_csv_preview(content: bytes) -> tuple[list[str], list[list[str]]]:
+    text = decode_csv_sample(content[:65536])
     rows = list(csv.reader(io.StringIO(text)))
     if not rows:
         raise ClientInputError("CSV file is empty.")
@@ -446,8 +462,8 @@ def decode_csv_sample(sample: bytes) -> str:
 def validate_pandas_loading_code(code: str, expected_path: str) -> dict[str, Any]:
     try:
         tree = ast.parse(code)
-    except SyntaxError:
-        return invalid_code_result("Python syntax is not valid.")
+    except SyntaxError as error:
+        return invalid_code_result(format_python_syntax_error(error))
 
     body = [node for node in tree.body if not isinstance(node, ast.Pass)]
 
@@ -469,6 +485,185 @@ def validate_pandas_loading_code(code: str, expected_path: str) -> dict[str, Any
         "score": 100,
         "status": "correct",
     }
+
+
+def run_pandas_loading_code(code: str, expected_path: str, csv_content: bytes) -> dict[str, Any]:
+    try:
+        tree = ast.parse(code)
+    except SyntaxError as error:
+        return invalid_code_result(format_python_syntax_error(error))
+
+    runtime_plan, safety_error = get_restricted_pandas_runtime_plan(tree)
+    if safety_error:
+        return invalid_code_result(f"Python runtime error: PermissionError: {safety_error}")
+
+    try:
+        import pandas as pd
+
+        with tempfile.TemporaryDirectory() as sandbox_dir:
+            write_runtime_csv(sandbox_dir, expected_path, csv_content)
+            head = run_restricted_pandas_plan(runtime_plan, sandbox_dir, pd)
+    except Exception as error:
+        return invalid_code_result(f"Python runtime error: {type(error).__name__}: {error}")
+
+    return {
+        "columns": [str(column) for column in head.columns.tolist()],
+        "message": "Pandas code executed successfully.",
+        "previewRows": dataframe_rows_to_strings(head, pd),
+        "score": 100,
+        "status": "correct",
+    }
+
+
+def run_restricted_pandas_plan(
+    runtime_plan: dict[str, str],
+    sandbox_dir: str,
+    pd_module: Any,
+) -> Any:
+    old_cwd = os.getcwd()
+
+    try:
+        os.chdir(sandbox_dir)
+        dataframe = pd_module.read_csv(runtime_plan["readCsvPath"])
+        return dataframe.head()
+    finally:
+        os.chdir(old_cwd)
+
+
+def write_runtime_csv(sandbox_dir: str, expected_path: str, csv_content: bytes) -> None:
+    normalized_path = expected_path.strip().replace("\\", "/")
+    if is_unsafe_runtime_read_path(normalized_path):
+        raise ClientInputError("CSV path is not safe for this lesson runtime.")
+
+    destination = Path(sandbox_dir) / normalized_path
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(csv_content)
+
+
+def get_restricted_pandas_runtime_plan(tree: ast.Module) -> tuple[dict[str, str], str]:
+    body = [node for node in tree.body if not isinstance(node, ast.Pass)]
+
+    if len(body) != 3:
+        return {}, "Only `import pandas as pd`, `df = pd.read_csv(...)`, and `df.head()` are allowed."
+
+    import_node, assign_node, head_node = body
+    if not isinstance(import_node, ast.Import) or not is_allowed_pandas_import(import_node):
+        return {}, "Only `import pandas as pd` is allowed."
+
+    if not isinstance(assign_node, ast.Assign):
+        return {}, "Load the CSV with an assignment like `df = pd.read_csv(...)`."
+
+    target_name, read_csv_path, assignment_error = get_restricted_read_csv_assignment(assign_node)
+    if assignment_error:
+        return {}, assignment_error
+
+    head_error = get_restricted_head_expression(head_node, target_name)
+    if head_error:
+        return {}, head_error
+
+    return {"readCsvPath": read_csv_path}, ""
+
+
+def get_restricted_read_csv_assignment(node: ast.Assign) -> tuple[str, str, str]:
+    if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
+        return "", "", "Store the CSV dataframe in one variable, for example `df`."
+
+    target_name = node.targets[0].id
+    if target_name.startswith("__"):
+        return "", "", "Private Python names are not allowed."
+
+    value = node.value
+    if (
+        not isinstance(value, ast.Call)
+        or not isinstance(value.func, ast.Attribute)
+        or not isinstance(value.func.value, ast.Name)
+        or value.func.value.id != "pd"
+        or value.func.attr != "read_csv"
+    ):
+        return "", "", "Only `pd.read_csv(...)` can load the CSV in this lesson runtime."
+
+    if value.keywords:
+        return "", "", "`pd.read_csv(...)` keyword arguments are not enabled yet."
+
+    if len(value.args) != 1 or not isinstance(value.args[0], ast.Constant):
+        return "", "", "`pd.read_csv(...)` needs one literal CSV path."
+
+    read_csv_path = value.args[0].value
+    if not isinstance(read_csv_path, str):
+        return "", "", "`pd.read_csv(...)` needs a string CSV path."
+
+    if is_unsafe_runtime_read_path(read_csv_path):
+        return "", "", "That CSV path is outside the lesson runtime workspace."
+
+    return target_name, read_csv_path, ""
+
+
+def get_restricted_head_expression(node: ast.AST, target_name: str) -> str:
+    if not isinstance(node, ast.Expr):
+        return "Put `df.head()` on the last line so the runtime can display output."
+
+    value = node.value
+    if (
+        not isinstance(value, ast.Call)
+        or not isinstance(value.func, ast.Attribute)
+        or not isinstance(value.func.value, ast.Name)
+        or value.func.value.id != target_name
+        or value.func.attr != "head"
+    ):
+        return f"Only `{target_name}.head()` can produce output in this lesson runtime."
+
+    if value.args or value.keywords:
+        return "`df.head()` arguments are not enabled yet."
+
+    return ""
+
+
+def is_allowed_pandas_import(node: ast.Import) -> bool:
+    return (
+        len(node.names) == 1
+        and node.names[0].name == "pandas"
+        and node.names[0].asname == "pd"
+    )
+
+
+def is_unsafe_runtime_read_path(path: str) -> bool:
+    normalized = path.strip().replace("\\", "/").lower()
+    return (
+        not normalized
+        or normalized.startswith("/")
+        or ".." in normalized.split("/")
+        or "://" in normalized
+    )
+
+
+def format_python_syntax_error(error: SyntaxError) -> str:
+    details = []
+    if error.lineno:
+        details.append(f"line {error.lineno}")
+    if error.offset:
+        details.append(f"column {error.offset}")
+
+    location = f" ({', '.join(details)})" if details else ""
+    return f"Python runtime error: SyntaxError: {error.msg}{location}."
+
+
+def dataframe_rows_to_strings(dataframe: Any, pd_module: Any) -> list[list[str]]:
+    rows: list[list[str]] = []
+
+    for row in dataframe.itertuples(index=False, name=None):
+        rows.append([format_pandas_value(value, pd_module) for value in row])
+
+    return rows
+
+
+def format_pandas_value(value: Any, pd_module: Any) -> str:
+    try:
+        if bool(pd_module.isna(value)):
+            return ""
+    except (TypeError, ValueError):
+        pass
+
+    return str(value)
 
 
 def invalid_code_result(message: str) -> dict[str, Any]:

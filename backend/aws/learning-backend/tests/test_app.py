@@ -14,6 +14,7 @@ from app import (
     inspect_zip_bytes,
     is_valid_learning_progress,
     require_learning_backend_user,
+    run_pandas_loading_code,
     sanitize_file_name,
     validate_pandas_loading_code,
 )
@@ -52,6 +53,39 @@ class LearningBackendTest(unittest.TestCase):
         self.assertEqual(result["status"], "correct")
         self.assertEqual(result["score"], 100)
 
+    def test_runs_restricted_pandas_loading_code(self) -> None:
+        expected_path = "data/Food_Delivery_Times.csv"
+        result = run_pandas_loading_code(
+            build_expected_pandas_code(expected_path),
+            expected_path,
+            b"Order_ID,Time_taken\n1,42\n2,36\n",
+        )
+
+        self.assertEqual(result["status"], "correct")
+        self.assertEqual(result["columns"], ["Order_ID", "Time_taken"])
+        self.assertEqual(result["previewRows"], [["1", "42"], ["2", "36"]])
+
+    def test_returns_pandas_runtime_errors(self) -> None:
+        result = run_pandas_loading_code(
+            'import pandas as pd\n\ndf = pd.read_csv("data/missing.csv")\ndf.head()',
+            "data/Food_Delivery_Times.csv",
+            b"Order_ID,Time_taken\n1,42\n2,36\n",
+        )
+
+        self.assertEqual(result["status"], "partial")
+        self.assertIn("Python runtime error", result["message"])
+        self.assertIn("FileNotFoundError", result["message"])
+
+    def test_rejects_disallowed_python_without_executing_user_code(self) -> None:
+        result = run_pandas_loading_code(
+            'import pandas as pd\n\ndf = pd.read_csv("data/Food_Delivery_Times.csv")\nopen("/etc/passwd").read()',
+            "data/Food_Delivery_Times.csv",
+            b"Order_ID,Time_taken\n1,42\n2,36\n",
+        )
+
+        self.assertEqual(result["status"], "partial")
+        self.assertIn("PermissionError", result["message"])
+
     def test_rejects_wrong_csv_path(self) -> None:
         result = validate_pandas_loading_code(
             'import pandas as pd\n\ndf = pd.read_csv("data/wrong.csv")\ndf.head()',
@@ -60,6 +94,16 @@ class LearningBackendTest(unittest.TestCase):
 
         self.assertEqual(result["status"], "partial")
         self.assertIn("expected", result["message"])
+
+    def test_returns_python_syntax_error_details(self) -> None:
+        result = validate_pandas_loading_code(
+            'import pandas as pd\n\ndf = pd.read_csv("data/food.csv"\ndf.head()',
+            "data/food.csv",
+        )
+
+        self.assertEqual(result["status"], "partial")
+        self.assertIn("Python runtime error: SyntaxError", result["message"])
+        self.assertIn("line", result["message"])
 
     def test_sanitizes_uploaded_file_names(self) -> None:
         self.assertEqual(sanitize_file_name("../Food Delivery (final).zip"), "Food-Delivery-final-.zip")
