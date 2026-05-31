@@ -10,6 +10,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
+import { AnimatePresence, motion } from "motion/react";
 
 import { localeOptions, useLocalization } from "@/features/localization/localization";
 import { shouldReduceMotion } from "@/lib/motion";
@@ -48,10 +49,12 @@ export function LearningHeader({ backHref, backLabel }: LearningHeaderProps) {
 function LearningMenu() {
   const { locale, setLocale, t } = useLocalization();
   const rootRef = useRef<HTMLDivElement>(null);
+  const languageTriggerRef = useRef<HTMLButtonElement>(null);
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const enterEndTimeRef = useRef(0);
   const [isOpen, setIsOpen] = useState(false);
   const [isLanguageSelectorOpen, setIsLanguageSelectorOpen] = useState(false);
+  const [languageSelectorWidth, setLanguageSelectorWidth] = useState<number | null>(null);
 
   const { contextSafe } = useGSAP(
     () => {
@@ -300,6 +303,23 @@ function LearningMenu() {
     };
   }, [isOpen, setMenuOpen]);
 
+  useEffect(() => {
+    if (!isLanguageSelectorOpen) {
+      return;
+    }
+
+    const updateLanguageSelectorWidth = () => {
+      setLanguageSelectorWidth(languageTriggerRef.current?.offsetWidth ?? null);
+    };
+
+    updateLanguageSelectorWidth();
+    window.addEventListener("resize", updateLanguageSelectorWidth);
+
+    return () => {
+      window.removeEventListener("resize", updateLanguageSelectorWidth);
+    };
+  }, [isLanguageSelectorOpen, locale]);
+
   return (
     <div ref={rootRef}>
       <button
@@ -360,45 +380,55 @@ function LearningMenu() {
               </li>
             ))}
           </ul>
-          <div className="absolute bottom-7 left-7 z-20 flex flex-col items-start">
-            {isLanguageSelectorOpen ? (
-              <div className="absolute bottom-full left-0 mb-3 grid min-w-56 overflow-hidden border border-neutral-300 bg-white shadow-lg">
-                {localeOptions.map((option) => {
-                  const isSelected = option.value === locale;
-                  const label = t(option.labelKey);
-                  const ariaLabel =
-                    option.value === "id" ? t("language.use.id") : t("language.use.en");
+          <div className="absolute right-7 bottom-7 z-20 flex flex-col items-end">
+            <AnimatePresence>
+              {isLanguageSelectorOpen ? (
+                <motion.div
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  className="absolute right-0 bottom-full mb-3 grid origin-bottom-right overflow-hidden border border-neutral-300 bg-white shadow-lg"
+                  exit={{ opacity: 0, scale: 0.98, y: 8 }}
+                  initial={{ opacity: 0, scale: 0.98, y: 8 }}
+                  style={languageSelectorWidth ? { width: languageSelectorWidth } : undefined}
+                  transition={{ duration: 0.16, ease: "easeOut" }}
+                >
+                  {localeOptions.map((option) => {
+                    const isSelected = option.value === locale;
+                    const label = t(option.labelKey);
+                    const ariaLabel =
+                      option.value === "id" ? t("language.use.id") : t("language.use.en");
 
-                  return (
-                    <button
-                      aria-label={ariaLabel}
-                      className={`flex min-h-12 cursor-pointer items-center gap-3 px-4 py-3 text-left text-sm font-semibold transition-colors hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-emerald-400 ${
-                        isSelected ? "bg-emerald-50 text-emerald-700" : "text-neutral-950"
-                      }`}
-                      key={option.value}
-                      onClick={() => {
-                        setLocale(option.value);
-                        setIsLanguageSelectorOpen(false);
-                      }}
-                      type="button"
-                    >
-                      <span aria-hidden="true" className="text-xl leading-none">
-                        {option.flag}
-                      </span>
-                      <span>{label}</span>
-                      {isSelected ? (
-                        <CheckIcon aria-hidden="true" className="ml-auto size-5" />
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : null}
+                    return (
+                      <button
+                        aria-label={ariaLabel}
+                        className={`flex min-h-12 cursor-pointer items-center gap-3 px-4 py-3 text-left text-sm font-semibold transition-colors hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-emerald-400 ${
+                          isSelected ? "bg-emerald-50 text-emerald-700" : "text-neutral-950"
+                        }`}
+                        key={option.value}
+                        onClick={() => {
+                          setLocale(option.value);
+                          setIsLanguageSelectorOpen(false);
+                        }}
+                        type="button"
+                      >
+                        <span aria-hidden="true" className="text-xl leading-none">
+                          {option.flag}
+                        </span>
+                        <span>{label}</span>
+                        {isSelected ? (
+                          <CheckIcon aria-hidden="true" className="ml-auto size-5" />
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
             <button
               aria-expanded={isLanguageSelectorOpen}
               aria-label={t("language.triggerAria")}
               className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-none border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-950 transition-colors hover:border-emerald-500 hover:text-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
               onClick={() => setIsLanguageSelectorOpen((current) => !current)}
+              ref={languageTriggerRef}
               type="button"
             >
               <LanguageIcon aria-hidden="true" className="size-5" />
