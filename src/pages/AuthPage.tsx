@@ -1,4 +1,5 @@
 import {
+  ArrowLeft02Icon,
   Cancel01Icon,
   CheckIcon,
   ChevronUpIcon,
@@ -6,7 +7,16 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 
 import { useAuth } from "@/features/auth/auth-context";
@@ -107,6 +117,7 @@ const passwordRules: Array<{ id: PasswordRule; label: Record<Locale, string> }> 
   { id: "case", label: { en: "Uppercase and lowercase", id: "Huruf besar dan kecil" } },
   { id: "number", label: { en: "Number", id: "Angka" } },
 ];
+const OTP_CODE_LENGTH = 6;
 const authPortalBackdropVisible = { filter: "blur(0px)", opacity: 1 };
 const authPortalBackdropHidden = { filter: "blur(4px)", opacity: 0 };
 const authPortalPanelHidden = {
@@ -137,10 +148,13 @@ export function AuthPage({
   const [isClosing, setIsClosing] = useState(false);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   const { locale } = useLocalization();
+  const [isConfirmingAuthStep, setConfirmingAuthStep] = useState(false);
   const safeCloseHref = isAuthHref(closeHref) ? "/learn" : closeHref;
   const resolvedSuccessHref = successHref ?? safeCloseHref;
   const safeSuccessHref = isAuthHref(resolvedSuccessHref) ? "/learn" : resolvedSuccessHref;
-  const dialogTitle = titleOverride ?? authCopy[locale][mode].title;
+  const dialogTitle = isConfirmingAuthStep
+    ? getConfirmationStepTitle(locale)
+    : (titleOverride ?? authCopy[locale][mode].title);
 
   const navigateToCloseHref = useCallback(() => {
     window.history.pushState(null, "", safeCloseHref);
@@ -185,7 +199,7 @@ export function AuthPage({
 
   useEffect(() => {
     rootRef.current?.focus();
-  }, [mode]);
+  }, [isConfirmingAuthStep, mode]);
 
   const isRegister = mode === "register";
 
@@ -219,8 +233,13 @@ export function AuthPage({
           animate={isClosing ? authPortalPanelHidden : authPortalPanelVisible}
           aria-labelledby="auth-dialog-title"
           aria-modal="true"
-          className="relative grid min-h-[min(720px,calc(100vh_-_2.5rem))] w-full max-w-5xl transform-gpu overflow-hidden border-2 border-neutral-950 bg-white text-foreground shadow-2xl outline-none md:min-h-[min(760px,calc(100vh_-_4rem))]"
+          className={`relative grid w-full transform-gpu overflow-hidden border-2 border-neutral-950 bg-white text-foreground shadow-2xl outline-none ${
+            isConfirmingAuthStep
+              ? "min-h-[min(620px,calc(100vh_-_2.5rem))] max-w-[30rem] md:min-h-[min(640px,calc(100vh_-_4rem))]"
+              : "min-h-[min(720px,calc(100vh_-_2.5rem))] max-w-5xl md:min-h-[min(760px,calc(100vh_-_4rem))]"
+          }`}
           data-auth-mode={mode}
+          data-auth-step={isConfirmingAuthStep ? "confirmation" : "credentials"}
           initial={authPortalPanelHidden}
           onAnimationComplete={handlePanelAnimationComplete}
           ref={rootRef}
@@ -241,17 +260,24 @@ export function AuthPage({
               strokeWidth={2}
             />
           </button>
-          <AuthLanguageSwitcher isRegister={isRegister} />
-          <AuthIllustration />
+          <AuthLanguageSwitcher isCompact={isConfirmingAuthStep} isRegister={isRegister} />
+          {isConfirmingAuthStep ? null : <AuthIllustration />}
           <LayoutGroup id="auth-form-layout">
             <section
-              className="relative z-10 grid min-h-[min(720px,calc(100vh_-_2.5rem))] lg:grid-cols-2 md:min-h-[min(760px,calc(100vh_-_4rem))]"
+              className={`relative z-10 grid ${
+                isConfirmingAuthStep
+                  ? "min-h-[min(620px,calc(100vh_-_2.5rem))] md:min-h-[min(640px,calc(100vh_-_4rem))]"
+                  : "min-h-[min(720px,calc(100vh_-_2.5rem))] lg:grid-cols-2 md:min-h-[min(760px,calc(100vh_-_4rem))]"
+              }`}
               data-auth-layout="split"
             >
               <AuthFormPanel
-                className={isRegister ? "lg:col-start-1" : "lg:col-start-2"}
+                className={
+                  isConfirmingAuthStep ? "" : isRegister ? "lg:col-start-1" : "lg:col-start-2"
+                }
                 mode={mode}
                 onAuthenticated={onAuthenticated}
+                onConfirmingChange={setConfirmingAuthStep}
                 onModeChange={onModeChange}
                 successHref={safeSuccessHref}
                 titleOverride={titleOverride}
@@ -268,7 +294,13 @@ export function AuthPage({
   );
 }
 
-function AuthLanguageSwitcher({ isRegister }: { isRegister: boolean }) {
+function AuthLanguageSwitcher({
+  isCompact,
+  isRegister,
+}: {
+  isCompact: boolean;
+  isRegister: boolean;
+}) {
   const { locale, setLocale, t } = useLocalization();
   const rootRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -294,7 +326,11 @@ function AuthLanguageSwitcher({ isRegister }: { isRegister: boolean }) {
   return (
     <motion.div
       className={`absolute bottom-5 z-30 flex w-[215px] max-w-[calc(100%_-_2.5rem)] flex-col items-stretch md:bottom-7 ${
-        isRegister ? "left-5 md:left-7" : "right-5 md:right-7"
+        isCompact
+          ? "left-1/2 -translate-x-1/2"
+          : isRegister
+            ? "left-5 md:left-7"
+            : "right-5 md:right-7"
       }`}
       layout="position"
       ref={rootRef}
@@ -305,7 +341,11 @@ function AuthLanguageSwitcher({ isRegister }: { isRegister: boolean }) {
           <motion.div
             animate={{ opacity: 1, scale: 1, y: 0 }}
             className={`absolute bottom-full mb-3 grid w-full overflow-hidden border border-neutral-300 bg-white shadow-lg ${
-              isRegister ? "left-0 origin-bottom-left" : "right-0 origin-bottom-right"
+              isCompact
+                ? "left-1/2 origin-bottom -translate-x-1/2"
+                : isRegister
+                  ? "left-0 origin-bottom-left"
+                  : "right-0 origin-bottom-right"
             }`}
             exit={{ opacity: 0, scale: 0.98, y: 8 }}
             initial={{ opacity: 0, scale: 0.98, y: 8 }}
@@ -379,6 +419,7 @@ function AuthFormPanel({
   className,
   mode,
   onAuthenticated,
+  onConfirmingChange,
   onModeChange,
   successHref,
   titleOverride,
@@ -386,6 +427,7 @@ function AuthFormPanel({
   className: string;
   mode: AuthMode;
   onAuthenticated?: () => void;
+  onConfirmingChange?: (isConfirming: boolean) => void;
   onModeChange?: (mode: AuthMode) => void;
   successHref: string;
   titleOverride?: string;
@@ -437,6 +479,7 @@ function AuthFormPanel({
     Boolean(confirmPasswordError) &&
     (confirmPassword.length > 0 || isConfirmPasswordTouched);
   const isConfirmingAccount = confirmationEmail.length > 0;
+  const confirmationTitle = getConfirmationStepTitle(locale);
 
   useEffect(() => {
     setConfirmationCode("");
@@ -454,6 +497,14 @@ function AuthFormPanel({
     setConfirmPasswordTouched(false);
     setStatusMessage(null);
   }, [mode]);
+
+  useEffect(() => {
+    onConfirmingChange?.(isConfirmingAccount);
+  }, [isConfirmingAccount, onConfirmingChange]);
+
+  useEffect(() => {
+    return () => onConfirmingChange?.(false);
+  }, [onConfirmingChange]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -524,9 +575,11 @@ function AuthFormPanel({
       }
     }
 
-    if (isConfirmingAccount && !confirmationCode.trim()) {
+    if (isConfirmingAccount && confirmationCode.trim().length < OTP_CODE_LENGTH) {
       setErrorMessage(
-        locale === "en" ? "Verification code is required." : "Kode verifikasi wajib diisi.",
+        locale === "en"
+          ? "Enter the 6-digit verification code."
+          : "Masukkan 6 digit kode verifikasi.",
       );
       return;
     }
@@ -610,6 +663,14 @@ function AuthFormPanel({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleBackToCredentials = () => {
+    setConfirmationCode("");
+    setConfirmationDestination("");
+    setConfirmationEmail("");
+    setErrorMessage("");
+    setStatusMessage(null);
   };
 
   const getFieldValue = (fieldId: string) => {
@@ -772,6 +833,106 @@ function AuthFormPanel({
       </AuthInput>
     );
   };
+
+  if (isConfirmingAccount) {
+    return (
+      <motion.div
+        className={`relative flex min-h-full flex-col bg-white px-6 pt-20 pb-28 text-foreground md:px-8 ${className}`}
+        data-auth-panel={mode}
+        data-auth-step="confirmation"
+        data-page-surface="auth-panel"
+        layout
+        transition={authSharedLayoutTransition}
+      >
+        <div className="flex flex-1 items-center justify-center">
+          <div className="w-full max-w-[23rem] text-foreground">
+            <motion.div
+              className="space-y-3 text-left"
+              layout
+              transition={authSharedLayoutTransition}
+            >
+              <motion.h1
+                className="text-[2rem] leading-tight font-semibold tracking-normal text-foreground"
+                layout="position"
+                transition={authSharedLayoutTransition}
+              >
+                {confirmationTitle}
+              </motion.h1>
+              <p className="text-sm leading-6 text-muted-foreground">
+                {getConfirmationStepDescription(locale, confirmationEmail)}
+              </p>
+            </motion.div>
+
+            <motion.form
+              className="mt-8"
+              layout
+              onSubmit={handleSubmit}
+              transition={authSharedLayoutTransition}
+            >
+              <OtpCodeInput
+                isInvalid={Boolean(errorMessage)}
+                locale={locale}
+                onChange={setConfirmationCode}
+                value={confirmationCode}
+              />
+
+              {errorMessage ? (
+                <p className="mt-5 text-sm leading-6 font-medium text-rose-700" role="alert">
+                  {errorMessage}
+                </p>
+              ) : null}
+              {renderedStatusMessage ? (
+                <p className="mt-5 text-sm leading-6 font-medium text-sky-700" aria-live="polite">
+                  {renderedStatusMessage}
+                </p>
+              ) : null}
+
+              <motion.button
+                className="mt-6 inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-none bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:bg-zinc-400"
+                disabled={isSubmitting}
+                layout="position"
+                layoutId="auth-submit-button"
+                transition={authSharedLayoutTransition}
+                type="submit"
+              >
+                {getSubmitLabel({
+                  isConfirmingAccount,
+                  isSubmitting,
+                  locale,
+                  submit: copy.submit,
+                })}
+              </motion.button>
+
+              <div className="mt-5 flex flex-col items-center gap-3 text-sm sm:flex-row sm:justify-between">
+                <button
+                  className="inline-flex cursor-pointer items-center gap-2 font-semibold text-neutral-700 transition-colors hover:text-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+                  disabled={isSubmitting}
+                  onClick={handleBackToCredentials}
+                  type="button"
+                >
+                  <HugeiconsIcon
+                    aria-hidden="true"
+                    className="size-4"
+                    icon={ArrowLeft02Icon}
+                    strokeWidth={2}
+                  />
+                  {locale === "en" ? "Back" : "Kembali"}
+                </button>
+                <button
+                  className="cursor-pointer font-semibold text-sky-700 underline underline-offset-4 transition-colors hover:text-sky-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:text-neutral-400"
+                  disabled={isSubmitting}
+                  onClick={handleResendCode}
+                  type="button"
+                >
+                  {locale === "en" ? "Resend code" : "Kirim ulang kode"}
+                </button>
+              </div>
+            </motion.form>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -961,6 +1122,115 @@ function AuthInput({
           <p className="mt-1.5 text-xs leading-4 text-muted-foreground">{field.helper}</p>
         ) : null)}
     </motion.div>
+  );
+}
+
+function OtpCodeInput({
+  isInvalid,
+  locale,
+  onChange,
+  value,
+}: {
+  isInvalid: boolean;
+  locale: Locale;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const digits = Array.from({ length: OTP_CODE_LENGTH }, (_, index) => value[index] ?? "");
+  const label = locale === "en" ? "Verification code" : "Kode verifikasi";
+
+  const focusDigit = (index: number) => {
+    inputRefs.current[Math.min(Math.max(index, 0), OTP_CODE_LENGTH - 1)]?.focus();
+  };
+
+  const applyDigits = (startIndex: number, rawValue: string) => {
+    const incomingDigits = sanitizeOtpCode(rawValue);
+    const nextDigits = [...digits];
+
+    if (!incomingDigits) {
+      nextDigits[startIndex] = "";
+      onChange(nextDigits.join(""));
+      return;
+    }
+
+    for (let offset = 0; offset < incomingDigits.length; offset += 1) {
+      const targetIndex = startIndex + offset;
+      if (targetIndex >= OTP_CODE_LENGTH) {
+        break;
+      }
+      nextDigits[targetIndex] = incomingDigits[offset];
+    }
+
+    onChange(nextDigits.join(""));
+    focusDigit(startIndex + incomingDigits.length);
+  };
+
+  const handlePaste = (event: ClipboardEvent<HTMLInputElement>, index: number) => {
+    const pastedCode = sanitizeOtpCode(event.clipboardData.getData("text"));
+
+    if (!pastedCode) {
+      return;
+    }
+
+    event.preventDefault();
+    applyDigits(index, pastedCode);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (event.key === "Backspace" && !digits[index] && index > 0) {
+      event.preventDefault();
+      focusDigit(index - 1);
+      return;
+    }
+
+    if (event.key === "ArrowLeft" && index > 0) {
+      event.preventDefault();
+      focusDigit(index - 1);
+      return;
+    }
+
+    if (event.key === "ArrowRight" && index < OTP_CODE_LENGTH - 1) {
+      event.preventDefault();
+      focusDigit(index + 1);
+    }
+  };
+
+  return (
+    <fieldset>
+      <legend className="mb-3 block text-[13px] font-semibold text-foreground">{label}</legend>
+      <div className="grid grid-cols-6 gap-2.5" role="group" aria-label={label}>
+        {digits.map((digit, index) => (
+          <input
+            aria-invalid={isInvalid}
+            aria-label={
+              locale === "en"
+                ? `Verification code digit ${index + 1}`
+                : `Digit kode verifikasi ${index + 1}`
+            }
+            autoComplete={index === 0 ? "one-time-code" : "off"}
+            className={`aspect-square min-w-0 rounded-none border bg-white text-center text-xl font-semibold text-foreground outline-none transition-colors focus:ring-2 ${
+              isInvalid
+                ? "border-rose-500 focus:border-rose-500 focus:ring-rose-300/55"
+                : "border-zinc-300 hover:border-zinc-500 focus:border-zinc-500 focus:ring-zinc-500/45"
+            }`}
+            inputMode="numeric"
+            key={index}
+            maxLength={1}
+            onChange={(event) => applyDigits(index, event.target.value)}
+            onFocus={(event) => event.target.select()}
+            onKeyDown={(event) => handleKeyDown(event, index)}
+            onPaste={(event) => handlePaste(event, index)}
+            pattern="[0-9]*"
+            ref={(node) => {
+              inputRefs.current[index] = node;
+            }}
+            type="text"
+            value={digit}
+          />
+        ))}
+      </div>
+    </fieldset>
   );
 }
 
@@ -1279,6 +1549,24 @@ function findAuthField(fields: AuthField[], fieldId: string) {
   return field;
 }
 
+function getConfirmationStepTitle(locale: Locale) {
+  return locale === "en" ? "Confirm your email" : "Konfirmasi email kamu";
+}
+
+function getConfirmationStepDescription(locale: Locale, email: string) {
+  const trimmedEmail = email.trim();
+
+  if (locale === "en") {
+    return trimmedEmail
+      ? `Enter the 6-digit code sent to ${trimmedEmail}.`
+      : "Enter the 6-digit code sent to your email.";
+  }
+
+  return trimmedEmail
+    ? `Masukkan 6 digit kode yang dikirim ke ${trimmedEmail}.`
+    : "Masukkan 6 digit kode yang dikirim ke email kamu.";
+}
+
 function getSubmitLabel({
   isConfirmingAccount,
   isSubmitting,
@@ -1295,7 +1583,7 @@ function getSubmitLabel({
   }
 
   if (isConfirmingAccount) {
-    return locale === "en" ? "Verify Account" : "Verifikasi Akun";
+    return locale === "en" ? "Confirm email" : "Konfirmasi email";
   }
 
   return submit;
@@ -1327,6 +1615,10 @@ function getConfirmationSentMessage(locale: Locale, destination?: string) {
     : "Kode verifikasi dikirim ke email kamu.";
 
   return `${sentMessage} Kalau belum muncul, cek folder spam atau junk juga.`;
+}
+
+function sanitizeOtpCode(value: string) {
+  return value.replace(/\D/g, "").slice(0, OTP_CODE_LENGTH);
 }
 
 function getAuthErrorMessage(error: unknown, locale: Locale) {
