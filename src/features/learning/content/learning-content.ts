@@ -570,10 +570,10 @@ const lesson13KaggleZipExercise: GuidedDownloadExercise = {
   taskSteps: [
     "Buka link dataset Kaggle yang sudah kamu submit.",
     "Di halaman Kaggle, klik Download untuk mengunduh dataset sebagai file ZIP.",
-    "Upload file ZIP ke latihan ini agar CSV di dalamnya bisa dibaca di belakang layar.",
-    "Ketik kode Pandas yang muncul sebagai placeholder, lalu kirim jawaban.",
+    "Upload file ZIP ke latihan ini.",
+    "Gunakan editor untuk memuat CSV dengan Pandas, lalu jalankan kode untuk melihat preview baris awal.",
   ],
-  taskTitle: "Tugas download",
+  taskTitle: "Tugas Pandas",
   type: "guided-download",
   uploadDescription: "Upload ZIP hasil download dari Kaggle.",
   uploadLabel: "Upload ZIP dataset",

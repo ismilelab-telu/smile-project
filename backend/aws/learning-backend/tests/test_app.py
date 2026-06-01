@@ -110,7 +110,18 @@ class LearningBackendTest(unittest.TestCase):
         )
 
         self.assertEqual(result["status"], "partial")
-        self.assertIn("between 0 and 10", result["message"])
+        self.assertIn("between 1 and 10", result["message"])
+
+    def test_rejects_zero_head_row_count(self) -> None:
+        expected_path = "data/Food_Delivery_Times.csv"
+        result = run_pandas_loading_code(
+            f'import pandas as pd\n\ndata = pd.read_csv("{expected_path}")\ndata.head(0)',
+            expected_path,
+            b"Order_ID,Time_taken\n1,42\n2,36\n",
+        )
+
+        self.assertEqual(result["status"], "partial")
+        self.assertIn("between 1 and 10", result["message"])
 
     def test_returns_pandas_runtime_errors(self) -> None:
         result = run_pandas_loading_code(

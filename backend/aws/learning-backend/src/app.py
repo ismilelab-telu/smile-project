@@ -791,16 +791,16 @@ def get_restricted_head_expression(
         diagnostics.append(
             create_node_diagnostic(
                 head_rows,
-                f"`{target_name}.head(...)` row count must be an integer from 0 to 10.",
+                f"`{target_name}.head(...)` row count must be an integer from 1 to 10.",
             )
         )
         return None, diagnostics
 
-    if head_rows.value < 0 or head_rows.value > 10:
+    if head_rows.value < 1 or head_rows.value > 10:
         diagnostics.append(
             create_node_diagnostic(
                 head_rows,
-                f"`{target_name}.head(...)` row count must be between 0 and 10.",
+                f"`{target_name}.head(...)` row count must be between 1 and 10.",
             )
         )
         return None, diagnostics

@@ -80,8 +80,73 @@ export function getSmartPredictionCompletionIndex(expectedCode: string, typedCod
   return expectedIndex;
 }
 
+export function getVisualPredictionCompletionIndex(expectedCode: string, typedCode: string) {
+  const normalizedTypedCode = typedCode.replace(/\r\n?/g, "\n");
+  let expectedIndex = 0;
+  let typedIndex = 0;
+
+  while (typedIndex < normalizedTypedCode.length) {
+    const typedCharacter = normalizedTypedCode[typedIndex] ?? "";
+
+    if (typedCharacter === "\n") {
+      while (
+        expectedIndex < expectedCode.length &&
+        isHorizontalCodePredictionWhitespace(expectedCode[expectedIndex] ?? "")
+      ) {
+        expectedIndex += 1;
+      }
+
+      if (expectedCode[expectedIndex] !== "\n") {
+        return null;
+      }
+
+      expectedIndex += 1;
+      typedIndex += 1;
+      continue;
+    }
+
+    if (isHorizontalCodePredictionWhitespace(typedCharacter)) {
+      while (
+        typedIndex < normalizedTypedCode.length &&
+        isHorizontalCodePredictionWhitespace(normalizedTypedCode[typedIndex] ?? "")
+      ) {
+        typedIndex += 1;
+      }
+
+      while (
+        expectedIndex < expectedCode.length &&
+        isHorizontalCodePredictionWhitespace(expectedCode[expectedIndex] ?? "")
+      ) {
+        expectedIndex += 1;
+      }
+
+      continue;
+    }
+
+    while (
+      expectedIndex < expectedCode.length &&
+      isHorizontalCodePredictionWhitespace(expectedCode[expectedIndex] ?? "")
+    ) {
+      expectedIndex += 1;
+    }
+
+    if (expectedCode[expectedIndex] !== typedCharacter) {
+      return null;
+    }
+
+    expectedIndex += 1;
+    typedIndex += 1;
+  }
+
+  return expectedIndex;
+}
+
 function isCodePredictionWhitespace(character: string) {
   return character === " " || character === "\n" || character === "\t";
+}
+
+function isHorizontalCodePredictionWhitespace(character: string) {
+  return character === " " || character === "\t";
 }
 
 export function createCodeMirrorDiagnostics(

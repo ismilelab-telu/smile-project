@@ -322,10 +322,10 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
         taskSteps: [
           "Open the Kaggle dataset link you submitted.",
           "On the Kaggle page, click Download to download the dataset as a ZIP file.",
-          "Upload the ZIP file to this exercise so the CSV inside it can be read behind the scenes.",
-          "Type the Pandas code shown as the placeholder, then submit your answer.",
+          "Upload the ZIP file to this exercise.",
+          "Use the editor to load the CSV with Pandas, then run the code to preview the first rows.",
         ],
-        taskTitle: "Download task",
+        taskTitle: "Pandas task",
         uploadDescription: "Upload the ZIP downloaded from Kaggle.",
         uploadLabel: "Upload dataset ZIP",
       },

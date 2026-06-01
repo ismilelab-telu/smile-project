@@ -7,6 +7,7 @@ import {
   getSmartPredictionCompletionIndex,
   getTypedDataframeName,
   getTypedPandasAlias,
+  getVisualPredictionCompletionIndex,
 } from "./pandas-code-editor-utils";
 
 describe("pandas code editor utilities", () => {
@@ -39,6 +40,30 @@ describe("pandas code editor utilities", () => {
       'import pandas as pd\n\ndf = pd.read_csv("data/Food_Delivery_Times.csv")\ndf.head()';
 
     expect(getSmartPredictionCompletionIndex(expectedCode, "import numpy as np")).toBeNull();
+  });
+
+  it("keeps expected newlines visible for visual predictions", () => {
+    const expectedCode =
+      'import pandas as pd\n\ndf = pd.read_csv("data/Food_Delivery_Times.csv")\ndf.head()';
+    const completionIndex = getVisualPredictionCompletionIndex(
+      expectedCode,
+      "import pandas as pd ",
+    );
+
+    expect(completionIndex).not.toBeNull();
+    expect(expectedCode.slice(completionIndex ?? 0)).toMatch(/^\n\ndf =/);
+  });
+
+  it("advances visual predictions after typed newlines", () => {
+    const expectedCode =
+      'import pandas as pd\n\ndf = pd.read_csv("data/Food_Delivery_Times.csv")\ndf.head()';
+    const completionIndex = getVisualPredictionCompletionIndex(
+      expectedCode,
+      "import pandas as pd\n\n",
+    );
+
+    expect(completionIndex).not.toBeNull();
+    expect(expectedCode.slice(completionIndex ?? 0)).toMatch(/^df =/);
   });
 
   it("maps backend diagnostics to CodeMirror document ranges", () => {

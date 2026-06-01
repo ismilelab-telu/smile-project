@@ -16,7 +16,9 @@ import {
   EditorView,
   GutterMarker,
   gutter,
+  highlightActiveLineGutter,
   keymap,
+  lineNumbers,
   ViewPlugin,
   WidgetType,
   type DecorationSet,
@@ -48,7 +50,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { detectLanguage } from "@speed-highlight/core/detect";
 import { highlightText, type ShjLanguage } from "@speed-highlight/core";
-import { basicSetup } from "codemirror";
+import { minimalSetup } from "codemirror";
 import { tags } from "@lezer/highlight";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
@@ -106,6 +108,7 @@ import {
   getSmartPredictionCompletionIndex,
   getTypedDataframeName,
   getTypedPandasAlias,
+  getVisualPredictionCompletionIndex,
   type CodeDiagnostic,
 } from "./pandas-code-editor-utils";
 import { CopyButton } from "@/components/ui/copy-button";
@@ -1577,21 +1580,21 @@ function getGuidedDownloadPredictionCode(
 }
 
 const pandasCodeHighlightStyle = HighlightStyle.define([
-  { tag: tags.keyword, color: "#fb7185", fontWeight: "600" },
-  { tag: [tags.string, tags.special(tags.string)], color: "#34d399" },
-  { tag: [tags.number, tags.bool, tags.null], color: "#7dd3fc" },
-  { tag: [tags.operator, tags.punctuation], color: "#93c5fd" },
-  { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: "#38bdf8" },
+  { tag: tags.keyword, color: "#e11d48", fontWeight: "600" },
+  { tag: [tags.string, tags.special(tags.string)], color: "#059669" },
+  { tag: [tags.number, tags.bool, tags.null], color: "#0284c7" },
+  { tag: [tags.operator, tags.punctuation], color: "#64748b" },
+  { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: "#0284c7" },
   { tag: [tags.comment, tags.docComment], color: "#737373", fontStyle: "italic" },
-  { tag: tags.className, color: "#fbbf24" },
-  { tag: tags.variableName, color: "#f5f5f5" },
+  { tag: tags.className, color: "#b45309" },
+  { tag: tags.variableName, color: "#171717" },
 ]);
 
 const pandasCodeEditorTheme = EditorView.theme(
   {
     "&": {
-      backgroundColor: "#050505",
-      color: "#fafafa",
+      backgroundColor: "#ffffff",
+      color: "#171717",
       fontFamily: "var(--font-mono)",
       fontSize: "14px",
     },
@@ -1602,21 +1605,21 @@ const pandasCodeEditorTheme = EditorView.theme(
       backgroundColor: "transparent",
     },
     ".cm-activeLineGutter": {
-      backgroundColor: "#0a0a0a",
-      color: "#a3a3a3",
+      backgroundColor: "#f5f5f5",
+      color: "#404040",
     },
     ".cm-content": {
-      caretColor: "#fafafa",
+      caretColor: "#171717",
       minHeight: "8rem",
       padding: "12px 16px",
     },
     ".cm-cursor": {
-      borderLeftColor: "#fafafa",
+      borderLeftColor: "#171717",
       borderLeftWidth: "2px",
     },
     ".cm-gutters": {
-      backgroundColor: "#050505",
-      borderRight: "1px solid #262626",
+      backgroundColor: "#fafafa",
+      borderRight: "1px solid #d4d4d4",
       color: "#737373",
     },
     ".cm-line": {
@@ -1630,8 +1633,8 @@ const pandasCodeEditorTheme = EditorView.theme(
       outline: "1px solid rgba(14, 165, 233, 0.4)",
     },
     ".cm-panels": {
-      backgroundColor: "#0a0a0a",
-      color: "#fafafa",
+      backgroundColor: "#fafafa",
+      color: "#171717",
     },
     ".cm-scroller": {
       fontFamily: "var(--font-mono)",
@@ -1642,7 +1645,7 @@ const pandasCodeEditorTheme = EditorView.theme(
       backgroundColor: "rgba(14, 165, 233, 0.32) !important",
     },
   },
-  { dark: true },
+  { dark: false },
 );
 
 class PandasPredictionWidget extends WidgetType {
@@ -1727,7 +1730,7 @@ function getPandasPredictionDecorations(
     return Decoration.set([]);
   }
 
-  const expectedCompletionIndex = getSmartPredictionCompletionIndex(expectedCode, code);
+  const expectedCompletionIndex = getVisualPredictionCompletionIndex(expectedCode, code);
 
   if (expectedCompletionIndex === null || expectedCompletionIndex >= expectedCode.length) {
     return Decoration.set([]);
@@ -2076,7 +2079,9 @@ function PandasCodeMirrorEditor({
       state: EditorState.create({
         doc: value,
         extensions: [
-          basicSetup,
+          minimalSetup,
+          lineNumbers(),
+          highlightActiveLineGutter(),
           python(),
           syntaxHighlighting(pandasCodeHighlightStyle),
           pandasCodeEditorTheme,
@@ -4057,6 +4062,9 @@ function GuidedDownloadExerciseView({
     pandasCodeRunResult !== undefined &&
     pandasCodeRunResult.code === displayedCode &&
     pandasCodeRunResult.extractedFilePath === displayedExtractedFilePath;
+  const isPandasCodeRunResultForDisplayedDataset =
+    pandasCodeRunResult !== undefined &&
+    pandasCodeRunResult.extractedFilePath === displayedExtractedFilePath;
   const codeDiagnostics = getCodeDiagnostics(
     isPandasCodeRunResultForDisplayedCode ? pandasCodeRunResult : undefined,
     displayedCode,
@@ -4251,14 +4259,14 @@ function GuidedDownloadExerciseView({
                   <span className="text-lg font-semibold text-foreground">
                     {exercise.codeLabel}
                   </span>
-                  <div className="overflow-hidden border border-neutral-300 bg-neutral-950 transition-colors focus-within:border-sky-500">
-                    <div className="flex min-h-10 items-center border-b border-neutral-800 bg-neutral-900 text-xs text-neutral-400">
-                      <span className="flex min-h-10 items-center border-r border-neutral-800 bg-neutral-950 px-3 font-mono font-semibold text-neutral-100">
+                  <div className="overflow-hidden border border-neutral-300 bg-white transition-colors focus-within:border-sky-500">
+                    <div className="flex min-h-10 items-center border-b border-neutral-300 bg-neutral-50 text-xs text-neutral-500">
+                      <span className="flex min-h-10 items-center border-r border-neutral-300 bg-white px-3 font-mono font-semibold text-neutral-950">
                         main.py
                       </span>
                       <span className="px-3 font-mono">Python</span>
                       <button
-                        className="ml-auto inline-flex min-h-10 items-center justify-center gap-2 border-l border-neutral-800 bg-neutral-950 px-4 font-sans text-sm font-semibold text-neutral-50 transition-colors hover:bg-neutral-800 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:text-neutral-500 disabled:hover:bg-neutral-950"
+                        className="ml-auto inline-flex min-h-10 items-center justify-center gap-2 border-l border-neutral-300 bg-white px-4 font-sans text-sm font-semibold text-neutral-950 transition-colors hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:hover:bg-white"
                         disabled={isRunPandasCodeDisabled}
                         onClick={onRunPandasCode}
                         type="button"
@@ -4279,7 +4287,9 @@ function GuidedDownloadExerciseView({
                   </div>
                 </div>
                 <PandasCodeRunOutput
-                  result={isPandasCodeRunResultForDisplayedCode ? pandasCodeRunResult : undefined}
+                  result={
+                    isPandasCodeRunResultForDisplayedDataset ? pandasCodeRunResult : undefined
+                  }
                 />
               </div>
             </div>
