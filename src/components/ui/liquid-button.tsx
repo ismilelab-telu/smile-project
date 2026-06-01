@@ -4,6 +4,7 @@ import type { ComponentProps, CSSProperties, ReactNode } from "react";
 type LiquidMotionProps = {
   children: ReactNode;
   delay?: string;
+  fillOnHover?: boolean;
   fillHeight?: string;
   hoverScale?: number;
   tapScale?: number;
@@ -15,6 +16,7 @@ type LiquidLinkProps = ComponentProps<typeof motion.a> & LiquidMotionProps;
 export function LiquidButton({
   delay = "0.3s",
   disabled,
+  fillOnHover = true,
   fillHeight = "3px",
   hoverScale = 1.05,
   tapScale = 0.95,
@@ -29,9 +31,13 @@ export function LiquidButton({
           ? undefined
           : {
               scale: hoverScale,
-              "--liquid-button-fill-width": "100%",
-              "--liquid-button-fill-height": "100%",
-              "--liquid-button-delay": delay,
+              ...(fillOnHover
+                ? {
+                    "--liquid-button-fill-width": "100%",
+                    "--liquid-button-fill-height": "100%",
+                    "--liquid-button-delay": delay,
+                  }
+                : {}),
               transition: {
                 "--liquid-button-fill-width": { duration: 0 },
                 "--liquid-button-fill-height": { duration: 0 },
@@ -57,6 +63,7 @@ export function LiquidButton({
 
 export function LiquidLink({
   delay = "0.3s",
+  fillOnHover = true,
   fillHeight = "3px",
   hoverScale = 1.05,
   tapScale = 0.95,
@@ -67,9 +74,13 @@ export function LiquidLink({
       whileTap={{ scale: tapScale }}
       whileHover={{
         scale: hoverScale,
-        "--liquid-button-fill-width": "100%",
-        "--liquid-button-fill-height": "100%",
-        "--liquid-button-delay": delay,
+        ...(fillOnHover
+          ? {
+              "--liquid-button-fill-width": "100%",
+              "--liquid-button-fill-height": "100%",
+              "--liquid-button-delay": delay,
+            }
+          : {}),
         transition: {
           "--liquid-button-fill-width": { duration: 0 },
           "--liquid-button-fill-height": { duration: 0 },

@@ -1,3 +1,5 @@
+import { lazy, Suspense } from "react";
+
 import {
   activeLesson,
   getLesson,
@@ -12,15 +14,36 @@ import {
 import { LearningHome } from "@/features/learning/components/LearningHome";
 import { LearningHeader } from "@/features/learning/components/LearningHeader";
 import { LearningTrackHub } from "@/features/learning/components/LearningTrackHub";
-import { LessonPage } from "@/features/learning/components/LessonPage";
 import { getLessonLockReason, isLessonUnlocked } from "@/features/learning/progress/lesson-access";
 import { useLearningProgress } from "@/features/learning/progress/learning-progress";
 import { LiquidLink } from "@/components/ui/liquid-button";
+
+const LessonPage = lazy(() =>
+  import("@/features/learning/components/LessonPage").then((module) => ({
+    default: module.LessonPage,
+  })),
+);
 
 const liquidButtonClassName =
   "inline-flex items-center justify-center gap-3 rounded-none px-5 py-3 text-base font-semibold text-neutral-950 backdrop-blur-xl hover:text-neutral-50 [--liquid-button-background-color:var(--color-neutral-200)] [--liquid-button-color:var(--color-emerald-500)]";
 
 const learningFallbackSurfaceClassName = "learning-sheet";
+
+function LearningLessonFallback({ backHref }: { backHref: string }) {
+  return (
+    <LearningGridCanvas>
+      <LearningHeader backHref={backHref} backLabel="Kembali ke Jalur Belajar" />
+      <section
+        aria-busy="true"
+        className={`route-content-transition-target relative isolate mx-auto mt-20 min-h-48 max-w-xl overflow-hidden ${learningFallbackSurfaceClassName}`}
+      >
+        <LearningSheetExtensions />
+        <div className="learning-sheet-cell h-24 animate-pulse bg-neutral-100" />
+        <div className="learning-sheet-cell h-24 animate-pulse bg-white" />
+      </section>
+    </LearningGridCanvas>
+  );
+}
 
 type LearningPageProps = {
   path?: string;
@@ -237,27 +260,29 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
         : undefined;
 
     return (
-      <LessonPage
-        backHref={trackHomeHref}
-        backLabel="Kembali ke Jalur Belajar"
-        initialAnswer={progress.lessonAnswers[lesson.id]}
-        initialSubmittedAnswersByExerciseId={progress.submittedExerciseAnswers}
-        isCompleted={progress.completedLessonIds.includes(lesson.id)}
-        key={lesson.id}
-        lesson={lesson}
-        nextLessonHref={nextLessonHref}
-        onAnswerChange={saveLessonAnswer}
-        onExerciseSubmitResult={saveExerciseSubmission}
-        onSubmitResult={(result, answer) => {
-          completeLesson({
-            answer,
-            exerciseId: lesson.exerciseId,
-            lessonId: lesson.id,
-            result,
-          });
-        }}
-        previousLessonHref={previousLessonHref}
-      />
+      <Suspense fallback={<LearningLessonFallback backHref={trackHomeHref} />}>
+        <LessonPage
+          backHref={trackHomeHref}
+          backLabel="Kembali ke Jalur Belajar"
+          initialAnswer={progress.lessonAnswers[lesson.id]}
+          initialSubmittedAnswersByExerciseId={progress.submittedExerciseAnswers}
+          isCompleted={progress.completedLessonIds.includes(lesson.id)}
+          key={lesson.id}
+          lesson={lesson}
+          nextLessonHref={nextLessonHref}
+          onAnswerChange={saveLessonAnswer}
+          onExerciseSubmitResult={saveExerciseSubmission}
+          onSubmitResult={(result, answer) => {
+            completeLesson({
+              answer,
+              exerciseId: lesson.exerciseId,
+              lessonId: lesson.id,
+              result,
+            });
+          }}
+          previousLessonHref={previousLessonHref}
+        />
+      </Suspense>
     );
   }
 

@@ -91,6 +91,23 @@ export type DatasetSourceAnswer = {
   notes: string;
 };
 
+export type GuidedDownloadRunDiagnostic = {
+  column: number;
+  length: number;
+  line: number;
+  message: string;
+};
+
+export type GuidedDownloadRunResult = {
+  columns: string[];
+  code: string;
+  diagnostics: GuidedDownloadRunDiagnostic[];
+  extractedFilePath: string;
+  message: string;
+  rows: string[][];
+  status: EvaluationStatus;
+};
+
 export type DatasetSourcePageValidationStatus = "invalid" | "partial" | "unreachable" | "valid";
 
 export type DatasetSourcePageValidationResult = {
@@ -191,6 +208,7 @@ export type LessonAnswer = {
   guidedDownloadCodeByExerciseId?: Record<string, string>;
   guidedDownloadExtractedFilePathsByExerciseId?: Record<string, string>;
   guidedDownloadObjectKeysByExerciseId?: Record<string, string>;
+  guidedDownloadRunResultsByExerciseId?: Record<string, GuidedDownloadRunResult>;
   orderedStepIdsByExerciseId?: Record<string, string[]>;
   selectedOptionIdsByExerciseId?: Record<string, string[]>;
 };

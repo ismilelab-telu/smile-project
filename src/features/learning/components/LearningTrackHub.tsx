@@ -1,10 +1,11 @@
 import {
-  AcademicCapIcon,
-  ArrowRightIcon,
-  BeakerIcon,
-  ChartBarIcon,
-  LockClosedIcon,
-} from "@heroicons/react/24/outline";
+  ArrowRight02Icon,
+  ChartBarLineIcon,
+  LockIcon,
+  OnlineLearning01Icon,
+  TestTubeIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 
 import {
   getLesson,
@@ -28,14 +29,14 @@ type LearningTrackHubProps = {
 
 function getTrackIcon(track: LearningTrack) {
   if (track.id === "track-regression") {
-    return ChartBarIcon;
+    return ChartBarLineIcon;
   }
 
   if (track.id === "track-classification") {
-    return BeakerIcon;
+    return TestTubeIcon;
   }
 
-  return AcademicCapIcon;
+  return OnlineLearning01Icon;
 }
 
 function getCompletedTrackLessonCount(track: LearningTrack, progress: LearningProgress) {
@@ -64,7 +65,7 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
 
       <section
         aria-labelledby="learning-track-list"
-        className="learning-sheet route-content-transition-target mx-auto grid w-[min(1440px,calc(100%_-_48px))] grid-cols-[5rem_minmax(0,1fr)_18rem]"
+        className="learning-sheet route-content-transition-target mx-auto grid w-[min(1080px,calc(100%_-_48px))] grid-cols-[5rem_minmax(0,1fr)_15rem]"
       >
         <LearningSheetExtensions />
 
@@ -93,11 +94,12 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
                 {index}
               </div>
               <div className="learning-sheet-cell flex min-h-20 items-center gap-5 p-5">
-                <Icon
+                <HugeiconsIcon
                   aria-hidden="true"
                   className={`size-7 shrink-0 ${
                     isAvailable ? "text-emerald-500" : "text-muted-foreground"
                   }`}
+                  icon={Icon}
                 />
                 <div className="min-w-0">
                   <h2 className="text-2xl leading-tight font-semibold text-foreground">
@@ -115,7 +117,7 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
                     {completedLessonCount > 0
                       ? t("learning.trackHub.continue")
                       : t("learning.trackHub.startPath")}
-                    <ArrowRightIcon aria-hidden="true" className="size-5" />
+                    <HugeiconsIcon aria-hidden="true" className="size-5" icon={ArrowRight02Icon} />
                   </LiquidLink>
                 ) : (
                   <button
@@ -123,7 +125,7 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
                     disabled
                     type="button"
                   >
-                    <LockClosedIcon aria-hidden="true" className="size-5" />
+                    <HugeiconsIcon aria-hidden="true" className="size-5" icon={LockIcon} />
                     {t("learning.trackHub.comingSoon")}
                   </button>
                 )}

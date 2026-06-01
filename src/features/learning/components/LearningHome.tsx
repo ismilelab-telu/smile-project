@@ -1,10 +1,11 @@
 import {
-  AcademicCapIcon,
-  ArrowRightIcon,
-  CheckCircleIcon,
-  ClockIcon,
-  LockClosedIcon,
-} from "@heroicons/react/24/outline";
+  ArrowRight02Icon,
+  CheckmarkCircle02Icon,
+  Clock01Icon,
+  LockIcon,
+  OnlineLearning01Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Fragment } from "react";
 
 import { getModule, isLessonAvailable, lessons } from "../content/learning-content";
@@ -71,7 +72,7 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
 
       <section
         aria-labelledby="module-list"
-        className="learning-sheet route-content-transition-target mx-auto grid w-[min(1440px,calc(100%_-_48px))] grid-cols-[4rem_5rem_minmax(0,1fr)] sm:grid-cols-[5rem_6rem_minmax(0,1fr)_14rem] lg:grid-cols-[6rem_7rem_minmax(0,1fr)_14rem_24rem]"
+        className="learning-sheet route-content-transition-target mx-auto grid w-[min(1080px,calc(100%_-_48px))] grid-cols-[4rem_5rem_minmax(0,1fr)] sm:grid-cols-[5rem_6rem_minmax(0,1fr)_14rem] lg:grid-cols-[5rem_6rem_minmax(0,1fr)_12rem_16rem]"
       >
         <LearningSheetExtensions />
 
@@ -161,9 +162,17 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
                 {isModuleOpen ? (
                   <div className="inline-flex w-fit items-center gap-3 text-base font-medium text-muted-foreground">
                     {isModuleCompleted ? (
-                      <CheckCircleIcon aria-hidden="true" className="size-5 text-emerald-500" />
+                      <HugeiconsIcon
+                        aria-hidden="true"
+                        className="size-5 text-emerald-500"
+                        icon={CheckmarkCircle02Icon}
+                      />
                     ) : (
-                      <AcademicCapIcon aria-hidden="true" className="size-5 text-sky-600" />
+                      <HugeiconsIcon
+                        aria-hidden="true"
+                        className="size-5 text-sky-600"
+                        icon={OnlineLearning01Icon}
+                      />
                     )}
                     {isModuleCompleted
                       ? t("learning.home.completed")
@@ -205,7 +214,11 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
                         <div className="learning-sheet-cell col-span-3 flex items-center p-5 sm:col-span-1">
                           {isLessonComingSoon ? (
                             <button className={disabledButtonClassName} disabled type="button">
-                              <ClockIcon aria-hidden="true" className="size-5" />
+                              <HugeiconsIcon
+                                aria-hidden="true"
+                                className="size-5"
+                                icon={Clock01Icon}
+                              />
                               {t("learning.home.comingSoon")}
                             </button>
                           ) : isUnlocked ? (
@@ -217,7 +230,11 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
                               {isLessonCompleted
                                 ? t("learning.home.review")
                                 : t("learning.home.start")}
-                              <ArrowRightIcon aria-hidden="true" className="size-5" />
+                              <HugeiconsIcon
+                                aria-hidden="true"
+                                className="size-5"
+                                icon={ArrowRight02Icon}
+                              />
                             </LiquidLink>
                           ) : (
                             <button
@@ -226,7 +243,11 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
                               disabled
                               type="button"
                             >
-                              <LockClosedIcon aria-hidden="true" className="size-5" />
+                              <HugeiconsIcon
+                                aria-hidden="true"
+                                className="size-5"
+                                icon={LockIcon}
+                              />
                               {t("learning.home.locked")}
                             </button>
                           )}

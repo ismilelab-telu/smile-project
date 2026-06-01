@@ -6,58 +6,37 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { indentMore } from "@codemirror/commands";
-import { python } from "@codemirror/lang-python";
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { linter } from "@codemirror/lint";
-import { Compartment, EditorState, Prec, type Extension } from "@codemirror/state";
-import {
-  Decoration,
-  EditorView,
-  GutterMarker,
-  gutter,
-  highlightActiveLineGutter,
-  keymap,
-  lineNumbers,
-  ViewPlugin,
-  WidgetType,
-  type DecorationSet,
-  type ViewUpdate,
-} from "@codemirror/view";
 import { autoUpdate, flip, offset, shift, size, useFloating } from "@floating-ui/react-dom";
 import {
-  ArrowDownIcon,
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  ArrowUpIcon,
-  CheckIcon,
-  CheckCircleIcon,
-  ChevronDownIcon,
-  InformationCircleIcon,
-  LinkIcon,
-  PencilSquareIcon,
-  XMarkIcon,
-  XCircleIcon,
-} from "@heroicons/react/24/outline";
-import {
+  ArrowDown01Icon,
+  ArrowLeft02Icon,
+  ArrowRight02Icon,
+  ArrowUp01Icon,
   ArrowUpRight01Icon,
+  BulbIcon,
+  Cancel01Icon,
+  CancelCircleIcon,
+  CheckIcon,
+  CheckmarkCircle02Icon,
+  ChevronDownIcon,
+  Edit02Icon,
   FileSpreadsheetIcon,
   FileZipIcon,
+  InformationCircleIcon,
   Link03Icon,
-  BulbIcon,
   PlayIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { detectLanguage } from "@speed-highlight/core/detect";
 import { highlightText, type ShjLanguage } from "@speed-highlight/core";
-import { minimalSetup } from "codemirror";
-import { tags } from "@lezer/highlight";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { AnimatePresence, motion } from "motion/react";
 import {
   Fragment,
   isValidElement,
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useId,
@@ -76,6 +55,11 @@ import { getDatasetView } from "../datasets/registry";
 import { lessonMdxContentByLocaleAndId } from "../content/lesson-mdx-content";
 import { localizeDatasetView, localizeLesson } from "../content/localized-learning-content";
 import {
+  inspectGuidedDownloadArchiveWithBackend,
+  validateGuidedDownloadCodeWithBackend,
+  type LearningBackendValidationResponse,
+} from "../api/learning-backend";
+import {
   evaluateGuidedDownloadExercise,
   evaluateOpenDatasetSourceExercise,
   evaluateMultipleChoice,
@@ -93,6 +77,7 @@ import type {
   DatasetSourcePageValidationResult,
   EvaluationResult,
   GuidedDownloadExercise,
+  GuidedDownloadRunResult,
   Lesson,
   LessonAnswer,
   LessonExercise,
@@ -104,17 +89,13 @@ import type {
 import { LearningGridCanvas, LearningSheetExtensions } from "./LearningGridCanvas";
 import { LearningHeader } from "./LearningHeader";
 import {
-  createCodeMirrorDiagnostics,
-  getSmartPredictionCompletionIndex,
   getTypedDataframeName,
   getTypedPandasAlias,
-  getVisualPredictionCompletionIndex,
   type CodeDiagnostic,
 } from "./pandas-code-editor-utils";
 import { CopyButton } from "@/components/ui/copy-button";
 import { LinkPreview } from "@/components/ui/link-preview";
 import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
-import { getAuthAuthorizationHeader } from "@/features/auth/auth-session";
 import { useLocalization, type Locale } from "@/features/localization/localization";
 import { shouldReduceMotion } from "@/lib/motion";
 
@@ -125,6 +106,9 @@ const liquidButtonBaseClassName =
 const emeraldLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-button-color:var(--color-emerald-500)]`;
 const amberLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-button-color:var(--color-amber-500)]`;
 const neutralLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-button-color:var(--color-neutral-500)]`;
+const lessonNavigationLinkClassName = `${emeraldLiquidButtonClassName} hover:!text-neutral-950`;
+const lessonSheetWidthClassName = "w-[min(1080px,calc(100%_-_48px))]";
+const lessonTaskSurfaceWidthClassName = "min-w-0 w-full";
 const lessonFullCellGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-12";
 const lessonSplitResultGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-8";
 const lessonSplitAsideGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-4";
@@ -169,57 +153,8 @@ const supportedCodeLanguages: ShjLanguage[] = [
   "yaml",
 ];
 const supportedCodeLanguageSet = new Set<string>(supportedCodeLanguages);
-const defaultLearningBackendUrl =
-  "https://zr2esakjqcpiypbnq257nml72e0wjaco.lambda-url.ap-southeast-1.on.aws";
-const learningBackendGuestIdStorageKey = "smile-learning-backend-guest-id-v1";
-const learningBackendGuestIdPattern = /^[A-Za-z0-9][A-Za-z0-9_-]{7,127}$/;
 
-type ViteImportMeta = ImportMeta & {
-  env?: {
-    VITE_LEARNING_BACKEND_URL?: string;
-  };
-};
-
-type LearningBackendPresignResponse = {
-  contentType?: string;
-  objectKey?: string;
-  uploadUrl?: string;
-};
-
-type LearningBackendInspectResponse = {
-  csvPath?: string;
-  expectedCode?: string;
-  tabularFilePath?: string;
-};
-
-type LearningBackendValidationResponse = {
-  columns?: string[];
-  diagnostics?: CodeDiagnostic[];
-  expectedCode?: string;
-  message?: string;
-  previewRows?: string[][];
-  score?: number;
-  status?: string;
-  tabularFilePath?: string;
-};
-
-type PandasCodeRunResult = {
-  columns: string[];
-  code: string;
-  diagnostics: CodeDiagnostic[];
-  extractedFilePath: string;
-  message: string;
-  rows: string[][];
-  status: EvaluationResult["status"];
-};
-
-function getLearningBackendUrl() {
-  return (
-    (import.meta as ViteImportMeta).env?.VITE_LEARNING_BACKEND_URL ?? defaultLearningBackendUrl
-  )
-    .trim()
-    .replace(/\/+$/, "");
-}
+type PandasCodeRunResult = GuidedDownloadRunResult;
 
 const codeLanguageAliases: Record<string, ShjLanguage> = {
   dockerfile: "docker",
@@ -398,6 +333,12 @@ const lessonMdxComponents = {
   a: LessonContentAnchor,
   pre: LessonMdxPre,
 } satisfies Record<string, ComponentType<Record<string, unknown>>>;
+
+const PandasCodeMirrorEditor = lazy(() =>
+  import("./PandasCodeMirrorEditor").then((module) => ({
+    default: module.PandasCodeMirrorEditor,
+  })),
+);
 
 type LessonPageProps = {
   backHref?: string;
@@ -591,127 +532,6 @@ async function validateDatasetSourcePages({
     : [];
 }
 
-async function readLearningBackendJson<T>(response: Response): Promise<T> {
-  const body = (await response.json().catch(() => ({}))) as { message?: string };
-
-  if (!response.ok) {
-    throw new Error(body.message ?? "Learning backend request failed.");
-  }
-
-  return body as T;
-}
-
-async function postLearningBackendJson<T>(path: string, body: unknown): Promise<T> {
-  const authorization = getAuthAuthorizationHeader();
-  const requestBody = authorization ? body : addLearningBackendGuestId(body);
-  const response = await fetch(`${getLearningBackendUrl()}${path}`, {
-    body: JSON.stringify(requestBody),
-    headers: {
-      ...(authorization ? { authorization } : {}),
-      "content-type": "application/json",
-    },
-    method: "POST",
-  });
-
-  return readLearningBackendJson<T>(response);
-}
-
-function addLearningBackendGuestId(body: unknown) {
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return body;
-  }
-
-  return {
-    ...(body as Record<string, unknown>),
-    guestId: getLearningBackendGuestId(),
-  };
-}
-
-function getLearningBackendGuestId() {
-  if (typeof window === "undefined") {
-    return createLearningBackendGuestId();
-  }
-
-  const storedGuestId = window.localStorage.getItem(learningBackendGuestIdStorageKey);
-  if (storedGuestId && learningBackendGuestIdPattern.test(storedGuestId)) {
-    return storedGuestId;
-  }
-
-  const guestId = createLearningBackendGuestId();
-  window.localStorage.setItem(learningBackendGuestIdStorageKey, guestId);
-
-  return guestId;
-}
-
-function createLearningBackendGuestId() {
-  const cryptoApi = globalThis.crypto;
-  const randomPart =
-    typeof cryptoApi?.randomUUID === "function"
-      ? cryptoApi.randomUUID()
-      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-
-  return `guest_${randomPart.replace(/[^A-Za-z0-9_-]/g, "")}`.slice(0, 128);
-}
-
-async function inspectGuidedDownloadArchiveWithBackend(file: File) {
-  const contentType = file.type || "application/zip";
-  const presign = await postLearningBackendJson<LearningBackendPresignResponse>(
-    "/uploads/presign",
-    {
-      contentType,
-      fileName: file.name,
-    },
-  );
-
-  if (!presign.objectKey || !presign.uploadUrl) {
-    throw new Error("Learning backend did not return an upload URL.");
-  }
-
-  const uploadResponse = await fetch(presign.uploadUrl, {
-    body: file,
-    headers: {
-      "content-type": presign.contentType || contentType,
-    },
-    method: "PUT",
-  });
-
-  if (!uploadResponse.ok) {
-    throw new Error("ZIP upload failed.");
-  }
-
-  const inspection = await postLearningBackendJson<LearningBackendInspectResponse>(
-    "/datasets/inspect",
-    {
-      objectKey: presign.objectKey,
-    },
-  );
-
-  if (!inspection.tabularFilePath) {
-    throw new Error("Learning backend did not return a CSV path.");
-  }
-
-  return {
-    objectKey: presign.objectKey,
-    tabularFilePath: inspection.tabularFilePath,
-  };
-}
-
-async function validateGuidedDownloadCodeWithBackend({
-  code,
-  extractedFilePath,
-  objectKey,
-}: {
-  code: string;
-  extractedFilePath: string;
-  objectKey: string;
-}) {
-  return postLearningBackendJson<LearningBackendValidationResponse>("/pandas/validate", {
-    code,
-    csvPath: extractedFilePath,
-    objectKey,
-  });
-}
-
 function getLearningBackendStatus(
   status: LearningBackendValidationResponse["status"],
 ): EvaluationResult["status"] {
@@ -885,6 +705,38 @@ function createPandasCodeRunResult(
       ? backendResult.previewRows.map((row) => row.map(String))
       : [],
     status: getLearningBackendStatus(backendResult.status),
+  };
+}
+
+function normalizePandasCodeRunResult(value: unknown): PandasCodeRunResult | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const result = value as Partial<PandasCodeRunResult>;
+
+  return {
+    columns: Array.isArray(result.columns) ? result.columns.map(String) : [],
+    code: typeof result.code === "string" ? result.code : "",
+    diagnostics: normalizeCodeDiagnostics(result.diagnostics),
+    extractedFilePath: typeof result.extractedFilePath === "string" ? result.extractedFilePath : "",
+    message: typeof result.message === "string" ? result.message : "",
+    rows: Array.isArray(result.rows)
+      ? result.rows.map((row) => (Array.isArray(row) ? row.map(String) : []))
+      : [],
+    status: getLearningBackendStatus(result.status),
+  };
+}
+
+function clonePandasCodeRunResult(result: PandasCodeRunResult): PandasCodeRunResult {
+  return {
+    columns: [...result.columns],
+    code: result.code,
+    diagnostics: result.diagnostics.map((diagnostic) => ({ ...diagnostic })),
+    extractedFilePath: result.extractedFilePath,
+    message: result.message,
+    rows: result.rows.map((row) => [...row]),
+    status: result.status,
   };
 }
 
@@ -1455,6 +1307,7 @@ function createLessonAnswerSnapshot({
   guidedDownloadCodeByExerciseId,
   guidedDownloadExtractedFilePathsByExerciseId,
   guidedDownloadObjectKeysByExerciseId,
+  pandasCodeRunResultsByExerciseId,
   orderedStepIdsByExerciseId,
   selectedOptionIdsByExerciseId,
 }: {
@@ -1464,6 +1317,7 @@ function createLessonAnswerSnapshot({
   guidedDownloadCodeByExerciseId: Record<string, string>;
   guidedDownloadExtractedFilePathsByExerciseId: Record<string, string>;
   guidedDownloadObjectKeysByExerciseId: Record<string, string>;
+  pandasCodeRunResultsByExerciseId: Record<string, PandasCodeRunResult>;
   orderedStepIdsByExerciseId: Record<string, string[]>;
   selectedOptionIdsByExerciseId: Record<string, string[]>;
 }): LessonAnswer {
@@ -1473,6 +1327,7 @@ function createLessonAnswerSnapshot({
     guidedDownloadCodeByExerciseId: {},
     guidedDownloadExtractedFilePathsByExerciseId: {},
     guidedDownloadObjectKeysByExerciseId: {},
+    guidedDownloadRunResultsByExerciseId: {},
     orderedStepIdsByExerciseId: {},
     selectedOptionIdsByExerciseId: {},
   };
@@ -1507,6 +1362,13 @@ function createLessonAnswerSnapshot({
         guidedDownloadExtractedFilePathsByExerciseId[exercise.id] ?? "";
       answer.guidedDownloadObjectKeysByExerciseId[exercise.id] =
         guidedDownloadObjectKeysByExerciseId[exercise.id] ?? "";
+
+      const pandasCodeRunResult = pandasCodeRunResultsByExerciseId[exercise.id];
+
+      if (pandasCodeRunResult) {
+        answer.guidedDownloadRunResultsByExerciseId[exercise.id] =
+          clonePandasCodeRunResult(pandasCodeRunResult);
+      }
     }
   }
 
@@ -1577,204 +1439,6 @@ function getGuidedDownloadPredictionCode(
   const dataframeName = getTypedDataframeName(typedCode) ?? "df";
 
   return `import pandas as ${pandasAlias}\n\n${dataframeName} = ${pandasAlias}.read_csv("${normalizedPath}")\n${dataframeName}.head()`;
-}
-
-const pandasCodeHighlightStyle = HighlightStyle.define([
-  { tag: tags.keyword, color: "#e11d48", fontWeight: "600" },
-  { tag: [tags.string, tags.special(tags.string)], color: "#059669" },
-  { tag: [tags.number, tags.bool, tags.null], color: "#0284c7" },
-  { tag: [tags.operator, tags.punctuation], color: "#64748b" },
-  { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: "#0284c7" },
-  { tag: [tags.comment, tags.docComment], color: "#737373", fontStyle: "italic" },
-  { tag: tags.className, color: "#b45309" },
-  { tag: tags.variableName, color: "#171717" },
-]);
-
-const pandasCodeEditorTheme = EditorView.theme(
-  {
-    "&": {
-      backgroundColor: "#ffffff",
-      color: "#171717",
-      fontFamily: "var(--font-mono)",
-      fontSize: "14px",
-    },
-    "&.cm-focused": {
-      outline: "none",
-    },
-    ".cm-activeLine": {
-      backgroundColor: "transparent",
-    },
-    ".cm-activeLineGutter": {
-      backgroundColor: "#f5f5f5",
-      color: "#404040",
-    },
-    ".cm-content": {
-      caretColor: "#171717",
-      minHeight: "8rem",
-      padding: "12px 16px",
-    },
-    ".cm-cursor": {
-      borderLeftColor: "#171717",
-      borderLeftWidth: "2px",
-    },
-    ".cm-gutters": {
-      backgroundColor: "#fafafa",
-      borderRight: "1px solid #d4d4d4",
-      color: "#737373",
-    },
-    ".cm-line": {
-      padding: "0 0 0 12px",
-    },
-    ".cm-lineNumbers .cm-gutterElement": {
-      padding: "0 12px 0 14px",
-    },
-    ".cm-matchingBracket": {
-      backgroundColor: "rgba(14, 165, 233, 0.18)",
-      outline: "1px solid rgba(14, 165, 233, 0.4)",
-    },
-    ".cm-panels": {
-      backgroundColor: "#fafafa",
-      color: "#171717",
-    },
-    ".cm-scroller": {
-      fontFamily: "var(--font-mono)",
-      lineHeight: "1.5rem",
-      overflow: "auto",
-    },
-    ".cm-selectionBackground": {
-      backgroundColor: "rgba(14, 165, 233, 0.32) !important",
-    },
-  },
-  { dark: false },
-);
-
-class PandasPredictionWidget extends WidgetType {
-  constructor(private readonly predictionText: string) {
-    super();
-  }
-
-  eq(widget: PandasPredictionWidget) {
-    return widget.predictionText === this.predictionText;
-  }
-
-  toDOM() {
-    const element = document.createElement("span");
-    element.className = "cm-pandas-prediction";
-    element.textContent = this.predictionText;
-
-    return element;
-  }
-
-  ignoreEvent() {
-    return true;
-  }
-}
-
-const pandasCodeDiagnosticGutterMarker = new (class extends GutterMarker {
-  toDOM() {
-    const element = document.createElement("span");
-    element.className = "cm-pandas-diagnostic-marker";
-
-    return element;
-  }
-})();
-
-function createPandasDiagnosticGutter(diagnostics: CodeDiagnostic[]) {
-  return gutter({
-    class: "cm-pandas-diagnostic-gutter",
-    lineMarker: (view, line) =>
-      diagnostics.some((diagnostic) => {
-        const lineNumber = Math.max(1, Math.min(view.state.doc.lines, diagnostic.line));
-
-        return view.state.doc.line(lineNumber).from === line.from;
-      })
-        ? pandasCodeDiagnosticGutterMarker
-        : null,
-  });
-}
-
-function createPandasPredictionExtension(expectedCode: string, isDisabled: boolean) {
-  return ViewPlugin.fromClass(
-    class {
-      decorations: DecorationSet;
-
-      constructor(view: EditorView) {
-        this.decorations = getPandasPredictionDecorations(view, expectedCode, isDisabled);
-      }
-
-      update(update: ViewUpdate) {
-        if (update.docChanged || update.selectionSet || update.viewportChanged) {
-          this.decorations = getPandasPredictionDecorations(update.view, expectedCode, isDisabled);
-        }
-      }
-    },
-    {
-      decorations: (plugin) => plugin.decorations,
-    },
-  );
-}
-
-function getPandasPredictionDecorations(
-  view: EditorView,
-  expectedCode: string,
-  isDisabled: boolean,
-) {
-  if (isDisabled) {
-    return Decoration.set([]);
-  }
-
-  const selection = view.state.selection.main;
-  const code = view.state.doc.toString();
-
-  if (!selection.empty || selection.from !== code.length) {
-    return Decoration.set([]);
-  }
-
-  const expectedCompletionIndex = getVisualPredictionCompletionIndex(expectedCode, code);
-
-  if (expectedCompletionIndex === null || expectedCompletionIndex >= expectedCode.length) {
-    return Decoration.set([]);
-  }
-
-  return Decoration.set([
-    Decoration.widget({
-      side: 1,
-      widget: new PandasPredictionWidget(expectedCode.slice(expectedCompletionIndex)),
-    }).range(view.state.doc.length),
-  ]);
-}
-
-function acceptPandasPrediction(view: EditorView, expectedCode: string, isDisabled: boolean) {
-  if (isDisabled) {
-    return false;
-  }
-
-  const code = view.state.doc.toString();
-  const selection = view.state.selection.main;
-  const expectedCompletionIndex = getSmartPredictionCompletionIndex(expectedCode, code);
-
-  if (
-    !selection.empty ||
-    selection.from !== code.length ||
-    expectedCompletionIndex === null ||
-    expectedCompletionIndex >= expectedCode.length
-  ) {
-    return false;
-  }
-
-  view.dispatch({
-    changes: {
-      from: 0,
-      insert: expectedCode,
-      to: view.state.doc.length,
-    },
-    scrollIntoView: true,
-    selection: {
-      anchor: expectedCode.length,
-    },
-  });
-
-  return true;
 }
 
 function getCodeDiagnostics(
@@ -2007,164 +1671,6 @@ function createCodeDiagnostic({
     line,
     message,
   };
-}
-
-function getCodeMirrorEditableExtensions(isDisabled: boolean): Extension[] {
-  return [EditorState.readOnly.of(isDisabled), EditorView.editable.of(!isDisabled)];
-}
-
-function createCodeMirrorLinter(diagnostics: CodeDiagnostic[]) {
-  return linter((view) => createCodeMirrorDiagnostics(view.state, diagnostics), {
-    delay: 0,
-  });
-}
-
-function PandasCodeMirrorEditor({
-  ariaLabel,
-  diagnostics,
-  disabled,
-  expectedCode,
-  onChange,
-  readOnly,
-  value,
-}: {
-  ariaLabel: string;
-  diagnostics: CodeDiagnostic[];
-  disabled: boolean;
-  expectedCode: string;
-  onChange: (value: string) => void;
-  readOnly: boolean;
-  value: string;
-}) {
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  const viewRef = useRef<EditorView | null>(null);
-  const editableCompartmentRef = useRef(new Compartment());
-  const gutterCompartmentRef = useRef(new Compartment());
-  const linterCompartmentRef = useRef(new Compartment());
-  const predictionCompartmentRef = useRef(new Compartment());
-  const isDisabled = disabled || readOnly;
-  const diagnosticsKey = useMemo(
-    () =>
-      diagnostics
-        .map(
-          (diagnostic) =>
-            `${diagnostic.line}:${diagnostic.column}:${diagnostic.length}:${diagnostic.message}`,
-        )
-        .join("\n"),
-    [diagnostics],
-  );
-  const editorPropsRef = useRef({
-    expectedCode,
-    isDisabled,
-    onChange,
-  });
-
-  useEffect(() => {
-    editorPropsRef.current = {
-      expectedCode,
-      isDisabled,
-      onChange,
-    };
-  }, [expectedCode, isDisabled, onChange]);
-
-  useEffect(() => {
-    const host = hostRef.current;
-
-    if (!host) {
-      return;
-    }
-
-    const view = new EditorView({
-      parent: host,
-      state: EditorState.create({
-        doc: value,
-        extensions: [
-          minimalSetup,
-          lineNumbers(),
-          highlightActiveLineGutter(),
-          python(),
-          syntaxHighlighting(pandasCodeHighlightStyle),
-          pandasCodeEditorTheme,
-          EditorView.lineWrapping,
-          EditorView.contentAttributes.of({
-            "aria-label": ariaLabel,
-          }),
-          EditorView.updateListener.of((update) => {
-            if (update.docChanged) {
-              editorPropsRef.current.onChange(update.state.doc.toString());
-            }
-          }),
-          Prec.high(
-            keymap.of([
-              {
-                key: "Tab",
-                run: (editorView) =>
-                  acceptPandasPrediction(
-                    editorView,
-                    editorPropsRef.current.expectedCode,
-                    editorPropsRef.current.isDisabled,
-                  ) || indentMore(editorView),
-              },
-            ]),
-          ),
-          editableCompartmentRef.current.of(getCodeMirrorEditableExtensions(isDisabled)),
-          gutterCompartmentRef.current.of(createPandasDiagnosticGutter(diagnostics)),
-          linterCompartmentRef.current.of(createCodeMirrorLinter(diagnostics)),
-          predictionCompartmentRef.current.of(
-            createPandasPredictionExtension(expectedCode, isDisabled),
-          ),
-        ],
-      }),
-    });
-
-    viewRef.current = view;
-
-    return () => {
-      view.destroy();
-      viewRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    const view = viewRef.current;
-
-    if (!view) {
-      return;
-    }
-
-    const currentValue = view.state.doc.toString();
-
-    if (currentValue !== value) {
-      view.dispatch({
-        changes: {
-          from: 0,
-          insert: value,
-          to: currentValue.length,
-        },
-      });
-    }
-  }, [value]);
-
-  useEffect(() => {
-    const view = viewRef.current;
-
-    if (!view) {
-      return;
-    }
-
-    view.dispatch({
-      effects: [
-        editableCompartmentRef.current.reconfigure(getCodeMirrorEditableExtensions(isDisabled)),
-        gutterCompartmentRef.current.reconfigure(createPandasDiagnosticGutter(diagnostics)),
-        linterCompartmentRef.current.reconfigure(createCodeMirrorLinter(diagnostics)),
-        predictionCompartmentRef.current.reconfigure(
-          createPandasPredictionExtension(expectedCode, isDisabled),
-        ),
-      ],
-    });
-  }, [diagnostics, diagnosticsKey, expectedCode, isDisabled]);
-
-  return <div className="lesson-code-mirror" ref={hostRef} />;
 }
 
 function evaluateExerciseAnswerSnapshot(
@@ -2472,6 +1978,28 @@ export function LessonPage({
       }, {}),
     [exerciseEntries, initialAnswer],
   );
+  const initialPandasCodeRunResultsByExerciseId = useMemo(
+    () =>
+      exerciseEntries.reduce<Record<string, PandasCodeRunResult>>((runResults, exercise) => {
+        if (exercise.type === "guided-download") {
+          const runResult =
+            normalizePandasCodeRunResult(
+              initialAnswer?.guidedDownloadRunResultsByExerciseId?.[exercise.id],
+            ) ??
+            normalizePandasCodeRunResult(
+              initialSubmittedAnswersByExerciseId[exercise.id]
+                ?.guidedDownloadRunResultsByExerciseId?.[exercise.id],
+            );
+
+          if (runResult) {
+            runResults[exercise.id] = runResult;
+          }
+        }
+
+        return runResults;
+      }, {}),
+    [exerciseEntries, initialAnswer, initialSubmittedAnswersByExerciseId],
+  );
   const initialGuidedDownloadArchivesByExerciseId = useMemo(
     () =>
       exerciseEntries.reduce<Record<string, GuidedDownloadArchiveState>>((archives, exercise) => {
@@ -2585,7 +2113,7 @@ export function LessonPage({
   >(initialGuidedDownloadArchivesByExerciseId);
   const [pandasCodeRunResultsByExerciseId, setPandasCodeRunResultsByExerciseId] = useState<
     Record<string, PandasCodeRunResult>
-  >({});
+  >(initialPandasCodeRunResultsByExerciseId);
   const [runningPandasCodeExerciseId, setRunningPandasCodeExerciseId] = useState<string | null>(
     null,
   );
@@ -2617,6 +2145,7 @@ export function LessonPage({
         guidedDownloadCodeByExerciseId,
         guidedDownloadExtractedFilePathsByExerciseId,
         guidedDownloadObjectKeysByExerciseId,
+        pandasCodeRunResultsByExerciseId,
         orderedStepIdsByExerciseId,
         selectedOptionIdsByExerciseId,
       }),
@@ -2627,6 +2156,7 @@ export function LessonPage({
       guidedDownloadCodeByExerciseId,
       guidedDownloadExtractedFilePathsByExerciseId,
       guidedDownloadObjectKeysByExerciseId,
+      pandasCodeRunResultsByExerciseId,
       orderedStepIdsByExerciseId,
       selectedOptionIdsByExerciseId,
     ],
@@ -2728,7 +2258,7 @@ export function LessonPage({
     );
     setGuidedDownloadObjectKeysByExerciseId(initialGuidedDownloadObjectKeysByExerciseId);
     setGuidedDownloadArchivesByExerciseId(initialGuidedDownloadArchivesByExerciseId);
-    setPandasCodeRunResultsByExerciseId({});
+    setPandasCodeRunResultsByExerciseId(initialPandasCodeRunResultsByExerciseId);
     setRunningPandasCodeExerciseId(null);
     setOrderedStepIdsByExerciseId(initialOrderedStepIds);
     setExerciseResultsById(initialExerciseResultsById);
@@ -2749,6 +2279,7 @@ export function LessonPage({
     initialGuidedDownloadExtractedFilePathsByExerciseId,
     initialGuidedDownloadArchivesByExerciseId,
     initialGuidedDownloadObjectKeysByExerciseId,
+    initialPandasCodeRunResultsByExerciseId,
     initialOrderedStepIds,
     initialSelectedOptionIdsByExerciseId,
     initialSubmittedAnswerSnapshotsByExerciseId,
@@ -3171,6 +2702,7 @@ export function LessonPage({
       guidedDownloadCodeByExerciseId,
       guidedDownloadExtractedFilePathsByExerciseId,
       guidedDownloadObjectKeysByExerciseId,
+      pandasCodeRunResultsByExerciseId,
       orderedStepIdsByExerciseId,
       selectedOptionIdsByExerciseId,
     });
@@ -3193,6 +2725,7 @@ export function LessonPage({
     exercise: LessonExercise,
   ): Promise<{
     evaluation: EvaluationResult;
+    pandasCodeRunResult?: PandasCodeRunResult;
     sourceValidationResults?: DatasetSourcePageValidationResult[];
   }> => {
     if (exercise.type === "multiple-choice") {
@@ -3244,9 +2777,14 @@ export function LessonPage({
           extractedFilePath,
           objectKey: archive.objectKey,
         });
+        const pandasCodeRunResult = createPandasCodeRunResult(backendResult, {
+          code,
+          extractedFilePath,
+        });
+
         setPandasCodeRunResultsByExerciseId((current) => ({
           ...current,
-          [exercise.id]: createPandasCodeRunResult(backendResult, { code, extractedFilePath }),
+          [exercise.id]: pandasCodeRunResult,
         }));
 
         return {
@@ -3255,6 +2793,7 @@ export function LessonPage({
             fallbackEvaluation: localEvaluation,
             locale,
           }),
+          pandasCodeRunResult,
         };
       } catch {
         return {
@@ -3349,8 +2888,10 @@ export function LessonPage({
     });
 
   const submitExercise = async (exercise: LessonExercise) => {
-    const { evaluation, sourceValidationResults } = await evaluateExercise(exercise);
+    const { evaluation, pandasCodeRunResult, sourceValidationResults } =
+      await evaluateExercise(exercise);
     let nextDatasetSourceAnswersByExerciseId = datasetSourceAnswersByExerciseId;
+    let nextPandasCodeRunResultsByExerciseId = pandasCodeRunResultsByExerciseId;
     let nextAnswerSnapshot = answerSnapshot;
 
     if (exercise.type === "open-dataset-source" && sourceValidationResults) {
@@ -3373,10 +2914,29 @@ export function LessonPage({
           guidedDownloadCodeByExerciseId,
           guidedDownloadExtractedFilePathsByExerciseId,
           guidedDownloadObjectKeysByExerciseId,
+          pandasCodeRunResultsByExerciseId,
           orderedStepIdsByExerciseId,
           selectedOptionIdsByExerciseId,
         });
       }
+    }
+
+    if (exercise.type === "guided-download" && pandasCodeRunResult) {
+      nextPandasCodeRunResultsByExerciseId = {
+        ...pandasCodeRunResultsByExerciseId,
+        [exercise.id]: pandasCodeRunResult,
+      };
+      nextAnswerSnapshot = createLessonAnswerSnapshot({
+        assignments,
+        datasetSourceAnswersByExerciseId: nextDatasetSourceAnswersByExerciseId,
+        exercises: exerciseEntries,
+        guidedDownloadCodeByExerciseId,
+        guidedDownloadExtractedFilePathsByExerciseId,
+        guidedDownloadObjectKeysByExerciseId,
+        pandasCodeRunResultsByExerciseId: nextPandasCodeRunResultsByExerciseId,
+        orderedStepIdsByExerciseId,
+        selectedOptionIdsByExerciseId,
+      });
     }
 
     const nextExerciseResultsById = {
@@ -3465,7 +3025,9 @@ export function LessonPage({
     <LearningGridCanvas>
       <LearningHeader backHref={backHref} backLabel={backLabel} />
 
-      <section className="learning-sheet route-content-transition-target mx-auto grid w-[min(1440px,calc(100%_-_48px))] grid-cols-1 [@media_(min-width:1024px)]:grid-cols-[2rem_repeat(12,minmax(0,1fr))_2rem]">
+      <section
+        className={`learning-sheet route-content-transition-target mx-auto grid ${lessonSheetWidthClassName} grid-cols-1 [@media_(min-width:1024px)]:grid-cols-[2rem_repeat(12,minmax(0,1fr))_2rem]`}
+      >
         <LearningSheetExtensions />
         <LessonSheetPatternPlane />
 
@@ -3648,22 +3210,24 @@ export function LessonPage({
             >
               {previousLessonHref ? (
                 <LiquidLink
-                  className={`${emeraldLiquidButtonClassName} min-h-12`}
+                  className={`${lessonNavigationLinkClassName} min-h-12`}
                   data-app-link
+                  fillOnHover={false}
                   href={previousLessonHref}
                 >
-                  <ArrowLeftIcon aria-hidden="true" className="size-5" />
+                  <HugeiconsIcon aria-hidden="true" className="size-5" icon={ArrowLeft02Icon} />
                   {t("navigation.prev")}
                 </LiquidLink>
               ) : null}
               {isLessonFinished ? (
                 <LiquidLink
-                  className={`${emeraldLiquidButtonClassName} ml-auto min-h-12`}
+                  className={`${lessonNavigationLinkClassName} ml-auto min-h-12`}
                   data-app-link
+                  fillOnHover={false}
                   href={finishedActionHref}
                 >
                   {finishedActionLabel}
-                  <ArrowRightIcon aria-hidden="true" className="size-5" />
+                  <HugeiconsIcon aria-hidden="true" className="size-5" icon={ArrowRight02Icon} />
                 </LiquidLink>
               ) : (
                 <LiquidButton
@@ -3777,11 +3341,12 @@ function ExerciseSubmitAction({
       >
         {previousLessonHref ? (
           <LiquidLink
-            className={`${emeraldLiquidButtonClassName} min-h-12`}
+            className={`${lessonNavigationLinkClassName} min-h-12`}
             data-app-link
+            fillOnHover={false}
             href={previousLessonHref}
           >
-            <ArrowLeftIcon aria-hidden="true" className="size-5" />
+            <HugeiconsIcon aria-hidden="true" className="size-5" icon={ArrowLeft02Icon} />
             {t("navigation.prev")}
           </LiquidLink>
         ) : null}
@@ -3791,7 +3356,7 @@ function ExerciseSubmitAction({
             onClick={onEdit}
             type="button"
           >
-            <PencilSquareIcon aria-hidden="true" className="size-5" />
+            <HugeiconsIcon aria-hidden="true" className="size-5" icon={Edit02Icon} />
             {t("learning.exercise.edit")}
           </LiquidButton>
         ) : null}
@@ -3802,18 +3367,19 @@ function ExerciseSubmitAction({
             onClick={onCancelEdit}
             type="button"
           >
-            <XCircleIcon aria-hidden="true" className="size-5" />
+            <HugeiconsIcon aria-hidden="true" className="size-5" icon={CancelCircleIcon} />
             {t("learning.exercise.cancelEdit")}
           </LiquidButton>
         ) : null}
         {finishedAction ? (
           <LiquidLink
-            className={`${emeraldLiquidButtonClassName} ${hasSecondaryAction ? "" : "ml-auto"} min-h-12`}
+            className={`${lessonNavigationLinkClassName} ${hasSecondaryAction ? "" : "ml-auto"} min-h-12`}
             data-app-link
+            fillOnHover={false}
             href={finishedAction.href}
           >
             {finishedAction.label}
-            <ArrowRightIcon aria-hidden="true" className="size-5" />
+            <HugeiconsIcon aria-hidden="true" className="size-5" icon={ArrowRight02Icon} />
           </LiquidLink>
         ) : (
           <LiquidButton
@@ -4122,10 +3688,10 @@ function GuidedDownloadExerciseView({
 
       <LessonFullRow>
         <div
-          className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${edgeCompensationClassName} grid gap-5 p-6`}
+          className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${edgeCompensationClassName} grid min-w-0 grid-cols-[minmax(0,1fr)] gap-5 p-6`}
         >
-          <section className="learning-grid-panel-fill p-5">
-            <div className="flex gap-3">
+          <section className={`learning-grid-panel-fill p-5 ${lessonTaskSurfaceWidthClassName}`}>
+            <div className="flex min-w-0 gap-3">
               <HugeiconsIcon
                 aria-hidden="true"
                 className="mt-1 size-5 shrink-0 text-sky-600"
@@ -4178,8 +3744,8 @@ function GuidedDownloadExerciseView({
             ) : null}
           </section>
 
-          <section className="learning-grid-panel-fill p-5">
-            <div className="flex gap-3">
+          <section className={`learning-grid-panel-fill p-5 ${lessonTaskSurfaceWidthClassName}`}>
+            <div className="flex min-w-0 gap-3">
               <HugeiconsIcon
                 aria-hidden="true"
                 className="mt-1 size-5 shrink-0 text-sky-600"
@@ -4187,14 +3753,14 @@ function GuidedDownloadExerciseView({
                 size={20}
               />
               <div className="min-w-0 flex-1">
-                <div className="grid gap-3">
+                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3">
                   <span className="text-lg font-semibold text-foreground">
                     {exercise.uploadLabel}
                   </span>
                   <span className="text-base leading-7 text-muted-foreground">
                     {exercise.uploadDescription}
                   </span>
-                  <div className="learning-grid-control flex min-h-12 w-full items-center gap-4 border border-neutral-300 bg-white px-4 py-3 text-base text-foreground">
+                  <div className="learning-grid-control flex min-h-12 min-w-0 items-center gap-4 border border-neutral-300 bg-white px-4 py-3 text-base text-foreground">
                     <label
                       aria-disabled={isUploadDisabled}
                       className={`inline-flex h-9 shrink-0 items-center justify-center bg-neutral-950 px-4 text-sm font-semibold text-neutral-50 transition-colors ${
@@ -4246,8 +3812,8 @@ function GuidedDownloadExerciseView({
             </div>
           </section>
 
-          <section className="learning-grid-panel-fill p-5">
-            <div className="flex gap-3">
+          <section className={`learning-grid-panel-fill p-5 ${lessonTaskSurfaceWidthClassName}`}>
+            <div className="flex min-w-0 gap-3">
               <HugeiconsIcon
                 aria-hidden="true"
                 className="mt-1 size-5 shrink-0 text-emerald-600"
@@ -4255,11 +3821,11 @@ function GuidedDownloadExerciseView({
                 size={20}
               />
               <div className="min-w-0 flex-1">
-                <div className="grid gap-3">
+                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3">
                   <span className="text-lg font-semibold text-foreground">
                     {exercise.codeLabel}
                   </span>
-                  <div className="overflow-hidden border border-neutral-300 bg-white transition-colors focus-within:border-sky-500">
+                  <div className="min-w-0 overflow-hidden border border-neutral-300 bg-white transition-colors focus-within:border-sky-500">
                     <div className="flex min-h-10 items-center border-b border-neutral-300 bg-neutral-50 text-xs text-neutral-500">
                       <span className="flex min-h-10 items-center border-r border-neutral-300 bg-white px-3 font-mono font-semibold text-neutral-950">
                         main.py
@@ -4275,15 +3841,24 @@ function GuidedDownloadExerciseView({
                         {isRunningPandasCode ? runningPandasCodeLabel : runPandasCodeLabel}
                       </button>
                     </div>
-                    <PandasCodeMirrorEditor
-                      ariaLabel={exercise.codeLabel}
-                      diagnostics={codeDiagnostics}
-                      disabled={isCodeEditorDisabled}
-                      expectedCode={predictionCode}
-                      onChange={onUpdateCode}
-                      readOnly={isReviewMode}
-                      value={displayedCode}
-                    />
+                    <Suspense
+                      fallback={
+                        <PandasCodeEditorFallback
+                          ariaLabel={exercise.codeLabel}
+                          value={displayedCode}
+                        />
+                      }
+                    >
+                      <PandasCodeMirrorEditor
+                        ariaLabel={exercise.codeLabel}
+                        diagnostics={codeDiagnostics}
+                        disabled={isCodeEditorDisabled}
+                        expectedCode={predictionCode}
+                        onChange={onUpdateCode}
+                        readOnly={isReviewMode}
+                        value={displayedCode}
+                      />
+                    </Suspense>
                   </div>
                 </div>
                 <PandasCodeRunOutput
@@ -4300,6 +3875,17 @@ function GuidedDownloadExerciseView({
   );
 }
 
+function PandasCodeEditorFallback({ ariaLabel, value }: { ariaLabel: string; value: string }) {
+  return (
+    <textarea
+      aria-label={ariaLabel}
+      className="block min-h-32 w-full resize-none bg-white px-4 py-3 font-mono text-sm leading-6 text-neutral-900 outline-none"
+      readOnly
+      value={value}
+    />
+  );
+}
+
 function PandasCodeRunOutput({ result }: { result: PandasCodeRunResult | undefined }) {
   const { locale } = useLocalization();
 
@@ -4313,7 +3899,7 @@ function PandasCodeRunOutput({ result }: { result: PandasCodeRunResult | undefin
   const emptyRowsLabel = locale === "en" ? "No preview rows returned." : "Tidak ada baris preview.";
 
   return (
-    <div className="mt-5 border border-neutral-300 bg-white">
+    <div className="mt-5 min-w-0 border border-neutral-300 bg-white">
       <div className="border-b border-neutral-300 px-4 py-3">
         <p className="text-sm font-semibold text-foreground">{outputLabel}</p>
         {result.message ? (
@@ -4322,7 +3908,7 @@ function PandasCodeRunOutput({ result }: { result: PandasCodeRunResult | undefin
       </div>
       {isCorrect ? (
         result.columns.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="max-w-full overflow-x-auto">
             <table className="w-full min-w-max border-collapse text-left text-sm">
               <thead>
                 <tr className="bg-neutral-100">
@@ -4432,7 +4018,11 @@ function OpenDatasetSourceExerciseView({
             return (
               <section className="learning-grid-panel-fill p-5" key={sourceInput.id}>
                 <div className="flex gap-3">
-                  <LinkIcon aria-hidden="true" className="mt-1 size-5 shrink-0 text-sky-600" />
+                  <HugeiconsIcon
+                    aria-hidden="true"
+                    className="mt-1 size-5 shrink-0 text-sky-600"
+                    icon={Link03Icon}
+                  />
                   <div className="min-w-0 flex-1">
                     <h4 className="text-lg font-semibold text-foreground">{sourceInput.label}</h4>
                     {sourceDescription ? (
@@ -4533,11 +4123,23 @@ function DatasetSourceValidationSummary({
     <div className={`mt-5 border p-4 ${statusClassName}`}>
       <div className="flex items-start gap-3">
         {isPositive ? (
-          <CheckCircleIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+          <HugeiconsIcon
+            aria-hidden="true"
+            className="mt-0.5 size-5 shrink-0"
+            icon={CheckmarkCircle02Icon}
+          />
         ) : isNegative ? (
-          <XCircleIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+          <HugeiconsIcon
+            aria-hidden="true"
+            className="mt-0.5 size-5 shrink-0"
+            icon={CancelCircleIcon}
+          />
         ) : (
-          <InformationCircleIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+          <HugeiconsIcon
+            aria-hidden="true"
+            className="mt-0.5 size-5 shrink-0"
+            icon={InformationCircleIcon}
+          />
         )}
         <div className="min-w-0 flex-1">
           <h5 className="font-semibold">{title}</h5>
@@ -4755,11 +4357,20 @@ function DatasetPreview({
                               className="ml-auto inline-flex size-5 shrink-0 items-center justify-center text-muted-foreground"
                             >
                               {sorted === "asc" ? (
-                                <ArrowUpIcon className="size-5 text-emerald-500" />
+                                <HugeiconsIcon
+                                  className="size-5 text-emerald-500"
+                                  icon={ArrowUp01Icon}
+                                />
                               ) : sorted === "desc" ? (
-                                <ArrowDownIcon className="size-5 text-emerald-500" />
+                                <HugeiconsIcon
+                                  className="size-5 text-emerald-500"
+                                  icon={ArrowDown01Icon}
+                                />
                               ) : (
-                                <ChevronDownIcon className="size-5 opacity-45" />
+                                <HugeiconsIcon
+                                  className="size-5 opacity-45"
+                                  icon={ChevronDownIcon}
+                                />
                               )}
                             </span>
                           </button>
@@ -4955,9 +4566,10 @@ function RoleDropdown({
         type="button"
       >
         <span className="truncate">{selectedLabel}</span>
-        <ChevronDownIcon
+        <HugeiconsIcon
           aria-hidden="true"
           className={`block size-4 shrink-0 text-current transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`}
+          icon={ChevronDownIcon}
         />
       </button>
 
@@ -5093,12 +4705,17 @@ function ColumnRoleExerciseView({
                 {shouldShowFeedback ? (
                   <div className="flex min-h-16 items-center gap-3 border border-b-0 learning-grid-border px-5 py-4">
                     {isPositiveFeedback ? (
-                      <CheckCircleIcon
+                      <HugeiconsIcon
                         aria-hidden="true"
                         className="size-6 shrink-0 text-emerald-500"
+                        icon={CheckmarkCircle02Icon}
                       />
                     ) : (
-                      <XCircleIcon aria-hidden="true" className="size-6 shrink-0 text-rose-500" />
+                      <HugeiconsIcon
+                        aria-hidden="true"
+                        className="size-6 shrink-0 text-rose-500"
+                        icon={CancelCircleIcon}
+                      />
                     )}
                     <h3 className="text-xl font-semibold text-foreground">
                       {isPositiveFeedback
@@ -5192,7 +4809,11 @@ function MultipleChoiceExerciseView({
                   type={isSingleOptionExercise ? "radio" : "checkbox"}
                 />
                 <span className="flex size-5 shrink-0 items-center justify-center border border-neutral-300 bg-white text-transparent transition-colors peer-checked:border-emerald-500 peer-checked:bg-emerald-500 peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-emerald-500">
-                  <CheckIcon aria-hidden="true" className="size-4 stroke-[3.25]" />
+                  <HugeiconsIcon
+                    aria-hidden="true"
+                    className="size-4 stroke-[3.25]"
+                    icon={CheckIcon}
+                  />
                 </span>
                 <span className="min-w-0 text-base leading-7 text-foreground">{option.label}</span>
               </label>
@@ -5234,14 +4855,16 @@ function MultipleChoiceExerciseView({
                     role="img"
                   >
                     {isPositiveFeedback ? (
-                      <CheckIcon
+                      <HugeiconsIcon
                         aria-hidden="true"
                         className="size-8 shrink-0 stroke-[3] text-emerald-500"
+                        icon={CheckIcon}
                       />
                     ) : (
-                      <XMarkIcon
+                      <HugeiconsIcon
                         aria-hidden="true"
                         className="size-8 shrink-0 stroke-[3] text-rose-500"
+                        icon={Cancel01Icon}
                       />
                     )}
                   </motion.span>
@@ -5300,7 +4923,7 @@ function OrderedStepsExerciseView({
                   onClick={() => onMoveStep(index, -1)}
                   type="button"
                 >
-                  <ArrowUpIcon aria-hidden="true" className="size-5" />
+                  <HugeiconsIcon aria-hidden="true" className="size-5" icon={ArrowUp01Icon} />
                 </button>
                 <button
                   aria-label={t("learning.move.down", { label: step.label })}
@@ -5309,7 +4932,7 @@ function OrderedStepsExerciseView({
                   onClick={() => onMoveStep(index, 1)}
                   type="button"
                 >
-                  <ArrowDownIcon aria-hidden="true" className="size-5" />
+                  <HugeiconsIcon aria-hidden="true" className="size-5" icon={ArrowDown01Icon} />
                 </button>
               </span>
             </li>
@@ -5336,11 +4959,23 @@ function LessonResult({ result }: { result: EvaluationResult }) {
         className={`learning-sheet-cell ${resultCellClassName} flex gap-4 p-6`}
       >
         {result.status === "correct" ? (
-          <CheckCircleIcon aria-hidden="true" className="size-7 shrink-0 text-emerald-500" />
+          <HugeiconsIcon
+            aria-hidden="true"
+            className="size-7 shrink-0 text-emerald-500"
+            icon={CheckmarkCircle02Icon}
+          />
         ) : result.status === "incorrect" ? (
-          <XCircleIcon aria-hidden="true" className="size-7 shrink-0 text-rose-500" />
+          <HugeiconsIcon
+            aria-hidden="true"
+            className="size-7 shrink-0 text-rose-500"
+            icon={CancelCircleIcon}
+          />
         ) : (
-          <InformationCircleIcon aria-hidden="true" className="size-7 shrink-0 text-sky-600" />
+          <HugeiconsIcon
+            aria-hidden="true"
+            className="size-7 shrink-0 text-sky-600"
+            icon={InformationCircleIcon}
+          />
         )}
         <div>
           <h2 className="text-xl font-semibold text-foreground">

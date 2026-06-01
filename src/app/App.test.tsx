@@ -13,6 +13,11 @@ const lesson06Path = `${foundationsTrackPath}/lesson-0-6-formulating-ml-problems
 const lesson11Path = `${foundationsTrackPath}/lesson-1-1-ml-tools-libraries`;
 const lesson12Path = `${foundationsTrackPath}/lesson-1-2-data-collecting`;
 const lesson13Path = `${foundationsTrackPath}/lesson-1-3-data-loading`;
+const lesson12SourceExerciseId = "exercise-1-2-open-source-data-search";
+const lesson13GuidedDownloadExerciseId = "exercise-1-3-kaggle-zip-loading";
+type ViewTransitionTestDocument = Document & {
+  startViewTransition?: (callback: () => void) => { finished: Promise<void> };
+};
 const module0LessonIds = [
   "lesson-0-1-what-is-machine-learning",
   "lesson-0-2-machine-learning-in-ai",
@@ -92,6 +97,7 @@ describe("App", () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     window.localStorage.clear();
+    window.sessionStorage.clear();
     window.history.pushState(null, "", "/");
   });
 
@@ -186,6 +192,159 @@ describe("App", () => {
     expect(document.querySelector(`a[href="${lesson02Path}"]`)).toBeNull();
     expect(document.querySelector(`a[href="${lesson06Path}"]`)).toBeNull();
     expect(screen.getAllByText("Terkunci").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("opens a learning route without the content fade when the track page is scrolled", async () => {
+    const originalStartViewTransition = (document as ViewTransitionTestDocument)
+      .startViewTransition;
+    const originalScrollYDescriptor = Object.getOwnPropertyDescriptor(window, "scrollY");
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    const startViewTransition = vi.fn((callback: () => void) => {
+      callback();
+
+      return { finished: Promise.resolve() };
+    });
+
+    Object.defineProperty(document, "startViewTransition", {
+      configurable: true,
+      value: startViewTransition,
+    });
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      get: () => 520,
+    });
+
+    try {
+      seedCompletedLessons([
+        ...module0LessonIds,
+        "lesson-1-1-ml-tools-libraries",
+        "lesson-1-2-data-collecting",
+      ]);
+      window.history.pushState(null, "", foundationsTrackPath);
+      render(<App />);
+
+      expect(
+        await screen.findByRole(
+          "heading",
+          { name: "Dasar-Dasar Machine Learning" },
+          lazyRouteTimeout,
+        ),
+      ).toBeInTheDocument();
+
+      scrollTo.mockClear();
+      startViewTransition.mockClear();
+
+      const lessonLink = document.querySelector<HTMLAnchorElement>(`a[href="${lesson13Path}"]`);
+
+      expect(lessonLink).not.toBeNull();
+      fireEvent.click(lessonLink as HTMLAnchorElement);
+
+      expect(startViewTransition).not.toHaveBeenCalled();
+      expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
+      expect(
+        await screen.findByRole("heading", { name: "Memuat Data" }, lazyRouteTimeout),
+      ).toBeInTheDocument();
+    } finally {
+      if (originalStartViewTransition) {
+        Object.defineProperty(document, "startViewTransition", {
+          configurable: true,
+          value: originalStartViewTransition,
+        });
+      } else {
+        Reflect.deleteProperty(document, "startViewTransition");
+      }
+
+      if (originalScrollYDescriptor) {
+        Object.defineProperty(window, "scrollY", originalScrollYDescriptor);
+      } else {
+        Reflect.deleteProperty(window, "scrollY");
+      }
+    }
+  });
+
+  it("keeps a lesson scroll position when the webpage is reloaded", async () => {
+    const originalScrollYDescriptor = Object.getOwnPropertyDescriptor(window, "scrollY");
+    const originalInnerHeightDescriptor = Object.getOwnPropertyDescriptor(window, "innerHeight");
+    const originalScrollHeightDescriptor = Object.getOwnPropertyDescriptor(
+      document.documentElement,
+      "scrollHeight",
+    );
+    const routeScrollStorageKey = `smile-route-scroll:${lesson13Path}`;
+    let currentScrollY = 0;
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation((options, y) => {
+      currentScrollY = typeof options === "number" ? (y ?? 0) : (options?.top ?? 0);
+    });
+    const getEntriesByType = vi
+      .spyOn(window.performance, "getEntriesByType")
+      .mockReturnValue([{ type: "navigate" } as PerformanceNavigationTiming]);
+
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      get: () => currentScrollY,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 800,
+    });
+    Object.defineProperty(document.documentElement, "scrollHeight", {
+      configurable: true,
+      value: 3000,
+    });
+
+    try {
+      seedCompletedLessons([
+        ...module0LessonIds,
+        "lesson-1-1-ml-tools-libraries",
+        "lesson-1-2-data-collecting",
+      ]);
+      window.history.pushState(null, "", lesson13Path);
+      const { unmount } = render(<App />);
+
+      expect(
+        await screen.findByRole("heading", { name: "Memuat Data" }, lazyRouteTimeout),
+      ).toBeInTheDocument();
+
+      currentScrollY = 760;
+      window.dispatchEvent(new Event("pagehide"));
+      expect(window.sessionStorage.getItem(routeScrollStorageKey)).toBe("760");
+
+      unmount();
+      currentScrollY = 0;
+      scrollTo.mockClear();
+      getEntriesByType.mockReturnValue([{ type: "reload" } as PerformanceNavigationTiming]);
+
+      render(<App />);
+
+      await waitFor(() => {
+        expect(scrollTo).toHaveBeenCalledWith({ top: 760 });
+      });
+      expect(scrollTo).not.toHaveBeenCalledWith({ top: 0 });
+      expect(
+        await screen.findByRole("heading", { name: "Memuat Data" }, lazyRouteTimeout),
+      ).toBeInTheDocument();
+    } finally {
+      if (originalScrollYDescriptor) {
+        Object.defineProperty(window, "scrollY", originalScrollYDescriptor);
+      } else {
+        Reflect.deleteProperty(window, "scrollY");
+      }
+
+      if (originalInnerHeightDescriptor) {
+        Object.defineProperty(window, "innerHeight", originalInnerHeightDescriptor);
+      } else {
+        Reflect.deleteProperty(window, "innerHeight");
+      }
+
+      if (originalScrollHeightDescriptor) {
+        Object.defineProperty(
+          document.documentElement,
+          "scrollHeight",
+          originalScrollHeightDescriptor,
+        );
+      } else {
+        Reflect.deleteProperty(document.documentElement, "scrollHeight");
+      }
+    }
   });
 
   it("requires confirmation before resetting learning progress", async () => {
@@ -844,5 +1003,72 @@ describe("App", () => {
     expect(screen.getByLabelText("Kode Pandas")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Salin kode" })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Kirim jawaban" })).toHaveLength(2);
+  });
+
+  it("restores the latest Pandas code output after reloading lesson 1.3", async () => {
+    const submittedUrl =
+      "https://www.kaggle.com/datasets/denkuznetz/food-delivery-time-prediction/data";
+    const extractedFilePath = "food_delivery.csv";
+    const pandasCode = `import pandas as pd\n\ndf = pd.read_csv("${extractedFilePath}")\ndf.head()`;
+
+    window.localStorage.setItem(
+      learningProgressStorageKey,
+      JSON.stringify({
+        attempts: {},
+        completedLessonIds: [
+          ...module0LessonIds,
+          "lesson-1-1-ml-tools-libraries",
+          "lesson-1-2-data-collecting",
+        ],
+        lessonAnswers: {
+          "lesson-1-3-data-loading": {
+            guidedDownloadCodeByExerciseId: {
+              [lesson13GuidedDownloadExerciseId]: pandasCode,
+            },
+            guidedDownloadExtractedFilePathsByExerciseId: {
+              [lesson13GuidedDownloadExerciseId]: extractedFilePath,
+            },
+            guidedDownloadObjectKeysByExerciseId: {
+              [lesson13GuidedDownloadExerciseId]: "guest/demo/dataset.zip",
+            },
+            guidedDownloadRunResultsByExerciseId: {
+              [lesson13GuidedDownloadExerciseId]: {
+                code: pandasCode,
+                columns: ["order_id", "delivery_time_min"],
+                diagnostics: [],
+                extractedFilePath,
+                message: "",
+                rows: [["ORD-001", "32"]],
+                status: "correct",
+              },
+            },
+          },
+        },
+        submittedExerciseAnswers: {
+          [lesson12SourceExerciseId]: {
+            datasetSourceAnswersByExerciseId: {
+              [lesson12SourceExerciseId]: {
+                "demand-source": {
+                  notes: "Dataset berisi konteks pengiriman makanan.",
+                  url: submittedUrl,
+                },
+              },
+            },
+          },
+        },
+        version: 1,
+      }),
+    );
+    window.history.pushState(null, "", lesson13Path);
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Memuat Data" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Output")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "order_id" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "delivery_time_min" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "ORD-001" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "32" })).toBeInTheDocument();
   });
 });

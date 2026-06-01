@@ -8,7 +8,6 @@ import { AuthProvider } from "@/features/auth/auth-context";
 import { LocalizationProvider } from "@/features/localization/localization";
 import { AuthPage } from "@/pages/AuthPage";
 import { ExplorePage } from "@/pages/ExplorePage";
-import { LearningPage } from "@/pages/LearningPage";
 
 const liquidEtherColors = ["#059669", "#10B981", "#38BDF8"];
 
@@ -18,12 +17,17 @@ const FuzzyTextPage = lazy(() =>
 const LandingPage = lazy(() =>
   import("../pages/LandingPage").then((module) => ({ default: module.LandingPage })),
 );
+const LearningPage = lazy(() =>
+  import("../pages/LearningPage").then((module) => ({ default: module.LearningPage })),
+);
 
 type RouteTheme = "dark" | "light";
 type RouteTransition = "back" | "content-fade" | "forward";
 type ViewTransitionDocument = Document & {
   startViewTransition?: (callback: () => void) => { finished: Promise<void> };
 };
+const routeScrollStorageKeyPrefix = "smile-route-scroll:";
+const maxRouteScrollRestoreAttempts = 90;
 
 function getRouteTheme(pathname: string): RouteTheme {
   return pathname === "/" || isLearningRoute(pathname) || isAuthRoute(pathname) ? "light" : "dark";
@@ -49,6 +53,12 @@ function isLearningRoute(pathname: string) {
   return pathname === "/learn" || pathname.startsWith("/learn/");
 }
 
+function isLearningLessonRoute(pathname: string) {
+  const parts = pathname.split("/").filter(Boolean);
+
+  return parts[0] === "learn" && parts.length === 3;
+}
+
 function isAuthRoute(pathname: string) {
   return pathname === "/login" || pathname === "/register";
 }
@@ -70,6 +80,78 @@ function getRouteTransition(fromPath: string, toPath: string): RouteTransition {
   }
 
   return getRouteDirection(fromPath, toPath);
+}
+
+function shouldSkipRouteTransition(routeTransition: RouteTransition) {
+  return routeTransition === "content-fade" && window.scrollY > 0;
+}
+
+function getRouteScrollStorageKey(pathname: string) {
+  return `${routeScrollStorageKeyPrefix}${pathname}`;
+}
+
+function getNavigationType() {
+  const [navigationEntry] = window.performance.getEntriesByType(
+    "navigation",
+  ) as PerformanceNavigationTiming[];
+
+  return navigationEntry?.type;
+}
+
+function getSavedRouteScroll(pathname: string) {
+  if (!isLearningLessonRoute(pathname) || getNavigationType() !== "reload") {
+    return null;
+  }
+
+  try {
+    const savedScroll = Number(window.sessionStorage.getItem(getRouteScrollStorageKey(pathname)));
+
+    return Number.isFinite(savedScroll) && savedScroll > 0 ? savedScroll : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveRouteScroll(pathname: string) {
+  if (!isLearningLessonRoute(pathname)) {
+    return;
+  }
+
+  try {
+    const storageKey = getRouteScrollStorageKey(pathname);
+
+    if (window.scrollY > 0) {
+      window.sessionStorage.setItem(storageKey, String(Math.round(window.scrollY)));
+    } else {
+      window.sessionStorage.removeItem(storageKey);
+    }
+  } catch {
+    // Session storage can be unavailable in restricted browser contexts.
+  }
+}
+
+function restoreRouteScroll(scrollY: number) {
+  let animationFrameId = 0;
+  let attempts = 0;
+
+  const restore = () => {
+    window.scrollTo({ top: scrollY });
+    attempts += 1;
+
+    const canReachScrollPosition =
+      document.documentElement.scrollHeight >= scrollY + window.innerHeight;
+    const isRestored = Math.abs(window.scrollY - scrollY) <= 2;
+
+    if (attempts < maxRouteScrollRestoreAttempts && (!canReachScrollPosition || !isRestored)) {
+      animationFrameId = window.requestAnimationFrame(restore);
+    }
+  };
+
+  animationFrameId = window.requestAnimationFrame(restore);
+
+  return () => {
+    window.cancelAnimationFrame(animationFrameId);
+  };
 }
 
 function getCurrentPath() {
@@ -151,10 +233,19 @@ function AppRoutes() {
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    window.scrollTo({ top: 0 });
-    const restoreGuard = window.setTimeout(() => {
-      window.scrollTo({ top: 0 });
-    }, 0);
+    const savedRouteScroll = getSavedRouteScroll(pathRef.current);
+    const cleanupInitialScroll = savedRouteScroll
+      ? restoreRouteScroll(savedRouteScroll)
+      : (() => {
+          window.scrollTo({ top: 0 });
+          const restoreGuard = window.setTimeout(() => {
+            window.scrollTo({ top: 0 });
+          }, 0);
+
+          return () => {
+            window.clearTimeout(restoreGuard);
+          };
+        })();
 
     const handlePopState = () => {
       const nextPath = getCurrentPath();
@@ -165,6 +256,10 @@ function AppRoutes() {
         backgroundPathRef.current = nextPath;
         setBackgroundPath(nextPath);
       }
+    };
+
+    const handlePageHide = () => {
+      saveRouteScroll(pathRef.current);
     };
 
     const handleDocumentClick = (event: MouseEvent) => {
@@ -193,12 +288,15 @@ function AppRoutes() {
       const viewTransitionDocument = document as ViewTransitionDocument;
       const startViewTransition = viewTransitionDocument.startViewTransition?.bind(document);
       const involvesAuthRoute = isAuthRoute(currentPath) || isAuthRoute(url.pathname);
+      const routeTransition = getRouteTransition(currentPath, url.pathname);
 
-      if (!shouldReduceRouteTransition && startViewTransition && !involvesAuthRoute) {
-        document.documentElement.dataset.routeTransition = getRouteTransition(
-          currentPath,
-          url.pathname,
-        );
+      if (
+        !shouldReduceRouteTransition &&
+        startViewTransition &&
+        !involvesAuthRoute &&
+        !shouldSkipRouteTransition(routeTransition)
+      ) {
+        document.documentElement.dataset.routeTransition = routeTransition;
 
         try {
           const transition = startViewTransition(() => {
@@ -221,12 +319,14 @@ function AppRoutes() {
     };
 
     window.addEventListener("popstate", handlePopState);
+    window.addEventListener("pagehide", handlePageHide);
     document.addEventListener("click", handleDocumentClick);
 
     return () => {
-      window.clearTimeout(restoreGuard);
+      cleanupInitialScroll();
       delete document.documentElement.dataset.routeTransition;
       window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("pagehide", handlePageHide);
       document.removeEventListener("click", handleDocumentClick);
     };
   }, []);

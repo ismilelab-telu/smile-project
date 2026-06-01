@@ -25,6 +25,8 @@ const maxRequestCharacters = 16_384;
 const maxSourcesPerRequest = 5;
 const maxResponseBytes = 96_000;
 const fetchTimeoutMs = 8_000;
+const maxRedirects = 4;
+const allowedDatasetSourceHostnames = new Set(["kaggle.com", "www.kaggle.com"]);
 
 const signalPatterns = [
   {
@@ -136,7 +138,48 @@ function isPrivateIpv4(hostname: string) {
     (first === 100 && second >= 64 && second <= 127) ||
     (first === 169 && second === 254) ||
     (first === 172 && second >= 16 && second <= 31) ||
-    (first === 192 && second === 168)
+    (first === 192 && second === 168) ||
+    (first === 198 && (second === 18 || second === 19)) ||
+    first >= 224
+  );
+}
+
+function isPrivateIpv6(hostname: string) {
+  const normalized = normalizeHostname(hostname).split("%")[0];
+
+  if (!normalized.includes(":")) {
+    return false;
+  }
+
+  if (normalized === "::" || normalized === "::1") {
+    return true;
+  }
+
+  if (normalized.startsWith("::ffff:")) {
+    return isPrivateIpv4(normalized.slice("::ffff:".length));
+  }
+
+  const firstSegment = normalized.split(":")[0] ?? "";
+  const firstValue = Number.parseInt(firstSegment, 16);
+
+  return (
+    Number.isFinite(firstValue) &&
+    ((firstValue >= 0xfc00 && firstValue <= 0xfdff) ||
+      (firstValue >= 0xfe80 && firstValue <= 0xfebf))
+  );
+}
+
+function isAllowedDatasetSourceHostname(hostname: string) {
+  return allowedDatasetSourceHostnames.has(normalizeHostname(hostname));
+}
+
+function isKaggleDatasetUrl(url: URL) {
+  const pathSegments = url.pathname.split("/").filter(Boolean);
+
+  return (
+    normalizeHostname(url.hostname).replace(/^www\./, "") === "kaggle.com" &&
+    pathSegments[0] === "datasets" &&
+    pathSegments.length >= 3
   );
 }
 
@@ -148,7 +191,9 @@ function isBlockedHostname(hostname: string) {
     normalized === "::1" ||
     normalized.endsWith(".localhost") ||
     normalized.endsWith(".local") ||
-    isPrivateIpv4(normalized)
+    isPrivateIpv4(normalized) ||
+    isPrivateIpv6(normalized) ||
+    !isAllowedDatasetSourceHostname(normalized)
   );
 }
 
@@ -160,7 +205,7 @@ function parsePublicHttpUrl(value: string) {
       return null;
     }
 
-    if (isBlockedHostname(url.hostname)) {
+    if (isBlockedHostname(url.hostname) || !isKaggleDatasetUrl(url)) {
       return null;
     }
 
@@ -168,6 +213,45 @@ function parsePublicHttpUrl(value: string) {
   } catch {
     return null;
   }
+}
+
+function isRedirectResponse(response: Response) {
+  return [301, 302, 303, 307, 308].includes(response.status);
+}
+
+async function fetchDatasetSourcePage(url: URL, signal: AbortSignal) {
+  let currentUrl = url;
+
+  for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
+    const response = await fetch(currentUrl.toString(), {
+      headers: {
+        accept: "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5",
+        "user-agent": "SmileLearningDatasetValidator/1.0",
+      },
+      redirect: "manual",
+      signal,
+    });
+
+    if (!isRedirectResponse(response)) {
+      return { response, url: currentUrl };
+    }
+
+    const location = response.headers.get("location");
+
+    if (!location) {
+      return { response, url: currentUrl };
+    }
+
+    const nextUrl = parsePublicHttpUrl(new URL(location, currentUrl).toString());
+
+    if (!nextUrl) {
+      return { blockedRedirectUrl: location, response, url: currentUrl };
+    }
+
+    currentUrl = nextUrl;
+  }
+
+  return { tooManyRedirects: true, url: currentUrl };
 }
 
 function decodeHtmlEntities(value: string) {
@@ -434,14 +518,28 @@ export async function validateDatasetSourcePage(
   const timeoutId = setTimeout(() => controller.abort(), fetchTimeoutMs);
 
   try {
-    const response = await fetch(parsedUrl.toString(), {
-      headers: {
-        accept: "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5",
-        "user-agent": "SmileLearningDatasetValidator/1.0",
-      },
-      redirect: "follow",
-      signal: controller.signal,
-    });
+    const fetchedPage = await fetchDatasetSourcePage(parsedUrl, controller.signal);
+
+    if ("blockedRedirectUrl" in fetchedPage) {
+      return createResult({
+        httpStatus: fetchedPage.response.status,
+        issues: [copy.blockedUrl],
+        sourceId: source.id,
+        status: "invalid",
+        url: fetchedPage.url.toString(),
+      });
+    }
+
+    if ("tooManyRedirects" in fetchedPage) {
+      return createResult({
+        issues: [copy.fetchFailed],
+        sourceId: source.id,
+        status: "unreachable",
+        url: fetchedPage.url.toString(),
+      });
+    }
+
+    const { response, url: fetchedUrl } = fetchedPage;
     const contentType = response.headers.get("content-type") ?? "";
 
     if (!response.ok) {
@@ -450,7 +548,7 @@ export async function validateDatasetSourcePage(
         issues: [`${copy.fetchFailed} HTTP ${response.status}.`],
         sourceId: source.id,
         status: "unreachable",
-        url: parsedUrl.toString(),
+        url: fetchedUrl.toString(),
       });
     }
 
@@ -465,7 +563,7 @@ export async function validateDatasetSourcePage(
         signals: [contentType],
         sourceId: source.id,
         status: "partial",
-        url: parsedUrl.toString(),
+        url: fetchedUrl.toString(),
       });
     }
 
@@ -497,7 +595,7 @@ export async function validateDatasetSourcePage(
       sourceId: source.id,
       status: signals.length >= 2 ? "valid" : "partial",
       title,
-      url: parsedUrl.toString(),
+      url: fetchedUrl.toString(),
     });
   } catch {
     return createResult({

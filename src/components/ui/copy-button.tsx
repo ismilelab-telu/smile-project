@@ -58,7 +58,12 @@ function CopyButtonContent({
         filter: isVisible ? "blur(0px)" : "blur(6px)",
       }}
       aria-hidden={!isVisible}
-      className="col-start-1 row-start-1 inline-flex items-center justify-center gap-2.5 overflow-visible whitespace-nowrap"
+      className={cn(
+        "inline-flex items-center justify-center gap-2.5 overflow-visible whitespace-nowrap",
+        isVisible
+          ? "relative"
+          : "pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
+      )}
       initial={false}
       transition={blurTransition}
     >
@@ -184,7 +189,7 @@ export function CopyButton({
         aria-hidden="true"
         className="absolute inset-0 z-0 rounded-none bg-neutral-950 transition-colors duration-200 group-hover:bg-neutral-900"
       />
-      <span className="relative z-10 grid place-items-center overflow-visible">
+      <span className="relative z-10 inline-flex items-center justify-center overflow-visible">
         <CopyButtonContent icon={CopyIcon} isVisible={!isCopied} label={copyLabel} />
         <CopyButtonContent icon={CheckIcon} isVisible={isCopied} label={copiedLabel} />
       </span>

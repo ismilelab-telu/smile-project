@@ -278,7 +278,7 @@ const englishLessonCopyById: Record<string, LessonCopy> = {
           "Open Filters.",
           "Type linear regression, then click Apply.",
           "In the search field, type food deliv.",
-          "Choose the top result that is relevant to food delivery time prediction.",
+          "Choose a Kaggle dataset that is relevant to food delivery time prediction.",
           "Copy the dataset page link, then paste it into the Dataset link field.",
           "If the link is valid, the About dataset field will be filled automatically from the dataset page.",
         ],

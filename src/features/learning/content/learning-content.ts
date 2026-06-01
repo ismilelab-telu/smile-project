@@ -508,7 +508,7 @@ const lesson12OpenSourceExercise: OpenDatasetSourceExercise = {
     "Buka Filters.",
     "Ketik linear regression, lalu klik Apply.",
     "Di kolom pencarian, ketik food deliv.",
-    "Pilih hasil teratas yang relevan dengan prediksi waktu pengiriman makanan.",
+    "Pilih dataset Kaggle yang relevan dengan prediksi waktu pengiriman makanan.",
     "Salin link halaman dataset, lalu tempel ke field Link dataset.",
     "Jika link valid, kolom Tentang dataset akan terisi otomatis dari halaman dataset.",
   ],

@@ -1,25 +1,9 @@
 import type { ExerciseAttempt, LearningProgress, LessonAnswer } from "../types";
-
-type ViteImportMeta = ImportMeta & {
-  env?: {
-    VITE_LEARNING_BACKEND_URL?: string;
-  };
-};
+import { getLearningBackendUrl, readLearningBackendJson } from "../api/learning-backend";
 
 type RemoteLearningProgressResponse = {
   progress?: LearningProgress | null;
 };
-
-const defaultLearningBackendUrl =
-  "https://zr2esakjqcpiypbnq257nml72e0wjaco.lambda-url.ap-southeast-1.on.aws";
-
-function getLearningBackendUrl() {
-  return (
-    (import.meta as ViteImportMeta).env?.VITE_LEARNING_BACKEND_URL ?? defaultLearningBackendUrl
-  )
-    .trim()
-    .replace(/\/+$/, "");
-}
 
 export async function fetchRemoteLearningProgress(idToken: string) {
   const response = await fetch(`${getLearningBackendUrl()}/progress`, {
@@ -77,16 +61,6 @@ export function mergeLearningProgress(
     submittedExerciseAnswers,
     version: 1,
   };
-}
-
-async function readLearningBackendJson<T>(response: Response): Promise<T> {
-  const body = (await response.json().catch(() => ({}))) as { message?: string };
-
-  if (!response.ok) {
-    throw new Error(body.message ?? "Learning backend request failed.");
-  }
-
-  return body as T;
 }
 
 function mergeAttempts(
