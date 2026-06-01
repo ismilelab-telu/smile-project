@@ -86,6 +86,7 @@ import { LearningHeader } from "./LearningHeader";
 import { CopyButton } from "@/components/ui/copy-button";
 import { LinkPreview } from "@/components/ui/link-preview";
 import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getAuthAuthorizationHeader } from "@/features/auth/auth-session";
 import { useLocalization, type Locale } from "@/features/localization/localization";
 import { shouldReduceMotion } from "@/lib/motion";
@@ -1562,6 +1563,25 @@ function getCodeDiagnosticText(code: string, diagnostic: CodeDiagnostic) {
   const text = sourceLine.slice(startIndex, startIndex + length).padEnd(length, " ");
 
   return text.replace(/ /g, "\u00a0");
+}
+
+function renderCodeDiagnosticMessage(message: string) {
+  return message.split(/(`[^`]+`)/g).map((part, index) => {
+    const isInlineCode = part.length > 1 && part.startsWith("`") && part.endsWith("`");
+
+    if (!isInlineCode) {
+      return <Fragment key={`${part}-${index}`}>{part}</Fragment>;
+    }
+
+    return (
+      <code
+        className="border border-neutral-300 bg-white px-1 py-0.5 font-mono text-[0.85em] font-medium text-rose-600"
+        key={`${part}-${index}`}
+      >
+        {part.slice(1, -1)}
+      </code>
+    );
+  });
 }
 
 function getCodeDiagnostics(
@@ -3822,22 +3842,38 @@ function GuidedDownloadExerciseView({
                         {expectedCodeGhostText}
                       </pre>
                     ) : null}
-                    {codeDiagnostics.map((diagnostic, diagnosticIndex) => (
-                      <span
-                        aria-hidden="true"
-                        className="absolute z-30 h-6 cursor-help select-none whitespace-pre font-mono text-sm leading-6 text-transparent underline decoration-rose-500 decoration-[1.5px] decoration-wavy underline-offset-[3px] [text-decoration-skip-ink:none]"
-                        key={`${diagnostic.line}-${diagnostic.column}-${diagnosticIndex}`}
-                        style={{
-                          left: `calc(3.5rem + ${(diagnostic.column - 1).toString()}ch - ${
-                            codeEditorScrollOffset.left
-                          }px)`,
-                          top: `${12 + (diagnostic.line - 1) * 24 - codeEditorScrollOffset.top}px`,
-                        }}
-                        title={diagnostic.message}
-                      >
-                        {getCodeDiagnosticText(displayedCode, diagnostic)}
-                      </span>
-                    ))}
+                    <TooltipProvider closeDelay={80}>
+                      {codeDiagnostics.map((diagnostic, diagnosticIndex) => (
+                        <Tooltip
+                          align="start"
+                          key={`${diagnostic.line}-${diagnostic.column}-${diagnosticIndex}`}
+                          side="top"
+                          sideOffset={8}
+                        >
+                          <TooltipTrigger asChild>
+                            <span
+                              aria-label={diagnostic.message}
+                              className="absolute z-30 h-6 cursor-help select-none whitespace-pre font-mono text-sm leading-6 text-transparent underline decoration-rose-500 decoration-[1.5px] decoration-wavy underline-offset-[3px] outline-none [text-decoration-skip-ink:none] focus-visible:bg-rose-500/10"
+                              role="button"
+                              style={{
+                                left: `calc(3.5rem + ${(diagnostic.column - 1).toString()}ch - ${
+                                  codeEditorScrollOffset.left
+                                }px)`,
+                                top: `${
+                                  12 + (diagnostic.line - 1) * 24 - codeEditorScrollOffset.top
+                                }px`,
+                              }}
+                              tabIndex={0}
+                            >
+                              {getCodeDiagnosticText(displayedCode, diagnostic)}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {renderCodeDiagnosticMessage(diagnostic.message)}
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </TooltipProvider>
                     <textarea
                       aria-label={exercise.codeLabel}
                       className="relative z-10 min-h-32 w-full resize-y bg-transparent py-3 pr-4 pl-14 font-mono text-sm leading-6 text-neutral-50 caret-neutral-50 outline-none disabled:bg-transparent disabled:text-neutral-400"
