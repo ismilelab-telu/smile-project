@@ -65,6 +65,18 @@ class LearningBackendTest(unittest.TestCase):
         self.assertEqual(result["columns"], ["Order_ID", "Time_taken"])
         self.assertEqual(result["previewRows"], [["1", "42"], ["2", "36"]])
 
+    def test_allows_custom_pandas_alias_and_dataframe_name(self) -> None:
+        expected_path = "data/Food_Delivery_Times.csv"
+        result = run_pandas_loading_code(
+            f'import pandas as pan\n\npan = pan.read_csv("{expected_path}")\npan.head()',
+            expected_path,
+            b"Order_ID,Time_taken\n1,42\n2,36\n",
+        )
+
+        self.assertEqual(result["status"], "correct")
+        self.assertEqual(result["columns"], ["Order_ID", "Time_taken"])
+        self.assertEqual(result["previewRows"], [["1", "42"], ["2", "36"]])
+
     def test_allows_head_row_count_up_to_ten(self) -> None:
         expected_path = "data/Food_Delivery_Times.csv"
         result = run_pandas_loading_code(

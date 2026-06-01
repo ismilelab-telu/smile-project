@@ -1543,22 +1543,103 @@ function getGuidedDownloadExpectedCode(
     : exercise.codePlaceholder;
 }
 
-function getExpectedCodeGhostText(expectedCode: string, typedCode: string) {
-  const normalizedTypedCode = typedCode.replace(/\r\n?/g, "\n");
-  let sharedPrefixLength = 0;
+function getGuidedDownloadPredictionCode(
+  exercise: GuidedDownloadExercise,
+  extractedFilePath: string | undefined,
+  typedCode: string,
+) {
+  const normalizedPath = extractedFilePath?.trim();
 
-  while (
-    sharedPrefixLength < expectedCode.length &&
-    sharedPrefixLength < normalizedTypedCode.length &&
-    expectedCode[sharedPrefixLength] === normalizedTypedCode[sharedPrefixLength]
-  ) {
-    sharedPrefixLength += 1;
+  if (!normalizedPath) {
+    return exercise.codePlaceholder;
   }
 
-  return (
-    expectedCode.slice(0, sharedPrefixLength).replace(/[^\n]/g, " ") +
-    expectedCode.slice(sharedPrefixLength)
+  const pandasAlias = getTypedPandasAlias(typedCode) ?? "pd";
+  const dataframeName = getTypedDataframeName(typedCode) ?? "df";
+
+  return `import pandas as ${pandasAlias}\n\n${dataframeName} = ${pandasAlias}.read_csv("${normalizedPath}")\n${dataframeName}.head()`;
+}
+
+const pythonIdentifierPattern = "[A-Za-z_][A-Za-z0-9_]*";
+
+function getTypedPandasAlias(code: string) {
+  const normalizedCode = code.replace(/\r\n?/g, "\n");
+  const match = new RegExp(
+    `^\\s*import\\s+pandas\\s+as\\s+(${pythonIdentifierPattern})\\b`,
+    "m",
+  ).exec(normalizedCode);
+
+  return match?.[1] ?? null;
+}
+
+function getTypedDataframeName(code: string) {
+  const normalizedCode = code.replace(/\r\n?/g, "\n");
+  const match = new RegExp(`^\\s*(${pythonIdentifierPattern})\\s*=`, "m").exec(normalizedCode);
+
+  return match?.[1] ?? null;
+}
+
+function getExpectedCodePredictionText(expectedCode: string, typedCode: string) {
+  const normalizedTypedCode = typedCode.replace(/\r\n?/g, "\n");
+  const expectedCompletionIndex = getSmartPredictionCompletionIndex(
+    expectedCode,
+    normalizedTypedCode,
   );
+
+  if (expectedCompletionIndex === null || expectedCompletionIndex >= expectedCode.length) {
+    return "";
+  }
+
+  return normalizedTypedCode.replace(/[^\n]/g, " ") + expectedCode.slice(expectedCompletionIndex);
+}
+
+function getSmartPredictionCompletionIndex(expectedCode: string, typedCode: string) {
+  let expectedIndex = 0;
+  let typedIndex = 0;
+
+  while (typedIndex < typedCode.length) {
+    const typedCharacter = typedCode[typedIndex] ?? "";
+
+    if (isCodePredictionWhitespace(typedCharacter)) {
+      while (
+        typedIndex < typedCode.length &&
+        isCodePredictionWhitespace(typedCode[typedIndex] ?? "")
+      ) {
+        typedIndex += 1;
+      }
+
+      if (isCodePredictionWhitespace(expectedCode[expectedIndex] ?? "")) {
+        while (
+          expectedIndex < expectedCode.length &&
+          isCodePredictionWhitespace(expectedCode[expectedIndex] ?? "")
+        ) {
+          expectedIndex += 1;
+        }
+      }
+
+      continue;
+    }
+
+    while (
+      expectedIndex < expectedCode.length &&
+      isCodePredictionWhitespace(expectedCode[expectedIndex] ?? "")
+    ) {
+      expectedIndex += 1;
+    }
+
+    if (expectedCode[expectedIndex] !== typedCharacter) {
+      return null;
+    }
+
+    expectedIndex += 1;
+    typedIndex += 1;
+  }
+
+  return expectedIndex;
+}
+
+function isCodePredictionWhitespace(character: string) {
+  return character === " " || character === "\n" || character === "\t";
 }
 
 function getCodeLineNumbers(value: string) {
@@ -1762,7 +1843,11 @@ function createExpectedReadCsvPathDiagnostic({
   }
 
   const normalizedCode = code.replace(/\r\n?/g, "\n");
-  const readCsvPathPattern = /pd\s*\.\s*read_csv\s*\(\s*(["'])(.*?)\1/;
+  const pandasAlias = getTypedPandasAlias(code) ?? "pd";
+  const escapedPandasAlias = pandasAlias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const readCsvPathPattern = new RegExp(
+    `${escapedPandasAlias}\\s*\\.\\s*read_csv\\s*\\(\\s*(["'])(.*?)\\1`,
+  );
 
   for (const [lineIndex, sourceLine] of normalizedCode.split("\n").entries()) {
     const match = readCsvPathPattern.exec(sourceLine);
@@ -1778,7 +1863,7 @@ function createExpectedReadCsvPathDiagnostic({
       column: match.index + quotedPathIndex + 1,
       line: lineIndex + 1,
       lines,
-      message: `Use exactly \`${expectedPath}\` inside \`pd.read_csv(...)\`.`,
+      message: `Use exactly \`${expectedPath}\` inside \`${pandasAlias}.read_csv(...)\`.`,
       preferredLength: quotedPath.length,
     });
   }
@@ -3728,9 +3813,14 @@ function GuidedDownloadExerciseView({
   const hasExtractedFilePath = displayedExtractedFilePath.trim() !== "";
   const expectedCode = getGuidedDownloadExpectedCode(exercise, displayedExtractedFilePath);
   const displayedCode = isReviewMode && submittedCode.trim() !== "" ? submittedCode : code;
-  const expectedCodeGhostText = isReviewMode
+  const predictionCode = getGuidedDownloadPredictionCode(
+    exercise,
+    displayedExtractedFilePath,
+    displayedCode,
+  );
+  const expectedCodePredictionText = isReviewMode
     ? ""
-    : getExpectedCodeGhostText(expectedCode, displayedCode);
+    : getExpectedCodePredictionText(predictionCode, displayedCode);
   const codeLineNumbers = getCodeLineNumbers(displayedCode || expectedCode);
   const isPandasCodeRunResultForDisplayedCode =
     pandasCodeRunResult !== undefined &&
@@ -3984,7 +4074,7 @@ function GuidedDownloadExerciseView({
                         ))}
                       </div>
                     </div>
-                    {expectedCodeGhostText ? (
+                    {expectedCodePredictionText ? (
                       <pre
                         aria-hidden="true"
                         className="pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre-wrap break-words py-3 pr-4 pl-14 font-mono text-sm leading-6 text-neutral-700"
@@ -3992,7 +4082,7 @@ function GuidedDownloadExerciseView({
                           transform: `translate(${-codeEditorScrollOffset.left}px, ${-codeEditorScrollOffset.top}px)`,
                         }}
                       >
-                        {expectedCodeGhostText}
+                        {expectedCodePredictionText}
                       </pre>
                     ) : null}
                     <TooltipProvider closeDelay={80} resetKey={codeDiagnosticsResetKey}>
@@ -4033,6 +4123,39 @@ function GuidedDownloadExerciseView({
                       className="relative z-10 min-h-32 w-full resize-y bg-transparent py-3 pr-4 pl-14 font-mono text-sm leading-6 text-neutral-50 caret-neutral-50 outline-none disabled:bg-transparent disabled:text-neutral-400"
                       disabled={(!hasSourceUrl || !hasExtractedFilePath) && !isReviewMode}
                       onChange={(event) => onUpdateCode(event.currentTarget.value)}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Tab" || isReviewMode) {
+                          return;
+                        }
+
+                        const textarea = event.currentTarget;
+                        const currentCode = textarea.value;
+                        const isCursorAtEnd =
+                          textarea.selectionStart === currentCode.length &&
+                          textarea.selectionEnd === currentCode.length;
+                        const nextPredictionCode = getGuidedDownloadPredictionCode(
+                          exercise,
+                          displayedExtractedFilePath,
+                          currentCode,
+                        );
+                        const predictionText = getExpectedCodePredictionText(
+                          nextPredictionCode,
+                          currentCode,
+                        );
+
+                        if (!isCursorAtEnd || !predictionText) {
+                          return;
+                        }
+
+                        event.preventDefault();
+                        onUpdateCode(nextPredictionCode);
+                        window.requestAnimationFrame(() => {
+                          codeEditorRef.current?.setSelectionRange(
+                            nextPredictionCode.length,
+                            nextPredictionCode.length,
+                          );
+                        });
+                      }}
                       onScroll={(event) => {
                         const nextLeft = event.currentTarget.scrollLeft;
                         const nextTop = event.currentTarget.scrollTop;
@@ -4043,7 +4166,7 @@ function GuidedDownloadExerciseView({
                             : { left: nextLeft, top: nextTop },
                         );
                       }}
-                      placeholder={expectedCode}
+                      placeholder=""
                       readOnly={isReviewMode}
                       ref={codeEditorRef}
                       spellCheck={false}

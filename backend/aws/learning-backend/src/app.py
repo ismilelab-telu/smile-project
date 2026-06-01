@@ -600,36 +600,45 @@ def get_restricted_pandas_runtime_plan(tree: ast.Module) -> tuple[dict[str, Any]
 
     import_node = body[0] if len(body) > 0 else tree
     assign_node = body[1] if len(body) > 1 else tree
-    import_allowed = isinstance(import_node, ast.Import) and is_allowed_pandas_import(import_node)
+    pandas_alias = get_pandas_import_alias(import_node) if isinstance(import_node, ast.Import) else None
+    import_allowed = pandas_alias is not None
     if not import_allowed:
-        diagnostics.append(create_node_diagnostic(import_node, "Only `import pandas as pd` is allowed."))
+        diagnostics.append(create_node_diagnostic(import_node, "Use an import like `import pandas as pd`."))
+        pandas_alias = "pd"
 
     if not isinstance(assign_node, ast.Assign):
         diagnostics.append(
-            create_node_diagnostic(assign_node, "Load the CSV with an assignment like `df = pd.read_csv(...)`.")
+            create_node_diagnostic(
+                assign_node,
+                f"Load the CSV with an assignment like `df = {pandas_alias}.read_csv(...)`.",
+            )
         )
         target_name = "df"
         read_csv_path = ""
         read_csv_diagnostic = None
     else:
         target_name, read_csv_path, read_csv_diagnostic, assignment_diagnostics = (
-            get_restricted_read_csv_assignment(assign_node)
+            get_restricted_read_csv_assignment(assign_node, pandas_alias)
         )
         diagnostics.extend(assignment_diagnostics)
 
     head_rows = None
     if len(body) > 2:
         head_node = body[2]
-        head_rows, head_diagnostics = get_restricted_head_expression(head_node, target_name or "df")
+        head_rows, head_diagnostics = get_restricted_head_expression(
+            head_node,
+            target_name or "df",
+            pandas_alias,
+        )
         diagnostics.extend(head_diagnostics)
     else:
-        diagnostics.append(create_missing_output_diagnostic(body, tree))
+        diagnostics.append(create_missing_output_diagnostic(body, tree, target_name or "df"))
 
     if len(body) > 3:
         diagnostics.extend(
             create_node_diagnostic(
                 extra_node,
-                "Only one output expression is allowed after `pd.read_csv(...)`.",
+                f"Only one output expression is allowed after `{pandas_alias}.read_csv(...)`.",
             )
             for extra_node in body[3:]
         )
@@ -644,6 +653,7 @@ def get_restricted_pandas_runtime_plan(tree: ast.Module) -> tuple[dict[str, Any]
 
 def get_restricted_read_csv_assignment(
     node: ast.Assign,
+    pandas_alias: str,
 ) -> tuple[str, str, dict[str, Any] | None, list[dict[str, Any]]]:
     diagnostics: list[dict[str, Any]] = []
 
@@ -661,31 +671,44 @@ def get_restricted_read_csv_assignment(
         not isinstance(value, ast.Call)
         or not isinstance(value.func, ast.Attribute)
         or not isinstance(value.func.value, ast.Name)
-        or value.func.value.id != "pd"
+        or value.func.value.id != pandas_alias
         or value.func.attr != "read_csv"
     ):
         diagnostics.append(
             create_node_diagnostic(
                 get_call_diagnostic_node(value),
-                "Only `pd.read_csv(...)` can load the CSV in this lesson runtime.",
+                f"Only `{pandas_alias}.read_csv(...)` can load the CSV in this lesson runtime.",
             )
         )
         return target_name, "", None, diagnostics
 
     if value.keywords:
         diagnostics.extend(
-            create_node_diagnostic(keyword, "`pd.read_csv(...)` keyword arguments are not enabled yet.")
+            create_node_diagnostic(
+                keyword,
+                f"`{pandas_alias}.read_csv(...)` keyword arguments are not enabled yet.",
+            )
             for keyword in value.keywords
         )
 
     if len(value.args) != 1 or not isinstance(value.args[0], ast.Constant):
-        diagnostics.append(create_node_diagnostic(value, "`pd.read_csv(...)` needs one literal CSV path."))
+        diagnostics.append(
+            create_node_diagnostic(value, f"`{pandas_alias}.read_csv(...)` needs one literal CSV path.")
+        )
         return target_name, "", None, diagnostics
 
     read_csv_path = value.args[0].value
-    read_csv_diagnostic = create_node_diagnostic(value.args[0], "CSV path used by `pd.read_csv(...)`.")
+    read_csv_diagnostic = create_node_diagnostic(
+        value.args[0],
+        f"CSV path used by `{pandas_alias}.read_csv(...)`.",
+    )
     if not isinstance(read_csv_path, str):
-        diagnostics.append(create_node_diagnostic(value.args[0], "`pd.read_csv(...)` needs a string CSV path."))
+        diagnostics.append(
+            create_node_diagnostic(
+                value.args[0],
+                f"`{pandas_alias}.read_csv(...)` needs a string CSV path.",
+            )
+        )
         return target_name, "", read_csv_diagnostic, diagnostics
 
     if is_unsafe_runtime_read_path(read_csv_path):
@@ -699,12 +722,16 @@ def get_restricted_read_csv_assignment(
 def get_restricted_head_expression(
     node: ast.AST,
     target_name: str,
+    pandas_alias: str,
 ) -> tuple[int | None, list[dict[str, Any]]]:
     diagnostics: list[dict[str, Any]] = []
 
     if not isinstance(node, ast.Expr):
         return None, [
-            create_node_diagnostic(node, "Put `df.head()` on the last line so the runtime can display output.")
+            create_node_diagnostic(
+                node,
+                f"Put `{target_name}.head()` on the last line so the runtime can display output.",
+            )
         ]
 
     value = node.value
@@ -718,7 +745,7 @@ def get_restricted_head_expression(
         return None, [
             create_node_diagnostic(
                 value.func,
-                get_mismatched_head_target_error_message(value.func.value.id),
+                get_mismatched_head_target_error_message(value.func.value.id, pandas_alias),
             )
         ]
 
@@ -738,13 +765,16 @@ def get_restricted_head_expression(
 
     if value.keywords:
         diagnostics.extend(
-            create_node_diagnostic(keyword, "`df.head(...)` keyword arguments are not enabled yet.")
+            create_node_diagnostic(
+                keyword,
+                f"`{target_name}.head(...)` keyword arguments are not enabled yet.",
+            )
             for keyword in value.keywords
         )
 
     if len(value.args) > 1:
         diagnostics.extend(
-            create_node_diagnostic(arg, "`df.head(...)` accepts at most one row count.")
+            create_node_diagnostic(arg, f"`{target_name}.head(...)` accepts at most one row count.")
             for arg in value.args[1:]
         )
         return None, diagnostics
@@ -759,21 +789,31 @@ def get_restricted_head_expression(
         or isinstance(head_rows.value, bool)
     ):
         diagnostics.append(
-            create_node_diagnostic(head_rows, "`df.head(...)` row count must be an integer from 0 to 10.")
+            create_node_diagnostic(
+                head_rows,
+                f"`{target_name}.head(...)` row count must be an integer from 0 to 10.",
+            )
         )
         return None, diagnostics
 
     if head_rows.value < 0 or head_rows.value > 10:
         diagnostics.append(
-            create_node_diagnostic(head_rows, "`df.head(...)` row count must be between 0 and 10.")
+            create_node_diagnostic(
+                head_rows,
+                f"`{target_name}.head(...)` row count must be between 0 and 10.",
+            )
         )
         return None, diagnostics
 
     return head_rows.value, diagnostics
 
 
-def create_missing_output_diagnostic(body: list[ast.stmt], tree: ast.Module) -> dict[str, Any]:
-    message = "Put `df.head()` on the last line so the runtime can display output."
+def create_missing_output_diagnostic(
+    body: list[ast.stmt],
+    tree: ast.Module,
+    target_name: str,
+) -> dict[str, Any]:
+    message = f"Put `{target_name}.head()` on the last line so the runtime can display output."
     if not body:
         return create_node_diagnostic(tree, message)
 
@@ -798,12 +838,15 @@ def get_call_diagnostic_node(node: ast.AST) -> ast.AST:
     return node
 
 
-def is_allowed_pandas_import(node: ast.Import) -> bool:
-    return (
-        len(node.names) == 1
-        and node.names[0].name == "pandas"
-        and node.names[0].asname == "pd"
-    )
+def get_pandas_import_alias(node: ast.Import) -> str | None:
+    if len(node.names) != 1 or node.names[0].name != "pandas":
+        return None
+
+    alias = node.names[0].asname
+    if not alias or not alias.isidentifier() or alias.startswith("__"):
+        return None
+
+    return alias
 
 
 def is_unsafe_runtime_read_path(path: str) -> bool:
@@ -838,8 +881,8 @@ def format_restricted_runtime_error(message: str) -> str:
     return format_lesson_runtime_error(message)
 
 
-def get_mismatched_head_target_error_message(target_name: str) -> str:
-    if target_name == "pd":
+def get_mismatched_head_target_error_message(target_name: str, pandas_alias: str) -> str:
+    if target_name == pandas_alias:
         return "AttributeError: module 'pandas' has no attribute 'head'"
 
     return f"NameError: name '{target_name}' is not defined"

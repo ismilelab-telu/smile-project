@@ -841,10 +841,7 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(submittedUrl)).toBeInTheDocument();
     expect(screen.getByLabelText("Upload ZIP dataset")).toBeInTheDocument();
-    expect(screen.getByLabelText("Kode Pandas")).toHaveAttribute(
-      "placeholder",
-      'import pandas as pd\n\ndf = pd.read_csv("data/nama-file.csv")\ndf.head()',
-    );
+    expect(screen.getByLabelText("Kode Pandas")).toHaveAttribute("placeholder", "");
     expect(screen.getByText("Python")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Salin kode" })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Kirim jawaban" })).toHaveLength(2);
