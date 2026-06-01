@@ -3949,7 +3949,7 @@ function PandasCodeRunOutput({ result }: { result: PandasCodeRunResult | undefin
       </div>
       {isCorrect ? (
         result.columns.length > 0 ? (
-          <div className="max-w-full overflow-x-auto">
+          <div className="max-w-full overflow-x-auto pb-4 [scrollbar-gutter:stable]">
             <table className="w-full min-w-max border-collapse text-left text-sm">
               <thead>
                 <tr className="bg-neutral-100">
