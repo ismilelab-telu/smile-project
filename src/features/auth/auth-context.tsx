@@ -122,6 +122,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = useCallback(async (input: { email: string; name: string; password: string }) => {
+    clearAuthSession();
+    setSession(null);
+
     const response = await signUpWithCognito(input);
 
     return {

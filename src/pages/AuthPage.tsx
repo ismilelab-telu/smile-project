@@ -452,7 +452,6 @@ function AuthFormPanel({
   const [isConfirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<AuthStatusMessage | null>(null);
-  const renderedStatusMessage = statusMessage ? getAuthStatusMessage(statusMessage, locale) : "";
   const usernameError = getUsernameValidationMessage(name, locale);
   const trimmedEmail = email.trim();
   const isUsernameSignIn = !isRegister && loginMethod === "username";
@@ -479,6 +478,9 @@ function AuthFormPanel({
     Boolean(confirmPasswordError) &&
     (confirmPassword.length > 0 || isConfirmPasswordTouched);
   const isConfirmingAccount = confirmationEmail.length > 0;
+  const renderedStatusMessage = statusMessage
+    ? getAuthStatusMessage(statusMessage, locale, isConfirmingAccount)
+    : "";
   const confirmationTitle = getConfirmationStepTitle(locale);
 
   useEffect(() => {
@@ -1505,7 +1507,7 @@ function getAuthFields(
 
   return [
     {
-      autoComplete: "username",
+      autoComplete: "nickname",
       helper: copy.nameHelper,
       id: "auth-name",
       label: copy.name,
@@ -1589,14 +1591,21 @@ function getSubmitLabel({
   return submit;
 }
 
-function getAuthStatusMessage(message: AuthStatusMessage, locale: Locale) {
+function getAuthStatusMessage(
+  message: AuthStatusMessage,
+  locale: Locale,
+  shouldHideDestination = false,
+) {
   if (message.kind === "account-unconfirmed") {
     return locale === "en"
       ? "This account still needs the verification code from email. If it does not show up, check your spam or junk folder."
       : "Akun ini masih perlu kode verifikasi dari email. Kalau belum muncul, cek folder spam atau junk juga.";
   }
 
-  return getConfirmationSentMessage(locale, message.destination);
+  return getConfirmationSentMessage(
+    locale,
+    shouldHideDestination ? undefined : message.destination,
+  );
 }
 
 function getConfirmationSentMessage(locale: Locale, destination?: string) {
