@@ -4,8 +4,14 @@ import { flushSync } from "react-dom";
 import { ExternalLinkGuard } from "@/components/ExternalLinkGuard";
 import { LinkPreviewProvider } from "@/components/ui/link-preview";
 import LiquidEther from "@/components/ui/liquid-ether";
-import { AuthProvider } from "@/features/auth/auth-context";
-import { LocalizationProvider } from "@/features/localization/localization";
+import { AuthProvider, useAuth } from "@/features/auth/auth-context";
+import {
+  getLesson,
+  getModule,
+  getTrack,
+  isLessonAvailable,
+} from "@/features/learning/content/learning-content";
+import { LocalizationProvider, useLocalization } from "@/features/localization/localization";
 import { AuthPage } from "@/pages/AuthPage";
 import { ExplorePage } from "@/pages/ExplorePage";
 
@@ -23,6 +29,12 @@ const LearningPage = lazy(() =>
 
 type RouteTheme = "dark" | "light";
 type RouteTransition = "back" | "content-fade" | "forward";
+type AuthMode = "login" | "register";
+type PendingLearningAuthGate = {
+  backgroundPath: string;
+  mode: AuthMode;
+  successHref: string;
+};
 type ViewTransitionDocument = Document & {
   startViewTransition?: (callback: () => void) => { finished: Promise<void> };
 };
@@ -57,6 +69,34 @@ function isLearningLessonRoute(pathname: string) {
   const parts = pathname.split("/").filter(Boolean);
 
   return parts[0] === "learn" && parts.length === 3;
+}
+
+function isLearningAuthRequiredRoute(pathname: string) {
+  const parts = pathname.split("/").filter(Boolean);
+  const trackId = parts[1];
+  const lessonId = parts[2];
+
+  if (parts[0] !== "learn" || parts.length !== 3 || !trackId || !lessonId) {
+    return false;
+  }
+
+  const track = getTrack(trackId);
+  const lesson = getLesson(lessonId);
+  const lessonModule = lesson ? getModule(lesson.moduleId) : undefined;
+  const isLessonInTrack =
+    track !== undefined &&
+    lesson !== undefined &&
+    lessonModule !== undefined &&
+    track.moduleIds.includes(lesson.moduleId) &&
+    lessonModule.lessonIds.includes(lesson.id);
+
+  if (!lesson || !isLessonInTrack || !isLessonAvailable(lesson)) {
+    return false;
+  }
+
+  return (lesson.exercises ?? [lesson.exercise]).some(
+    (exercise) => exercise.type === "guided-download",
+  );
 }
 
 function isAuthRoute(pathname: string) {
@@ -178,17 +218,22 @@ export function App() {
 }
 
 function AppRoutes() {
+  const { isAuthenticated } = useAuth();
+  const { locale } = useLocalization();
   const [path, setPath] = useState(getCurrentPath);
   const [backgroundPath, setBackgroundPath] = useState(() => {
     const currentPath = getCurrentPath();
 
     return isAuthRoute(currentPath) ? "/learn" : currentPath;
   });
+  const [pendingLearningAuthGate, setPendingLearningAuthGate] =
+    useState<PendingLearningAuthGate | null>(null);
   const hasRenderedLandingRef = useRef(false);
   const visiblePath = isAuthRoute(path) ? backgroundPath : path;
   const shouldSkipLandingIntro = visiblePath === "/" && hasRenderedLandingRef.current;
   const pathRef = useRef(path);
   const backgroundPathRef = useRef(backgroundPath);
+  const isAuthenticatedRef = useRef(isAuthenticated);
 
   useEffect(() => {
     pathRef.current = path;
@@ -197,6 +242,10 @@ function AppRoutes() {
   useEffect(() => {
     backgroundPathRef.current = backgroundPath;
   }, [backgroundPath]);
+
+  useEffect(() => {
+    isAuthenticatedRef.current = isAuthenticated;
+  }, [isAuthenticated]);
 
   const handleLandingRendered = useCallback(() => {
     hasRenderedLandingRef.current = true;
@@ -285,6 +334,19 @@ function AppRoutes() {
         return;
       }
 
+      if (
+        !isAuthenticatedRef.current &&
+        !isAuthRoute(currentPath) &&
+        isLearningAuthRequiredRoute(url.pathname)
+      ) {
+        setPendingLearningAuthGate({
+          backgroundPath: currentPath,
+          mode: "login",
+          successHref: url.pathname,
+        });
+        return;
+      }
+
       const viewTransitionDocument = document as ViewTransitionDocument;
       const startViewTransition = viewTransitionDocument.startViewTransition?.bind(document);
       const involvesAuthRoute = isAuthRoute(currentPath) || isAuthRoute(url.pathname);
@@ -360,6 +422,25 @@ function AppRoutes() {
         <AuthPage closeHref={backgroundPath} mode="login" />
       ) : path === "/register" ? (
         <AuthPage closeHref={backgroundPath} mode="register" />
+      ) : null}
+      {pendingLearningAuthGate ? (
+        <AuthPage
+          closeHref={pendingLearningAuthGate.backgroundPath}
+          mode={pendingLearningAuthGate.mode}
+          onAuthenticated={() => setPendingLearningAuthGate(null)}
+          onClose={() => setPendingLearningAuthGate(null)}
+          onModeChange={(mode) =>
+            setPendingLearningAuthGate((current) => (current ? { ...current, mode } : current))
+          }
+          successHref={pendingLearningAuthGate.successHref}
+          titleOverride={
+            pendingLearningAuthGate.mode === "login"
+              ? locale === "en"
+                ? "Sign in first"
+                : "Masuk terlebih dahulu"
+              : undefined
+          }
+        />
       ) : null}
     </>
   );

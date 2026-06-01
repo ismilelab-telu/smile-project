@@ -18,6 +18,11 @@ type AuthMode = "login" | "register";
 type AuthPageProps = {
   closeHref?: string;
   mode: AuthMode;
+  onAuthenticated?: () => void;
+  onClose?: () => void;
+  onModeChange?: (mode: AuthMode) => void;
+  successHref?: string;
+  titleOverride?: string;
 };
 
 type AuthField = {
@@ -129,17 +134,29 @@ const authPortalPanelTransition = { damping: 25, stiffness: 150, type: "spring" 
 const authSharedLayoutTransition = { damping: 32, mass: 0.9, stiffness: 260, type: "spring" };
 const authRegisterFieldRevealTransition = { duration: 0.24, ease: "easeOut" };
 
-export function AuthPage({ closeHref = "/learn", mode }: AuthPageProps) {
+export function AuthPage({
+  closeHref = "/learn",
+  mode,
+  onAuthenticated,
+  onClose,
+  onModeChange,
+  successHref,
+  titleOverride,
+}: AuthPageProps) {
   const rootRef = useRef<HTMLElement>(null);
   const [isClosing, setIsClosing] = useState(false);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   const { locale } = useLocalization();
   const safeCloseHref = isAuthHref(closeHref) ? "/learn" : closeHref;
+  const resolvedSuccessHref = successHref ?? safeCloseHref;
+  const safeSuccessHref = isAuthHref(resolvedSuccessHref) ? "/learn" : resolvedSuccessHref;
+  const dialogTitle = titleOverride ?? authCopy[locale][mode].title;
 
   const navigateToCloseHref = useCallback(() => {
     window.history.pushState(null, "", safeCloseHref);
     window.dispatchEvent(new PopStateEvent("popstate"));
-  }, [safeCloseHref]);
+    onClose?.();
+  }, [onClose, safeCloseHref]);
 
   const closePortal = useCallback(() => {
     if (isClosing) {
@@ -244,11 +261,15 @@ export function AuthPage({ closeHref = "/learn", mode }: AuthPageProps) {
               <AuthFormPanel
                 className={isRegister ? "lg:col-start-1" : "lg:col-start-2"}
                 mode={mode}
+                onAuthenticated={onAuthenticated}
+                onModeChange={onModeChange}
+                successHref={safeSuccessHref}
+                titleOverride={titleOverride}
               />
             </section>
           </LayoutGroup>
           <span className="sr-only" id="auth-dialog-title">
-            {authCopy[locale][mode].title}
+            {dialogTitle}
           </span>
         </motion.main>
       </div>
@@ -364,10 +385,25 @@ function AuthLanguageSwitcher({ isRegister }: { isRegister: boolean }) {
   );
 }
 
-function AuthFormPanel({ className, mode }: { className: string; mode: AuthMode }) {
+function AuthFormPanel({
+  className,
+  mode,
+  onAuthenticated,
+  onModeChange,
+  successHref,
+  titleOverride,
+}: {
+  className: string;
+  mode: AuthMode;
+  onAuthenticated?: () => void;
+  onModeChange?: (mode: AuthMode) => void;
+  successHref: string;
+  titleOverride?: string;
+}) {
   const auth = useAuth();
   const { locale } = useLocalization();
   const copy = authCopy[locale][mode];
+  const title = titleOverride ?? copy.title;
   const isRegister = mode === "register";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -490,7 +526,7 @@ function AuthFormPanel({ className, mode }: { className: string; mode: AuthMode 
 
         if (signUpResult.userConfirmed) {
           await auth.signIn({ email: normalizedEmail, password });
-          redirectToLearning();
+          redirectAfterAuth(successHref, onAuthenticated);
           return;
         }
 
@@ -506,12 +542,12 @@ function AuthFormPanel({ className, mode }: { className: string; mode: AuthMode 
           email: confirmationEmail,
         });
         await auth.signIn({ email: confirmationEmail, password });
-        redirectToLearning();
+        redirectAfterAuth(successHref, onAuthenticated);
         return;
       }
 
       await auth.signIn({ email: normalizedEmail, password });
-      redirectToLearning();
+      redirectAfterAuth(successHref, onAuthenticated);
     } catch (error) {
       if (error instanceof CognitoAuthError && error.code === "UserNotConfirmedException") {
         setConfirmationEmail(normalizedEmail);
@@ -595,6 +631,9 @@ function AuthFormPanel({ className, mode }: { className: string; mode: AuthMode 
   const emailField = findAuthField(currentFields, "auth-email");
   const passwordField = findAuthField(currentFields, "auth-password");
   const confirmPasswordField = findAuthField(registerFields, "auth-confirm-password");
+  const switchMode: AuthMode = isRegister ? "login" : "register";
+  const switchClassName =
+    "font-medium text-foreground underline underline-offset-4 transition-colors hover:text-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400";
 
   const renderAuthInput = (
     field: AuthField,
@@ -687,7 +726,7 @@ function AuthFormPanel({ className, mode }: { className: string; mode: AuthMode 
               layout="position"
               transition={authSharedLayoutTransition}
             >
-              {copy.title}
+              {title}
             </motion.h1>
             {copy.description ? (
               <p className="text-sm leading-6 text-muted-foreground">{copy.description}</p>
@@ -773,13 +812,19 @@ function AuthFormPanel({ className, mode }: { className: string; mode: AuthMode 
             transition={authSharedLayoutTransition}
           >
             {copy.switchLabel}{" "}
-            <a
-              className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
-              data-app-link
-              href={copy.switchHref}
-            >
-              {copy.switchAction}
-            </a>
+            {onModeChange ? (
+              <button
+                className={switchClassName}
+                onClick={() => onModeChange(switchMode)}
+                type="button"
+              >
+                {copy.switchAction}
+              </button>
+            ) : (
+              <a className={switchClassName} data-app-link href={copy.switchHref}>
+                {copy.switchAction}
+              </a>
+            )}
           </motion.p>
         </div>
       </div>
@@ -1371,10 +1416,11 @@ function getAuthErrorMessage(error: unknown, locale: Locale) {
   return locale === "en" ? "Auth request failed." : "Permintaan auth gagal.";
 }
 
-function redirectToLearning() {
-  window.history.pushState(null, "", "/learn");
+function redirectAfterAuth(href: string, onAuthenticated?: () => void) {
+  window.history.pushState(null, "", href);
   window.dispatchEvent(new PopStateEvent("popstate"));
   window.scrollTo({ top: 0 });
+  onAuthenticated?.();
 }
 
 function isAuthHref(value: string) {

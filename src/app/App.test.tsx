@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
+import { authStorageKey } from "@/features/auth/auth-session";
 import { localizationStorageKey } from "@/features/localization/localization";
 import { learningProgressStorageKey } from "@/features/learning/progress/learning-progress";
 
@@ -34,6 +35,24 @@ function seedCompletedLessons(completedLessonIds: string[]) {
       attempts: {},
       completedLessonIds,
       version: 1,
+    }),
+  );
+}
+
+function seedAuthSession() {
+  window.localStorage.setItem(
+    authStorageKey,
+    JSON.stringify({
+      accessToken: "access-token",
+      expiresAt: Date.now() + 60 * 60 * 1000,
+      idToken: "id-token",
+      refreshToken: "refresh-token",
+      user: {
+        email: "student@example.com",
+        initials: "ST",
+        name: "Student",
+        sub: "student-1",
+      },
     }),
   );
 }
@@ -215,6 +234,7 @@ describe("App", () => {
     });
 
     try {
+      seedAuthSession();
       seedCompletedLessons([
         ...module0LessonIds,
         "lesson-1-1-ml-tools-libraries",
@@ -292,6 +312,7 @@ describe("App", () => {
     });
 
     try {
+      seedAuthSession();
       seedCompletedLessons([
         ...module0LessonIds,
         "lesson-1-1-ml-tools-libraries",
@@ -394,6 +415,7 @@ describe("App", () => {
   });
 
   it("completes the first lesson, persists progress, and unlocks the next lesson", async () => {
+    seedAuthSession();
     window.history.pushState(null, "", lesson01Path);
     render(<App />);
 
@@ -956,10 +978,48 @@ describe("App", () => {
     );
   });
 
-  it("opens lesson 1.3 after data collecting is complete", async () => {
+  it("shows the shared auth modal before guests open lesson 1.3 backend tasks", async () => {
+    window.localStorage.setItem(localizationStorageKey, "en");
+    seedCompletedLessons([
+      ...module0LessonIds,
+      "lesson-1-1-ml-tools-libraries",
+      "lesson-1-2-data-collecting",
+    ]);
+    window.history.pushState(null, "", foundationsTrackPath);
+    render(<App />);
+
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: "Machine Learning Foundations" },
+        lazyRouteTimeout,
+      ),
+    ).toBeInTheDocument();
+
+    const lessonLink = document.querySelector<HTMLAnchorElement>(`a[href="${lesson13Path}"]`);
+
+    expect(lessonLink).not.toBeNull();
+    fireEvent.click(lessonLink as HTMLAnchorElement);
+
+    const dialog = await screen.findByRole("dialog", { name: "Sign in first" }, lazyRouteTimeout);
+
+    expect(window.location.pathname).toBe(foundationsTrackPath);
+    expect(within(dialog).getByLabelText("Email")).toBeInTheDocument();
+    expect(within(dialog).getByRole("heading", { name: "Sign in first" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Sign In" })).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Create one" }));
+    expect(
+      await within(dialog).findByRole("heading", { name: "Create your account" }),
+    ).toBeInTheDocument();
+    expect(window.location.pathname).toBe(foundationsTrackPath);
+    expect(screen.queryByLabelText("Upload ZIP dataset")).not.toBeInTheDocument();
+  });
+
+  it("opens lesson 1.3 after data collecting is complete for signed-in users", async () => {
     const submittedUrl =
       "https://www.kaggle.com/datasets/denkuznetz/food-delivery-time-prediction/data";
 
+    seedAuthSession();
     window.localStorage.setItem(
       learningProgressStorageKey,
       JSON.stringify({
@@ -1011,6 +1071,7 @@ describe("App", () => {
     const extractedFilePath = "food_delivery.csv";
     const pandasCode = `import pandas as pd\n\ndf = pd.read_csv("${extractedFilePath}")\ndf.head()`;
 
+    seedAuthSession();
     window.localStorage.setItem(
       learningProgressStorageKey,
       JSON.stringify({
