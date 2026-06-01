@@ -38,16 +38,27 @@ type CognitoInitiateAuthResponse = {
 type LearningBackendAuthResponse = {
   authenticationResult?: CognitoInitiateAuthResponse["AuthenticationResult"];
   code?: string;
+  cooldownSeconds?: number;
   message?: string;
+  nextAllowedAt?: number;
+  retryAfterSeconds?: number;
 };
 
 export class CognitoAuthError extends Error {
   code: string;
+  nextAllowedAt?: number;
+  retryAfterSeconds?: number;
 
-  constructor(code: string, message: string) {
+  constructor(
+    code: string,
+    message: string,
+    details: { nextAllowedAt?: number; retryAfterSeconds?: number } = {},
+  ) {
     super(message);
     this.name = "CognitoAuthError";
     this.code = code;
+    this.nextAllowedAt = details.nextAllowedAt;
+    this.retryAfterSeconds = details.retryAfterSeconds;
   }
 }
 
@@ -98,12 +109,27 @@ export async function confirmSignUpWithCognito({ code, email }: { code: string; 
 }
 
 export async function resendConfirmationCodeWithCognito(email: string) {
-  const config = requireCognitoConfig();
-
-  await cognitoRequest("ResendConfirmationCode", {
-    ClientId: config.clientId,
-    Username: email,
+  const response = await fetch(`${getLearningBackendUrl()}/auth/confirmation/resend`, {
+    body: JSON.stringify({ email }),
+    headers: {
+      "content-type": "application/json",
+    },
+    method: "POST",
   });
+  const responseBody = (await response.json().catch(() => ({}))) as LearningBackendAuthResponse;
+
+  if (!response.ok) {
+    const code = responseBody.code ?? "CognitoError";
+    throw new CognitoAuthError(code, responseBody.message ?? getFallbackCognitoErrorMessage(code), {
+      nextAllowedAt: responseBody.nextAllowedAt,
+      retryAfterSeconds: responseBody.retryAfterSeconds,
+    });
+  }
+
+  return {
+    cooldownSeconds: responseBody.cooldownSeconds,
+    nextAllowedAt: responseBody.nextAllowedAt,
+  };
 }
 
 export async function signInWithCognito({ email, password }: { email: string; password: string }) {

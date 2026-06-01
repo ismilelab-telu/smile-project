@@ -121,16 +121,17 @@ const OTP_CODE_LENGTH = 6;
 const authPortalBackdropVisible = { filter: "blur(0px)", opacity: 1 };
 const authPortalBackdropHidden = { filter: "blur(4px)", opacity: 0 };
 const authPortalPanelHidden = {
-  filter: "blur(4px)",
   opacity: 0,
   transform: "perspective(500px) rotateX(-20deg) scale(0.8)",
 };
 const authPortalPanelVisible = {
-  filter: "blur(0px)",
   opacity: 1,
   transform: "perspective(500px) rotateX(0deg) scale(1)",
 };
+const authIllustrationHidden = { filter: "blur(16px)", opacity: 0, scale: 1.025 };
+const authIllustrationVisible = { filter: "blur(0px)", opacity: 1, scale: 1 };
 const authPortalBackdropTransition = { duration: 0.2, ease: "easeInOut" };
+const authIllustrationTransition = { duration: 0.32, ease: "easeOut" };
 const authPortalPanelTransition = { damping: 25, stiffness: 150, type: "spring" };
 const authSharedLayoutTransition = { damping: 32, mass: 0.9, stiffness: 260, type: "spring" };
 const authRegisterFieldRevealTransition = { duration: 0.24, ease: "easeOut" };
@@ -241,6 +242,8 @@ export function AuthPage({
           data-auth-mode={mode}
           data-auth-step={isConfirmingAuthStep ? "confirmation" : "credentials"}
           initial={authPortalPanelHidden}
+          layout
+          layoutDependency={isConfirmingAuthStep ? "confirmation" : "credentials"}
           onAnimationComplete={handlePanelAnimationComplete}
           ref={rootRef}
           role="dialog"
@@ -261,15 +264,20 @@ export function AuthPage({
             />
           </button>
           <AuthLanguageSwitcher isCompact={isConfirmingAuthStep} isRegister={isRegister} />
-          {isConfirmingAuthStep ? null : <AuthIllustration />}
+          <AnimatePresence>
+            {isConfirmingAuthStep ? null : <AuthIllustration key="auth-illustration" />}
+          </AnimatePresence>
           <LayoutGroup id="auth-form-layout">
-            <section
+            <motion.section
               className={`relative z-10 grid ${
                 isConfirmingAuthStep
                   ? "min-h-[min(620px,calc(100vh_-_2.5rem))] md:min-h-[min(640px,calc(100vh_-_4rem))]"
                   : "min-h-[min(720px,calc(100vh_-_2.5rem))] lg:grid-cols-2 md:min-h-[min(760px,calc(100vh_-_4rem))]"
               }`}
               data-auth-layout="split"
+              layout
+              layoutDependency={isConfirmingAuthStep ? "confirmation" : "credentials"}
+              transition={authSharedLayoutTransition}
             >
               <AuthFormPanel
                 className={
@@ -282,7 +290,7 @@ export function AuthPage({
                 successHref={safeSuccessHref}
                 titleOverride={titleOverride}
               />
-            </section>
+            </motion.section>
           </LayoutGroup>
           <span className="sr-only" id="auth-dialog-title">
             {dialogTitle}
@@ -451,6 +459,8 @@ function AuthFormPanel({
   const [isPasswordTouched, setPasswordTouched] = useState(false);
   const [isConfirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [resendAvailableAt, setResendAvailableAt] = useState(0);
+  const [resendClock, setResendClock] = useState(() => Date.now());
   const [statusMessage, setStatusMessage] = useState<AuthStatusMessage | null>(null);
   const usernameError = getUsernameValidationMessage(name, locale);
   const trimmedEmail = email.trim();
@@ -482,6 +492,8 @@ function AuthFormPanel({
     ? getAuthStatusMessage(statusMessage, locale, isConfirmingAccount)
     : "";
   const confirmationTitle = getConfirmationStepTitle(locale);
+  const resendCooldownSeconds = Math.max(0, Math.ceil((resendAvailableAt - resendClock) / 1000));
+  const canResendCode = resendCooldownSeconds <= 0 && !isSubmitting;
 
   useEffect(() => {
     setConfirmationCode("");
@@ -497,12 +509,24 @@ function AuthFormPanel({
     setEmailTouched(false);
     setPasswordTouched(false);
     setConfirmPasswordTouched(false);
+    setResendAvailableAt(0);
+    setResendClock(Date.now());
     setStatusMessage(null);
   }, [mode]);
 
   useEffect(() => {
     onConfirmingChange?.(isConfirmingAccount);
   }, [isConfirmingAccount, onConfirmingChange]);
+
+  useEffect(() => {
+    if (resendAvailableAt <= Date.now()) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => setResendClock(Date.now()), 250);
+
+    return () => window.clearInterval(intervalId);
+  }, [resendAvailableAt]);
 
   useEffect(() => {
     return () => onConfirmingChange?.(false);
@@ -604,6 +628,8 @@ function AuthFormPanel({
 
         setConfirmationDestination(signUpResult.destination ?? "");
         setConfirmationEmail(normalizedEmail);
+        setResendAvailableAt(Date.now() + 30_000);
+        setResendClock(Date.now());
         setStatusMessage({ destination: signUpResult.destination, kind: "confirmation-sent" });
         return;
       }
@@ -649,7 +675,7 @@ function AuthFormPanel({
   const handleResendCode = async () => {
     const resendEmail = confirmationEmail || email.trim().toLowerCase();
 
-    if (!resendEmail || isSubmitting) {
+    if (!resendEmail || !canResendCode) {
       return;
     }
 
@@ -658,9 +684,15 @@ function AuthFormPanel({
     setIsSubmitting(true);
 
     try {
-      await auth.resendConfirmationCode(resendEmail);
+      const result = await auth.resendConfirmationCode(resendEmail);
+      setResendAvailableAt(getResendCooldownUntil(result));
+      setResendClock(Date.now());
       setStatusMessage({ destination: confirmationDestination, kind: "confirmation-sent" });
     } catch (error) {
+      if (error instanceof CognitoAuthError && error.retryAfterSeconds) {
+        setResendAvailableAt(Date.now() + error.retryAfterSeconds * 1000);
+        setResendClock(Date.now());
+      }
       setErrorMessage(getAuthErrorMessage(error, locale));
     } finally {
       setIsSubmitting(false);
@@ -922,11 +954,11 @@ function AuthFormPanel({
                 </button>
                 <button
                   className="cursor-pointer font-semibold text-sky-700 underline underline-offset-4 transition-colors hover:text-sky-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:text-neutral-400"
-                  disabled={isSubmitting}
+                  disabled={!canResendCode}
                   onClick={handleResendCode}
                   type="button"
                 >
-                  {locale === "en" ? "Resend code" : "Kirim ulang kode"}
+                  {getResendCodeLabel(locale, resendCooldownSeconds)}
                 </button>
               </div>
             </motion.form>
@@ -999,11 +1031,11 @@ function AuthFormPanel({
                 />
                 <button
                   className="text-xs font-semibold text-sky-700 underline underline-offset-4 transition-colors hover:text-sky-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
-                  disabled={isSubmitting}
+                  disabled={!canResendCode}
                   onClick={handleResendCode}
                   type="button"
                 >
-                  {locale === "en" ? "Resend code" : "Kirim ulang kode"}
+                  {getResendCodeLabel(locale, resendCooldownSeconds)}
                 </button>
               </div>
             ) : null}
@@ -1441,7 +1473,14 @@ function ConfirmPasswordStatus({
 
 function AuthIllustration() {
   return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 bg-white">
+    <motion.div
+      animate={authIllustrationVisible}
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 z-0 bg-white"
+      exit={authIllustrationHidden}
+      initial={authIllustrationHidden}
+      transition={authIllustrationTransition}
+    >
       <img
         alt=""
         className="h-full w-full object-cover"
@@ -1449,7 +1488,7 @@ function AuthIllustration() {
         loading="eager"
         src={authIllustrationImageUrl}
       />
-    </div>
+    </motion.div>
   );
 }
 
@@ -1567,6 +1606,24 @@ function getConfirmationStepDescription(locale: Locale, email: string) {
   return trimmedEmail
     ? `Masukkan 6 digit kode yang dikirim ke ${trimmedEmail}.`
     : "Masukkan 6 digit kode yang dikirim ke email kamu.";
+}
+
+function getResendCodeLabel(locale: Locale, cooldownSeconds: number) {
+  if (cooldownSeconds > 0) {
+    return locale === "en"
+      ? `Resend code (${cooldownSeconds}s)`
+      : `Kirim ulang kode (${cooldownSeconds} detik)`;
+  }
+
+  return locale === "en" ? "Resend code" : "Kirim ulang kode";
+}
+
+function getResendCooldownUntil(result: { cooldownSeconds?: number; nextAllowedAt?: number }) {
+  if (typeof result.nextAllowedAt === "number" && result.nextAllowedAt > 0) {
+    return result.nextAllowedAt * 1000;
+  }
+
+  return Date.now() + Math.max(1, result.cooldownSeconds ?? 30) * 1000;
 }
 
 function getSubmitLabel({

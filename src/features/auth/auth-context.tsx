@@ -28,7 +28,10 @@ type AuthContextValue = {
   confirmSignUp: (input: { code: string; email: string }) => Promise<void>;
   isAuthenticated: boolean;
   isReady: boolean;
-  resendConfirmationCode: (email: string) => Promise<void>;
+  resendConfirmationCode: (email: string) => Promise<{
+    cooldownSeconds?: number;
+    nextAllowedAt?: number;
+  }>;
   session: AuthSession | null;
   signIn: (input: SignInInput) => Promise<AuthSession>;
   signOut: () => void;
@@ -138,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resendConfirmationCode = useCallback(async (email: string) => {
-    await resendConfirmationCodeWithCognito(email);
+    return resendConfirmationCodeWithCognito(email);
   }, []);
 
   const signOut = useCallback(() => {
