@@ -98,6 +98,43 @@ class LearningBackendTest(unittest.TestCase):
         self.assertIn("Python runtime error", result["message"])
         self.assertIn("FileNotFoundError", result["message"])
 
+    def test_prioritizes_missing_csv_before_later_structural_errors(self) -> None:
+        result = run_pandas_loading_code(
+            'import pandas as pd\n\ndf = pd.read_csv("data/missing.csv")\ndfhead()',
+            "data/Food_Delivery_Times.csv",
+            b"Order_ID,Time_taken\n1,42\n2,36\n",
+        )
+
+        self.assertEqual(result["status"], "partial")
+        self.assertIn("FileNotFoundError", result["message"])
+        self.assertEqual(result["diagnostics"][0]["line"], 3)
+        self.assertEqual(result["diagnostics"][1]["line"], 4)
+
+    def test_prioritizes_missing_csv_before_extra_later_lines(self) -> None:
+        result = run_pandas_loading_code(
+            'import pandas as pd\n\ndf = pd.read_csv("data/missing.csv")\ndfhead()\ndf.head()',
+            "data/Food_Delivery_Times.csv",
+            b"Order_ID,Time_taken\n1,42\n2,36\n",
+        )
+
+        self.assertEqual(result["status"], "partial")
+        self.assertIn("FileNotFoundError", result["message"])
+        self.assertEqual(result["diagnostics"][0]["line"], 3)
+        self.assertEqual(result["diagnostics"][1]["line"], 4)
+        self.assertEqual(result["diagnostics"][2]["line"], 5)
+
+    def test_missing_output_diagnostic_points_to_last_statement(self) -> None:
+        result = run_pandas_loading_code(
+            'import pandas as pd\n\ndf = pd.read_csv("data/Food_Delivery_Times.csv")',
+            "data/Food_Delivery_Times.csv",
+            b"Order_ID,Time_taken\n1,42\n2,36\n",
+        )
+
+        self.assertEqual(result["status"], "partial")
+        self.assertIn("Lesson runtime error", result["message"])
+        self.assertIn("Put `df.head()`", result["message"])
+        self.assertEqual(result["diagnostics"][0]["line"], 3)
+
     def test_rejects_disallowed_python_without_executing_user_code(self) -> None:
         result = run_pandas_loading_code(
             'import pandas as pd\n\ndf = pd.read_csv("data/Food_Delivery_Times.csv")\nopen("/etc/passwd").read()',
@@ -106,7 +143,8 @@ class LearningBackendTest(unittest.TestCase):
         )
 
         self.assertEqual(result["status"], "partial")
-        self.assertIn("PermissionError", result["message"])
+        self.assertIn("Lesson runtime error", result["message"])
+        self.assertNotIn("PermissionError", result["message"])
 
     def test_returns_multiple_structural_diagnostics(self) -> None:
         result = run_pandas_loading_code(

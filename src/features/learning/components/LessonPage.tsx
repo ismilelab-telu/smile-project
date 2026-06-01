@@ -47,6 +47,7 @@ import {
   useState,
   type ComponentProps,
   type ComponentType,
+  type MouseEvent,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -185,7 +186,9 @@ type LearningBackendValidationResponse = {
 
 type PandasCodeRunResult = {
   columns: string[];
+  code: string;
   diagnostics: CodeDiagnostic[];
+  extractedFilePath: string;
   message: string;
   rows: string[][];
   status: EvaluationResult["status"];
@@ -845,10 +848,19 @@ function getPandasCodeRunMessage(backendResult: LearningBackendValidationRespons
 
 function createPandasCodeRunResult(
   backendResult: LearningBackendValidationResponse,
+  {
+    code,
+    extractedFilePath,
+  }: {
+    code: string;
+    extractedFilePath: string;
+  },
 ): PandasCodeRunResult {
   return {
     columns: Array.isArray(backendResult.columns) ? backendResult.columns.map(String) : [],
+    code,
     diagnostics: normalizeCodeDiagnostics(backendResult.diagnostics),
+    extractedFilePath,
     message: getPandasCodeRunMessage(backendResult),
     rows: Array.isArray(backendResult.previewRows)
       ? backendResult.previewRows.map((row) => row.map(String))
@@ -1565,6 +1577,18 @@ function getCodeDiagnosticText(code: string, diagnostic: CodeDiagnostic) {
   return text.replace(/ /g, "\u00a0");
 }
 
+function getCodeIndexFromLineColumn(code: string, line: number, column: number) {
+  const lines = code.replace(/\r\n?/g, "\n").split("\n");
+  const lineIndex = Math.max(0, Math.min(lines.length - 1, line - 1));
+  const sourceLine = lines[lineIndex] ?? "";
+  const columnIndex = Math.max(0, Math.min(sourceLine.length, column - 1));
+  const previousLinesLength = lines
+    .slice(0, lineIndex)
+    .reduce((total, currentLine) => total + currentLine.length + 1, 0);
+
+  return previousLinesLength + columnIndex;
+}
+
 function renderCodeDiagnosticMessage(message: string) {
   return message.split(/(`[^`]+`)/g).map((part, index) => {
     const isInlineCode = part.length > 1 && part.startsWith("`") && part.endsWith("`");
@@ -1587,6 +1611,7 @@ function renderCodeDiagnosticMessage(message: string) {
 function getCodeDiagnostics(
   result: PandasCodeRunResult | undefined,
   code: string,
+  expectedCsvPath?: string,
 ): CodeDiagnostic[] {
   const message = result?.message.trim() ?? "";
   const lines = code.replace(/\r\n?/g, "\n").split("\n");
@@ -1595,8 +1620,14 @@ function getCodeDiagnostics(
     return [];
   }
 
+  const expectedPathDiagnostic = createExpectedReadCsvPathDiagnostic({
+    code,
+    expectedCsvPath,
+    lines,
+  });
+
   if (result.diagnostics.length > 0) {
-    return compactCodeDiagnostics(
+    return uniqueCodeDiagnostics(
       result.diagnostics.map((diagnostic) =>
         createCodeDiagnostic({
           column: diagnostic.column,
@@ -1606,6 +1637,7 @@ function getCodeDiagnostics(
           preferredLength: diagnostic.length,
         }),
       ),
+      [expectedPathDiagnostic],
     );
   }
 
@@ -1639,15 +1671,18 @@ function getCodeDiagnostics(
           ? quotedPathMatch.index + 1
           : 1;
 
-      return compactCodeDiagnostics([
-        createCodeDiagnostic({
-          column,
-          line: readCsvLineIndex + 1,
-          lines,
-          message,
-          preferredLength: readCsvMatch?.[0].length ?? quotedPathMatch?.[0].length ?? 1,
-        }),
-      ]);
+      return uniqueCodeDiagnostics(
+        [
+          createCodeDiagnostic({
+            column,
+            line: readCsvLineIndex + 1,
+            lines,
+            message,
+            preferredLength: readCsvMatch?.[0].length ?? quotedPathMatch?.[0].length ?? 1,
+          }),
+        ],
+        [expectedPathDiagnostic],
+      );
     }
   }
 
@@ -1657,32 +1692,98 @@ function getCodeDiagnostics(
       const line = lines.length - headLineIndex;
       const sourceLine = lines[line - 1] ?? "";
 
-      return compactCodeDiagnostics([
-        createCodeDiagnostic({
-          column: sourceLine.search(/\S/) + 1,
-          line,
-          lines,
-          message,
-          preferredLength: Math.max(1, sourceLine.trim().length),
-        }),
-      ]);
+      return uniqueCodeDiagnostics(
+        [
+          createCodeDiagnostic({
+            column: sourceLine.search(/\S/) + 1,
+            line,
+            lines,
+            message,
+            preferredLength: Math.max(1, sourceLine.trim().length),
+          }),
+        ],
+        [expectedPathDiagnostic],
+      );
     }
   }
 
   const fallbackLineIndex = lines.findIndex((line) => line.trim() !== "");
 
-  return compactCodeDiagnostics([
-    createCodeDiagnostic({
-      column: 1,
-      line: fallbackLineIndex >= 0 ? fallbackLineIndex + 1 : 1,
-      lines,
-      message,
-    }),
-  ]);
+  return uniqueCodeDiagnostics(
+    [
+      createCodeDiagnostic({
+        column: 1,
+        line: fallbackLineIndex >= 0 ? fallbackLineIndex + 1 : 1,
+        lines,
+        message,
+      }),
+    ],
+    [expectedPathDiagnostic],
+  );
 }
 
 function compactCodeDiagnostics(diagnostics: Array<CodeDiagnostic | null>) {
   return diagnostics.filter((diagnostic): diagnostic is CodeDiagnostic => diagnostic !== null);
+}
+
+function uniqueCodeDiagnostics(
+  primaryDiagnostics: Array<CodeDiagnostic | null>,
+  secondaryDiagnostics: Array<CodeDiagnostic | null> = [],
+) {
+  const seenLocations = new Set<string>();
+
+  return compactCodeDiagnostics([...secondaryDiagnostics, ...primaryDiagnostics]).filter(
+    (diagnostic) => {
+      const locationKey = `${diagnostic.line}:${diagnostic.column}:${diagnostic.length}`;
+
+      if (seenLocations.has(locationKey)) {
+        return false;
+      }
+
+      seenLocations.add(locationKey);
+      return true;
+    },
+  );
+}
+
+function createExpectedReadCsvPathDiagnostic({
+  code,
+  expectedCsvPath,
+  lines,
+}: {
+  code: string;
+  expectedCsvPath: string | undefined;
+  lines: string[];
+}) {
+  const expectedPath = expectedCsvPath?.trim();
+
+  if (!expectedPath) {
+    return null;
+  }
+
+  const normalizedCode = code.replace(/\r\n?/g, "\n");
+  const readCsvPathPattern = /pd\s*\.\s*read_csv\s*\(\s*(["'])(.*?)\1/;
+
+  for (const [lineIndex, sourceLine] of normalizedCode.split("\n").entries()) {
+    const match = readCsvPathPattern.exec(sourceLine);
+
+    if (!match || match[2] === expectedPath) {
+      continue;
+    }
+
+    const quotedPath = `${match[1]}${match[2]}${match[1]}`;
+    const quotedPathIndex = match[0].indexOf(quotedPath);
+
+    return createCodeDiagnostic({
+      column: match.index + quotedPathIndex + 1,
+      line: lineIndex + 1,
+      lines,
+      message: `Use exactly \`${expectedPath}\` inside \`pd.read_csv(...)\`.`,
+      preferredLength: quotedPath.length,
+    });
+  }
+
+  return null;
 }
 
 function isCodeDiagnostic(value: unknown): value is CodeDiagnostic {
@@ -2521,16 +2622,6 @@ export function LessonPage({
       ...current,
       [exerciseId]: value,
     }));
-    setPandasCodeRunResultsByExerciseId((current) => {
-      if (!current[exerciseId]) {
-        return current;
-      }
-
-      const next = { ...current };
-      delete next[exerciseId];
-
-      return next;
-    });
   };
 
   const uploadGuidedDownloadArchive = async (exerciseId: string, file: File) => {
@@ -2602,7 +2693,9 @@ export function LessonPage({
         ...current,
         [exercise.id]: {
           columns: [],
+          code,
           diagnostics: [],
+          extractedFilePath,
           message: "Upload the Kaggle ZIP first, then run the code.",
           rows: [],
           status: "incorrect",
@@ -2616,7 +2709,9 @@ export function LessonPage({
         ...current,
         [exercise.id]: {
           columns: [],
+          code,
           diagnostics: [],
+          extractedFilePath,
           message: "Type the Pandas code first, then run it.",
           rows: [],
           status: "partial",
@@ -2636,14 +2731,16 @@ export function LessonPage({
 
       setPandasCodeRunResultsByExerciseId((current) => ({
         ...current,
-        [exercise.id]: createPandasCodeRunResult(backendResult),
+        [exercise.id]: createPandasCodeRunResult(backendResult, { code, extractedFilePath }),
       }));
     } catch {
       setPandasCodeRunResultsByExerciseId((current) => ({
         ...current,
         [exercise.id]: {
           columns: [],
+          code,
           diagnostics: [],
+          extractedFilePath,
           message: "The code could not be run. Check the uploaded ZIP and try again.",
           rows: [],
           status: "incorrect",
@@ -2810,14 +2907,15 @@ export function LessonPage({
       }
 
       try {
+        const code = guidedDownloadCodeByExerciseId[exercise.id] ?? "";
         const backendResult = await validateGuidedDownloadCodeWithBackend({
-          code: guidedDownloadCodeByExerciseId[exercise.id] ?? "",
+          code,
           extractedFilePath,
           objectKey: archive.objectKey,
         });
         setPandasCodeRunResultsByExerciseId((current) => ({
           ...current,
-          [exercise.id]: createPandasCodeRunResult(backendResult),
+          [exercise.id]: createPandasCodeRunResult(backendResult, { code, extractedFilePath }),
         }));
 
         return {
@@ -3616,6 +3714,7 @@ function GuidedDownloadExerciseView({
 }) {
   const { locale } = useLocalization();
   const uploadInputId = useId();
+  const codeEditorRef = useRef<HTMLTextAreaElement | null>(null);
   const [codeEditorScrollOffset, setCodeEditorScrollOffset] = useState({
     left: 0,
     top: 0,
@@ -3633,7 +3732,29 @@ function GuidedDownloadExerciseView({
     ? ""
     : getExpectedCodeGhostText(expectedCode, displayedCode);
   const codeLineNumbers = getCodeLineNumbers(displayedCode || expectedCode);
-  const codeDiagnostics = getCodeDiagnostics(pandasCodeRunResult, displayedCode);
+  const isPandasCodeRunResultForDisplayedCode =
+    pandasCodeRunResult !== undefined &&
+    pandasCodeRunResult.code === displayedCode &&
+    pandasCodeRunResult.extractedFilePath === displayedExtractedFilePath;
+  const codeDiagnostics = getCodeDiagnostics(
+    isPandasCodeRunResultForDisplayedCode ? pandasCodeRunResult : undefined,
+    displayedCode,
+    displayedExtractedFilePath,
+  );
+  const codeDiagnosticsResetKey = useMemo(
+    () =>
+      [
+        displayedCode,
+        displayedExtractedFilePath,
+        codeDiagnostics
+          .map(
+            (diagnostic) =>
+              `${diagnostic.line}:${diagnostic.column}:${diagnostic.length}:${diagnostic.message}`,
+          )
+          .join("\n"),
+      ].join("\n---\n"),
+    [codeDiagnostics, displayedCode, displayedExtractedFilePath],
+  );
   const openLinkLabel = locale === "en" ? "Open dataset page" : "Buka halaman dataset";
   const copyLinkLabel = locale === "en" ? "Copy link" : "Salin link";
   const copyLinkButtonLabel = locale === "en" ? "Copy" : "Salin";
@@ -3645,6 +3766,38 @@ function GuidedDownloadExerciseView({
   const runPandasCodeLabel = locale === "en" ? "Run code" : "Jalankan kode";
   const runningPandasCodeLabel = locale === "en" ? "Running code..." : "Menjalankan kode...";
   const isUploadDisabled = !hasSourceUrl || isReviewMode || archive?.isReading === true;
+  const focusCodeEditorDiagnostic = useCallback(
+    (diagnostic: CodeDiagnostic, event: MouseEvent<HTMLSpanElement>) => {
+      if (isReviewMode) {
+        return;
+      }
+
+      const textarea = codeEditorRef.current;
+      if (!textarea) {
+        return;
+      }
+
+      event.preventDefault();
+      const rect = event.currentTarget.getBoundingClientRect();
+      const characterWidth = rect.width / Math.max(1, diagnostic.length);
+      const clickedCharacterOffset =
+        characterWidth > 0
+          ? Math.max(
+              0,
+              Math.min(diagnostic.length, Math.floor((event.clientX - rect.left) / characterWidth)),
+            )
+          : 0;
+      const cursorIndex = getCodeIndexFromLineColumn(
+        displayedCode,
+        diagnostic.line,
+        diagnostic.column + clickedCharacterOffset,
+      );
+
+      textarea.focus({ preventScroll: true });
+      textarea.setSelectionRange(cursorIndex, cursorIndex);
+    },
+    [displayedCode, isReviewMode],
+  );
 
   return (
     <>
@@ -3842,7 +3995,7 @@ function GuidedDownloadExerciseView({
                         {expectedCodeGhostText}
                       </pre>
                     ) : null}
-                    <TooltipProvider closeDelay={80}>
+                    <TooltipProvider closeDelay={80} resetKey={codeDiagnosticsResetKey}>
                       {codeDiagnostics.map((diagnostic, diagnosticIndex) => (
                         <Tooltip
                           align="start"
@@ -3854,6 +4007,7 @@ function GuidedDownloadExerciseView({
                             <span
                               aria-label={diagnostic.message}
                               className="absolute z-30 h-6 cursor-help select-none whitespace-pre font-mono text-sm leading-6 text-transparent underline decoration-rose-500 decoration-[1.5px] decoration-wavy underline-offset-[3px] outline-none [text-decoration-skip-ink:none] focus-visible:bg-rose-500/10"
+                              onMouseDown={(event) => focusCodeEditorDiagnostic(diagnostic, event)}
                               role="button"
                               style={{
                                 left: `calc(3.5rem + ${(diagnostic.column - 1).toString()}ch - ${
@@ -3891,6 +4045,7 @@ function GuidedDownloadExerciseView({
                       }}
                       placeholder={expectedCode}
                       readOnly={isReviewMode}
+                      ref={codeEditorRef}
                       spellCheck={false}
                       value={displayedCode}
                     />
@@ -3904,6 +4059,7 @@ function GuidedDownloadExerciseView({
                       !hasExtractedFilePath ||
                       isReviewMode ||
                       isRunningPandasCode ||
+                      isPandasCodeRunResultForDisplayedCode ||
                       archive?.isReading === true ||
                       !onRunPandasCode
                     }
@@ -3914,7 +4070,9 @@ function GuidedDownloadExerciseView({
                     {isRunningPandasCode ? runningPandasCodeLabel : runPandasCodeLabel}
                   </button>
                 </div>
-                <PandasCodeRunOutput result={pandasCodeRunResult} />
+                <PandasCodeRunOutput
+                  result={isPandasCodeRunResultForDisplayedCode ? pandasCodeRunResult : undefined}
+                />
               </div>
             </div>
           </section>

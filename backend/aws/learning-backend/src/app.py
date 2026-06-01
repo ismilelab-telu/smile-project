@@ -502,9 +502,17 @@ def run_pandas_loading_code(code: str, expected_path: str, csv_content: bytes) -
 
     runtime_plan, diagnostics = get_restricted_pandas_runtime_plan(tree)
     if diagnostics:
+        file_not_found_result = get_read_csv_file_not_found_result(
+            runtime_plan,
+            expected_path,
+            diagnostics,
+        )
+        if file_not_found_result:
+            return file_not_found_result
+
         first_diagnostic = diagnostics[0]
         return invalid_code_result(
-            f"Python runtime error: PermissionError: {first_diagnostic['message']}",
+            format_lesson_runtime_error(first_diagnostic["message"]),
             diagnostics,
         )
 
@@ -546,6 +554,36 @@ def run_restricted_pandas_plan(
         os.chdir(old_cwd)
 
 
+def get_read_csv_file_not_found_result(
+    runtime_plan: dict[str, Any],
+    expected_path: str,
+    diagnostics: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    read_csv_path = runtime_plan.get("readCsvPath")
+
+    if (
+        not runtime_plan.get("importAllowed")
+        or not isinstance(read_csv_path, str)
+        or not read_csv_path
+        or read_csv_path == expected_path
+        or is_unsafe_runtime_read_path(read_csv_path)
+    ):
+        return None
+
+    read_csv_diagnostic = runtime_plan.get("readCsvDiagnostic")
+    if isinstance(read_csv_diagnostic, dict):
+        read_csv_diagnostic = {
+            **read_csv_diagnostic,
+            "message": f"FileNotFoundError: No such file or directory: '{read_csv_path}'",
+        }
+        diagnostics = [read_csv_diagnostic, *diagnostics]
+
+    return invalid_code_result(
+        f"Python runtime error: FileNotFoundError: [Errno 2] No such file or directory: '{read_csv_path}'",
+        dedupe_diagnostics(diagnostics),
+    )
+
+
 def write_runtime_csv(sandbox_dir: str, expected_path: str, csv_content: bytes) -> None:
     normalized_path = expected_path.strip().replace("\\", "/")
     if is_unsafe_runtime_read_path(normalized_path):
@@ -560,18 +598,10 @@ def get_restricted_pandas_runtime_plan(tree: ast.Module) -> tuple[dict[str, Any]
     body = [node for node in tree.body if not isinstance(node, ast.Pass)]
     diagnostics: list[dict[str, Any]] = []
 
-    if len(body) != 3:
-        return {}, [
-            create_node_diagnostic(
-                tree,
-                "Only `import pandas as pd`, `df = pd.read_csv(...)`, and `df.head()` are allowed.",
-            )
-        ]
-
     import_node = body[0] if len(body) > 0 else tree
     assign_node = body[1] if len(body) > 1 else tree
-    head_node = body[2] if len(body) > 2 else tree
-    if not isinstance(import_node, ast.Import) or not is_allowed_pandas_import(import_node):
+    import_allowed = isinstance(import_node, ast.Import) and is_allowed_pandas_import(import_node)
+    if not import_allowed:
         diagnostics.append(create_node_diagnostic(import_node, "Only `import pandas as pd` is allowed."))
 
     if not isinstance(assign_node, ast.Assign):
@@ -587,17 +617,29 @@ def get_restricted_pandas_runtime_plan(tree: ast.Module) -> tuple[dict[str, Any]
         )
         diagnostics.extend(assignment_diagnostics)
 
-    head_rows, head_diagnostics = get_restricted_head_expression(head_node, target_name or "df")
-    diagnostics.extend(head_diagnostics)
+    head_rows = None
+    if len(body) > 2:
+        head_node = body[2]
+        head_rows, head_diagnostics = get_restricted_head_expression(head_node, target_name or "df")
+        diagnostics.extend(head_diagnostics)
+    else:
+        diagnostics.append(create_missing_output_diagnostic(body, tree))
 
-    if diagnostics:
-        return {}, diagnostics
+    if len(body) > 3:
+        diagnostics.extend(
+            create_node_diagnostic(
+                extra_node,
+                "Only one output expression is allowed after `pd.read_csv(...)`.",
+            )
+            for extra_node in body[3:]
+        )
 
     return {
         "headRows": head_rows,
+        "importAllowed": import_allowed,
         "readCsvDiagnostic": read_csv_diagnostic,
         "readCsvPath": read_csv_path,
-    }, []
+    }, diagnostics
 
 
 def get_restricted_read_csv_assignment(
@@ -716,6 +758,25 @@ def get_restricted_head_expression(
     return head_rows.value, diagnostics
 
 
+def create_missing_output_diagnostic(body: list[ast.stmt], tree: ast.Module) -> dict[str, Any]:
+    message = "Put `df.head()` on the last line so the runtime can display output."
+    if not body:
+        return create_node_diagnostic(tree, message)
+
+    last_node = body[-1]
+    diagnostic = create_node_diagnostic(last_node, message)
+    end_line = getattr(last_node, "end_lineno", None)
+    end_column_offset = getattr(last_node, "end_col_offset", None)
+
+    if isinstance(end_line, int) and end_line >= 1:
+        diagnostic["line"] = end_line
+    if isinstance(end_column_offset, int) and end_column_offset >= 0:
+        diagnostic["column"] = end_column_offset + 1
+        diagnostic["length"] = 1
+
+    return diagnostic
+
+
 def get_call_diagnostic_node(node: ast.AST) -> ast.AST:
     if isinstance(node, ast.Call):
         return node.func
@@ -752,6 +813,10 @@ def format_python_syntax_error(error: SyntaxError) -> str:
     return f"Python runtime error: SyntaxError: {error.msg}{location}."
 
 
+def format_lesson_runtime_error(message: str) -> str:
+    return f"Lesson runtime error: {message}"
+
+
 def create_syntax_error_diagnostic(error: SyntaxError) -> dict[str, Any]:
     return {
         "column": max(1, error.offset or 1),
@@ -776,6 +841,25 @@ def create_node_diagnostic(node: ast.AST, message: str) -> dict[str, Any]:
         "line": line,
         "message": message,
     }
+
+
+def dedupe_diagnostics(diagnostics: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    unique_diagnostics: list[dict[str, Any]] = []
+    seen_locations: set[tuple[int, int, int]] = set()
+
+    for diagnostic in diagnostics:
+        location = (
+            int(diagnostic.get("line", 1) or 1),
+            int(diagnostic.get("column", 1) or 1),
+            int(diagnostic.get("length", 1) or 1),
+        )
+        if location in seen_locations:
+            continue
+
+        seen_locations.add(location)
+        unique_diagnostics.append(diagnostic)
+
+    return unique_diagnostics
 
 
 def dataframe_rows_to_strings(dataframe: Any, pd_module: Any) -> list[list[str]]:

@@ -71,6 +71,7 @@ type TooltipProviderProps = {
   children: ReactNode;
   closeDelay?: number;
   openDelay?: number;
+  resetKey?: string;
   transition?: Transition;
 };
 
@@ -243,6 +244,7 @@ export function TooltipProvider({
   children,
   closeDelay = 300,
   openDelay = 0,
+  resetKey,
   transition = defaultTooltipTransition,
 }: TooltipProviderProps) {
   const [activeTooltip, setActiveTooltip] = useState<ActiveTooltip | null>(null);
@@ -266,6 +268,15 @@ export function TooltipProvider({
     }
   }, []);
 
+  const closeTooltipImmediately = useCallback(() => {
+    clearTimers();
+    isOpenRef.current = false;
+    activeTooltipRef.current = null;
+    setIsOpen(false);
+    setActiveTooltip(null);
+    setActiveTooltipPosition(null);
+  }, [clearTimers]);
+
   const openActiveTooltip = useCallback(() => {
     isOpenRef.current = true;
     setIsOpen(true);
@@ -273,6 +284,10 @@ export function TooltipProvider({
 
   const showTooltip = useCallback(
     (tooltip: ActiveTooltip) => {
+      if (!tooltip.anchor.isConnected) {
+        return;
+      }
+
       clearTimers();
       activeTooltipRef.current = tooltip;
       setActiveTooltip(tooltip);
@@ -325,6 +340,10 @@ export function TooltipProvider({
   useEffect(() => clearTimers, [clearTimers]);
 
   useEffect(() => {
+    closeTooltipImmediately();
+  }, [closeTooltipImmediately, resetKey]);
+
+  useEffect(() => {
     if (!isOpen) {
       return;
     }
@@ -347,6 +366,11 @@ export function TooltipProvider({
     }
 
     const updatePosition = () => {
+      if (!activeTooltip.anchor.isConnected) {
+        closeTooltipImmediately();
+        return;
+      }
+
       setActiveTooltipPosition(getTooltipPosition(activeTooltip));
     };
 
@@ -357,7 +381,7 @@ export function TooltipProvider({
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [activeTooltip, isOpen]);
+  }, [activeTooltip, closeTooltipImmediately, isOpen]);
 
   const contextValue = useMemo(
     () => ({
