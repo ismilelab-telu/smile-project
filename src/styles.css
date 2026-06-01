@@ -161,20 +161,24 @@
 
 @keyframes route-content-old-fade {
   from {
+    filter: blur(0);
     opacity: 1;
   }
 
   to {
+    filter: blur(2px);
     opacity: 0;
   }
 }
 
 @keyframes route-content-new-fade {
   from {
+    filter: blur(2px);
     opacity: 0;
   }
 
   to {
+    filter: blur(0);
     opacity: 1;
   }
 }
@@ -438,8 +442,8 @@
   }
 
   html[data-route-transition="content-fade"]::view-transition-group(route-content) {
-    animation-duration: 240ms;
-    animation-timing-function: ease-out;
+    animation: none;
+    overflow: clip;
     z-index: 20;
   }
 
