@@ -351,6 +351,7 @@ def validate_uploaded_dataset_code(body: dict[str, Any], user: dict[str, Any]) -
 
     return {
         "columns": columns,
+        "diagnostics": validation.get("diagnostics", []),
         "expectedCode": build_expected_pandas_code(expected_path),
         "message": validation["message"],
         "previewRows": preview_rows,
@@ -463,7 +464,10 @@ def validate_pandas_loading_code(code: str, expected_path: str) -> dict[str, Any
     try:
         tree = ast.parse(code)
     except SyntaxError as error:
-        return invalid_code_result(format_python_syntax_error(error))
+        return invalid_code_result(
+            format_python_syntax_error(error),
+            [create_syntax_error_diagnostic(error)],
+        )
 
     body = [node for node in tree.body if not isinstance(node, ast.Pass)]
 
@@ -491,11 +495,18 @@ def run_pandas_loading_code(code: str, expected_path: str, csv_content: bytes) -
     try:
         tree = ast.parse(code)
     except SyntaxError as error:
-        return invalid_code_result(format_python_syntax_error(error))
+        return invalid_code_result(
+            format_python_syntax_error(error),
+            [create_syntax_error_diagnostic(error)],
+        )
 
-    runtime_plan, safety_error = get_restricted_pandas_runtime_plan(tree)
-    if safety_error:
-        return invalid_code_result(f"Python runtime error: PermissionError: {safety_error}")
+    runtime_plan, diagnostics = get_restricted_pandas_runtime_plan(tree)
+    if diagnostics:
+        first_diagnostic = diagnostics[0]
+        return invalid_code_result(
+            f"Python runtime error: PermissionError: {first_diagnostic['message']}",
+            diagnostics,
+        )
 
     try:
         import pandas as pd
@@ -504,7 +515,10 @@ def run_pandas_loading_code(code: str, expected_path: str, csv_content: bytes) -
             write_runtime_csv(sandbox_dir, expected_path, csv_content)
             head = run_restricted_pandas_plan(runtime_plan, sandbox_dir, pd)
     except Exception as error:
-        return invalid_code_result(f"Python runtime error: {type(error).__name__}: {error}")
+        return invalid_code_result(
+            f"Python runtime error: {type(error).__name__}: {error}",
+            [runtime_plan["readCsvDiagnostic"]] if runtime_plan.get("readCsvDiagnostic") else [],
+        )
 
     return {
         "columns": [str(column) for column in head.columns.tolist()],
@@ -542,37 +556,63 @@ def write_runtime_csv(sandbox_dir: str, expected_path: str, csv_content: bytes) 
     destination.write_bytes(csv_content)
 
 
-def get_restricted_pandas_runtime_plan(tree: ast.Module) -> tuple[dict[str, Any], str]:
+def get_restricted_pandas_runtime_plan(tree: ast.Module) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     body = [node for node in tree.body if not isinstance(node, ast.Pass)]
+    diagnostics: list[dict[str, Any]] = []
 
     if len(body) != 3:
-        return {}, "Only `import pandas as pd`, `df = pd.read_csv(...)`, and `df.head()` are allowed."
+        return {}, [
+            create_node_diagnostic(
+                tree,
+                "Only `import pandas as pd`, `df = pd.read_csv(...)`, and `df.head()` are allowed.",
+            )
+        ]
 
-    import_node, assign_node, head_node = body
+    import_node = body[0] if len(body) > 0 else tree
+    assign_node = body[1] if len(body) > 1 else tree
+    head_node = body[2] if len(body) > 2 else tree
     if not isinstance(import_node, ast.Import) or not is_allowed_pandas_import(import_node):
-        return {}, "Only `import pandas as pd` is allowed."
+        diagnostics.append(create_node_diagnostic(import_node, "Only `import pandas as pd` is allowed."))
 
     if not isinstance(assign_node, ast.Assign):
-        return {}, "Load the CSV with an assignment like `df = pd.read_csv(...)`."
+        diagnostics.append(
+            create_node_diagnostic(assign_node, "Load the CSV with an assignment like `df = pd.read_csv(...)`.")
+        )
+        target_name = "df"
+        read_csv_path = ""
+        read_csv_diagnostic = None
+    else:
+        target_name, read_csv_path, read_csv_diagnostic, assignment_diagnostics = (
+            get_restricted_read_csv_assignment(assign_node)
+        )
+        diagnostics.extend(assignment_diagnostics)
 
-    target_name, read_csv_path, assignment_error = get_restricted_read_csv_assignment(assign_node)
-    if assignment_error:
-        return {}, assignment_error
+    head_rows, head_diagnostics = get_restricted_head_expression(head_node, target_name or "df")
+    diagnostics.extend(head_diagnostics)
 
-    head_rows, head_error = get_restricted_head_expression(head_node, target_name)
-    if head_error:
-        return {}, head_error
+    if diagnostics:
+        return {}, diagnostics
 
-    return {"headRows": head_rows, "readCsvPath": read_csv_path}, ""
+    return {
+        "headRows": head_rows,
+        "readCsvDiagnostic": read_csv_diagnostic,
+        "readCsvPath": read_csv_path,
+    }, []
 
 
-def get_restricted_read_csv_assignment(node: ast.Assign) -> tuple[str, str, str]:
+def get_restricted_read_csv_assignment(
+    node: ast.Assign,
+) -> tuple[str, str, dict[str, Any] | None, list[dict[str, Any]]]:
+    diagnostics: list[dict[str, Any]] = []
+
     if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
-        return "", "", "Store the CSV dataframe in one variable, for example `df`."
+        return "", "", None, [
+            create_node_diagnostic(node, "Store the CSV dataframe in one variable, for example `df`.")
+        ]
 
     target_name = node.targets[0].id
     if target_name.startswith("__"):
-        return "", "", "Private Python names are not allowed."
+        diagnostics.append(create_node_diagnostic(node.targets[0], "Private Python names are not allowed."))
 
     value = node.value
     if (
@@ -582,27 +622,48 @@ def get_restricted_read_csv_assignment(node: ast.Assign) -> tuple[str, str, str]
         or value.func.value.id != "pd"
         or value.func.attr != "read_csv"
     ):
-        return "", "", "Only `pd.read_csv(...)` can load the CSV in this lesson runtime."
+        diagnostics.append(
+            create_node_diagnostic(
+                get_call_diagnostic_node(value),
+                "Only `pd.read_csv(...)` can load the CSV in this lesson runtime.",
+            )
+        )
+        return target_name, "", None, diagnostics
 
     if value.keywords:
-        return "", "", "`pd.read_csv(...)` keyword arguments are not enabled yet."
+        diagnostics.extend(
+            create_node_diagnostic(keyword, "`pd.read_csv(...)` keyword arguments are not enabled yet.")
+            for keyword in value.keywords
+        )
 
     if len(value.args) != 1 or not isinstance(value.args[0], ast.Constant):
-        return "", "", "`pd.read_csv(...)` needs one literal CSV path."
+        diagnostics.append(create_node_diagnostic(value, "`pd.read_csv(...)` needs one literal CSV path."))
+        return target_name, "", None, diagnostics
 
     read_csv_path = value.args[0].value
+    read_csv_diagnostic = create_node_diagnostic(value.args[0], "CSV path used by `pd.read_csv(...)`.")
     if not isinstance(read_csv_path, str):
-        return "", "", "`pd.read_csv(...)` needs a string CSV path."
+        diagnostics.append(create_node_diagnostic(value.args[0], "`pd.read_csv(...)` needs a string CSV path."))
+        return target_name, "", read_csv_diagnostic, diagnostics
 
     if is_unsafe_runtime_read_path(read_csv_path):
-        return "", "", "That CSV path is outside the lesson runtime workspace."
+        diagnostics.append(
+            create_node_diagnostic(value.args[0], "That CSV path is outside the lesson runtime workspace.")
+        )
 
-    return target_name, read_csv_path, ""
+    return target_name, read_csv_path, read_csv_diagnostic, diagnostics
 
 
-def get_restricted_head_expression(node: ast.AST, target_name: str) -> tuple[int | None, str]:
+def get_restricted_head_expression(
+    node: ast.AST,
+    target_name: str,
+) -> tuple[int | None, list[dict[str, Any]]]:
+    diagnostics: list[dict[str, Any]] = []
+
     if not isinstance(node, ast.Expr):
-        return None, "Put `df.head()` on the last line so the runtime can display output."
+        return None, [
+            create_node_diagnostic(node, "Put `df.head()` on the last line so the runtime can display output.")
+        ]
 
     value = node.value
     if (
@@ -612,16 +673,28 @@ def get_restricted_head_expression(node: ast.AST, target_name: str) -> tuple[int
         or value.func.value.id != target_name
         or value.func.attr != "head"
     ):
-        return None, f"Only `{target_name}.head()` can produce output in this lesson runtime."
+        return None, [
+            create_node_diagnostic(
+                get_call_diagnostic_node(value),
+                f"Only `{target_name}.head()` can produce output in this lesson runtime.",
+            )
+        ]
 
     if value.keywords:
-        return None, "`df.head(...)` keyword arguments are not enabled yet."
+        diagnostics.extend(
+            create_node_diagnostic(keyword, "`df.head(...)` keyword arguments are not enabled yet.")
+            for keyword in value.keywords
+        )
 
     if len(value.args) > 1:
-        return None, "`df.head(...)` accepts at most one row count."
+        diagnostics.extend(
+            create_node_diagnostic(arg, "`df.head(...)` accepts at most one row count.")
+            for arg in value.args[1:]
+        )
+        return None, diagnostics
 
     if not value.args:
-        return None, ""
+        return None, diagnostics
 
     head_rows = value.args[0]
     if (
@@ -629,12 +702,25 @@ def get_restricted_head_expression(node: ast.AST, target_name: str) -> tuple[int
         or not isinstance(head_rows.value, int)
         or isinstance(head_rows.value, bool)
     ):
-        return None, "`df.head(...)` row count must be an integer from 0 to 10."
+        diagnostics.append(
+            create_node_diagnostic(head_rows, "`df.head(...)` row count must be an integer from 0 to 10.")
+        )
+        return None, diagnostics
 
     if head_rows.value < 0 or head_rows.value > 10:
-        return None, "`df.head(...)` row count must be between 0 and 10."
+        diagnostics.append(
+            create_node_diagnostic(head_rows, "`df.head(...)` row count must be between 0 and 10.")
+        )
+        return None, diagnostics
 
-    return head_rows.value, ""
+    return head_rows.value, diagnostics
+
+
+def get_call_diagnostic_node(node: ast.AST) -> ast.AST:
+    if isinstance(node, ast.Call):
+        return node.func
+
+    return node
 
 
 def is_allowed_pandas_import(node: ast.Import) -> bool:
@@ -666,6 +752,32 @@ def format_python_syntax_error(error: SyntaxError) -> str:
     return f"Python runtime error: SyntaxError: {error.msg}{location}."
 
 
+def create_syntax_error_diagnostic(error: SyntaxError) -> dict[str, Any]:
+    return {
+        "column": max(1, error.offset or 1),
+        "length": 1,
+        "line": max(1, error.lineno or 1),
+        "message": format_python_syntax_error(error),
+    }
+
+
+def create_node_diagnostic(node: ast.AST, message: str) -> dict[str, Any]:
+    line = max(1, int(getattr(node, "lineno", 1) or 1))
+    column_offset = max(0, int(getattr(node, "col_offset", 0) or 0))
+    end_column_offset = getattr(node, "end_col_offset", None)
+    length = 1
+
+    if isinstance(end_column_offset, int) and end_column_offset > column_offset:
+        length = end_column_offset - column_offset
+
+    return {
+        "column": column_offset + 1,
+        "length": max(1, length),
+        "line": line,
+        "message": message,
+    }
+
+
 def dataframe_rows_to_strings(dataframe: Any, pd_module: Any) -> list[list[str]]:
     rows: list[list[str]] = []
 
@@ -685,8 +797,16 @@ def format_pandas_value(value: Any, pd_module: Any) -> str:
     return str(value)
 
 
-def invalid_code_result(message: str) -> dict[str, Any]:
-    return {"message": message, "score": 70, "status": "partial"}
+def invalid_code_result(
+    message: str,
+    diagnostics: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    return {
+        "diagnostics": diagnostics or [],
+        "message": message,
+        "score": 70,
+        "status": "partial",
+    }
 
 
 def is_import_pandas_as_pd(node: ast.AST) -> bool:

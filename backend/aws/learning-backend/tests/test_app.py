@@ -108,6 +108,18 @@ class LearningBackendTest(unittest.TestCase):
         self.assertEqual(result["status"], "partial")
         self.assertIn("PermissionError", result["message"])
 
+    def test_returns_multiple_structural_diagnostics(self) -> None:
+        result = run_pandas_loading_code(
+            'import pandas as pd\n\ndf = pdread_csv("data/Food_Delivery_Times.csv")\ndfhead()',
+            "data/Food_Delivery_Times.csv",
+            b"Order_ID,Time_taken\n1,42\n2,36\n",
+        )
+
+        self.assertEqual(result["status"], "partial")
+        self.assertEqual(len(result["diagnostics"]), 2)
+        self.assertEqual(result["diagnostics"][0]["line"], 3)
+        self.assertEqual(result["diagnostics"][1]["line"], 4)
+
     def test_rejects_wrong_csv_path(self) -> None:
         result = validate_pandas_loading_code(
             'import pandas as pd\n\ndf = pd.read_csv("data/wrong.csv")\ndf.head()',

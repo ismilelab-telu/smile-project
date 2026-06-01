@@ -164,8 +164,16 @@ type LearningBackendInspectResponse = {
   tabularFilePath?: string;
 };
 
+type CodeDiagnostic = {
+  column: number;
+  length: number;
+  line: number;
+  message: string;
+};
+
 type LearningBackendValidationResponse = {
   columns?: string[];
+  diagnostics?: CodeDiagnostic[];
   expectedCode?: string;
   message?: string;
   previewRows?: string[][];
@@ -176,6 +184,7 @@ type LearningBackendValidationResponse = {
 
 type PandasCodeRunResult = {
   columns: string[];
+  diagnostics: CodeDiagnostic[];
   message: string;
   rows: string[][];
   status: EvaluationResult["status"];
@@ -838,6 +847,7 @@ function createPandasCodeRunResult(
 ): PandasCodeRunResult {
   return {
     columns: Array.isArray(backendResult.columns) ? backendResult.columns.map(String) : [],
+    diagnostics: normalizeCodeDiagnostics(backendResult.diagnostics),
     message: getPandasCodeRunMessage(backendResult),
     rows: Array.isArray(backendResult.previewRows)
       ? backendResult.previewRows.map((row) => row.map(String))
@@ -1543,6 +1553,166 @@ function getCodeLineNumbers(value: string) {
   const lineCount = Math.max(1, normalizedCode.split("\n").length);
 
   return Array.from({ length: lineCount }, (_, index) => index + 1);
+}
+
+function getCodeDiagnosticText(code: string, diagnostic: CodeDiagnostic) {
+  const sourceLine = code.replace(/\r\n?/g, "\n").split("\n")[diagnostic.line - 1] ?? "";
+  const startIndex = Math.max(0, diagnostic.column - 1);
+  const length = Math.max(1, diagnostic.length);
+  const text = sourceLine.slice(startIndex, startIndex + length).padEnd(length, " ");
+
+  return text.replace(/ /g, "\u00a0");
+}
+
+function getCodeDiagnostics(
+  result: PandasCodeRunResult | undefined,
+  code: string,
+): CodeDiagnostic[] {
+  const message = result?.message.trim() ?? "";
+  const lines = code.replace(/\r\n?/g, "\n").split("\n");
+
+  if (!message || result?.status === "correct") {
+    return [];
+  }
+
+  if (result.diagnostics.length > 0) {
+    return compactCodeDiagnostics(
+      result.diagnostics.map((diagnostic) =>
+        createCodeDiagnostic({
+          column: diagnostic.column,
+          line: diagnostic.line,
+          lines,
+          message: diagnostic.message || message,
+          preferredLength: diagnostic.length,
+        }),
+      ),
+    );
+  }
+
+  const syntaxLocation = /\(line (\d+), column (\d+)\)/.exec(message);
+
+  if (syntaxLocation) {
+    const line = Number(syntaxLocation[1]);
+    const column = Number(syntaxLocation[2]);
+
+    return compactCodeDiagnostics([
+      createCodeDiagnostic({
+        column,
+        line,
+        lines,
+        message,
+      }),
+    ]);
+  }
+
+  if (message.includes("read_csv") || message.includes("FileNotFoundError")) {
+    const readCsvLineIndex = lines.findIndex(
+      (line) => line.includes("read_csv") || line.includes("read"),
+    );
+    if (readCsvLineIndex >= 0) {
+      const readCsvLine = lines[readCsvLineIndex];
+      const quotedPathMatch = /["'][^"']*["']/.exec(readCsvLine);
+      const readCsvMatch = /[A-Za-z_][\w.]*read_csv/.exec(readCsvLine);
+      const column = readCsvMatch
+        ? readCsvMatch.index + 1
+        : quotedPathMatch
+          ? quotedPathMatch.index + 1
+          : 1;
+
+      return compactCodeDiagnostics([
+        createCodeDiagnostic({
+          column,
+          line: readCsvLineIndex + 1,
+          lines,
+          message,
+          preferredLength: readCsvMatch?.[0].length ?? quotedPathMatch?.[0].length ?? 1,
+        }),
+      ]);
+    }
+  }
+
+  if (message.includes("head") || message.includes("output")) {
+    const headLineIndex = [...lines].reverse().findIndex((line) => line.trim() !== "");
+    if (headLineIndex >= 0) {
+      const line = lines.length - headLineIndex;
+      const sourceLine = lines[line - 1] ?? "";
+
+      return compactCodeDiagnostics([
+        createCodeDiagnostic({
+          column: sourceLine.search(/\S/) + 1,
+          line,
+          lines,
+          message,
+          preferredLength: Math.max(1, sourceLine.trim().length),
+        }),
+      ]);
+    }
+  }
+
+  const fallbackLineIndex = lines.findIndex((line) => line.trim() !== "");
+
+  return compactCodeDiagnostics([
+    createCodeDiagnostic({
+      column: 1,
+      line: fallbackLineIndex >= 0 ? fallbackLineIndex + 1 : 1,
+      lines,
+      message,
+    }),
+  ]);
+}
+
+function compactCodeDiagnostics(diagnostics: Array<CodeDiagnostic | null>) {
+  return diagnostics.filter((diagnostic): diagnostic is CodeDiagnostic => diagnostic !== null);
+}
+
+function isCodeDiagnostic(value: unknown): value is CodeDiagnostic {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const diagnostic = value as Partial<CodeDiagnostic>;
+
+  return (
+    typeof diagnostic.column === "number" &&
+    typeof diagnostic.length === "number" &&
+    typeof diagnostic.line === "number" &&
+    typeof diagnostic.message === "string"
+  );
+}
+
+function normalizeCodeDiagnostics(value: unknown) {
+  return Array.isArray(value) ? value.filter(isCodeDiagnostic) : [];
+}
+
+function createCodeDiagnostic({
+  column,
+  line,
+  lines,
+  message,
+  preferredLength = 1,
+}: {
+  column: number;
+  line: number;
+  lines: string[];
+  message: string;
+  preferredLength?: number;
+}): CodeDiagnostic | null {
+  if (!Number.isFinite(line) || line < 1 || line > lines.length) {
+    return null;
+  }
+
+  const sourceLine = lines[line - 1] ?? "";
+  const clampedColumn = Math.max(1, Math.min(Math.max(1, sourceLine.length + 1), column));
+
+  return {
+    column: clampedColumn,
+    length: Math.max(
+      1,
+      Math.min(Math.max(1, sourceLine.length - clampedColumn + 2), preferredLength),
+    ),
+    line,
+    message,
+  };
 }
 
 function evaluateExerciseAnswerSnapshot(
@@ -2412,6 +2582,7 @@ export function LessonPage({
         ...current,
         [exercise.id]: {
           columns: [],
+          diagnostics: [],
           message: "Upload the Kaggle ZIP first, then run the code.",
           rows: [],
           status: "incorrect",
@@ -2425,6 +2596,7 @@ export function LessonPage({
         ...current,
         [exercise.id]: {
           columns: [],
+          diagnostics: [],
           message: "Type the Pandas code first, then run it.",
           rows: [],
           status: "partial",
@@ -2451,6 +2623,7 @@ export function LessonPage({
         ...current,
         [exercise.id]: {
           columns: [],
+          diagnostics: [],
           message: "The code could not be run. Check the uploaded ZIP and try again.",
           rows: [],
           status: "incorrect",
@@ -3440,6 +3613,7 @@ function GuidedDownloadExerciseView({
     ? ""
     : getExpectedCodeGhostText(expectedCode, displayedCode);
   const codeLineNumbers = getCodeLineNumbers(displayedCode || expectedCode);
+  const codeDiagnostics = getCodeDiagnostics(pandasCodeRunResult, displayedCode);
   const openLinkLabel = locale === "en" ? "Open dataset page" : "Buka halaman dataset";
   const copyLinkLabel = locale === "en" ? "Copy link" : "Salin link";
   const copyLinkButtonLabel = locale === "en" ? "Copy" : "Salin";
@@ -3648,6 +3822,22 @@ function GuidedDownloadExerciseView({
                         {expectedCodeGhostText}
                       </pre>
                     ) : null}
+                    {codeDiagnostics.map((diagnostic, diagnosticIndex) => (
+                      <span
+                        aria-hidden="true"
+                        className="absolute z-30 h-6 cursor-help select-none whitespace-pre font-mono text-sm leading-6 text-transparent underline decoration-rose-500 decoration-[1.5px] decoration-wavy underline-offset-[3px] [text-decoration-skip-ink:none]"
+                        key={`${diagnostic.line}-${diagnostic.column}-${diagnosticIndex}`}
+                        style={{
+                          left: `calc(3.5rem + ${(diagnostic.column - 1).toString()}ch - ${
+                            codeEditorScrollOffset.left
+                          }px)`,
+                          top: `${12 + (diagnostic.line - 1) * 24 - codeEditorScrollOffset.top}px`,
+                        }}
+                        title={diagnostic.message}
+                      >
+                        {getCodeDiagnosticText(displayedCode, diagnostic)}
+                      </span>
+                    ))}
                     <textarea
                       aria-label={exercise.codeLabel}
                       className="relative z-10 min-h-32 w-full resize-y bg-transparent py-3 pr-4 pl-14 font-mono text-sm leading-6 text-neutral-50 caret-neutral-50 outline-none disabled:bg-transparent disabled:text-neutral-400"
