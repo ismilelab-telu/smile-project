@@ -126,6 +126,8 @@ class LearningBackendTest(unittest.TestCase):
         self.original_cognito_identity_provider_client = app._cognito_identity_provider_client
         self.original_dynamodb_client = app._dynamodb_client
         self.original_learning_progress_table = app.LEARNING_PROGRESS_TABLE
+        self.original_decrypt_cognito_sender_code = app.decrypt_cognito_sender_code
+        self.original_send_resend_email = app.send_resend_email
         self.original_username_reservation_table = app.USERNAME_RESERVATION_TABLE
 
     def tearDown(self) -> None:
@@ -133,6 +135,8 @@ class LearningBackendTest(unittest.TestCase):
         app._cognito_identity_provider_client = self.original_cognito_identity_provider_client
         app._dynamodb_client = self.original_dynamodb_client
         app.LEARNING_PROGRESS_TABLE = self.original_learning_progress_table
+        app.decrypt_cognito_sender_code = self.original_decrypt_cognito_sender_code
+        app.send_resend_email = self.original_send_resend_email
         app.USERNAME_RESERVATION_TABLE = self.original_username_reservation_table
 
     def test_inspects_first_csv_path_and_preview(self) -> None:
@@ -425,6 +429,42 @@ class LearningBackendTest(unittest.TestCase):
             sign_in_with_username({"password": "Password1", "username": "Student_One"})
 
         self.assertEqual(context.exception.code, "NotAuthorizedException")
+
+    def test_custom_email_sender_sends_decrypted_verification_code_with_resend(self) -> None:
+        sent_messages: list[dict[str, str]] = []
+
+        app.decrypt_cognito_sender_code = lambda encrypted_code: f"code-{encrypted_code}"
+
+        def fake_send_resend_email(**kwargs):
+            sent_messages.append(kwargs)
+
+        app.send_resend_email = fake_send_resend_email
+        event = {
+            "request": {
+                "code": "encrypted",
+                "userAttributes": {"email": "student@example.com"},
+            },
+            "triggerSource": "CustomEmailSender_SignUp",
+        }
+
+        result = app.handle_cognito_trigger(event)
+
+        self.assertIs(result, event)
+        self.assertEqual(sent_messages[0]["recipient"], "student@example.com")
+        self.assertIn("Kode verifikasi", sent_messages[0]["subject"])
+        self.assertIn("code-encrypted", sent_messages[0]["text_body"])
+        self.assertIn("spam atau junk", sent_messages[0]["text_body"])
+
+    def test_extracts_resend_api_key_from_plain_or_json_secret(self) -> None:
+        self.assertEqual(app.extract_resend_api_key_from_secret("re_plain"), "re_plain")
+        self.assertEqual(
+            app.extract_resend_api_key_from_secret("Resend API key: re_embedded"),
+            "re_embedded",
+        )
+        self.assertEqual(
+            app.extract_resend_api_key_from_secret('{"apiKey":"re_json"}'),
+            "re_json",
+        )
 
 
 if __name__ == "__main__":

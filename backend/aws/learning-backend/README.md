@@ -14,6 +14,18 @@ The backend does not execute submitted learner code with `exec` or `eval`. It co
 
 Usernames are reserved by a Cognito PreSignUp trigger with a short TTL, then marked confirmed only by the Cognito PostConfirmation trigger after email verification succeeds. Pending reservations are not accepted for username sign-in.
 
+Auth emails use a Cognito custom email sender trigger. Cognito encrypts verification and recovery codes with a stack-owned KMS key, the Lambda decrypts the code, then sends the email through Resend. Store the Resend API key in Secrets Manager before deploying:
+
+```bash
+aws secretsmanager create-secret \
+  --name smile/resend/api-key \
+  --secret-string '{"apiKey":"re_REPLACE_WITH_REAL_KEY"}' \
+  --region ap-southeast-1 \
+  --profile smile-dev
+```
+
+If the secret already exists, update it with `aws secretsmanager put-secret-value --secret-id smile/resend/api-key --secret-string '{"apiKey":"re_REPLACE_WITH_REAL_KEY"}'`.
+
 ## Validate Locally
 
 ```bash
@@ -28,5 +40,5 @@ Deploy only after confirming the Cloudflare Pages origin to allow in CORS:
 ```bash
 cd backend/aws/learning-backend
 sam build
-sam deploy --parameter-overrides 'AllowedOrigins="http://127.0.0.1:5317,http://localhost:5317,https://YOUR-CLOUDFLARE-PAGES-DOMAIN"'
+sam deploy --parameter-overrides 'AllowedOrigins="http://127.0.0.1:5317,http://localhost:5317,https://YOUR-CLOUDFLARE-PAGES-DOMAIN" ResendApiKeySecretName="smile/resend/api-key" ResendFromEmail="Smile Lab <auth@smilelab.me>"'
 ```

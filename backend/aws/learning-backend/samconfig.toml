@@ -10,5 +10,5 @@ capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
 resolve_s3 = true
 fail_on_empty_changeset = false
-parameter_overrides = "AllowedOrigins=\"http://127.0.0.1:5317,http://localhost:5317,https://smile-project.pages.dev\""
+parameter_overrides = "AllowedOrigins=\"http://127.0.0.1:5317,http://localhost:5317,https://smile-project.pages.dev\" ResendApiKeySecretName=\"smile/resend/api-key\" ResendFromEmail=\"Smile Lab <auth@smilelab.me>\" ResendReplyToEmail=\"\""
 tags = "Project=\"Smile\" Environment=\"dev\""

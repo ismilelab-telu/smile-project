@@ -7,6 +7,18 @@ Parameters:
     Type: CommaDelimitedList
     Default: "http://127.0.0.1:5317,http://localhost:5317"
     Description: Browser origins allowed to call the Lambda Function URL and upload to S3.
+  ResendApiKeySecretName:
+    Type: String
+    Default: "smile/resend/api-key"
+    Description: Secrets Manager secret name that stores the Resend API key.
+  ResendFromEmail:
+    Type: String
+    Default: "Smile Lab <auth@smilelab.me>"
+    Description: Verified Resend sender used for Cognito auth emails.
+  ResendReplyToEmail:
+    Type: String
+    Default: ""
+    Description: Optional reply-to email address for Cognito auth emails.
 
 Globals:
   Function:
@@ -46,6 +58,40 @@ Resources:
         AttributeName: expiresAt
         Enabled: true
 
+  CognitoEmailSenderKmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: !Sub "${AWS::StackName} Cognito custom email sender encryption key"
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EnableIamUserPermissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+            Action: "kms:*"
+            Resource: "*"
+          - Sid: AllowCognitoEncryptVerificationCodes
+            Effect: Allow
+            Principal:
+              Service: cognito-idp.amazonaws.com
+            Action:
+              - kms:CreateGrant
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey
+            Resource: "*"
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  CognitoEmailSenderKmsAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub "alias/${AWS::StackName}/cognito-email-sender"
+      TargetKeyId: !Ref CognitoEmailSenderKmsKey
+
   SmileUserPool:
     Type: AWS::Cognito::UserPool
     Properties:
@@ -77,6 +123,10 @@ Resources:
       LambdaConfig:
         PreSignUp: !GetAtt AuthUsernameFunction.Arn
         PostConfirmation: !GetAtt AuthUsernameFunction.Arn
+        CustomEmailSender:
+          LambdaArn: !GetAtt AuthEmailSenderFunction.Arn
+          LambdaVersion: V1_0
+        KMSKeyID: !GetAtt CognitoEmailSenderKmsKey.Arn
       VerificationMessageTemplate:
         DefaultEmailOption: CONFIRM_WITH_CODE
 
@@ -180,6 +230,36 @@ Resources:
       Principal: cognito-idp.amazonaws.com
       SourceArn: !GetAtt SmileUserPool.Arn
 
+  AuthEmailSenderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Environment:
+        Variables:
+          COGNITO_EMAIL_SENDER_KMS_KEY_ARN: !GetAtt CognitoEmailSenderKmsKey.Arn
+          RESEND_API_KEY_SECRET_ID: !Ref ResendApiKeySecretName
+          RESEND_FROM_EMAIL: !Ref ResendFromEmail
+          RESEND_REPLY_TO_EMAIL: !Ref ResendReplyToEmail
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - kms:Decrypt
+              Resource: !GetAtt CognitoEmailSenderKmsKey.Arn
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Sub "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${ResendApiKeySecretName}-*"
+
+  AuthEmailSenderFunctionCognitoInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref AuthEmailSenderFunction
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !GetAtt SmileUserPool.Arn
+
 Outputs:
   LearningBackendFunctionUrl:
     Description: Public HTTPS endpoint for the learning backend.
@@ -202,3 +282,6 @@ Outputs:
   UsernameReservationTableName:
     Description: DynamoDB table reserving unique display usernames.
     Value: !Ref UsernameReservationTable
+  ResendApiKeySecretName:
+    Description: Secrets Manager secret name expected by the Cognito custom email sender.
+    Value: !Ref ResendApiKeySecretName

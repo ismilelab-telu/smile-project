@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import ast
 import base64
+import binascii
 import csv
+import html
 import io
 import json
 import os
@@ -10,6 +12,8 @@ from pathlib import Path
 import re
 import tempfile
 import time
+import urllib.error
+import urllib.request
 import uuid
 import zipfile
 from typing import Any
@@ -39,6 +43,13 @@ except ImportError:  # pragma: no cover - Lambda and SAM builds install boto3.
     class ClientError(Exception):
         pass
 
+try:
+    import aws_encryption_sdk
+    from aws_encryption_sdk import CommitmentPolicy
+except ImportError:  # pragma: no cover - Lambda and SAM builds install this dependency.
+    aws_encryption_sdk = None
+    CommitmentPolicy = None
+
 
 UPLOAD_BUCKET = os.environ.get("UPLOAD_BUCKET", "")
 LEARNING_PROGRESS_TABLE = os.environ.get("LEARNING_PROGRESS_TABLE", "")
@@ -47,6 +58,13 @@ AWS_REGION = os.environ.get("AWS_REGION", "ap-southeast-1")
 COGNITO_REGION = os.environ.get("COGNITO_REGION", AWS_REGION)
 COGNITO_USER_POOL_ID = os.environ.get("COGNITO_USER_POOL_ID", "")
 COGNITO_CLIENT_ID = os.environ.get("COGNITO_CLIENT_ID", "")
+COGNITO_EMAIL_SENDER_KMS_KEY_ARN = os.environ.get("COGNITO_EMAIL_SENDER_KMS_KEY_ARN", "")
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+RESEND_API_KEY_SECRET_ID = os.environ.get("RESEND_API_KEY_SECRET_ID", "")
+RESEND_API_URL = os.environ.get("RESEND_API_URL", "https://api.resend.com/emails")
+RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "Smile Lab <auth@smilelab.me>")
+RESEND_REPLY_TO_EMAIL = os.environ.get("RESEND_REPLY_TO_EMAIL", "")
+RESEND_REQUEST_TIMEOUT_SECONDS = 10
 MAX_ZIP_BYTES = int(os.environ.get("MAX_ZIP_BYTES", "52428800"))
 MAX_UNZIPPED_BYTES = int(os.environ.get("MAX_UNZIPPED_BYTES", "104857600"))
 MAX_PROGRESS_JSON_BYTES = int(os.environ.get("MAX_PROGRESS_JSON_BYTES", "300000"))
@@ -59,7 +77,9 @@ USERNAME_RESERVATION_TTL_SECONDS = 24 * 60 * 60
 _s3_client = None
 _dynamodb_client = None
 _cognito_identity_provider_client = None
+_secrets_manager_client = None
 _jwks_client = None
+_resend_api_key_cache = None
 
 
 class ClientInputError(ValueError):
@@ -144,7 +164,9 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
 def handle_cognito_trigger(event: dict[str, Any]) -> dict[str, Any]:
     trigger_source = event.get("triggerSource")
 
-    if trigger_source == "PreSignUp_SignUp":
+    if isinstance(trigger_source, str) and trigger_source.startswith("CustomEmailSender_"):
+        send_cognito_email_with_resend(event)
+    elif trigger_source == "PreSignUp_SignUp":
         reserve_username_for_signup(event)
     elif trigger_source == "PostConfirmation_ConfirmSignUp":
         confirm_username_reservation(event)
@@ -213,6 +235,223 @@ def confirm_username_reservation(event: dict[str, Any]) -> None:
     except ClientError as error:
         if not is_conditional_check_failed(error):
             raise
+
+
+def send_cognito_email_with_resend(event: dict[str, Any]) -> None:
+    recipient = get_cognito_user_attribute(event, "email")
+    encrypted_code = get_cognito_request_value(event, "code")
+
+    if not recipient:
+        raise AuthConfigurationError("Cognito custom email event is missing an email.")
+
+    code = decrypt_cognito_sender_code(encrypted_code) if encrypted_code else ""
+    message = build_cognito_email_message(event.get("triggerSource", ""), code)
+
+    send_resend_email(
+        html_body=message["html"],
+        recipient=recipient,
+        subject=message["subject"],
+        text_body=message["text"],
+    )
+
+
+def build_cognito_email_message(trigger_source: Any, code: str) -> dict[str, str]:
+    trigger = trigger_source if isinstance(trigger_source, str) else ""
+    subject = "Kode verifikasi Smile Lab"
+    title = "Verifikasi akun"
+    intro = "Masukkan kode ini untuk menyelesaikan verifikasi akun Smile Lab."
+    label = "Kode verifikasi"
+
+    if trigger == "CustomEmailSender_ForgotPassword":
+        subject = "Kode reset password Smile Lab"
+        title = "Reset password"
+        intro = "Masukkan kode ini untuk mengatur ulang password akun Smile Lab."
+        label = "Kode reset password"
+    elif trigger in {
+        "CustomEmailSender_UpdateUserAttribute",
+        "CustomEmailSender_VerifyUserAttribute",
+    }:
+        subject = "Kode verifikasi email Smile Lab"
+        title = "Verifikasi email"
+        intro = "Masukkan kode ini untuk memverifikasi email akun Smile Lab."
+    elif trigger == "CustomEmailSender_Authentication":
+        subject = "Kode masuk Smile Lab"
+        title = "Kode masuk"
+        intro = "Masukkan kode ini untuk melanjutkan proses masuk ke Smile Lab."
+        label = "Kode masuk"
+    elif trigger == "CustomEmailSender_AdminCreateUser":
+        subject = "Undangan akun Smile Lab"
+        title = "Akun Smile Lab dibuat"
+        intro = "Gunakan nilai berikut untuk menyelesaikan akses akun Smile Lab."
+        label = "Kode atau password sementara"
+
+    code_line = f"{label}: {code}" if code else "Buka aplikasi Smile Lab untuk melanjutkan."
+    text_body = "\n".join(
+        [
+            title,
+            "",
+            intro,
+            "",
+            code_line,
+            "",
+            "Kalau email tidak muncul, cek folder spam atau junk.",
+            "Abaikan email ini jika kamu tidak meminta kode dari Smile Lab.",
+        ]
+    )
+
+    escaped_title = html.escape(title)
+    escaped_intro = html.escape(intro)
+    escaped_label = html.escape(label)
+    escaped_code = html.escape(code)
+    code_block = (
+        f"""
+        <p style="margin:24px 0 8px;color:#525252;font-size:13px;font-weight:700;">{escaped_label}</p>
+        <div style="border:1px solid #d4d4d4;background:#f8fafc;color:#171717;font-size:28px;font-weight:800;letter-spacing:4px;padding:18px 20px;text-align:center;">{escaped_code}</div>
+        """
+        if code
+        else '<p style="margin:24px 0;color:#171717;">Buka aplikasi Smile Lab untuk melanjutkan.</p>'
+    )
+
+    html_body = f"""
+    <!doctype html>
+    <html lang="id">
+      <body style="margin:0;background:#ffffff;color:#171717;font-family:Arial,Helvetica,sans-serif;">
+        <main style="max-width:520px;margin:0 auto;padding:32px 24px;">
+          <h1 style="margin:0 0 16px;font-size:28px;line-height:1.2;">{escaped_title}</h1>
+          <p style="margin:0;color:#404040;font-size:15px;line-height:1.7;">{escaped_intro}</p>
+          {code_block}
+          <p style="margin:24px 0 0;color:#525252;font-size:14px;line-height:1.7;">Kalau email tidak muncul, cek folder spam atau junk.</p>
+          <p style="margin:12px 0 0;color:#737373;font-size:13px;line-height:1.7;">Abaikan email ini jika kamu tidak meminta kode dari Smile Lab.</p>
+        </main>
+      </body>
+    </html>
+    """
+
+    return {"html": html_body, "subject": subject, "text": text_body}
+
+
+def decrypt_cognito_sender_code(encrypted_code: str) -> str:
+    if aws_encryption_sdk is None or CommitmentPolicy is None:
+        raise AuthConfigurationError("AWS Encryption SDK is required for Cognito custom emails.")
+
+    if not COGNITO_EMAIL_SENDER_KMS_KEY_ARN:
+        raise AuthConfigurationError("Cognito custom email KMS key is not configured.")
+
+    try:
+        ciphertext = base64.b64decode(encrypted_code)
+    except (binascii.Error, ValueError) as error:
+        raise AuthConfigurationError("Cognito custom email code is not valid base64.") from error
+
+    try:
+        client = aws_encryption_sdk.EncryptionSDKClient(
+            commitment_policy=CommitmentPolicy.FORBID_ENCRYPT_ALLOW_DECRYPT
+        )
+        key_provider = aws_encryption_sdk.StrictAwsKmsMasterKeyProvider(
+            key_ids=[COGNITO_EMAIL_SENDER_KMS_KEY_ARN]
+        )
+        plaintext, _header = client.decrypt(source=ciphertext, key_provider=key_provider)
+    except Exception as error:  # pragma: no cover - exercised only against AWS KMS.
+        raise AuthConfigurationError("Unable to decrypt Cognito custom email code.") from error
+
+    return plaintext.decode("utf-8")
+
+
+def send_resend_email(
+    *,
+    html_body: str,
+    recipient: str,
+    subject: str,
+    text_body: str,
+) -> None:
+    payload: dict[str, Any] = {
+        "from": RESEND_FROM_EMAIL,
+        "html": html_body,
+        "subject": subject,
+        "text": text_body,
+        "to": [recipient],
+    }
+
+    if RESEND_REPLY_TO_EMAIL:
+        payload["reply_to"] = RESEND_REPLY_TO_EMAIL
+
+    request = urllib.request.Request(
+        RESEND_API_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Accept": "application/json",
+            "Authorization": f"Bearer {get_resend_api_key()}",
+            "Content-Type": "application/json",
+            "User-Agent": "SmileLab/1.0 (+https://smile-project.pages.dev)",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=RESEND_REQUEST_TIMEOUT_SECONDS) as result:
+            result.read()
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode("utf-8", errors="replace").strip()
+        message = f"Resend email request failed with status {error.code}."
+        if detail:
+            message = f"{message} {detail[:500]}"
+        raise RuntimeError(message) from error
+    except urllib.error.URLError as error:
+        raise RuntimeError("Resend email request failed.") from error
+
+
+def get_resend_api_key() -> str:
+    global _resend_api_key_cache
+
+    if RESEND_API_KEY:
+        return RESEND_API_KEY
+
+    if _resend_api_key_cache:
+        return _resend_api_key_cache
+
+    if not RESEND_API_KEY_SECRET_ID:
+        raise AuthConfigurationError("Resend API key secret is not configured.")
+
+    secret = get_secrets_manager_client().get_secret_value(SecretId=RESEND_API_KEY_SECRET_ID)
+    secret_value = secret.get("SecretString", "")
+
+    if not secret_value and secret.get("SecretBinary"):
+        secret_value = base64.b64decode(secret["SecretBinary"]).decode("utf-8")
+
+    api_key = extract_resend_api_key_from_secret(secret_value)
+    if not api_key:
+        raise AuthConfigurationError("Resend API key secret is empty.")
+
+    _resend_api_key_cache = api_key
+    return api_key
+
+
+def extract_resend_api_key_from_secret(secret_value: str) -> str:
+    value = secret_value.strip()
+    if not value:
+        return ""
+
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        match = re.search(r"re_[A-Za-z0-9_-]+", value)
+        return match.group(0) if match else value
+
+    if not isinstance(parsed, dict):
+        return ""
+
+    for key in ("apiKey", "resendApiKey", "RESEND_API_KEY", "api_key"):
+        api_key = parsed.get(key)
+        if isinstance(api_key, str) and api_key.strip():
+            return api_key.strip()
+
+    return ""
+
+
+def get_cognito_request_value(event: dict[str, Any], name: str) -> str:
+    request = event.get("request", {})
+    value = request.get(name, "") if isinstance(request, dict) else ""
+
+    return value.strip() if isinstance(value, str) else ""
 
 
 def get_cognito_user_attribute(event: dict[str, Any], name: str) -> str:
@@ -1325,6 +1564,24 @@ def get_cognito_identity_provider_client():
     )
 
     return _cognito_identity_provider_client
+
+
+def get_secrets_manager_client():
+    global _secrets_manager_client
+
+    if _secrets_manager_client is not None:
+        return _secrets_manager_client
+
+    if boto3 is None:
+        raise RuntimeError("boto3 is required for AWS secret operations.")
+
+    _secrets_manager_client = boto3.client(
+        "secretsmanager",
+        config=Config(),
+        region_name=AWS_REGION,
+    )
+
+    return _secrets_manager_client
 
 
 def get_client_error_code(error: ClientError) -> str:
