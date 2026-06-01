@@ -4,6 +4,7 @@ import ast
 import base64
 import binascii
 import csv
+import hashlib
 import html
 import io
 import json
@@ -54,6 +55,7 @@ except ImportError:  # pragma: no cover - Lambda and SAM builds install this dep
 UPLOAD_BUCKET = os.environ.get("UPLOAD_BUCKET", "")
 LEARNING_PROGRESS_TABLE = os.environ.get("LEARNING_PROGRESS_TABLE", "")
 USERNAME_RESERVATION_TABLE = os.environ.get("USERNAME_RESERVATION_TABLE", "")
+AUTH_COOLDOWN_TABLE = os.environ.get("AUTH_COOLDOWN_TABLE", "")
 AWS_REGION = os.environ.get("AWS_REGION", "ap-southeast-1")
 COGNITO_REGION = os.environ.get("COGNITO_REGION", AWS_REGION)
 COGNITO_USER_POOL_ID = os.environ.get("COGNITO_USER_POOL_ID", "")
@@ -65,6 +67,7 @@ RESEND_API_URL = os.environ.get("RESEND_API_URL", "https://api.resend.com/emails
 RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "Smile Lab <auth@smilelab.me>")
 RESEND_REPLY_TO_EMAIL = os.environ.get("RESEND_REPLY_TO_EMAIL", "")
 RESEND_REQUEST_TIMEOUT_SECONDS = 10
+AUTH_RESEND_COOLDOWN_SECONDS = int(os.environ.get("AUTH_RESEND_COOLDOWN_SECONDS", "30"))
 MAX_ZIP_BYTES = int(os.environ.get("MAX_ZIP_BYTES", "52428800"))
 MAX_UNZIPPED_BYTES = int(os.environ.get("MAX_UNZIPPED_BYTES", "104857600"))
 MAX_PROGRESS_JSON_BYTES = int(os.environ.get("MAX_PROGRESS_JSON_BYTES", "300000"))
@@ -72,7 +75,9 @@ MAX_ZIP_ENTRIES = 512
 PRESIGN_EXPIRES_IN_SECONDS = 600
 GUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{7,127}$")
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 USERNAME_RESERVATION_TTL_SECONDS = 24 * 60 * 60
+AUTH_COOLDOWN_TTL_SECONDS = 60 * 60
 
 _s3_client = None
 _dynamodb_client = None
@@ -96,6 +101,13 @@ class AuthConfigurationError(RuntimeError):
 
 class UsernameReservationError(ValueError):
     pass
+
+
+class AuthCooldownError(ValueError):
+    def __init__(self, retry_after_seconds: int, next_allowed_at: int):
+        super().__init__("Please wait before requesting another verification code.")
+        self.retry_after_seconds = retry_after_seconds
+        self.next_allowed_at = next_allowed_at
 
 
 class CognitoSignInError(ValueError):
@@ -126,6 +138,9 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             user = require_authenticated_user(event)
             return response(200, save_learning_progress(parse_json_body(event), user))
 
+        if method == "POST" and path == "/auth/confirmation/resend":
+            return response(200, resend_confirmation_code(parse_json_body(event)))
+
         if method == "POST" and path == "/auth/username/sign-in":
             return response(200, sign_in_with_username(parse_json_body(event)))
 
@@ -149,6 +164,16 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         return response(401, {"message": str(error)})
     except AuthConfigurationError:
         return response(500, {"message": "Auth is not configured for this backend."})
+    except AuthCooldownError as error:
+        return response(
+            429,
+            {
+                "code": "ResendConfirmationCooldownException",
+                "message": str(error),
+                "nextAllowedAt": error.next_allowed_at,
+                "retryAfterSeconds": error.retry_after_seconds,
+            },
+        )
     except UsernameReservationError as error:
         return response(400, {"code": "InvalidUsernameException", "message": str(error)})
     except CognitoSignInError as error:
@@ -485,6 +510,13 @@ def require_username_reservation_table() -> str:
     return USERNAME_RESERVATION_TABLE
 
 
+def require_auth_cooldown_table() -> str:
+    if not AUTH_COOLDOWN_TABLE:
+        raise AuthConfigurationError("Auth cooldown table is not configured.")
+
+    return AUTH_COOLDOWN_TABLE
+
+
 def is_conditional_check_failed(error: ClientError) -> bool:
     return get_client_error_code(error) == "ConditionalCheckFailedException"
 
@@ -783,6 +815,97 @@ def get_confirmed_email_for_username(username_key: str) -> str:
         return ""
 
     return item.get("email", {}).get("S", "")
+
+
+def resend_confirmation_code(body: dict[str, Any]) -> dict[str, Any]:
+    email = normalize_auth_email(get_required_string(body, "email"))
+    if not COGNITO_CLIENT_ID:
+        raise AuthConfigurationError("Cognito client id is missing.")
+
+    now = int(time.time())
+    next_allowed_at = reserve_confirmation_resend(email, now)
+
+    try:
+        get_cognito_identity_provider_client().resend_confirmation_code(
+            ClientId=COGNITO_CLIENT_ID,
+            Username=email,
+        )
+    except ClientError as error:
+        code = get_client_error_code(error)
+        if code in {"InvalidParameterException", "UserNotFoundException"}:
+            return build_confirmation_resend_response(next_allowed_at)
+        if code in {"LimitExceededException", "TooManyRequestsException"}:
+            raise AuthCooldownError(AUTH_RESEND_COOLDOWN_SECONDS, next_allowed_at) from error
+
+        raise
+
+    return build_confirmation_resend_response(next_allowed_at)
+
+
+def reserve_confirmation_resend(email: str, now: int) -> int:
+    cooldown_key = create_auth_cooldown_key("confirmation-resend", email)
+    next_allowed_at = now + AUTH_RESEND_COOLDOWN_SECONDS
+
+    try:
+        get_dynamodb_client().put_item(
+            TableName=require_auth_cooldown_table(),
+            Item={
+                "cooldownKey": {"S": cooldown_key},
+                "expiresAt": {"N": str(now + AUTH_COOLDOWN_TTL_SECONDS)},
+                "nextAllowedAt": {"N": str(next_allowed_at)},
+                "updatedAt": {"N": str(now)},
+            },
+            ConditionExpression=(
+                "attribute_not_exists(cooldownKey) OR nextAllowedAt <= :now"
+            ),
+            ExpressionAttributeValues={":now": {"N": str(now)}},
+        )
+    except ClientError as error:
+        if not is_conditional_check_failed(error):
+            raise
+
+        item = get_dynamodb_client().get_item(
+            TableName=require_auth_cooldown_table(),
+            Key={"cooldownKey": {"S": cooldown_key}},
+            ConsistentRead=True,
+        ).get("Item", {})
+        existing_next_allowed_at = get_number_attribute(item, "nextAllowedAt") or next_allowed_at
+        retry_after_seconds = max(1, existing_next_allowed_at - now)
+        raise AuthCooldownError(retry_after_seconds, existing_next_allowed_at) from error
+
+    return next_allowed_at
+
+
+def build_confirmation_resend_response(next_allowed_at: int) -> dict[str, Any]:
+    return {
+        "cooldownSeconds": AUTH_RESEND_COOLDOWN_SECONDS,
+        "nextAllowedAt": next_allowed_at,
+        "ok": True,
+    }
+
+
+def normalize_auth_email(email: str) -> str:
+    normalized_email = email.strip().lower()
+
+    if not EMAIL_PATTERN.fullmatch(normalized_email):
+        raise ClientInputError("Email is not valid.")
+
+    return normalized_email
+
+
+def create_auth_cooldown_key(scope: str, value: str) -> str:
+    digest = hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+    return f"{scope}#{digest}"
+
+
+def get_number_attribute(item: dict[str, Any], name: str) -> int | None:
+    value = item.get(name, {}).get("N") if isinstance(item, dict) else None
+
+    if isinstance(value, str) and value.lstrip("-").isdigit():
+        return int(value)
+
+    return None
 
 
 def download_archive(object_key: str) -> bytes:

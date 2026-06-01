@@ -7,6 +7,7 @@ AWS SAM backend for dataset ZIP upload and Pandas loading validation.
 - `POST /uploads/presign`: creates a temporary S3 PUT URL.
 - `POST /datasets/inspect`: reads the uploaded ZIP, finds the first CSV, and returns the `data/...` path.
 - `POST /pandas/validate`: runs restricted Pandas code against the extracted CSV.
+- `POST /auth/confirmation/resend`: resends Cognito confirmation codes with a backend-enforced cooldown.
 - `POST /auth/username/sign-in`: resolves a confirmed username to Cognito email sign-in.
 - `GET /health`: basic health check.
 

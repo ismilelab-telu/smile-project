@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import app
 from app import (
+    AuthCooldownError,
     AuthenticationError,
     CognitoSignInError,
     UsernameReservationError,
@@ -19,6 +20,7 @@ from app import (
     inspect_zip_bytes,
     is_valid_learning_progress,
     require_learning_backend_user,
+    reserve_confirmation_resend,
     reserve_username_for_signup,
     run_pandas_loading_code,
     sanitize_file_name,
@@ -67,6 +69,19 @@ class FakeDynamoDbClient:
 
     def put_item(self, **kwargs):
         item = kwargs["Item"]
+        if "cooldownKey" in item:
+            cooldown_key = item["cooldownKey"]["S"]
+            existing_item = self.items.get(cooldown_key)
+            now = int(kwargs["ExpressionAttributeValues"].get(":now", {"N": "0"})["N"])
+
+            if existing_item:
+                next_allowed_at = int(existing_item.get("nextAllowedAt", {"N": "0"})["N"])
+                if next_allowed_at > now:
+                    raise create_client_error("ConditionalCheckFailedException")
+
+            self.items[cooldown_key] = item
+            return {}
+
         username_key = item["usernameKey"]["S"]
         existing_item = self.items.get(username_key)
         requested_email = kwargs["ExpressionAttributeValues"][":email"]["S"]
@@ -97,8 +112,9 @@ class FakeDynamoDbClient:
         return {}
 
     def get_item(self, **kwargs):
-        username_key = kwargs["Key"]["usernameKey"]["S"]
-        item = self.items.get(username_key)
+        key = kwargs["Key"]
+        item_key = key.get("usernameKey", key.get("cooldownKey"))["S"]
+        item = self.items.get(item_key)
 
         return {"Item": item} if item else {}
 
@@ -119,6 +135,11 @@ class FakeCognitoIdentityProviderClient:
             }
         }
 
+    def resend_confirmation_code(self, **kwargs):
+        self.calls.append(kwargs)
+
+        return {}
+
 
 class LearningBackendTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -126,6 +147,7 @@ class LearningBackendTest(unittest.TestCase):
         self.original_cognito_identity_provider_client = app._cognito_identity_provider_client
         self.original_dynamodb_client = app._dynamodb_client
         self.original_learning_progress_table = app.LEARNING_PROGRESS_TABLE
+        self.original_auth_cooldown_table = app.AUTH_COOLDOWN_TABLE
         self.original_decrypt_cognito_sender_code = app.decrypt_cognito_sender_code
         self.original_send_resend_email = app.send_resend_email
         self.original_username_reservation_table = app.USERNAME_RESERVATION_TABLE
@@ -135,6 +157,7 @@ class LearningBackendTest(unittest.TestCase):
         app._cognito_identity_provider_client = self.original_cognito_identity_provider_client
         app._dynamodb_client = self.original_dynamodb_client
         app.LEARNING_PROGRESS_TABLE = self.original_learning_progress_table
+        app.AUTH_COOLDOWN_TABLE = self.original_auth_cooldown_table
         app.decrypt_cognito_sender_code = self.original_decrypt_cognito_sender_code
         app.send_resend_email = self.original_send_resend_email
         app.USERNAME_RESERVATION_TABLE = self.original_username_reservation_table
@@ -429,6 +452,21 @@ class LearningBackendTest(unittest.TestCase):
             sign_in_with_username({"password": "Password1", "username": "Student_One"})
 
         self.assertEqual(context.exception.code, "NotAuthorizedException")
+
+    def test_reserve_confirmation_resend_enforces_cooldown(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app._dynamodb_client = FakeDynamoDbClient()
+
+        next_allowed_at = reserve_confirmation_resend("student@example.com", now=100)
+
+        self.assertEqual(next_allowed_at, 130)
+
+        with self.assertRaises(AuthCooldownError) as context:
+            reserve_confirmation_resend("student@example.com", now=110)
+
+        self.assertEqual(context.exception.retry_after_seconds, 20)
+        self.assertEqual(context.exception.next_allowed_at, 130)
+        self.assertEqual(reserve_confirmation_resend("student@example.com", now=130), 160)
 
     def test_custom_email_sender_sends_decrypted_verification_code_with_resend(self) -> None:
         sent_messages: list[dict[str, str]] = []

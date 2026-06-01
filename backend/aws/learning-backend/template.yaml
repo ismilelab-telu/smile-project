@@ -58,6 +58,20 @@ Resources:
         AttributeName: expiresAt
         Enabled: true
 
+  AuthCooldownTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: cooldownKey
+          AttributeType: S
+      KeySchema:
+        - AttributeName: cooldownKey
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
   CognitoEmailSenderKmsKey:
     Type: AWS::KMS::Key
     Properties:
@@ -184,6 +198,8 @@ Resources:
           UPLOAD_BUCKET: !Ref DatasetUploadBucket
           LEARNING_PROGRESS_TABLE: !Ref LearningProgressTable
           USERNAME_RESERVATION_TABLE: !Ref UsernameReservationTable
+          AUTH_COOLDOWN_TABLE: !Ref AuthCooldownTable
+          AUTH_RESEND_COOLDOWN_SECONDS: "30"
           MAX_ZIP_BYTES: "52428800"
           MAX_UNZIPPED_BYTES: "104857600"
           MAX_PROGRESS_JSON_BYTES: "300000"
@@ -197,6 +213,8 @@ Resources:
             TableName: !Ref LearningProgressTable
         - DynamoDBCrudPolicy:
             TableName: !Ref UsernameReservationTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AuthCooldownTable
       FunctionUrlConfig:
         AuthType: NONE
         Cors:
@@ -282,6 +300,9 @@ Outputs:
   UsernameReservationTableName:
     Description: DynamoDB table reserving unique display usernames.
     Value: !Ref UsernameReservationTable
+  AuthCooldownTableName:
+    Description: DynamoDB table storing auth resend cooldowns.
+    Value: !Ref AuthCooldownTable
   ResendApiKeySecretName:
     Description: Secrets Manager secret name expected by the Cognito custom email sender.
     Value: !Ref ResendApiKeySecretName
