@@ -6,6 +6,20 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
+import { indentMore } from "@codemirror/commands";
+import { python } from "@codemirror/lang-python";
+import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { linter, lintGutter, type Diagnostic as CodeMirrorDiagnostic } from "@codemirror/lint";
+import { Compartment, EditorState, Prec, type Extension } from "@codemirror/state";
+import {
+  Decoration,
+  EditorView,
+  keymap,
+  ViewPlugin,
+  WidgetType,
+  type DecorationSet,
+  type ViewUpdate,
+} from "@codemirror/view";
 import { autoUpdate, flip, offset, shift, size, useFloating } from "@floating-ui/react-dom";
 import {
   ArrowDownIcon,
@@ -32,6 +46,8 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { detectLanguage } from "@speed-highlight/core/detect";
 import { highlightText, type ShjLanguage } from "@speed-highlight/core";
+import { basicSetup } from "codemirror";
+import { tags } from "@lezer/highlight";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { AnimatePresence, motion } from "motion/react";
@@ -47,7 +63,6 @@ import {
   useState,
   type ComponentProps,
   type ComponentType,
-  type MouseEvent,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -87,7 +102,6 @@ import { LearningHeader } from "./LearningHeader";
 import { CopyButton } from "@/components/ui/copy-button";
 import { LinkPreview } from "@/components/ui/link-preview";
 import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getAuthAuthorizationHeader } from "@/features/auth/auth-session";
 import { useLocalization, type Locale } from "@/features/localization/localization";
 import { shouldReduceMotion } from "@/lib/motion";
@@ -192,11 +206,6 @@ type PandasCodeRunResult = {
   message: string;
   rows: string[][];
   status: EvaluationResult["status"];
-};
-
-type CodeEditorHighlight = {
-  code: string;
-  html: string;
 };
 
 function getLearningBackendUrl() {
@@ -1584,20 +1593,6 @@ function getTypedDataframeName(code: string) {
   return match?.[1] ?? null;
 }
 
-function getExpectedCodePredictionText(expectedCode: string, typedCode: string) {
-  const normalizedTypedCode = typedCode.replace(/\r\n?/g, "\n");
-  const expectedCompletionIndex = getSmartPredictionCompletionIndex(
-    expectedCode,
-    normalizedTypedCode,
-  );
-
-  if (expectedCompletionIndex === null || expectedCompletionIndex >= expectedCode.length) {
-    return "";
-  }
-
-  return normalizedTypedCode.replace(/[^\n]/g, " ") + expectedCode.slice(expectedCompletionIndex);
-}
-
 function getSmartPredictionCompletionIndex(expectedCode: string, typedCode: string) {
   let expectedIndex = 0;
   let typedIndex = 0;
@@ -1647,67 +1642,227 @@ function isCodePredictionWhitespace(character: string) {
   return character === " " || character === "\n" || character === "\t";
 }
 
-function getCodeEditorHighlightedHtml(code: string, highlight: CodeEditorHighlight) {
-  if (!highlight.code) {
-    return escapeCodeHtml(code);
+const pandasCodeHighlightStyle = HighlightStyle.define([
+  { tag: tags.keyword, color: "#fb7185", fontWeight: "600" },
+  { tag: [tags.string, tags.special(tags.string)], color: "#34d399" },
+  { tag: [tags.number, tags.bool, tags.null], color: "#7dd3fc" },
+  { tag: [tags.operator, tags.punctuation], color: "#93c5fd" },
+  { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: "#38bdf8" },
+  { tag: [tags.comment, tags.docComment], color: "#737373", fontStyle: "italic" },
+  { tag: tags.className, color: "#fbbf24" },
+  { tag: tags.variableName, color: "#f5f5f5" },
+]);
+
+const pandasCodeEditorTheme = EditorView.theme(
+  {
+    "&": {
+      backgroundColor: "#050505",
+      color: "#fafafa",
+      fontFamily: "var(--font-mono)",
+      fontSize: "14px",
+    },
+    "&.cm-focused": {
+      outline: "none",
+    },
+    ".cm-activeLine": {
+      backgroundColor: "transparent",
+    },
+    ".cm-activeLineGutter": {
+      backgroundColor: "#0a0a0a",
+      color: "#a3a3a3",
+    },
+    ".cm-content": {
+      caretColor: "#fafafa",
+      minHeight: "8rem",
+      padding: "12px 16px",
+    },
+    ".cm-cursor": {
+      borderLeftColor: "#fafafa",
+      borderLeftWidth: "2px",
+    },
+    ".cm-gutters": {
+      backgroundColor: "#050505",
+      borderRight: "1px solid #262626",
+      color: "#737373",
+    },
+    ".cm-line": {
+      padding: "0 0 0 12px",
+    },
+    ".cm-lineNumbers .cm-gutterElement": {
+      padding: "0 12px 0 14px",
+    },
+    ".cm-matchingBracket": {
+      backgroundColor: "rgba(14, 165, 233, 0.18)",
+      outline: "1px solid rgba(14, 165, 233, 0.4)",
+    },
+    ".cm-panels": {
+      backgroundColor: "#0a0a0a",
+      color: "#fafafa",
+    },
+    ".cm-scroller": {
+      fontFamily: "var(--font-mono)",
+      lineHeight: "1.5rem",
+      overflow: "auto",
+    },
+    ".cm-selectionBackground": {
+      backgroundColor: "rgba(14, 165, 233, 0.32) !important",
+    },
+  },
+  { dark: true },
+);
+
+class PandasPredictionWidget extends WidgetType {
+  constructor(private readonly predictionText: string) {
+    super();
   }
 
-  if (code === highlight.code) {
-    return highlight.html;
+  eq(widget: PandasPredictionWidget) {
+    return widget.predictionText === this.predictionText;
   }
 
-  if (code.startsWith(highlight.code)) {
-    return highlight.html + escapeCodeHtml(code.slice(highlight.code.length));
+  toDOM() {
+    const element = document.createElement("span");
+    element.className = "cm-pandas-prediction";
+    element.textContent = this.predictionText;
+
+    return element;
   }
 
-  return escapeCodeHtml(code);
+  ignoreEvent() {
+    return true;
+  }
 }
 
-function getCodeLineNumbers(value: string) {
-  const normalizedCode = value.replace(/\r\n?/g, "\n");
-  const lineCount = Math.max(1, normalizedCode.split("\n").length);
+function createPandasPredictionExtension(expectedCode: string, isDisabled: boolean) {
+  return ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet;
 
-  return Array.from({ length: lineCount }, (_, index) => index + 1);
+      constructor(view: EditorView) {
+        this.decorations = getPandasPredictionDecorations(view, expectedCode, isDisabled);
+      }
+
+      update(update: ViewUpdate) {
+        if (update.docChanged || update.selectionSet || update.viewportChanged) {
+          this.decorations = getPandasPredictionDecorations(update.view, expectedCode, isDisabled);
+        }
+      }
+    },
+    {
+      decorations: (plugin) => plugin.decorations,
+    },
+  );
 }
 
-function getCodeDiagnosticText(code: string, diagnostic: CodeDiagnostic) {
-  const sourceLine = code.replace(/\r\n?/g, "\n").split("\n")[diagnostic.line - 1] ?? "";
-  const startIndex = Math.max(0, diagnostic.column - 1);
-  const length = Math.max(1, diagnostic.length);
-  const text = sourceLine.slice(startIndex, startIndex + length).padEnd(length, " ");
+function getPandasPredictionDecorations(
+  view: EditorView,
+  expectedCode: string,
+  isDisabled: boolean,
+) {
+  if (isDisabled) {
+    return Decoration.set([]);
+  }
 
-  return text.replace(/ /g, "\u00a0");
+  const selection = view.state.selection.main;
+  const code = view.state.doc.toString();
+
+  if (!selection.empty || selection.from !== code.length) {
+    return Decoration.set([]);
+  }
+
+  const expectedCompletionIndex = getSmartPredictionCompletionIndex(expectedCode, code);
+
+  if (expectedCompletionIndex === null || expectedCompletionIndex >= expectedCode.length) {
+    return Decoration.set([]);
+  }
+
+  return Decoration.set([
+    Decoration.widget({
+      side: 1,
+      widget: new PandasPredictionWidget(expectedCode.slice(expectedCompletionIndex)),
+    }).range(view.state.doc.length),
+  ]);
 }
 
-function getCodeIndexFromLineColumn(code: string, line: number, column: number) {
-  const lines = code.replace(/\r\n?/g, "\n").split("\n");
-  const lineIndex = Math.max(0, Math.min(lines.length - 1, line - 1));
-  const sourceLine = lines[lineIndex] ?? "";
-  const columnIndex = Math.max(0, Math.min(sourceLine.length, column - 1));
-  const previousLinesLength = lines
-    .slice(0, lineIndex)
-    .reduce((total, currentLine) => total + currentLine.length + 1, 0);
+function acceptPandasPrediction(view: EditorView, expectedCode: string, isDisabled: boolean) {
+  if (isDisabled) {
+    return false;
+  }
 
-  return previousLinesLength + columnIndex;
+  const code = view.state.doc.toString();
+  const selection = view.state.selection.main;
+  const expectedCompletionIndex = getSmartPredictionCompletionIndex(expectedCode, code);
+
+  if (
+    !selection.empty ||
+    selection.from !== code.length ||
+    expectedCompletionIndex === null ||
+    expectedCompletionIndex >= expectedCode.length
+  ) {
+    return false;
+  }
+
+  view.dispatch({
+    changes: {
+      from: 0,
+      insert: expectedCode,
+      to: view.state.doc.length,
+    },
+    scrollIntoView: true,
+    selection: {
+      anchor: expectedCode.length,
+    },
+  });
+
+  return true;
 }
 
-function renderCodeDiagnosticMessage(message: string) {
-  return message.split(/(`[^`]+`)/g).map((part, index) => {
+function createCodeMirrorDiagnostics(
+  state: EditorState,
+  diagnostics: CodeDiagnostic[],
+): CodeMirrorDiagnostic[] {
+  return diagnostics.map((diagnostic) => {
+    const lineNumber = Math.max(1, Math.min(state.doc.lines, diagnostic.line));
+    const line = state.doc.line(lineNumber);
+    let from = Math.max(line.from, Math.min(line.to, line.from + diagnostic.column - 1));
+    let to = Math.min(line.to, from + Math.max(1, diagnostic.length));
+
+    if (to <= from) {
+      if (from < state.doc.length) {
+        to = from + 1;
+      } else if (from > 0) {
+        from -= 1;
+        to = from + 1;
+      }
+    }
+
+    return {
+      from,
+      message: diagnostic.message,
+      renderMessage: () => createCodeMirrorDiagnosticMessage(diagnostic.message),
+      severity: "error",
+      to,
+    };
+  });
+}
+
+function createCodeMirrorDiagnosticMessage(message: string) {
+  const container = document.createElement("span");
+
+  message.split(/(`[^`]+`)/g).forEach((part) => {
     const isInlineCode = part.length > 1 && part.startsWith("`") && part.endsWith("`");
 
     if (!isInlineCode) {
-      return <Fragment key={`${part}-${index}`}>{part}</Fragment>;
+      container.append(document.createTextNode(part));
+      return;
     }
 
-    return (
-      <code
-        className="border border-neutral-300 bg-white px-1 py-0.5 font-mono text-[0.85em] font-medium text-rose-600"
-        key={`${part}-${index}`}
-      >
-        {part.slice(1, -1)}
-      </code>
-    );
+    const code = document.createElement("code");
+    code.textContent = part.slice(1, -1);
+    container.append(code);
   });
+
+  return container;
 }
 
 function getCodeDiagnostics(
@@ -1940,6 +2095,160 @@ function createCodeDiagnostic({
     line,
     message,
   };
+}
+
+function getCodeMirrorEditableExtensions(isDisabled: boolean): Extension[] {
+  return [EditorState.readOnly.of(isDisabled), EditorView.editable.of(!isDisabled)];
+}
+
+function createCodeMirrorLinter(diagnostics: CodeDiagnostic[]) {
+  return linter((view) => createCodeMirrorDiagnostics(view.state, diagnostics), {
+    delay: 0,
+  });
+}
+
+function PandasCodeMirrorEditor({
+  ariaLabel,
+  diagnostics,
+  disabled,
+  expectedCode,
+  onChange,
+  readOnly,
+  value,
+}: {
+  ariaLabel: string;
+  diagnostics: CodeDiagnostic[];
+  disabled: boolean;
+  expectedCode: string;
+  onChange: (value: string) => void;
+  readOnly: boolean;
+  value: string;
+}) {
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const viewRef = useRef<EditorView | null>(null);
+  const editableCompartmentRef = useRef(new Compartment());
+  const linterCompartmentRef = useRef(new Compartment());
+  const predictionCompartmentRef = useRef(new Compartment());
+  const isDisabled = disabled || readOnly;
+  const diagnosticsKey = useMemo(
+    () =>
+      diagnostics
+        .map(
+          (diagnostic) =>
+            `${diagnostic.line}:${diagnostic.column}:${diagnostic.length}:${diagnostic.message}`,
+        )
+        .join("\n"),
+    [diagnostics],
+  );
+  const editorPropsRef = useRef({
+    expectedCode,
+    isDisabled,
+    onChange,
+  });
+
+  useEffect(() => {
+    editorPropsRef.current = {
+      expectedCode,
+      isDisabled,
+      onChange,
+    };
+  }, [expectedCode, isDisabled, onChange]);
+
+  useEffect(() => {
+    const host = hostRef.current;
+
+    if (!host) {
+      return;
+    }
+
+    const view = new EditorView({
+      parent: host,
+      state: EditorState.create({
+        doc: value,
+        extensions: [
+          basicSetup,
+          python(),
+          syntaxHighlighting(pandasCodeHighlightStyle),
+          pandasCodeEditorTheme,
+          EditorView.lineWrapping,
+          EditorView.contentAttributes.of({
+            "aria-label": ariaLabel,
+          }),
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged) {
+              editorPropsRef.current.onChange(update.state.doc.toString());
+            }
+          }),
+          lintGutter(),
+          Prec.high(
+            keymap.of([
+              {
+                key: "Tab",
+                run: (editorView) =>
+                  acceptPandasPrediction(
+                    editorView,
+                    editorPropsRef.current.expectedCode,
+                    editorPropsRef.current.isDisabled,
+                  ) || indentMore(editorView),
+              },
+            ]),
+          ),
+          editableCompartmentRef.current.of(getCodeMirrorEditableExtensions(isDisabled)),
+          linterCompartmentRef.current.of(createCodeMirrorLinter(diagnostics)),
+          predictionCompartmentRef.current.of(
+            createPandasPredictionExtension(expectedCode, isDisabled),
+          ),
+        ],
+      }),
+    });
+
+    viewRef.current = view;
+
+    return () => {
+      view.destroy();
+      viewRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const view = viewRef.current;
+
+    if (!view) {
+      return;
+    }
+
+    const currentValue = view.state.doc.toString();
+
+    if (currentValue !== value) {
+      view.dispatch({
+        changes: {
+          from: 0,
+          insert: value,
+          to: currentValue.length,
+        },
+      });
+    }
+  }, [value]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+
+    if (!view) {
+      return;
+    }
+
+    view.dispatch({
+      effects: [
+        editableCompartmentRef.current.reconfigure(getCodeMirrorEditableExtensions(isDisabled)),
+        linterCompartmentRef.current.reconfigure(createCodeMirrorLinter(diagnostics)),
+        predictionCompartmentRef.current.reconfigure(
+          createPandasPredictionExtension(expectedCode, isDisabled),
+        ),
+      ],
+    });
+  }, [diagnostics, diagnosticsKey, expectedCode, isDisabled]);
+
+  return <div className="lesson-code-mirror" ref={hostRef} />;
 }
 
 function evaluateExerciseAnswerSnapshot(
@@ -3820,20 +4129,6 @@ function GuidedDownloadExerciseView({
 }) {
   const { locale } = useLocalization();
   const uploadInputId = useId();
-  const codeEditorRef = useRef<HTMLTextAreaElement | null>(null);
-  const displayedCodeRef = useRef("");
-  const [codeEditorScrollOffset, setCodeEditorScrollOffset] = useState({
-    left: 0,
-    top: 0,
-  });
-  const [editorHighlight, setEditorHighlight] = useState<CodeEditorHighlight>({
-    code: "",
-    html: "",
-  });
-  const [editorHighlightRequest, setEditorHighlightRequest] = useState({
-    code: "",
-    requestId: 0,
-  });
   const sourceUrl = sourceAnswer?.url.trim() ?? "";
   const hasSourceUrl = sourceUrl !== "";
   const displayedExtractedFilePath =
@@ -3841,22 +4136,12 @@ function GuidedDownloadExerciseView({
       ? submittedExtractedFilePath
       : extractedFilePath;
   const hasExtractedFilePath = displayedExtractedFilePath.trim() !== "";
-  const expectedCode = getGuidedDownloadExpectedCode(exercise, displayedExtractedFilePath);
   const displayedCode = isReviewMode && submittedCode.trim() !== "" ? submittedCode : code;
   const predictionCode = getGuidedDownloadPredictionCode(
     exercise,
     displayedExtractedFilePath,
     displayedCode,
   );
-  const normalizedDisplayedCode = displayedCode.replace(/\r\n?/g, "\n");
-  const editorHighlightedHtml = getCodeEditorHighlightedHtml(
-    normalizedDisplayedCode,
-    editorHighlight,
-  );
-  const expectedCodePredictionText = isReviewMode
-    ? ""
-    : getExpectedCodePredictionText(predictionCode, displayedCode);
-  const codeLineNumbers = getCodeLineNumbers(displayedCode || expectedCode);
   const isPandasCodeRunResultForDisplayedCode =
     pandasCodeRunResult !== undefined &&
     pandasCodeRunResult.code === displayedCode &&
@@ -3866,32 +4151,6 @@ function GuidedDownloadExerciseView({
     displayedCode,
     displayedExtractedFilePath,
   );
-  const codeDiagnosticsResetKey = useMemo(
-    () =>
-      [
-        displayedCode,
-        displayedExtractedFilePath,
-        codeDiagnostics
-          .map(
-            (diagnostic) =>
-              `${diagnostic.line}:${diagnostic.column}:${diagnostic.length}:${diagnostic.message}`,
-          )
-          .join("\n"),
-      ].join("\n---\n"),
-    [codeDiagnostics, displayedCode, displayedExtractedFilePath],
-  );
-  const requestEditorHighlight = useCallback((nextCode: string) => {
-    const normalizedCode = nextCode.replace(/\r\n?/g, "\n");
-
-    if (!normalizedCode.trim()) {
-      return;
-    }
-
-    setEditorHighlightRequest((current) => ({
-      code: normalizedCode,
-      requestId: current.requestId + 1,
-    }));
-  }, []);
   const openLinkLabel = locale === "en" ? "Open dataset page" : "Buka halaman dataset";
   const copyLinkLabel = locale === "en" ? "Copy link" : "Salin link";
   const copyLinkButtonLabel = locale === "en" ? "Copy" : "Salin";
@@ -3903,80 +4162,15 @@ function GuidedDownloadExerciseView({
   const runPandasCodeLabel = locale === "en" ? "Run code" : "Jalankan kode";
   const runningPandasCodeLabel = locale === "en" ? "Running code..." : "Menjalankan kode...";
   const isUploadDisabled = !hasSourceUrl || isReviewMode || archive?.isReading === true;
-  const focusCodeEditorDiagnostic = useCallback(
-    (diagnostic: CodeDiagnostic, event: MouseEvent<HTMLSpanElement>) => {
-      if (isReviewMode) {
-        return;
-      }
-
-      const textarea = codeEditorRef.current;
-      if (!textarea) {
-        return;
-      }
-
-      event.preventDefault();
-      const rect = event.currentTarget.getBoundingClientRect();
-      const characterWidth = rect.width / Math.max(1, diagnostic.length);
-      const clickedCharacterOffset =
-        characterWidth > 0
-          ? Math.max(
-              0,
-              Math.min(diagnostic.length, Math.floor((event.clientX - rect.left) / characterWidth)),
-            )
-          : 0;
-      const cursorIndex = getCodeIndexFromLineColumn(
-        displayedCode,
-        diagnostic.line,
-        diagnostic.column + clickedCharacterOffset,
-      );
-
-      textarea.focus({ preventScroll: true });
-      textarea.setSelectionRange(cursorIndex, cursorIndex);
-    },
-    [displayedCode, isReviewMode],
-  );
-
-  useEffect(() => {
-    displayedCodeRef.current = normalizedDisplayedCode;
-
-    if (!normalizedDisplayedCode.trim()) {
-      setEditorHighlight({ code: "", html: "" });
-    }
-  }, [normalizedDisplayedCode]);
-
-  useEffect(() => {
-    if (!isPandasCodeRunResultForDisplayedCode) {
-      return;
-    }
-
-    requestEditorHighlight(displayedCode);
-  }, [displayedCode, isPandasCodeRunResultForDisplayedCode, requestEditorHighlight]);
-
-  useEffect(() => {
-    const codeToHighlight = editorHighlightRequest.code;
-
-    if (!codeToHighlight) {
-      return;
-    }
-
-    let isActive = true;
-
-    void highlightText(codeToHighlight, "py", false)
-      .then((highlightedCode) => {
-        if (isActive && displayedCodeRef.current === codeToHighlight) {
-          setEditorHighlight({ code: codeToHighlight, html: highlightedCode });
-        }
-      })
-      .catch(() => {
-        if (isActive && displayedCodeRef.current === codeToHighlight) {
-          setEditorHighlight({ code: codeToHighlight, html: escapeCodeHtml(codeToHighlight) });
-        }
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [editorHighlightRequest]);
+  const isCodeEditorDisabled = (!hasSourceUrl || !hasExtractedFilePath) && !isReviewMode;
+  const isRunPandasCodeDisabled =
+    !hasSourceUrl ||
+    !hasExtractedFilePath ||
+    isReviewMode ||
+    isRunningPandasCode ||
+    isPandasCodeRunResultForDisplayedCode ||
+    archive?.isReading === true ||
+    !onRunPandasCode;
 
   return (
     <>
@@ -4142,165 +4336,36 @@ function GuidedDownloadExerciseView({
                 size={20}
               />
               <div className="min-w-0 flex-1">
-                <label className="grid gap-3">
+                <div className="grid gap-3">
                   <span className="text-lg font-semibold text-foreground">
                     {exercise.codeLabel}
                   </span>
-                  <div className="relative min-h-32 overflow-hidden border border-neutral-300 bg-neutral-950 transition-colors focus-within:border-sky-500">
-                    <pre
-                      aria-hidden="true"
-                      className="lesson-code-editor-highlight pointer-events-none absolute inset-0 z-0 m-0 overflow-hidden whitespace-pre-wrap break-words py-3 pr-4 pl-14 font-mono text-sm leading-6 text-neutral-50"
-                      style={{
-                        transform: `translate(${-codeEditorScrollOffset.left}px, ${-codeEditorScrollOffset.top}px)`,
-                      }}
-                    >
-                      <code
-                        className="shj-lang-py"
-                        dangerouslySetInnerHTML={{
-                          __html: editorHighlightedHtml,
-                        }}
-                      />
-                    </pre>
-                    <div
-                      aria-hidden="true"
-                      className="pointer-events-none absolute inset-y-0 left-0 z-20 w-11 border-r border-neutral-800 bg-neutral-950 py-3 font-mono text-sm leading-6 text-neutral-600"
-                    >
-                      <div
-                        style={{
-                          transform: `translateY(-${codeEditorScrollOffset.top}px)`,
-                        }}
+                  <div className="overflow-hidden border border-neutral-300 bg-neutral-950 transition-colors focus-within:border-sky-500">
+                    <div className="flex min-h-10 items-center border-b border-neutral-800 bg-neutral-900 text-xs text-neutral-400">
+                      <span className="flex min-h-10 items-center border-r border-neutral-800 bg-neutral-950 px-3 font-mono font-semibold text-neutral-100">
+                        main.py
+                      </span>
+                      <span className="px-3 font-mono">Python</span>
+                      <button
+                        className="ml-auto inline-flex min-h-10 items-center justify-center gap-2 border-l border-neutral-800 bg-neutral-950 px-4 font-sans text-sm font-semibold text-neutral-50 transition-colors hover:bg-neutral-800 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:text-neutral-500 disabled:hover:bg-neutral-950"
+                        disabled={isRunPandasCodeDisabled}
+                        onClick={onRunPandasCode}
+                        type="button"
                       >
-                        {codeLineNumbers.map((lineNumber) => (
-                          <div className="h-6 pr-3 text-right" key={lineNumber}>
-                            {lineNumber}
-                          </div>
-                        ))}
-                      </div>
+                        <HugeiconsIcon aria-hidden="true" className="size-4" icon={PlayIcon} />
+                        {isRunningPandasCode ? runningPandasCodeLabel : runPandasCodeLabel}
+                      </button>
                     </div>
-                    {expectedCodePredictionText ? (
-                      <pre
-                        aria-hidden="true"
-                        className="pointer-events-none absolute inset-0 z-[1] m-0 overflow-hidden whitespace-pre-wrap break-words py-3 pr-4 pl-14 font-mono text-sm leading-6 text-neutral-700"
-                        style={{
-                          transform: `translate(${-codeEditorScrollOffset.left}px, ${-codeEditorScrollOffset.top}px)`,
-                        }}
-                      >
-                        {expectedCodePredictionText}
-                      </pre>
-                    ) : null}
-                    <TooltipProvider closeDelay={80} resetKey={codeDiagnosticsResetKey}>
-                      {codeDiagnostics.map((diagnostic, diagnosticIndex) => (
-                        <Tooltip
-                          align="start"
-                          key={`${diagnostic.line}-${diagnostic.column}-${diagnosticIndex}`}
-                          side="top"
-                          sideOffset={8}
-                        >
-                          <TooltipTrigger asChild>
-                            <span
-                              aria-label={diagnostic.message}
-                              className="absolute z-30 h-6 cursor-help select-none whitespace-pre font-mono text-sm leading-6 text-transparent underline decoration-rose-500 decoration-[1.5px] decoration-wavy underline-offset-[3px] outline-none [text-decoration-skip-ink:none] focus-visible:bg-rose-500/10"
-                              onMouseDown={(event) => focusCodeEditorDiagnostic(diagnostic, event)}
-                              role="button"
-                              style={{
-                                left: `calc(3.5rem + ${(diagnostic.column - 1).toString()}ch - ${
-                                  codeEditorScrollOffset.left
-                                }px)`,
-                                top: `${
-                                  12 + (diagnostic.line - 1) * 24 - codeEditorScrollOffset.top
-                                }px`,
-                              }}
-                              tabIndex={0}
-                            >
-                              {getCodeDiagnosticText(displayedCode, diagnostic)}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {renderCodeDiagnosticMessage(diagnostic.message)}
-                          </TooltipContent>
-                        </Tooltip>
-                      ))}
-                    </TooltipProvider>
-                    <textarea
-                      aria-label={exercise.codeLabel}
-                      className="relative z-10 min-h-32 w-full resize-y bg-transparent py-3 pr-4 pl-14 font-mono text-sm leading-6 text-transparent caret-neutral-50 outline-none selection:bg-sky-500/30 disabled:bg-transparent disabled:text-transparent [tab-size:2]"
-                      disabled={(!hasSourceUrl || !hasExtractedFilePath) && !isReviewMode}
-                      onChange={(event) => onUpdateCode(event.currentTarget.value)}
-                      onKeyDown={(event) => {
-                        if (event.key !== "Tab" || isReviewMode) {
-                          return;
-                        }
-
-                        const textarea = event.currentTarget;
-                        const currentCode = textarea.value;
-                        const isCursorAtEnd =
-                          textarea.selectionStart === currentCode.length &&
-                          textarea.selectionEnd === currentCode.length;
-                        const nextPredictionCode = getGuidedDownloadPredictionCode(
-                          exercise,
-                          displayedExtractedFilePath,
-                          currentCode,
-                        );
-                        const predictionText = getExpectedCodePredictionText(
-                          nextPredictionCode,
-                          currentCode,
-                        );
-
-                        if (!isCursorAtEnd || !predictionText) {
-                          return;
-                        }
-
-                        event.preventDefault();
-                        onUpdateCode(nextPredictionCode);
-                        requestEditorHighlight(nextPredictionCode);
-                        window.requestAnimationFrame(() => {
-                          codeEditorRef.current?.setSelectionRange(
-                            nextPredictionCode.length,
-                            nextPredictionCode.length,
-                          );
-                        });
-                      }}
-                      onKeyUp={(event) => {
-                        if (event.key === "Enter" && !isReviewMode) {
-                          requestEditorHighlight(event.currentTarget.value);
-                        }
-                      }}
-                      onScroll={(event) => {
-                        const nextLeft = event.currentTarget.scrollLeft;
-                        const nextTop = event.currentTarget.scrollTop;
-
-                        setCodeEditorScrollOffset((current) =>
-                          current.left === nextLeft && current.top === nextTop
-                            ? current
-                            : { left: nextLeft, top: nextTop },
-                        );
-                      }}
-                      placeholder=""
+                    <PandasCodeMirrorEditor
+                      ariaLabel={exercise.codeLabel}
+                      diagnostics={codeDiagnostics}
+                      disabled={isCodeEditorDisabled}
+                      expectedCode={predictionCode}
+                      onChange={onUpdateCode}
                       readOnly={isReviewMode}
-                      ref={codeEditorRef}
-                      spellCheck={false}
                       value={displayedCode}
                     />
                   </div>
-                </label>
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <button
-                    className="inline-flex min-h-11 items-center justify-center gap-2 border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-950 transition-colors hover:border-emerald-500 hover:text-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-muted-foreground"
-                    disabled={
-                      !hasSourceUrl ||
-                      !hasExtractedFilePath ||
-                      isReviewMode ||
-                      isRunningPandasCode ||
-                      isPandasCodeRunResultForDisplayedCode ||
-                      archive?.isReading === true ||
-                      !onRunPandasCode
-                    }
-                    onClick={onRunPandasCode}
-                    type="button"
-                  >
-                    <HugeiconsIcon aria-hidden="true" className="size-4" icon={PlayIcon} />
-                    {isRunningPandasCode ? runningPandasCodeLabel : runPandasCodeLabel}
-                  </button>
                 </div>
                 <PandasCodeRunOutput
                   result={isPandasCodeRunResultForDisplayedCode ? pandasCodeRunResult : undefined}

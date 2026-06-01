@@ -517,47 +517,56 @@
     color: oklch(42% 0.13 205);
   }
 
-  .lesson-code-editor-highlight,
-  .lesson-code-editor-highlight code {
-    tab-size: 2;
+  .lesson-code-mirror .cm-editor {
+    min-height: 8rem;
+  }
+
+  .lesson-code-mirror .cm-pandas-prediction {
+    color: oklch(36% 0 0);
+    pointer-events: none;
     white-space: pre-wrap;
-    overflow-wrap: break-word;
   }
 
-  .lesson-code-editor-highlight .shj-syn-cmnt {
-    color: oklch(70% 0 0);
-    font-style: italic;
+  .lesson-code-mirror .cm-lintRange-error {
+    background-image: none;
+    text-decoration-line: underline;
+    text-decoration-style: wavy;
+    text-decoration-color: oklch(64% 0.24 20);
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 3px;
   }
 
-  .lesson-code-editor-highlight .shj-syn-kwd,
-  .lesson-code-editor-highlight .shj-syn-err,
-  .lesson-code-editor-highlight .shj-syn-deleted {
-    color: oklch(72% 0.18 24);
+  .lesson-code-mirror .cm-tooltip {
+    border: 1px solid oklch(17.7638% 0 0);
+    border-radius: 0;
+    background: oklch(98.5% 0 0);
+    box-shadow: 0 10px 24px oklch(0% 0 0 / 0.18);
+    color: oklch(17.7638% 0 0);
+    font-family: var(--font-sans);
   }
 
-  .lesson-code-editor-highlight .shj-syn-str,
-  .lesson-code-editor-highlight .shj-syn-insert {
-    color: oklch(78% 0.16 150);
+  .lesson-code-mirror .cm-tooltip-lint {
+    padding: 0;
   }
 
-  .lesson-code-editor-highlight .shj-syn-num,
-  .lesson-code-editor-highlight .shj-syn-bool,
-  .lesson-code-editor-highlight .shj-syn-type,
-  .lesson-code-editor-highlight .shj-syn-oper {
-    color: oklch(78% 0.14 230);
+  .lesson-code-mirror .cm-diagnostic {
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.8125rem;
+    line-height: 1.35;
   }
 
-  .lesson-code-editor-highlight .shj-syn-func,
-  .lesson-code-editor-highlight .shj-syn-section {
-    color: oklch(78% 0.14 205);
+  .lesson-code-mirror .cm-diagnostic-error {
+    border-left: 3px solid oklch(58% 0.23 20);
   }
 
-  .lesson-code-editor-highlight .shj-syn-class {
-    color: oklch(82% 0.12 85);
-  }
-
-  .lesson-code-editor-highlight .shj-syn-var {
-    color: oklch(88% 0.04 220);
+  .lesson-code-mirror .cm-diagnosticText code {
+    border: 1px solid oklch(17.7638% 0 0 / 0.16);
+    background: oklch(100% 0 0);
+    padding: 0.1rem 0.25rem;
+    color: oklch(50% 0.2 24);
+    font-family: var(--font-mono);
   }
 }
 
