@@ -14,6 +14,7 @@ import { CognitoAuthError } from "@/features/auth/cognito-auth";
 import { localeOptions, useLocalization, type Locale } from "@/features/localization/localization";
 
 type AuthMode = "login" | "register";
+type AuthLoginMethod = "email" | "username";
 
 type AuthPageProps = {
   closeHref?: string;
@@ -396,6 +397,7 @@ function AuthFormPanel({
   const isRegister = mode === "register";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [loginMethod, setLoginMethod] = useState<AuthLoginMethod>("username");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [confirmationCode, setConfirmationCode] = useState("");
@@ -411,10 +413,16 @@ function AuthFormPanel({
   const renderedStatusMessage = statusMessage ? getAuthStatusMessage(statusMessage, locale) : "";
   const usernameError = getUsernameValidationMessage(name, locale);
   const trimmedEmail = email.trim();
+  const isUsernameSignIn = !isRegister && loginMethod === "username";
+  const isEmailFieldActive = isRegister || loginMethod === "email";
   const isEmailValid = isValidEmailAddress(trimmedEmail);
+  const loginUsernameError = isUsernameSignIn ? getUsernameValidationMessage(email, locale) : "";
   const showNameValidation =
     isRegister && isNameTouched && name.trim().length > 0 && usernameError !== "";
-  const showEmailValidation = isEmailTouched && trimmedEmail.length > 0 && !isEmailValid;
+  const showEmailValidation =
+    isEmailFieldActive && isEmailTouched && trimmedEmail.length > 0 && !isEmailValid;
+  const showLoginUsernameValidation =
+    isUsernameSignIn && isEmailTouched && trimmedEmail.length > 0 && loginUsernameError !== "";
   const passwordRuleState = getPasswordRuleState(password);
   const passwordError = getPasswordValidationMessage(password, locale);
   const canShowConfirmPassword = isRegister && password.length > 0 && passwordError === "";
@@ -437,6 +445,7 @@ function AuthFormPanel({
     setConfirmPassword("");
     setEmail("");
     setErrorMessage("");
+    setLoginMethod("username");
     setName("");
     setPassword("");
     setNameTouched(false);
@@ -449,17 +458,35 @@ function AuthFormPanel({
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const normalizedEmail = email.trim().toLowerCase();
+    const trimmedIdentifier = email.trim();
+    const normalizedEmail = trimmedIdentifier.toLowerCase();
+    const isSubmittingUsername = !isRegister && loginMethod === "username";
 
     setErrorMessage("");
     setStatusMessage(null);
 
-    if (!normalizedEmail) {
-      setErrorMessage(locale === "en" ? "Email is required." : "Email wajib diisi.");
+    if (!trimmedIdentifier) {
+      setErrorMessage(
+        isSubmittingUsername
+          ? locale === "en"
+            ? "Username is required."
+            : "Username wajib diisi."
+          : locale === "en"
+            ? "Email is required."
+            : "Email wajib diisi.",
+      );
       return;
     }
 
-    if (!isValidEmailAddress(normalizedEmail)) {
+    if (isSubmittingUsername) {
+      const usernameLoginError = getUsernameValidationMessage(trimmedIdentifier, locale);
+
+      if (usernameLoginError) {
+        setEmailTouched(true);
+        setErrorMessage(usernameLoginError);
+        return;
+      }
+    } else if (!isValidEmailAddress(normalizedEmail)) {
       setEmailTouched(true);
       setErrorMessage(
         locale === "en" ? "Enter a valid email address." : "Masukkan email yang valid.",
@@ -515,7 +542,7 @@ function AuthFormPanel({
         });
 
         if (signUpResult.userConfirmed) {
-          await auth.signIn({ email: normalizedEmail, password });
+          await auth.signIn({ identifier: normalizedEmail, method: "email", password });
           redirectAfterAuth(successHref, onAuthenticated);
           return;
         }
@@ -531,15 +558,28 @@ function AuthFormPanel({
           code: confirmationCode.trim(),
           email: confirmationEmail,
         });
-        await auth.signIn({ email: confirmationEmail, password });
+        await auth.signIn({ identifier: confirmationEmail, method: "email", password });
         redirectAfterAuth(successHref, onAuthenticated);
         return;
       }
 
-      await auth.signIn({ email: normalizedEmail, password });
+      await auth.signIn({
+        identifier: isSubmittingUsername ? trimmedIdentifier : normalizedEmail,
+        method: isSubmittingUsername ? "username" : "email",
+        password,
+      });
       redirectAfterAuth(successHref, onAuthenticated);
     } catch (error) {
       if (error instanceof CognitoAuthError && error.code === "UserNotConfirmedException") {
+        if (isSubmittingUsername) {
+          setErrorMessage(
+            locale === "en"
+              ? "This account still needs email verification. Use email instead to enter the code."
+              : "Akun ini masih perlu verifikasi email. Pakai email saja untuk memasukkan kode.",
+          );
+          return;
+        }
+
         setConfirmationEmail(normalizedEmail);
         setStatusMessage({ kind: "account-unconfirmed" });
         return;
@@ -611,7 +651,7 @@ function AuthFormPanel({
 
     return undefined;
   };
-  const currentFields = getAuthFields(locale, mode);
+  const currentFields = getAuthFields(locale, mode, loginMethod);
   const registerFields = getAuthFields(locale, "register");
   const nameField = findAuthField(registerFields, "auth-name");
   const emailField = findAuthField(currentFields, "auth-email");
@@ -620,20 +660,57 @@ function AuthFormPanel({
   const switchMode: AuthMode = isRegister ? "login" : "register";
   const switchClassName =
     "font-medium text-foreground underline underline-offset-4 transition-colors hover:text-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400";
+  const loginMethodToggleLabel =
+    loginMethod === "username"
+      ? locale === "en"
+        ? "Use email instead"
+        : "Pakai email saja"
+      : locale === "en"
+        ? "Use username instead"
+        : "Pakai username";
+  const loginMethodToggle = !isRegister ? (
+    <button
+      className="text-xs font-semibold text-muted-foreground underline underline-offset-4 transition-colors hover:text-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+      onClick={() => {
+        setEmail("");
+        setEmailTouched(false);
+        setErrorMessage("");
+        setStatusMessage(null);
+        setLoginMethod((current) => (current === "username" ? "email" : "username"));
+      }}
+      type="button"
+    >
+      {loginMethodToggleLabel}
+    </button>
+  ) : undefined;
 
   const renderAuthInput = (
     field: AuthField,
     {
       className = "",
       isDisabled = false,
+      labelAction,
       layoutId,
-    }: { className?: string; isDisabled?: boolean; layoutId?: string } = {},
+    }: {
+      className?: string;
+      isDisabled?: boolean;
+      labelAction?: ReactNode;
+      layoutId?: string;
+    } = {},
   ) => {
     const validationContent =
       isRegister && field.id === "auth-name" ? (
         <UsernameStatus isVisible={showNameValidation} locale={locale} message={usernameError} />
       ) : field.id === "auth-email" ? (
-        <EmailStatus isVisible={showEmailValidation} locale={locale} />
+        isEmailFieldActive ? (
+          <EmailStatus isVisible={showEmailValidation} locale={locale} />
+        ) : (
+          <UsernameStatus
+            isVisible={showLoginUsernameValidation}
+            locale={locale}
+            message={loginUsernameError}
+          />
+        )
       ) : isRegister && field.id === "auth-password" ? (
         <PasswordRequirements
           error={showPasswordError ? passwordError : ""}
@@ -656,7 +733,9 @@ function AuthFormPanel({
           isRegister && field.id === "auth-name"
             ? "username-status"
             : field.id === "auth-email"
-              ? "email-status"
+              ? isEmailFieldActive
+                ? "email-status"
+                : "username-status"
               : isRegister && field.id === "auth-password"
                 ? "password-requirements"
                 : isRegister && field.id === "auth-confirm-password"
@@ -669,9 +748,11 @@ function AuthFormPanel({
         isInvalid={
           (field.id === "auth-name" && showNameValidation) ||
           (field.id === "auth-email" && showEmailValidation && !isEmailValid) ||
+          (field.id === "auth-email" && showLoginUsernameValidation) ||
           (field.id === "auth-password" && showPasswordError) ||
           (field.id === "auth-confirm-password" && showConfirmPasswordError)
         }
+        labelAction={labelAction}
         layoutId={layoutId}
         onBlur={
           isRegister && field.id === "auth-name"
@@ -731,7 +812,7 @@ function AuthFormPanel({
                 layoutId: "auth-register-name-field",
               })}
             </AuthRevealSlot>
-            {renderAuthInput(emailField)}
+            {renderAuthInput(emailField, { labelAction: loginMethodToggle })}
             {renderAuthInput(passwordField, { className: "mt-6" })}
             <AuthRevealSlot isVisible={canShowConfirmPassword} spacing="before">
               {renderAuthInput(confirmPasswordField, {
@@ -825,6 +906,7 @@ function AuthInput({
   field,
   isDisabled = false,
   isInvalid = false,
+  labelAction,
   layoutId,
   onBlur,
   onChange,
@@ -836,6 +918,7 @@ function AuthInput({
   field: AuthField;
   isDisabled?: boolean;
   isInvalid?: boolean;
+  labelAction?: ReactNode;
   layoutId?: string;
   onBlur?: () => void;
   onChange?: (value: string) => void;
@@ -848,9 +931,12 @@ function AuthInput({
       layoutId={layoutId ?? `auth-field-${field.id}`}
       transition={authSharedLayoutTransition}
     >
-      <label className="mb-2.5 block text-[13px] font-semibold text-foreground" htmlFor={field.id}>
-        {field.label}
-      </label>
+      <div className="mb-2.5 flex items-center justify-between gap-3">
+        <label className="block text-[13px] font-semibold text-foreground" htmlFor={field.id}>
+          {field.label}
+        </label>
+        {labelAction ? <span className="shrink-0">{labelAction}</span> : null}
+      </div>
       <input
         aria-describedby={ariaDescribedBy}
         aria-invalid={isInvalid}
@@ -1095,7 +1181,11 @@ function AuthIllustration() {
   );
 }
 
-function getAuthFields(locale: Locale, mode: AuthMode): AuthField[] {
+function getAuthFields(
+  locale: Locale,
+  mode: AuthMode,
+  loginMethod: AuthLoginMethod = "email",
+): AuthField[] {
   const labels = {
     en: {
       confirmPassword: "Confirm Password",
@@ -1106,6 +1196,7 @@ function getAuthFields(locale: Locale, mode: AuthMode): AuthField[] {
       nameHelper: "",
       password: "Password",
       passwordHelper: "",
+      username: "Username",
     },
     id: {
       confirmPassword: "Konfirmasi Sandi",
@@ -1116,18 +1207,21 @@ function getAuthFields(locale: Locale, mode: AuthMode): AuthField[] {
       nameHelper: "",
       password: "Sandi",
       passwordHelper: "",
+      username: "Username",
     },
   } satisfies Record<Locale, Record<string, string>>;
   const copy = labels[locale];
 
   if (mode === "login") {
+    const isUsernameLogin = loginMethod === "username";
+
     return [
       {
-        autoComplete: "email",
+        autoComplete: isUsernameLogin ? "username" : "email",
         id: "auth-email",
-        label: copy.email,
-        placeholder: "m@example.com",
-        type: "email",
+        label: isUsernameLogin ? copy.username : copy.email,
+        placeholder: isUsernameLogin ? "john_doe" : "m@example.com",
+        type: isUsernameLogin ? "text" : "email",
       },
       {
         autoComplete: "current-password",
@@ -1237,6 +1331,15 @@ function getConfirmationSentMessage(locale: Locale, destination?: string) {
 
 function getAuthErrorMessage(error: unknown, locale: Locale) {
   if (error instanceof CognitoAuthError) {
+    if (
+      error.code === "UserLambdaValidationException" &&
+      /username is already taken/i.test(error.message)
+    ) {
+      return locale === "en"
+        ? "This username is already taken. Choose another one."
+        : "Username ini sudah dipakai. Pilih username lain.";
+    }
+
     const messages: Record<string, Record<Locale, string>> = {
       AuthNotConfigured: {
         en: "Auth is not configured yet. Deploy the backend and set the Cognito env values.",
@@ -1254,17 +1357,25 @@ function getAuthErrorMessage(error: unknown, locale: Locale) {
         en: "Password must be at least 8 characters and include uppercase, lowercase, and number.",
         id: "Sandi minimal 8 karakter dan punya huruf besar, huruf kecil, serta angka.",
       },
+      InvalidUsernameException: {
+        en: "Check the username format first.",
+        id: "Cek format username dulu.",
+      },
       NotAuthorizedException: {
-        en: "Email or password is not correct.",
-        id: "Email atau sandi belum sesuai.",
+        en: "Username/email or password is not correct.",
+        id: "Username/email atau sandi belum sesuai.",
+      },
+      PasswordResetRequiredException: {
+        en: "This account needs a password reset before signing in.",
+        id: "Akun ini perlu reset sandi sebelum bisa masuk.",
       },
       UsernameExistsException: {
         en: "This email is already registered. Sign in instead.",
         id: "Email ini sudah terdaftar. Masuk saja.",
       },
       UserNotFoundException: {
-        en: "No account was found for this email.",
-        id: "Akun dengan email ini belum ditemukan.",
+        en: "No account was found for that username/email.",
+        id: "Akun dengan username/email itu belum ditemukan.",
       },
     };
 

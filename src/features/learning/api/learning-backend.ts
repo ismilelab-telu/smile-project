@@ -1,11 +1,8 @@
 import { getAuthAuthorizationHeader } from "@/features/auth/auth-session";
+import { getLearningBackendUrl } from "@/lib/learning-backend-url";
 import type { CodeDiagnostic } from "../components/pandas-code-editor-utils";
 
-type ViteImportMeta = ImportMeta & {
-  env?: {
-    VITE_LEARNING_BACKEND_URL?: string;
-  };
-};
+export { getLearningBackendUrl };
 
 type LearningBackendPresignResponse = {
   contentType?: string;
@@ -30,18 +27,8 @@ export type LearningBackendValidationResponse = {
   tabularFilePath?: string;
 };
 
-const defaultLearningBackendUrl =
-  "https://zr2esakjqcpiypbnq257nml72e0wjaco.lambda-url.ap-southeast-1.on.aws";
 const learningBackendGuestIdStorageKey = "smile-learning-backend-guest-id-v1";
 const learningBackendGuestIdPattern = /^[A-Za-z0-9][A-Za-z0-9_-]{7,127}$/;
-
-export function getLearningBackendUrl() {
-  return (
-    (import.meta as ViteImportMeta).env?.VITE_LEARNING_BACKEND_URL ?? defaultLearningBackendUrl
-  )
-    .trim()
-    .replace(/\/+$/, "");
-}
 
 export async function readLearningBackendJson<T>(response: Response): Promise<T> {
   const body = (await response.json().catch(() => ({}))) as { message?: string };

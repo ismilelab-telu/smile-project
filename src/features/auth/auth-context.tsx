@@ -13,6 +13,7 @@ import {
   refreshCognitoSession,
   resendConfirmationCodeWithCognito,
   signInWithCognito,
+  signInWithUsername,
   signUpWithCognito,
 } from "./cognito-auth";
 import {
@@ -29,12 +30,18 @@ type AuthContextValue = {
   isReady: boolean;
   resendConfirmationCode: (email: string) => Promise<void>;
   session: AuthSession | null;
-  signIn: (input: { email: string; password: string }) => Promise<AuthSession>;
+  signIn: (input: SignInInput) => Promise<AuthSession>;
   signOut: () => void;
   signUp: (input: { email: string; name: string; password: string }) => Promise<{
     destination?: string;
     userConfirmed: boolean;
   }>;
+};
+
+type SignInInput = {
+  identifier: string;
+  method: "email" | "username";
+  password: string;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -96,8 +103,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const signIn = useCallback(async (input: { email: string; password: string }) => {
-    const nextSession = await signInWithCognito(input);
+  const signIn = useCallback(async (input: SignInInput) => {
+    const nextSession =
+      input.method === "username"
+        ? await signInWithUsername({
+            password: input.password,
+            username: input.identifier,
+          })
+        : await signInWithCognito({
+            email: input.identifier,
+            password: input.password,
+          });
 
     storeAuthSession(nextSession);
     setSession(nextSession);

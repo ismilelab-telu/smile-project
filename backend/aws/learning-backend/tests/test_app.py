@@ -8,14 +8,21 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+import app
 from app import (
     AuthenticationError,
+    CognitoSignInError,
+    UsernameReservationError,
     build_expected_pandas_code,
+    confirm_username_reservation,
+    get_confirmed_email_for_username,
     inspect_zip_bytes,
     is_valid_learning_progress,
     require_learning_backend_user,
+    reserve_username_for_signup,
     run_pandas_loading_code,
     sanitize_file_name,
+    sign_in_with_username,
     validate_pandas_loading_code,
 )
 
@@ -28,7 +35,106 @@ def create_zip(entries: dict[str, str]) -> bytes:
     return buffer.getvalue()
 
 
+def create_cognito_event(email: str, username: str, trigger_source: str = "PreSignUp_SignUp"):
+    return {
+        "request": {
+            "userAttributes": {
+                "email": email,
+                "name": username,
+            }
+        },
+        "triggerSource": trigger_source,
+    }
+
+
+def create_client_error(code: str, message: str = ""):
+    response = {"Error": {"Code": code, "Message": message}}
+
+    try:
+        error = app.ClientError(response, "TestOperation")
+    except TypeError:
+        error = app.ClientError()
+
+    if not hasattr(error, "response"):
+        error.response = response
+
+    return error
+
+
+class FakeDynamoDbClient:
+    def __init__(self) -> None:
+        self.items: dict[str, dict[str, dict[str, str]]] = {}
+
+    def put_item(self, **kwargs):
+        item = kwargs["Item"]
+        username_key = item["usernameKey"]["S"]
+        existing_item = self.items.get(username_key)
+        requested_email = kwargs["ExpressionAttributeValues"][":email"]["S"]
+        now = int(kwargs["ExpressionAttributeValues"].get(":now", {"N": "0"})["N"])
+
+        if existing_item and existing_item["email"]["S"] != requested_email:
+            expires_at = int(existing_item.get("expiresAt", {"N": "0"})["N"])
+            if expires_at and expires_at < now:
+                self.items[username_key] = item
+                return {}
+
+            raise create_client_error("ConditionalCheckFailedException")
+
+        self.items[username_key] = item
+        return {}
+
+    def update_item(self, **kwargs):
+        username_key = kwargs["Key"]["usernameKey"]["S"]
+        item = self.items.get(username_key)
+        requested_email = kwargs["ExpressionAttributeValues"][":email"]["S"]
+
+        if not item or item["email"]["S"] != requested_email:
+            raise create_client_error("ConditionalCheckFailedException")
+
+        item["confirmedAt"] = kwargs["ExpressionAttributeValues"][":confirmedAt"]
+        item["status"] = kwargs["ExpressionAttributeValues"][":status"]
+        item.pop("expiresAt", None)
+        return {}
+
+    def get_item(self, **kwargs):
+        username_key = kwargs["Key"]["usernameKey"]["S"]
+        item = self.items.get(username_key)
+
+        return {"Item": item} if item else {}
+
+
+class FakeCognitoIdentityProviderClient:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def initiate_auth(self, **kwargs):
+        self.calls.append(kwargs)
+
+        return {
+            "AuthenticationResult": {
+                "AccessToken": "access-token",
+                "ExpiresIn": 3600,
+                "IdToken": "id-token",
+                "RefreshToken": "refresh-token",
+            }
+        }
+
+
 class LearningBackendTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.original_cognito_client_id = app.COGNITO_CLIENT_ID
+        self.original_cognito_identity_provider_client = app._cognito_identity_provider_client
+        self.original_dynamodb_client = app._dynamodb_client
+        self.original_learning_progress_table = app.LEARNING_PROGRESS_TABLE
+        self.original_username_reservation_table = app.USERNAME_RESERVATION_TABLE
+
+    def tearDown(self) -> None:
+        app.COGNITO_CLIENT_ID = self.original_cognito_client_id
+        app._cognito_identity_provider_client = self.original_cognito_identity_provider_client
+        app._dynamodb_client = self.original_dynamodb_client
+        app.LEARNING_PROGRESS_TABLE = self.original_learning_progress_table
+        app.USERNAME_RESERVATION_TABLE = self.original_username_reservation_table
+
     def test_inspects_first_csv_path_and_preview(self) -> None:
         archive = create_zip(
             {
@@ -243,6 +349,82 @@ class LearningBackendTest(unittest.TestCase):
     def test_rejects_invalid_guest_session_for_dataset_tools(self) -> None:
         with self.assertRaises(AuthenticationError):
             require_learning_backend_user({"headers": {}}, {"guestId": "../bad"})
+
+    def test_username_reservation_is_pending_until_email_confirmation(self) -> None:
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        fake_dynamodb = FakeDynamoDbClient()
+        app._dynamodb_client = fake_dynamodb
+        signup_event = create_cognito_event("Student@Example.com", "Student_One")
+
+        reserve_username_for_signup(signup_event)
+
+        pending_item = fake_dynamodb.items["student_one"]
+        self.assertEqual(pending_item["status"]["S"], "pending")
+        self.assertIn("expiresAt", pending_item)
+        self.assertEqual(get_confirmed_email_for_username("student_one"), "")
+
+        confirm_username_reservation(
+            create_cognito_event(
+                "student@example.com",
+                "Student_One",
+                trigger_source="PostConfirmation_ConfirmSignUp",
+            )
+        )
+
+        confirmed_item = fake_dynamodb.items["student_one"]
+        self.assertEqual(confirmed_item["status"]["S"], "confirmed")
+        self.assertNotIn("expiresAt", confirmed_item)
+        self.assertEqual(get_confirmed_email_for_username("student_one"), "student@example.com")
+
+    def test_rejects_duplicate_username_reservation(self) -> None:
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        fake_dynamodb = FakeDynamoDbClient()
+        app._dynamodb_client = fake_dynamodb
+
+        reserve_username_for_signup(create_cognito_event("student@example.com", "Student_One"))
+
+        with self.assertRaises(UsernameReservationError):
+            reserve_username_for_signup(create_cognito_event("other@example.com", "student_one"))
+
+    def test_sign_in_with_username_uses_confirmed_email(self) -> None:
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        fake_dynamodb = FakeDynamoDbClient()
+        fake_dynamodb.items["student_one"] = {
+            "email": {"S": "student@example.com"},
+            "status": {"S": "confirmed"},
+            "username": {"S": "Student_One"},
+            "usernameKey": {"S": "student_one"},
+        }
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        app._dynamodb_client = fake_dynamodb
+        app._cognito_identity_provider_client = fake_cognito
+
+        result = sign_in_with_username({"password": "Password1", "username": "Student_One"})
+
+        self.assertEqual(result["authenticationResult"]["AccessToken"], "access-token")
+        self.assertEqual(
+            fake_cognito.calls[0]["AuthParameters"],
+            {"PASSWORD": "Password1", "USERNAME": "student@example.com"},
+        )
+
+    def test_sign_in_with_username_ignores_pending_reservation(self) -> None:
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        fake_dynamodb = FakeDynamoDbClient()
+        fake_dynamodb.items["student_one"] = {
+            "email": {"S": "student@example.com"},
+            "expiresAt": {"N": "9999999999"},
+            "status": {"S": "pending"},
+            "username": {"S": "Student_One"},
+            "usernameKey": {"S": "student_one"},
+        }
+        app._dynamodb_client = fake_dynamodb
+
+        with self.assertRaises(CognitoSignInError) as context:
+            sign_in_with_username({"password": "Password1", "username": "Student_One"})
+
+        self.assertEqual(context.exception.code, "NotAuthorizedException")
 
 
 if __name__ == "__main__":

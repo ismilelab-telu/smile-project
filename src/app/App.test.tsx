@@ -1004,6 +1004,10 @@ describe("App", () => {
     const dialog = await screen.findByRole("dialog", { name: "Sign in first" }, lazyRouteTimeout);
 
     expect(window.location.pathname).toBe(foundationsTrackPath);
+    expect(
+      within(dialog).getByLabelText("Username", { selector: "input:not([disabled])" }),
+    ).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Use email instead" }));
     expect(within(dialog).getByLabelText("Email")).toBeInTheDocument();
     expect(within(dialog).getByRole("heading", { name: "Sign in first" })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Sign In" })).toBeInTheDocument();

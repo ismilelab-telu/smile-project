@@ -42,6 +42,7 @@ except ImportError:  # pragma: no cover - Lambda and SAM builds install boto3.
 
 UPLOAD_BUCKET = os.environ.get("UPLOAD_BUCKET", "")
 LEARNING_PROGRESS_TABLE = os.environ.get("LEARNING_PROGRESS_TABLE", "")
+USERNAME_RESERVATION_TABLE = os.environ.get("USERNAME_RESERVATION_TABLE", "")
 AWS_REGION = os.environ.get("AWS_REGION", "ap-southeast-1")
 COGNITO_REGION = os.environ.get("COGNITO_REGION", AWS_REGION)
 COGNITO_USER_POOL_ID = os.environ.get("COGNITO_USER_POOL_ID", "")
@@ -52,9 +53,12 @@ MAX_PROGRESS_JSON_BYTES = int(os.environ.get("MAX_PROGRESS_JSON_BYTES", "300000"
 MAX_ZIP_ENTRIES = 512
 PRESIGN_EXPIRES_IN_SECONDS = 600
 GUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{7,127}$")
+USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
+USERNAME_RESERVATION_TTL_SECONDS = 24 * 60 * 60
 
 _s3_client = None
 _dynamodb_client = None
+_cognito_identity_provider_client = None
 _jwks_client = None
 
 
@@ -70,7 +74,20 @@ class AuthConfigurationError(RuntimeError):
     pass
 
 
+class UsernameReservationError(ValueError):
+    pass
+
+
+class CognitoSignInError(ValueError):
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+
+
 def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
+    if event.get("triggerSource"):
+        return handle_cognito_trigger(event)
+
     method = event.get("requestContext", {}).get("http", {}).get("method", "GET")
     path = event.get("rawPath", "/")
 
@@ -88,6 +105,9 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         if method == "PUT" and path == "/progress":
             user = require_authenticated_user(event)
             return response(200, save_learning_progress(parse_json_body(event), user))
+
+        if method == "POST" and path == "/auth/username/sign-in":
+            return response(200, sign_in_with_username(parse_json_body(event)))
 
         if method == "POST" and path == "/uploads/presign":
             body = parse_json_body(event)
@@ -109,12 +129,125 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         return response(401, {"message": str(error)})
     except AuthConfigurationError:
         return response(500, {"message": "Auth is not configured for this backend."})
+    except UsernameReservationError as error:
+        return response(400, {"code": "InvalidUsernameException", "message": str(error)})
+    except CognitoSignInError as error:
+        return response(400, {"code": error.code, "message": str(error)})
     except ClientInputError as error:
         return response(400, {"message": str(error)})
     except ClientError:
         return response(502, {"message": "AWS storage operation failed."})
     except zipfile.BadZipFile:
         return response(400, {"message": "The uploaded file is not a readable ZIP archive."})
+
+
+def handle_cognito_trigger(event: dict[str, Any]) -> dict[str, Any]:
+    trigger_source = event.get("triggerSource")
+
+    if trigger_source == "PreSignUp_SignUp":
+        reserve_username_for_signup(event)
+    elif trigger_source == "PostConfirmation_ConfirmSignUp":
+        confirm_username_reservation(event)
+
+    return event
+
+
+def reserve_username_for_signup(event: dict[str, Any]) -> None:
+    username = get_cognito_user_attribute(event, "name")
+    email = get_cognito_user_attribute(event, "email").lower()
+    username_key = normalize_signup_username(username)
+
+    if not email:
+        raise UsernameReservationError("Email is required.")
+
+    now = int(time.time())
+
+    try:
+        get_dynamodb_client().put_item(
+            TableName=require_username_reservation_table(),
+            Item={
+                "createdAt": {"N": str(now)},
+                "email": {"S": email},
+                "expiresAt": {"N": str(now + USERNAME_RESERVATION_TTL_SECONDS)},
+                "status": {"S": "pending"},
+                "username": {"S": username.strip()},
+                "usernameKey": {"S": username_key},
+            },
+            ConditionExpression=(
+                "attribute_not_exists(usernameKey) OR email = :email OR expiresAt < :now"
+            ),
+            ExpressionAttributeValues={
+                ":email": {"S": email},
+                ":now": {"N": str(now)},
+            },
+        )
+    except ClientError as error:
+        if is_conditional_check_failed(error):
+            raise UsernameReservationError("Username is already taken.") from error
+
+        raise
+
+
+def confirm_username_reservation(event: dict[str, Any]) -> None:
+    username = get_cognito_user_attribute(event, "name")
+    email = get_cognito_user_attribute(event, "email").lower()
+    username_key = normalize_signup_username(username)
+    now = int(time.time())
+
+    if not email:
+        return
+
+    try:
+        get_dynamodb_client().update_item(
+            TableName=require_username_reservation_table(),
+            Key={"usernameKey": {"S": username_key}},
+            UpdateExpression="SET #status = :status, confirmedAt = :confirmedAt REMOVE expiresAt",
+            ConditionExpression="email = :email",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":confirmedAt": {"N": str(now)},
+                ":email": {"S": email},
+                ":status": {"S": "confirmed"},
+            },
+        )
+    except ClientError as error:
+        if not is_conditional_check_failed(error):
+            raise
+
+
+def get_cognito_user_attribute(event: dict[str, Any], name: str) -> str:
+    attributes = event.get("request", {}).get("userAttributes", {})
+    value = attributes.get(name, "") if isinstance(attributes, dict) else ""
+
+    return value.strip() if isinstance(value, str) else ""
+
+
+def normalize_signup_username(username: str) -> str:
+    trimmed_username = username.strip()
+
+    if len(trimmed_username) < 3:
+        raise UsernameReservationError("Username must be at least 3 characters.")
+
+    if not USERNAME_PATTERN.fullmatch(trimmed_username):
+        raise UsernameReservationError(
+            "Username can only use letters, numbers, dots, underscores, or hyphens."
+        )
+
+    if trimmed_username[0] in "._-" or trimmed_username[-1] in "._-":
+        raise UsernameReservationError("Username cannot start or end with punctuation.")
+
+    return trimmed_username.lower()
+
+
+def require_username_reservation_table() -> str:
+    if not USERNAME_RESERVATION_TABLE:
+        raise AuthConfigurationError("Username reservation table is not configured.")
+
+    return USERNAME_RESERVATION_TABLE
+
+
+def is_conditional_check_failed(error: ClientError) -> bool:
+    return get_client_error_code(error) == "ConditionalCheckFailedException"
 
 
 def response(status_code: int, body: dict[str, Any]) -> dict[str, Any]:
@@ -246,7 +379,7 @@ def parse_json_body(event: dict[str, Any]) -> dict[str, Any]:
 
 def get_learning_progress(user: dict[str, Any]) -> dict[str, Any]:
     item = get_dynamodb_client().get_item(
-        TableName=LEARNING_PROGRESS_TABLE,
+        TableName=require_learning_progress_table(),
         Key={"userId": {"S": user["sub"]}},
         ConsistentRead=True,
     ).get("Item")
@@ -283,7 +416,7 @@ def save_learning_progress(body: dict[str, Any], user: dict[str, Any]) -> dict[s
 
     updated_at = int(time.time())
     get_dynamodb_client().put_item(
-        TableName=LEARNING_PROGRESS_TABLE,
+        TableName=require_learning_progress_table(),
         Item={
             "progressJson": {"S": progress_json},
             "updatedAt": {"N": str(updated_at)},
@@ -359,6 +492,58 @@ def validate_uploaded_dataset_code(body: dict[str, Any], user: dict[str, Any]) -
         "status": validation["status"],
         "tabularFilePath": expected_path,
     }
+
+
+def sign_in_with_username(body: dict[str, Any]) -> dict[str, Any]:
+    username = get_required_string(body, "username")
+    password = get_required_string(body, "password")
+    username_key = normalize_signup_username(username)
+    email = get_confirmed_email_for_username(username_key)
+
+    if not email:
+        raise CognitoSignInError("NotAuthorizedException", "Username or password is not correct.")
+
+    if not COGNITO_CLIENT_ID:
+        raise AuthConfigurationError("Cognito client id is missing.")
+
+    try:
+        result = get_cognito_identity_provider_client().initiate_auth(
+            AuthFlow="USER_PASSWORD_AUTH",
+            AuthParameters={
+                "PASSWORD": password,
+                "USERNAME": email,
+            },
+            ClientId=COGNITO_CLIENT_ID,
+        )
+    except ClientError as error:
+        code = get_client_error_code(error)
+        if code in {
+            "NotAuthorizedException",
+            "PasswordResetRequiredException",
+            "UserNotConfirmedException",
+            "UserNotFoundException",
+        }:
+            raise CognitoSignInError(code, get_client_error_message(error)) from error
+
+        raise
+
+    return {"authenticationResult": result.get("AuthenticationResult", {})}
+
+
+def get_confirmed_email_for_username(username_key: str) -> str:
+    item = get_dynamodb_client().get_item(
+        TableName=require_username_reservation_table(),
+        Key={"usernameKey": {"S": username_key}},
+        ConsistentRead=True,
+    ).get("Item")
+
+    if not item:
+        return ""
+
+    if item.get("status", {}).get("S") != "confirmed":
+        return ""
+
+    return item.get("email", {}).get("S", "")
 
 
 def download_archive(object_key: str) -> bytes:
@@ -1082,6 +1267,13 @@ def get_optional_string(body: dict[str, Any], key: str) -> str | None:
     return value.strip() if isinstance(value, str) and value.strip() else None
 
 
+def require_learning_progress_table() -> str:
+    if not LEARNING_PROGRESS_TABLE:
+        raise AuthConfigurationError("Learning progress table is not configured.")
+
+    return LEARNING_PROGRESS_TABLE
+
+
 def get_s3_client():
     global _s3_client
 
@@ -1102,17 +1294,46 @@ def get_s3_client():
 def get_dynamodb_client():
     global _dynamodb_client
 
+    if _dynamodb_client is not None:
+        return _dynamodb_client
+
     if boto3 is None:
         raise RuntimeError("boto3 is required for AWS storage operations.")
 
-    if not LEARNING_PROGRESS_TABLE:
-        raise AuthConfigurationError("Learning progress table is not configured.")
-
-    if _dynamodb_client is None:
-        _dynamodb_client = boto3.client(
-            "dynamodb",
-            config=Config(),
-            region_name=AWS_REGION,
-        )
+    _dynamodb_client = boto3.client(
+        "dynamodb",
+        config=Config(),
+        region_name=AWS_REGION,
+    )
 
     return _dynamodb_client
+
+
+def get_cognito_identity_provider_client():
+    global _cognito_identity_provider_client
+
+    if _cognito_identity_provider_client is not None:
+        return _cognito_identity_provider_client
+
+    if boto3 is None:
+        raise RuntimeError("boto3 is required for AWS auth operations.")
+
+    _cognito_identity_provider_client = boto3.client(
+        "cognito-idp",
+        config=Config(),
+        region_name=COGNITO_REGION,
+    )
+
+    return _cognito_identity_provider_client
+
+
+def get_client_error_code(error: ClientError) -> str:
+    code = getattr(error, "response", {}).get("Error", {}).get("Code", "")
+
+    return code if isinstance(code, str) else ""
+
+
+def get_client_error_message(error: ClientError) -> str:
+    message = getattr(error, "response", {}).get("Error", {}).get("Message", "")
+
+    return message if isinstance(message, str) and message else str(error)

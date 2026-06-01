@@ -1,4 +1,5 @@
 import { createAuthSession, type AuthSession } from "./auth-session";
+import { getLearningBackendUrl } from "@/lib/learning-backend-url";
 
 type ViteImportMeta = ImportMeta & {
   env?: {
@@ -32,6 +33,12 @@ type CognitoInitiateAuthResponse = {
     IdToken?: string;
     RefreshToken?: string;
   };
+};
+
+type LearningBackendAuthResponse = {
+  authenticationResult?: CognitoInitiateAuthResponse["AuthenticationResult"];
+  code?: string;
+  message?: string;
 };
 
 export class CognitoAuthError extends Error {
@@ -116,6 +123,33 @@ export async function signInWithCognito({ email, password }: { email: string; pa
   });
 }
 
+export async function signInWithUsername({
+  password,
+  username,
+}: {
+  password: string;
+  username: string;
+}) {
+  const response = await fetch(`${getLearningBackendUrl()}/auth/username/sign-in`, {
+    body: JSON.stringify({ password, username }),
+    headers: {
+      "content-type": "application/json",
+    },
+    method: "POST",
+  });
+  const responseBody = (await response.json().catch(() => ({}))) as LearningBackendAuthResponse;
+
+  if (!response.ok) {
+    const code = responseBody.code ?? "CognitoError";
+    throw new CognitoAuthError(code, responseBody.message ?? getFallbackCognitoErrorMessage(code));
+  }
+
+  return createAuthSession({
+    authResult: responseBody.authenticationResult ?? {},
+    fallbackName: username,
+  });
+}
+
 export async function refreshCognitoSession(session: AuthSession) {
   const config = requireCognitoConfig();
   const response = await cognitoRequest<CognitoInitiateAuthResponse>("InitiateAuth", {
@@ -178,7 +212,7 @@ function getFallbackCognitoErrorMessage(code: string) {
   }
 
   if (code === "NotAuthorizedException") {
-    return "Email atau password belum sesuai.";
+    return "Username/email atau password belum sesuai.";
   }
 
   return "Auth request gagal.";

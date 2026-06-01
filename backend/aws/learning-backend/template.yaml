@@ -15,16 +15,6 @@ Globals:
       - arm64
     Timeout: 30
     MemorySize: 1024
-    Environment:
-      Variables:
-        UPLOAD_BUCKET: !Ref DatasetUploadBucket
-        LEARNING_PROGRESS_TABLE: !Ref LearningProgressTable
-        MAX_ZIP_BYTES: "52428800"
-        MAX_UNZIPPED_BYTES: "104857600"
-        MAX_PROGRESS_JSON_BYTES: "300000"
-        COGNITO_USER_POOL_ID: !Ref SmileUserPool
-        COGNITO_CLIENT_ID: !Ref SmileUserPoolClient
-        COGNITO_REGION: !Ref AWS::Region
 
 Resources:
   LearningProgressTable:
@@ -39,6 +29,22 @@ Resources:
           KeyType: HASH
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
+
+  UsernameReservationTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: usernameKey
+          AttributeType: S
+      KeySchema:
+        - AttributeName: usernameKey
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
 
   SmileUserPool:
     Type: AWS::Cognito::UserPool
@@ -68,6 +74,9 @@ Resources:
         - Name: name
           Required: false
           Mutable: true
+      LambdaConfig:
+        PreSignUp: !GetAtt AuthUsernameFunction.Arn
+        PostConfirmation: !GetAtt AuthUsernameFunction.Arn
       VerificationMessageTemplate:
         DefaultEmailOption: CONFIRM_WITH_CODE
 
@@ -120,11 +129,24 @@ Resources:
     Properties:
       CodeUri: src/
       Handler: app.lambda_handler
+      Environment:
+        Variables:
+          UPLOAD_BUCKET: !Ref DatasetUploadBucket
+          LEARNING_PROGRESS_TABLE: !Ref LearningProgressTable
+          USERNAME_RESERVATION_TABLE: !Ref UsernameReservationTable
+          MAX_ZIP_BYTES: "52428800"
+          MAX_UNZIPPED_BYTES: "104857600"
+          MAX_PROGRESS_JSON_BYTES: "300000"
+          COGNITO_USER_POOL_ID: !Ref SmileUserPool
+          COGNITO_CLIENT_ID: !Ref SmileUserPoolClient
+          COGNITO_REGION: !Ref AWS::Region
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref DatasetUploadBucket
         - DynamoDBCrudPolicy:
             TableName: !Ref LearningProgressTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsernameReservationTable
       FunctionUrlConfig:
         AuthType: NONE
         Cors:
@@ -137,6 +159,26 @@ Resources:
             - authorization
             - content-type
           MaxAge: 300
+
+  AuthUsernameFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Environment:
+        Variables:
+          USERNAME_RESERVATION_TABLE: !Ref UsernameReservationTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsernameReservationTable
+
+  AuthUsernameFunctionCognitoInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref AuthUsernameFunction
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !GetAtt SmileUserPool.Arn
 
 Outputs:
   LearningBackendFunctionUrl:
@@ -157,3 +199,6 @@ Outputs:
   LearningProgressTableName:
     Description: DynamoDB table storing synced learning progress per Cognito user.
     Value: !Ref LearningProgressTable
+  UsernameReservationTableName:
+    Description: DynamoDB table reserving unique display usernames.
+    Value: !Ref UsernameReservationTable
