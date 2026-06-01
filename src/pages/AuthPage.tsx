@@ -34,16 +34,11 @@ type AuthField = {
   type: "email" | "password" | "text";
 };
 
-type PasswordRule = "case" | "length" | "number";
+type AuthStatusMessage =
+  | { destination?: string; kind: "confirmation-sent" }
+  | { kind: "account-unconfirmed" };
 
-type RainDrop = {
-  charList: string;
-  frameDelay: number;
-  lastFrameTime: number;
-  trailChars: Array<{ char: string; x: number; y: number }>;
-  x: number;
-  y: number;
-};
+type PasswordRule = "case" | "length" | "number";
 
 type AuthModeCopy = {
   description: string;
@@ -102,16 +97,10 @@ const authCopy = {
   }
 >;
 
-const brailleGlyphs =
-  "⠁⠂⠃⠄⠅⠆⠇⠈⠉⠊⠋⠌⠍⠎⠏⠐⠑⠒⠓⠔⠕⠖⠗⠘⠙⠚⠛⠜⠝⠞⠟⠠⠡⠢⠣⠤⠥⠦⠧⠨⠩⠪⠫⠬⠭⠮⠯⠰⠱⠲⠳⠴⠵⠶⠷⠸⠹⠺⠻⠼⠽⠾⠿⡀⡁⡂⡃⡄⡅⡆⡇⡈⡉⡊⡋⡌⡍⡎⡏⡐⡑⡒⡓⡔⡕⡖⡗⡘⡙⡚⡛⡜⡝⡞⡟⡠⡡⡢⡣⡤⡥⡦⡧⡨⡩⡪⡫⡬⡭⡮⡯⡰⡱⡲⡳⡴⡵⡶⡷⡸⡹⡺⡻⡼⡽⡾⡿⢀⢁⢂⢃⢄⢅⢆⢇⢈⢉⢊⢋⢌⢍⢎⢏⢐⢑⢒⢓⢔⢕⢖⢗⢘⢙⢚⢛⢜⢝⢞⢟⢠⢡⢢⢣⢤⢥⢦⢧⢨⢩⢪⢫⢬⢭⢮⢯⢰⢱⢲⢳⢴⢵⢶⢷⢸⢹⢺⢻⢼⢽⢾⢿⣀⣁⣂⣃⣄⣅⣆⣇⣈⣉⣊⣋⣌⣍⣎⣏⣐⣑⣒⣓⣔⣕⣖⣗⣘⣙⣚⣛⣜⣝⣞⣟⣠⣡⣢⣣⣤⣥⣦⣧⣨⣩⣪⣫⣬⣭⣮⣯⣰⣱⣲⣳⣴⣵⣶⣷⣸⣹⣺⣻⣼⣽⣾⣿";
-
-const trailColors = [
-  "rgba(24,24,27,0.62)",
-  "rgba(24,24,27,0.44)",
-  "rgba(24,24,27,0.28)",
-  "rgba(24,24,27,0.16)",
-  "rgba(24,24,27,0.08)",
-];
+const authIllustrationImageUrl = new URL(
+  "../../assets/43096caa-9b82-474a-a51d-99d4721a99ca.png",
+  import.meta.url,
+).href;
 const passwordRules: Array<{ id: PasswordRule; label: Record<Locale, string> }> = [
   { id: "length", label: { en: "8 characters long", id: "Minimal 8 karakter" } },
   { id: "case", label: { en: "Uppercase and lowercase", id: "Huruf besar dan kecil" } },
@@ -252,7 +241,7 @@ export function AuthPage({
             />
           </button>
           <AuthLanguageSwitcher isRegister={isRegister} />
-          <AuthMatrixRain />
+          <AuthIllustration />
           <LayoutGroup id="auth-form-layout">
             <section
               className="relative z-10 grid min-h-[min(720px,calc(100vh_-_2.5rem))] lg:grid-cols-2 md:min-h-[min(760px,calc(100vh_-_4rem))]"
@@ -418,7 +407,8 @@ function AuthFormPanel({
   const [isPasswordTouched, setPasswordTouched] = useState(false);
   const [isConfirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("");
+  const [statusMessage, setStatusMessage] = useState<AuthStatusMessage | null>(null);
+  const renderedStatusMessage = statusMessage ? getAuthStatusMessage(statusMessage, locale) : "";
   const usernameError = getUsernameValidationMessage(name, locale);
   const trimmedEmail = email.trim();
   const isEmailValid = isValidEmailAddress(trimmedEmail);
@@ -453,7 +443,7 @@ function AuthFormPanel({
     setEmailTouched(false);
     setPasswordTouched(false);
     setConfirmPasswordTouched(false);
-    setStatusMessage("");
+    setStatusMessage(null);
   }, [mode]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -462,7 +452,7 @@ function AuthFormPanel({
     const normalizedEmail = email.trim().toLowerCase();
 
     setErrorMessage("");
-    setStatusMessage("");
+    setStatusMessage(null);
 
     if (!normalizedEmail) {
       setErrorMessage(locale === "en" ? "Email is required." : "Email wajib diisi.");
@@ -532,7 +522,7 @@ function AuthFormPanel({
 
         setConfirmationDestination(signUpResult.destination ?? "");
         setConfirmationEmail(normalizedEmail);
-        setStatusMessage(getConfirmationSentMessage(locale, signUpResult.destination));
+        setStatusMessage({ destination: signUpResult.destination, kind: "confirmation-sent" });
         return;
       }
 
@@ -551,11 +541,7 @@ function AuthFormPanel({
     } catch (error) {
       if (error instanceof CognitoAuthError && error.code === "UserNotConfirmedException") {
         setConfirmationEmail(normalizedEmail);
-        setStatusMessage(
-          locale === "en"
-            ? "This account still needs the verification code from email."
-            : "Akun ini masih perlu kode verifikasi dari email.",
-        );
+        setStatusMessage({ kind: "account-unconfirmed" });
         return;
       }
 
@@ -573,12 +559,12 @@ function AuthFormPanel({
     }
 
     setErrorMessage("");
-    setStatusMessage("");
+    setStatusMessage(null);
     setIsSubmitting(true);
 
     try {
       await auth.resendConfirmationCode(resendEmail);
-      setStatusMessage(getConfirmationSentMessage(locale, confirmationDestination));
+      setStatusMessage({ destination: confirmationDestination, kind: "confirmation-sent" });
     } catch (error) {
       setErrorMessage(getAuthErrorMessage(error, locale));
     } finally {
@@ -783,9 +769,9 @@ function AuthFormPanel({
                 {errorMessage}
               </p>
             ) : null}
-            {statusMessage ? (
+            {renderedStatusMessage ? (
               <p className="mt-6 text-sm leading-6 font-medium text-sky-700" aria-live="polite">
-                {statusMessage}
+                {renderedStatusMessage}
               </p>
             ) : null}
 
@@ -1095,160 +1081,16 @@ function ConfirmPasswordStatus({
   );
 }
 
-function AuthMatrixRain() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-
-    if (!canvas) {
-      return;
-    }
-
-    const context = canvas.getContext("2d");
-
-    if (!context) {
-      return;
-    }
-
-    let frameId = 0;
-    let fadeInterval = 0;
-    let stopAnimation = false;
-    let canvasWidth = 0;
-    let canvasHeight = 0;
-    let raindrops: RainDrop[] = [];
-
-    const getFont = () => {
-      const monoFont = getComputedStyle(document.documentElement)
-        .getPropertyValue("--font-mono")
-        .trim();
-
-      return `14px ${monoFont || "monospace"}`;
-    };
-
-    const createRaindrops = () => {
-      const columnWidth = 12;
-      const columnCount = Math.max(1, Math.floor(canvasWidth / columnWidth));
-      const dropCount = Math.floor(columnCount * 2);
-
-      raindrops = Array.from({ length: dropCount }, () => ({
-        charList: brailleGlyphs,
-        frameDelay: randomInt(50, 130),
-        lastFrameTime: 0,
-        trailChars: [],
-        x: randomInt(0, columnCount) * columnWidth,
-        y: random(0, canvasHeight),
-      }));
-    };
-
-    const resize = () => {
-      canvas.width = canvasWidth = canvas.parentElement?.clientWidth ?? window.innerWidth;
-      canvas.height = canvasHeight = canvas.parentElement?.clientHeight ?? window.innerHeight;
-      context.textAlign = "center";
-      context.imageSmoothingEnabled = false;
-      context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, canvasWidth, canvasHeight);
-      createRaindrops();
-    };
-
-    const clearTrail = (drop: RainDrop) => {
-      context.save();
-      context.font = getFont();
-      context.shadowColor = "rgba(0,0,0,0)";
-      context.shadowBlur = 0;
-
-      for (let index = drop.trailChars.length - 1; index >= 0; index -= 1) {
-        const trailChar = drop.trailChars[index];
-
-        if (!trailChar) {
-          continue;
-        }
-
-        context.fillStyle = "#ffffff";
-        context.fillRect(trailChar.x - 15.4, trailChar.y - 25, 30.8, 26.6);
-        context.fillStyle = trailColors[index] ?? trailColors[trailColors.length - 1];
-        context.fillText(trailChar.char, trailChar.x, trailChar.y);
-      }
-
-      context.restore();
-    };
-
-    const drawDrop = (drop: RainDrop) => {
-      const char = drop.charList[randomInt(0, drop.charList.length - 1)] ?? "0";
-
-      drop.trailChars.unshift({ char, x: drop.x, y: drop.y });
-      drop.trailChars.splice(trailColors.length);
-
-      context.save();
-      context.font = getFont();
-      context.shadowColor = "rgba(9,9,11,0)";
-      context.shadowBlur = 0;
-      context.fillStyle = "rgba(9,9,11,0.88)";
-      context.fillText(char, drop.x, drop.y);
-      context.restore();
-
-      drop.y += random(0, 10);
-      drop.x += random(-0.75, 0.75);
-      drop.y += 18;
-
-      if (drop.y > canvasHeight) {
-        const columnWidth = 12;
-        const columnCount = Math.max(1, Math.floor(canvasWidth / columnWidth));
-
-        drop.x = randomInt(0, columnCount) * columnWidth;
-        drop.y = random(-100, 0);
-        drop.frameDelay = randomInt(50, 130);
-        drop.trailChars = [];
-      }
-    };
-
-    const render = () => {
-      if (stopAnimation) {
-        return;
-      }
-
-      const now = Date.now();
-
-      for (const drop of raindrops) {
-        if (now - drop.lastFrameTime > drop.frameDelay) {
-          clearTrail(drop);
-        }
-      }
-
-      for (const drop of raindrops) {
-        if (now - drop.lastFrameTime > drop.frameDelay) {
-          drawDrop(drop);
-          drop.lastFrameTime = now;
-        }
-      }
-
-      frameId = window.requestAnimationFrame(render);
-    };
-
-    const resizeObserver = new ResizeObserver(resize);
-
-    resize();
-    resizeObserver.observe(canvas.parentElement ?? canvas);
-
-    if (!shouldReduceMotion()) {
-      fadeInterval = window.setInterval(() => {
-        context.fillStyle = "rgba(255,255,255,0.03)";
-        context.fillRect(0, 0, canvasWidth, canvasHeight);
-      }, 20);
-      render();
-    }
-
-    return () => {
-      stopAnimation = true;
-      window.cancelAnimationFrame(frameId);
-      window.clearInterval(fadeInterval);
-      resizeObserver.disconnect();
-    };
-  }, []);
-
+function AuthIllustration() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 bg-white">
-      <canvas className="absolute inset-0 h-full w-full" ref={canvasRef} />
+      <img
+        alt=""
+        className="h-full w-full object-cover"
+        decoding="async"
+        loading="eager"
+        src={authIllustrationImageUrl}
+      />
     </div>
   );
 }
@@ -1365,16 +1207,32 @@ function getSubmitLabel({
   return submit;
 }
 
-function getConfirmationSentMessage(locale: Locale, destination?: string) {
-  if (locale === "en") {
-    return destination
-      ? `Verification code sent to ${destination}.`
-      : "Verification code sent to your email.";
+function getAuthStatusMessage(message: AuthStatusMessage, locale: Locale) {
+  if (message.kind === "account-unconfirmed") {
+    return locale === "en"
+      ? "This account still needs the verification code from email. If it does not show up, check your spam or junk folder."
+      : "Akun ini masih perlu kode verifikasi dari email. Kalau belum muncul, cek folder spam atau junk juga.";
   }
 
-  return destination
-    ? `Kode verifikasi dikirim ke ${destination}.`
+  return getConfirmationSentMessage(locale, message.destination);
+}
+
+function getConfirmationSentMessage(locale: Locale, destination?: string) {
+  const displayDestination = destination?.trim();
+
+  if (locale === "en") {
+    const sentMessage = displayDestination
+      ? `Verification code sent to ${displayDestination}.`
+      : "Verification code sent to your email.";
+
+    return `${sentMessage} If it does not show up, check your spam or junk folder.`;
+  }
+
+  const sentMessage = displayDestination
+    ? `Kode verifikasi dikirim ke ${displayDestination}.`
     : "Kode verifikasi dikirim ke email kamu.";
+
+  return `${sentMessage} Kalau belum muncul, cek folder spam atau junk juga.`;
 }
 
 function getAuthErrorMessage(error: unknown, locale: Locale) {
@@ -1516,12 +1374,4 @@ function getUsernameValidationMessage(value: string, locale: Locale) {
 
 function isValidEmailAddress(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-
-function random(min: number, max: number) {
-  return Math.random() * (max - min) + min;
-}
-
-function randomInt(min: number, max: number) {
-  return Math.floor(random(min, max));
 }
