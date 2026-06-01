@@ -1,6 +1,6 @@
 import { CheckIcon, CopyIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
-import { motion, type HTMLMotionProps } from "motion/react";
+import { AnimatePresence, motion, type HTMLMotionProps } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -14,8 +14,8 @@ type CopyButtonProps = Omit<HTMLMotionProps<"button">, "children" | "onClick" | 
   value: string;
 };
 
-const blurTransition = { duration: 0.14, ease: "easeOut" } as const;
-const buttonWidthTransition = { damping: 32, mass: 0.7, stiffness: 520, type: "spring" } as const;
+const contentTransition = { duration: 0.18, ease: [0.22, 1, 0.36, 1] } as const;
+const buttonWidthTransition = { duration: 0.2, ease: [0.22, 1, 0.36, 1] } as const;
 
 async function copyTextToClipboard(value: string) {
   if (navigator.clipboard?.writeText) {
@@ -42,30 +42,15 @@ async function copyTextToClipboard(value: string) {
   }
 }
 
-function CopyButtonContent({
-  icon,
-  isVisible,
-  label,
-}: {
-  icon: IconSvgElement;
-  isVisible: boolean;
-  label: string;
-}) {
+function CopyButtonContent({ icon, label }: { icon: IconSvgElement; label: string }) {
   return (
     <motion.span
-      animate={{
-        opacity: isVisible ? 1 : 0,
-        filter: isVisible ? "blur(0px)" : "blur(6px)",
-      }}
-      aria-hidden={!isVisible}
-      className={cn(
-        "inline-flex items-center justify-center gap-2.5 overflow-visible whitespace-nowrap",
-        isVisible
-          ? "relative"
-          : "pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
-      )}
-      initial={false}
-      transition={blurTransition}
+      animate={{ filter: "blur(0px)", opacity: 1, scale: 1, y: 0 }}
+      aria-hidden="true"
+      className="col-start-1 row-start-1 inline-flex transform-gpu items-center justify-center gap-2.5 overflow-visible whitespace-nowrap [will-change:filter,opacity,transform]"
+      exit={{ filter: "blur(6px)", opacity: 0, scale: 0.98, y: -3 }}
+      initial={{ filter: "blur(6px)", opacity: 0, scale: 0.98, y: 3 }}
+      transition={contentTransition}
     >
       <HugeiconsIcon aria-hidden="true" className="size-5" icon={icon} size={20} strokeWidth={2} />
       <span>{label}</span>
@@ -86,33 +71,45 @@ export function CopyButton({
   ...props
 }: CopyButtonProps) {
   const [isCopied, setIsCopied] = useState(false);
-  const [buttonWidth, setButtonWidth] = useState<number>();
+  const [measuredButtonWidths, setMeasuredButtonWidths] = useState<{
+    copied?: number;
+    copy?: number;
+  }>({});
   const copiedMeasureRef = useRef<HTMLSpanElement>(null);
   const copyMeasureRef = useRef<HTMLSpanElement>(null);
   const ariaLabel = isCopied ? (copiedAriaLabel ?? copiedLabel) : (copyAriaLabel ?? copyLabel);
+  const buttonWidth = isCopied ? measuredButtonWidths.copied : measuredButtonWidths.copy;
 
   useLayoutEffect(() => {
-    const measureButtonWidth = () => {
-      const measureElement = isCopied ? copiedMeasureRef.current : copyMeasureRef.current;
+    const measureButtonWidths = () => {
+      const copyWidth = Math.ceil(copyMeasureRef.current?.getBoundingClientRect().width ?? 0);
+      const copiedWidth = Math.ceil(copiedMeasureRef.current?.getBoundingClientRect().width ?? 0);
 
-      if (!measureElement) {
+      if (copyWidth <= 0 && copiedWidth <= 0) {
         return;
       }
 
-      const measuredWidth = Math.ceil(measureElement.getBoundingClientRect().width);
+      setMeasuredButtonWidths((current) => {
+        const nextWidths = {
+          copied: copiedWidth > 0 ? copiedWidth : current.copied,
+          copy: copyWidth > 0 ? copyWidth : current.copy,
+        };
 
-      if (measuredWidth > 0) {
-        setButtonWidth(measuredWidth);
-      }
+        if (nextWidths.copied === current.copied && nextWidths.copy === current.copy) {
+          return current;
+        }
+
+        return nextWidths;
+      });
     };
 
-    measureButtonWidth();
+    measureButtonWidths();
 
     if (typeof ResizeObserver === "undefined") {
       return;
     }
 
-    const resizeObserver = new ResizeObserver(measureButtonWidth);
+    const resizeObserver = new ResizeObserver(measureButtonWidths);
 
     if (copyMeasureRef.current) {
       resizeObserver.observe(copyMeasureRef.current);
@@ -125,7 +122,7 @@ export function CopyButton({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [className, copiedLabel, copyLabel, isCopied]);
+  }, [className, copiedLabel, copyLabel]);
 
   useEffect(() => {
     if (!isCopied) {
@@ -152,11 +149,12 @@ export function CopyButton({
       )}
       initial={false}
       onClick={() => {
+        setIsCopied(true);
         void copyTextToClipboard(value)
-          .then(() => {
-            setIsCopied(true);
-          })
-          .catch(() => undefined);
+          .then(() => undefined)
+          .catch(() => {
+            setIsCopied(false);
+          });
       }}
       style={style}
       type={type}
@@ -189,9 +187,14 @@ export function CopyButton({
         aria-hidden="true"
         className="absolute inset-0 z-0 rounded-none bg-neutral-950 transition-colors duration-200 group-hover:bg-neutral-900"
       />
-      <span className="relative z-10 inline-flex items-center justify-center overflow-visible">
-        <CopyButtonContent icon={CopyIcon} isVisible={!isCopied} label={copyLabel} />
-        <CopyButtonContent icon={CheckIcon} isVisible={isCopied} label={copiedLabel} />
+      <span className="relative z-10 inline-grid items-center justify-center overflow-visible">
+        <AnimatePresence initial={false}>
+          {isCopied ? (
+            <CopyButtonContent icon={CheckIcon} key="copied" label={copiedLabel} />
+          ) : (
+            <CopyButtonContent icon={CopyIcon} key="copy" label={copyLabel} />
+          )}
+        </AnimatePresence>
       </span>
     </motion.button>
   );
