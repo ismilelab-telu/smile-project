@@ -9,11 +9,13 @@ import {
 import { indentMore } from "@codemirror/commands";
 import { python } from "@codemirror/lang-python";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { linter, lintGutter, type Diagnostic as CodeMirrorDiagnostic } from "@codemirror/lint";
+import { linter } from "@codemirror/lint";
 import { Compartment, EditorState, Prec, type Extension } from "@codemirror/state";
 import {
   Decoration,
   EditorView,
+  GutterMarker,
+  gutter,
   keymap,
   ViewPlugin,
   WidgetType,
@@ -99,6 +101,13 @@ import type {
 } from "../types";
 import { LearningGridCanvas, LearningSheetExtensions } from "./LearningGridCanvas";
 import { LearningHeader } from "./LearningHeader";
+import {
+  createCodeMirrorDiagnostics,
+  getSmartPredictionCompletionIndex,
+  getTypedDataframeName,
+  getTypedPandasAlias,
+  type CodeDiagnostic,
+} from "./pandas-code-editor-utils";
 import { CopyButton } from "@/components/ui/copy-button";
 import { LinkPreview } from "@/components/ui/link-preview";
 import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
@@ -178,13 +187,6 @@ type LearningBackendInspectResponse = {
   csvPath?: string;
   expectedCode?: string;
   tabularFilePath?: string;
-};
-
-type CodeDiagnostic = {
-  column: number;
-  length: number;
-  line: number;
-  message: string;
 };
 
 type LearningBackendValidationResponse = {
@@ -1574,74 +1576,6 @@ function getGuidedDownloadPredictionCode(
   return `import pandas as ${pandasAlias}\n\n${dataframeName} = ${pandasAlias}.read_csv("${normalizedPath}")\n${dataframeName}.head()`;
 }
 
-const pythonIdentifierPattern = "[A-Za-z_][A-Za-z0-9_]*";
-
-function getTypedPandasAlias(code: string) {
-  const normalizedCode = code.replace(/\r\n?/g, "\n");
-  const match = new RegExp(
-    `^\\s*import\\s+pandas\\s+as\\s+(${pythonIdentifierPattern})\\b`,
-    "m",
-  ).exec(normalizedCode);
-
-  return match?.[1] ?? null;
-}
-
-function getTypedDataframeName(code: string) {
-  const normalizedCode = code.replace(/\r\n?/g, "\n");
-  const match = new RegExp(`^\\s*(${pythonIdentifierPattern})\\s*=`, "m").exec(normalizedCode);
-
-  return match?.[1] ?? null;
-}
-
-function getSmartPredictionCompletionIndex(expectedCode: string, typedCode: string) {
-  let expectedIndex = 0;
-  let typedIndex = 0;
-
-  while (typedIndex < typedCode.length) {
-    const typedCharacter = typedCode[typedIndex] ?? "";
-
-    if (isCodePredictionWhitespace(typedCharacter)) {
-      while (
-        typedIndex < typedCode.length &&
-        isCodePredictionWhitespace(typedCode[typedIndex] ?? "")
-      ) {
-        typedIndex += 1;
-      }
-
-      if (isCodePredictionWhitespace(expectedCode[expectedIndex] ?? "")) {
-        while (
-          expectedIndex < expectedCode.length &&
-          isCodePredictionWhitespace(expectedCode[expectedIndex] ?? "")
-        ) {
-          expectedIndex += 1;
-        }
-      }
-
-      continue;
-    }
-
-    while (
-      expectedIndex < expectedCode.length &&
-      isCodePredictionWhitespace(expectedCode[expectedIndex] ?? "")
-    ) {
-      expectedIndex += 1;
-    }
-
-    if (expectedCode[expectedIndex] !== typedCharacter) {
-      return null;
-    }
-
-    expectedIndex += 1;
-    typedIndex += 1;
-  }
-
-  return expectedIndex;
-}
-
-function isCodePredictionWhitespace(character: string) {
-  return character === " " || character === "\n" || character === "\t";
-}
-
 const pandasCodeHighlightStyle = HighlightStyle.define([
   { tag: tags.keyword, color: "#fb7185", fontWeight: "600" },
   { tag: [tags.string, tags.special(tags.string)], color: "#34d399" },
@@ -1733,6 +1667,29 @@ class PandasPredictionWidget extends WidgetType {
   }
 }
 
+const pandasCodeDiagnosticGutterMarker = new (class extends GutterMarker {
+  toDOM() {
+    const element = document.createElement("span");
+    element.className = "cm-pandas-diagnostic-marker";
+
+    return element;
+  }
+})();
+
+function createPandasDiagnosticGutter(diagnostics: CodeDiagnostic[]) {
+  return gutter({
+    class: "cm-pandas-diagnostic-gutter",
+    lineMarker: (view, line) =>
+      diagnostics.some((diagnostic) => {
+        const lineNumber = Math.max(1, Math.min(view.state.doc.lines, diagnostic.line));
+
+        return view.state.doc.line(lineNumber).from === line.from;
+      })
+        ? pandasCodeDiagnosticGutterMarker
+        : null,
+  });
+}
+
 function createPandasPredictionExtension(expectedCode: string, isDisabled: boolean) {
   return ViewPlugin.fromClass(
     class {
@@ -1815,54 +1772,6 @@ function acceptPandasPrediction(view: EditorView, expectedCode: string, isDisabl
   });
 
   return true;
-}
-
-function createCodeMirrorDiagnostics(
-  state: EditorState,
-  diagnostics: CodeDiagnostic[],
-): CodeMirrorDiagnostic[] {
-  return diagnostics.map((diagnostic) => {
-    const lineNumber = Math.max(1, Math.min(state.doc.lines, diagnostic.line));
-    const line = state.doc.line(lineNumber);
-    let from = Math.max(line.from, Math.min(line.to, line.from + diagnostic.column - 1));
-    let to = Math.min(line.to, from + Math.max(1, diagnostic.length));
-
-    if (to <= from) {
-      if (from < state.doc.length) {
-        to = from + 1;
-      } else if (from > 0) {
-        from -= 1;
-        to = from + 1;
-      }
-    }
-
-    return {
-      from,
-      message: diagnostic.message,
-      renderMessage: () => createCodeMirrorDiagnosticMessage(diagnostic.message),
-      severity: "error",
-      to,
-    };
-  });
-}
-
-function createCodeMirrorDiagnosticMessage(message: string) {
-  const container = document.createElement("span");
-
-  message.split(/(`[^`]+`)/g).forEach((part) => {
-    const isInlineCode = part.length > 1 && part.startsWith("`") && part.endsWith("`");
-
-    if (!isInlineCode) {
-      container.append(document.createTextNode(part));
-      return;
-    }
-
-    const code = document.createElement("code");
-    code.textContent = part.slice(1, -1);
-    container.append(code);
-  });
-
-  return container;
 }
 
 function getCodeDiagnostics(
@@ -2127,6 +2036,7 @@ function PandasCodeMirrorEditor({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const editableCompartmentRef = useRef(new Compartment());
+  const gutterCompartmentRef = useRef(new Compartment());
   const linterCompartmentRef = useRef(new Compartment());
   const predictionCompartmentRef = useRef(new Compartment());
   const isDisabled = disabled || readOnly;
@@ -2179,7 +2089,6 @@ function PandasCodeMirrorEditor({
               editorPropsRef.current.onChange(update.state.doc.toString());
             }
           }),
-          lintGutter(),
           Prec.high(
             keymap.of([
               {
@@ -2194,6 +2103,7 @@ function PandasCodeMirrorEditor({
             ]),
           ),
           editableCompartmentRef.current.of(getCodeMirrorEditableExtensions(isDisabled)),
+          gutterCompartmentRef.current.of(createPandasDiagnosticGutter(diagnostics)),
           linterCompartmentRef.current.of(createCodeMirrorLinter(diagnostics)),
           predictionCompartmentRef.current.of(
             createPandasPredictionExtension(expectedCode, isDisabled),
@@ -2240,6 +2150,7 @@ function PandasCodeMirrorEditor({
     view.dispatch({
       effects: [
         editableCompartmentRef.current.reconfigure(getCodeMirrorEditableExtensions(isDisabled)),
+        gutterCompartmentRef.current.reconfigure(createPandasDiagnosticGutter(diagnostics)),
         linterCompartmentRef.current.reconfigure(createCodeMirrorLinter(diagnostics)),
         predictionCompartmentRef.current.reconfigure(
           createPandasPredictionExtension(expectedCode, isDisabled),

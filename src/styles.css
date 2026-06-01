@@ -527,13 +527,21 @@
     white-space: pre-wrap;
   }
 
-  .lesson-code-mirror .cm-lintRange-error {
-    background-image: none;
-    text-decoration-line: underline;
-    text-decoration-style: wavy;
-    text-decoration-color: oklch(64% 0.24 20);
-    text-decoration-thickness: 1.5px;
-    text-underline-offset: 3px;
+  .lesson-code-mirror .cm-pandas-diagnostic-gutter {
+    width: 1.05rem;
+  }
+
+  .lesson-code-mirror .cm-pandas-diagnostic-gutter .cm-gutterElement {
+    padding: 0;
+  }
+
+  .lesson-code-mirror .cm-pandas-diagnostic-marker {
+    display: block;
+    width: 0.45rem;
+    height: 0.45rem;
+    margin: 0.55rem auto 0;
+    border-radius: 9999px;
+    background: oklch(64% 0.24 20);
   }
 
   .lesson-code-mirror .cm-tooltip {
