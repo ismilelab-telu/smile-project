@@ -689,9 +689,11 @@ function createPandasCodeRunResult(
   backendResult: LearningBackendValidationResponse,
   {
     code,
+    durationMs,
     extractedFilePath,
   }: {
     code: string;
+    durationMs?: number;
     extractedFilePath: string;
   },
 ): PandasCodeRunResult {
@@ -699,6 +701,7 @@ function createPandasCodeRunResult(
     columns: Array.isArray(backendResult.columns) ? backendResult.columns.map(String) : [],
     code,
     diagnostics: normalizeCodeDiagnostics(backendResult.diagnostics),
+    ...getPandasCodeRunDurationFields(durationMs),
     extractedFilePath,
     message: getPandasCodeRunMessage(backendResult),
     rows: Array.isArray(backendResult.previewRows)
@@ -719,6 +722,7 @@ function normalizePandasCodeRunResult(value: unknown): PandasCodeRunResult | und
     columns: Array.isArray(result.columns) ? result.columns.map(String) : [],
     code: typeof result.code === "string" ? result.code : "",
     diagnostics: normalizeCodeDiagnostics(result.diagnostics),
+    ...getPandasCodeRunDurationFields(result.durationMs),
     extractedFilePath: typeof result.extractedFilePath === "string" ? result.extractedFilePath : "",
     message: typeof result.message === "string" ? result.message : "",
     rows: Array.isArray(result.rows)
@@ -733,11 +737,30 @@ function clonePandasCodeRunResult(result: PandasCodeRunResult): PandasCodeRunRes
     columns: [...result.columns],
     code: result.code,
     diagnostics: result.diagnostics.map((diagnostic) => ({ ...diagnostic })),
+    ...getPandasCodeRunDurationFields(result.durationMs),
     extractedFilePath: result.extractedFilePath,
     message: result.message,
     rows: result.rows.map((row) => [...row]),
     status: result.status,
   };
+}
+
+function normalizePandasCodeRunDurationMs(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? Math.round(value * 10) / 10
+    : undefined;
+}
+
+function getPandasCodeRunDurationFields(value: unknown) {
+  const durationMs = normalizePandasCodeRunDurationMs(value);
+
+  return durationMs !== undefined ? { durationMs } : {};
+}
+
+function getHighResolutionNow() {
+  return typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
 }
 
 function getEvaluationTitle(status: EvaluationResult["status"], locale: Locale) {
@@ -2583,6 +2606,7 @@ export function LessonPage({
     }
 
     setRunningPandasCodeExerciseId(exercise.id);
+    const startedAt = getHighResolutionNow();
 
     try {
       const backendResult = await validateGuidedDownloadCodeWithBackend({
@@ -2590,18 +2614,26 @@ export function LessonPage({
         extractedFilePath,
         objectKey: archive.objectKey,
       });
+      const durationMs = getHighResolutionNow() - startedAt;
 
       setPandasCodeRunResultsByExerciseId((current) => ({
         ...current,
-        [exercise.id]: createPandasCodeRunResult(backendResult, { code, extractedFilePath }),
+        [exercise.id]: createPandasCodeRunResult(backendResult, {
+          code,
+          durationMs,
+          extractedFilePath,
+        }),
       }));
     } catch {
+      const durationMs = getHighResolutionNow() - startedAt;
+
       setPandasCodeRunResultsByExerciseId((current) => ({
         ...current,
         [exercise.id]: {
           columns: [],
           code,
           diagnostics: [],
+          ...getPandasCodeRunDurationFields(durationMs),
           extractedFilePath,
           message: "The code could not be run. Check the uploaded ZIP and try again.",
           rows: [],
@@ -2772,13 +2804,16 @@ export function LessonPage({
 
       try {
         const code = guidedDownloadCodeByExerciseId[exercise.id] ?? "";
+        const startedAt = getHighResolutionNow();
         const backendResult = await validateGuidedDownloadCodeWithBackend({
           code,
           extractedFilePath,
           objectKey: archive.objectKey,
         });
+        const durationMs = getHighResolutionNow() - startedAt;
         const pandasCodeRunResult = createPandasCodeRunResult(backendResult, {
           code,
+          durationMs,
           extractedFilePath,
         });
 
@@ -3897,11 +3932,17 @@ function PandasCodeRunOutput({ result }: { result: PandasCodeRunResult | undefin
   const messageClassName = isCorrect ? "text-emerald-700" : "text-rose-700";
   const outputLabel = locale === "en" ? "Output" : "Output";
   const emptyRowsLabel = locale === "en" ? "No preview rows returned." : "Tidak ada baris preview.";
+  const durationLabel = formatPandasCodeRunDuration(result.durationMs, locale);
 
   return (
     <div className="mt-5 min-w-0 border border-neutral-300 bg-white">
       <div className="border-b border-neutral-300 px-4 py-3">
-        <p className="text-sm font-semibold text-foreground">{outputLabel}</p>
+        <div className="flex min-w-0 items-baseline justify-between gap-3">
+          <p className="text-sm font-semibold text-foreground">{outputLabel}</p>
+          {durationLabel ? (
+            <p className="shrink-0 text-xs font-semibold text-muted-foreground">{durationLabel}</p>
+          ) : null}
+        </div>
         {result.message ? (
           <p className={`mt-1 text-sm leading-6 ${messageClassName}`}>{result.message}</p>
         ) : null}
@@ -3950,6 +3991,23 @@ function PandasCodeRunOutput({ result }: { result: PandasCodeRunResult | undefin
       ) : null}
     </div>
   );
+}
+
+function formatPandasCodeRunDuration(durationMs: number | undefined, locale: Locale) {
+  const normalizedDurationMs = normalizePandasCodeRunDurationMs(durationMs);
+
+  if (normalizedDurationMs === undefined) {
+    return "";
+  }
+
+  const shouldUseSeconds = normalizedDurationMs >= 1000;
+  const value = shouldUseSeconds ? normalizedDurationMs / 1000 : normalizedDurationMs;
+  const formattedValue = new Intl.NumberFormat(locale === "en" ? "en-US" : "id-ID", {
+    maximumFractionDigits: 1,
+    minimumFractionDigits: 1,
+  }).format(value);
+
+  return `Took ${formattedValue} ${shouldUseSeconds ? "s" : "ms"}`;
 }
 
 function OpenDatasetSourceExerciseView({

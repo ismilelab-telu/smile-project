@@ -1097,6 +1097,7 @@ describe("App", () => {
                 code: pandasCode,
                 columns: ["order_id", "delivery_time_min"],
                 diagnostics: [],
+                durationMs: 124.8,
                 extractedFilePath,
                 message: "",
                 rows: [["ORD-001", "32"]],
@@ -1131,5 +1132,6 @@ describe("App", () => {
     expect(screen.getByRole("columnheader", { name: "delivery_time_min" })).toBeInTheDocument();
     expect(screen.getByRole("cell", { name: "ORD-001" })).toBeInTheDocument();
     expect(screen.getByRole("cell", { name: "32" })).toBeInTheDocument();
+    expect(screen.getByText("Took 124,8 ms")).toBeInTheDocument();
   });
 });

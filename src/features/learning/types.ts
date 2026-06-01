@@ -102,6 +102,7 @@ export type GuidedDownloadRunResult = {
   columns: string[];
   code: string;
   diagnostics: GuidedDownloadRunDiagnostic[];
+  durationMs?: number;
   extractedFilePath: string;
   message: string;
   rows: string[][];
