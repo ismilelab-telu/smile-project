@@ -76,6 +76,19 @@ class LearningBackendTest(unittest.TestCase):
         self.assertEqual(result["status"], "correct")
         self.assertEqual(result["previewRows"], [["1", "42"], ["2", "36"]])
 
+    def test_returns_name_error_for_unassigned_head_variable(self) -> None:
+        expected_path = "data/Food_Delivery_Times.csv"
+        result = run_pandas_loading_code(
+            f'import pandas as pd\n\ndata = pd.read_csv("{expected_path}")\ndf.head()',
+            expected_path,
+            b"Order_ID,Time_taken\n1,42\n2,36\n",
+        )
+
+        self.assertEqual(result["status"], "partial")
+        self.assertIn("Python runtime error: NameError", result["message"])
+        self.assertIn("name 'df' is not defined", result["message"])
+        self.assertEqual(result["diagnostics"][0]["line"], 4)
+
     def test_rejects_head_row_count_above_ten(self) -> None:
         expected_path = "data/Food_Delivery_Times.csv"
         result = run_pandas_loading_code(

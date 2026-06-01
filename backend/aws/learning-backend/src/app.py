@@ -512,7 +512,7 @@ def run_pandas_loading_code(code: str, expected_path: str, csv_content: bytes) -
 
         first_diagnostic = diagnostics[0]
         return invalid_code_result(
-            format_lesson_runtime_error(first_diagnostic["message"]),
+            format_restricted_runtime_error(first_diagnostic["message"]),
             diagnostics,
         )
 
@@ -709,6 +709,20 @@ def get_restricted_head_expression(
 
     value = node.value
     if (
+        isinstance(value, ast.Call)
+        and isinstance(value.func, ast.Attribute)
+        and isinstance(value.func.value, ast.Name)
+        and value.func.attr == "head"
+        and value.func.value.id != target_name
+    ):
+        return None, [
+            create_node_diagnostic(
+                value.func,
+                get_mismatched_head_target_error_message(value.func.value.id),
+            )
+        ]
+
+    if (
         not isinstance(value, ast.Call)
         or not isinstance(value.func, ast.Attribute)
         or not isinstance(value.func.value, ast.Name)
@@ -815,6 +829,20 @@ def format_python_syntax_error(error: SyntaxError) -> str:
 
 def format_lesson_runtime_error(message: str) -> str:
     return f"Lesson runtime error: {message}"
+
+
+def format_restricted_runtime_error(message: str) -> str:
+    if message.startswith(("AttributeError:", "NameError:")):
+        return f"Python runtime error: {message}"
+
+    return format_lesson_runtime_error(message)
+
+
+def get_mismatched_head_target_error_message(target_name: str) -> str:
+    if target_name == "pd":
+        return "AttributeError: module 'pandas' has no attribute 'head'"
+
+    return f"NameError: name '{target_name}' is not defined"
 
 
 def create_syntax_error_diagnostic(error: SyntaxError) -> dict[str, Any]:
