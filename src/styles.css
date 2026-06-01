@@ -516,6 +516,49 @@
   .lesson-code-block .shj-syn-var {
     color: oklch(42% 0.13 205);
   }
+
+  .lesson-code-editor-highlight,
+  .lesson-code-editor-highlight code {
+    tab-size: 2;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+  }
+
+  .lesson-code-editor-highlight .shj-syn-cmnt {
+    color: oklch(70% 0 0);
+    font-style: italic;
+  }
+
+  .lesson-code-editor-highlight .shj-syn-kwd,
+  .lesson-code-editor-highlight .shj-syn-err,
+  .lesson-code-editor-highlight .shj-syn-deleted {
+    color: oklch(72% 0.18 24);
+  }
+
+  .lesson-code-editor-highlight .shj-syn-str,
+  .lesson-code-editor-highlight .shj-syn-insert {
+    color: oklch(78% 0.16 150);
+  }
+
+  .lesson-code-editor-highlight .shj-syn-num,
+  .lesson-code-editor-highlight .shj-syn-bool,
+  .lesson-code-editor-highlight .shj-syn-type,
+  .lesson-code-editor-highlight .shj-syn-oper {
+    color: oklch(78% 0.14 230);
+  }
+
+  .lesson-code-editor-highlight .shj-syn-func,
+  .lesson-code-editor-highlight .shj-syn-section {
+    color: oklch(78% 0.14 205);
+  }
+
+  .lesson-code-editor-highlight .shj-syn-class {
+    color: oklch(82% 0.12 85);
+  }
+
+  .lesson-code-editor-highlight .shj-syn-var {
+    color: oklch(88% 0.04 220);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

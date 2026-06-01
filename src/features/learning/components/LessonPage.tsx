@@ -194,6 +194,11 @@ type PandasCodeRunResult = {
   status: EvaluationResult["status"];
 };
 
+type CodeEditorHighlight = {
+  code: string;
+  html: string;
+};
+
 function getLearningBackendUrl() {
   return (
     (import.meta as ViteImportMeta).env?.VITE_LEARNING_BACKEND_URL ?? defaultLearningBackendUrl
@@ -1640,6 +1645,22 @@ function getSmartPredictionCompletionIndex(expectedCode: string, typedCode: stri
 
 function isCodePredictionWhitespace(character: string) {
   return character === " " || character === "\n" || character === "\t";
+}
+
+function getCodeEditorHighlightedHtml(code: string, highlight: CodeEditorHighlight) {
+  if (!highlight.code) {
+    return escapeCodeHtml(code);
+  }
+
+  if (code === highlight.code) {
+    return highlight.html;
+  }
+
+  if (code.startsWith(highlight.code)) {
+    return highlight.html + escapeCodeHtml(code.slice(highlight.code.length));
+  }
+
+  return escapeCodeHtml(code);
 }
 
 function getCodeLineNumbers(value: string) {
@@ -3800,9 +3821,18 @@ function GuidedDownloadExerciseView({
   const { locale } = useLocalization();
   const uploadInputId = useId();
   const codeEditorRef = useRef<HTMLTextAreaElement | null>(null);
+  const displayedCodeRef = useRef("");
   const [codeEditorScrollOffset, setCodeEditorScrollOffset] = useState({
     left: 0,
     top: 0,
+  });
+  const [editorHighlight, setEditorHighlight] = useState<CodeEditorHighlight>({
+    code: "",
+    html: "",
+  });
+  const [editorHighlightRequest, setEditorHighlightRequest] = useState({
+    code: "",
+    requestId: 0,
   });
   const sourceUrl = sourceAnswer?.url.trim() ?? "";
   const hasSourceUrl = sourceUrl !== "";
@@ -3817,6 +3847,11 @@ function GuidedDownloadExerciseView({
     exercise,
     displayedExtractedFilePath,
     displayedCode,
+  );
+  const normalizedDisplayedCode = displayedCode.replace(/\r\n?/g, "\n");
+  const editorHighlightedHtml = getCodeEditorHighlightedHtml(
+    normalizedDisplayedCode,
+    editorHighlight,
   );
   const expectedCodePredictionText = isReviewMode
     ? ""
@@ -3845,6 +3880,18 @@ function GuidedDownloadExerciseView({
       ].join("\n---\n"),
     [codeDiagnostics, displayedCode, displayedExtractedFilePath],
   );
+  const requestEditorHighlight = useCallback((nextCode: string) => {
+    const normalizedCode = nextCode.replace(/\r\n?/g, "\n");
+
+    if (!normalizedCode.trim()) {
+      return;
+    }
+
+    setEditorHighlightRequest((current) => ({
+      code: normalizedCode,
+      requestId: current.requestId + 1,
+    }));
+  }, []);
   const openLinkLabel = locale === "en" ? "Open dataset page" : "Buka halaman dataset";
   const copyLinkLabel = locale === "en" ? "Copy link" : "Salin link";
   const copyLinkButtonLabel = locale === "en" ? "Copy" : "Salin";
@@ -3888,6 +3935,48 @@ function GuidedDownloadExerciseView({
     },
     [displayedCode, isReviewMode],
   );
+
+  useEffect(() => {
+    displayedCodeRef.current = normalizedDisplayedCode;
+
+    if (!normalizedDisplayedCode.trim()) {
+      setEditorHighlight({ code: "", html: "" });
+    }
+  }, [normalizedDisplayedCode]);
+
+  useEffect(() => {
+    if (!isPandasCodeRunResultForDisplayedCode) {
+      return;
+    }
+
+    requestEditorHighlight(displayedCode);
+  }, [displayedCode, isPandasCodeRunResultForDisplayedCode, requestEditorHighlight]);
+
+  useEffect(() => {
+    const codeToHighlight = editorHighlightRequest.code;
+
+    if (!codeToHighlight) {
+      return;
+    }
+
+    let isActive = true;
+
+    void highlightText(codeToHighlight, "py", false)
+      .then((highlightedCode) => {
+        if (isActive && displayedCodeRef.current === codeToHighlight) {
+          setEditorHighlight({ code: codeToHighlight, html: highlightedCode });
+        }
+      })
+      .catch(() => {
+        if (isActive && displayedCodeRef.current === codeToHighlight) {
+          setEditorHighlight({ code: codeToHighlight, html: escapeCodeHtml(codeToHighlight) });
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [editorHighlightRequest]);
 
   return (
     <>
@@ -4058,6 +4147,20 @@ function GuidedDownloadExerciseView({
                     {exercise.codeLabel}
                   </span>
                   <div className="relative min-h-32 overflow-hidden border border-neutral-300 bg-neutral-950 transition-colors focus-within:border-sky-500">
+                    <pre
+                      aria-hidden="true"
+                      className="lesson-code-editor-highlight pointer-events-none absolute inset-0 z-0 m-0 overflow-hidden whitespace-pre-wrap break-words py-3 pr-4 pl-14 font-mono text-sm leading-6 text-neutral-50"
+                      style={{
+                        transform: `translate(${-codeEditorScrollOffset.left}px, ${-codeEditorScrollOffset.top}px)`,
+                      }}
+                    >
+                      <code
+                        className="shj-lang-py"
+                        dangerouslySetInnerHTML={{
+                          __html: editorHighlightedHtml,
+                        }}
+                      />
+                    </pre>
                     <div
                       aria-hidden="true"
                       className="pointer-events-none absolute inset-y-0 left-0 z-20 w-11 border-r border-neutral-800 bg-neutral-950 py-3 font-mono text-sm leading-6 text-neutral-600"
@@ -4077,7 +4180,7 @@ function GuidedDownloadExerciseView({
                     {expectedCodePredictionText ? (
                       <pre
                         aria-hidden="true"
-                        className="pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre-wrap break-words py-3 pr-4 pl-14 font-mono text-sm leading-6 text-neutral-700"
+                        className="pointer-events-none absolute inset-0 z-[1] m-0 overflow-hidden whitespace-pre-wrap break-words py-3 pr-4 pl-14 font-mono text-sm leading-6 text-neutral-700"
                         style={{
                           transform: `translate(${-codeEditorScrollOffset.left}px, ${-codeEditorScrollOffset.top}px)`,
                         }}
@@ -4120,7 +4223,7 @@ function GuidedDownloadExerciseView({
                     </TooltipProvider>
                     <textarea
                       aria-label={exercise.codeLabel}
-                      className="relative z-10 min-h-32 w-full resize-y bg-transparent py-3 pr-4 pl-14 font-mono text-sm leading-6 text-neutral-50 caret-neutral-50 outline-none disabled:bg-transparent disabled:text-neutral-400"
+                      className="relative z-10 min-h-32 w-full resize-y bg-transparent py-3 pr-4 pl-14 font-mono text-sm leading-6 text-transparent caret-neutral-50 outline-none selection:bg-sky-500/30 disabled:bg-transparent disabled:text-transparent [tab-size:2]"
                       disabled={(!hasSourceUrl || !hasExtractedFilePath) && !isReviewMode}
                       onChange={(event) => onUpdateCode(event.currentTarget.value)}
                       onKeyDown={(event) => {
@@ -4149,12 +4252,18 @@ function GuidedDownloadExerciseView({
 
                         event.preventDefault();
                         onUpdateCode(nextPredictionCode);
+                        requestEditorHighlight(nextPredictionCode);
                         window.requestAnimationFrame(() => {
                           codeEditorRef.current?.setSelectionRange(
                             nextPredictionCode.length,
                             nextPredictionCode.length,
                           );
                         });
+                      }}
+                      onKeyUp={(event) => {
+                        if (event.key === "Enter" && !isReviewMode) {
+                          requestEditorHighlight(event.currentTarget.value);
+                        }
                       }}
                       onScroll={(event) => {
                         const nextLeft = event.currentTarget.scrollLeft;
