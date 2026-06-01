@@ -201,7 +201,7 @@ export function AuthPage({
       <motion.button
         animate={isClosing ? authPortalBackdropHidden : authPortalBackdropVisible}
         aria-label={locale === "en" ? "Close authentication" : "Tutup autentikasi"}
-        className="fixed inset-0 cursor-default bg-neutral-950/55"
+        className="fixed inset-0 cursor-default bg-white/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/65"
         initial={authPortalBackdropHidden}
         onClick={closePortal}
         transition={authPortalBackdropTransition}
