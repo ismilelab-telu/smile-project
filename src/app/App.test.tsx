@@ -213,7 +213,8 @@ describe("App", () => {
     expect(screen.getAllByText("Terkunci").length).toBeGreaterThanOrEqual(2);
   });
 
-  it("opens a learning route without the content fade when the track page is scrolled", async () => {
+  it("keeps the learning fade transition when the track page is scrolled", async () => {
+    const originalMatchMediaDescriptor = Object.getOwnPropertyDescriptor(window, "matchMedia");
     const originalStartViewTransition = (document as ViewTransitionTestDocument)
       .startViewTransition;
     const originalScrollYDescriptor = Object.getOwnPropertyDescriptor(window, "scrollY");
@@ -227,6 +228,19 @@ describe("App", () => {
     Object.defineProperty(document, "startViewTransition", {
       configurable: true,
       value: startViewTransition,
+    });
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: (query: string): MediaQueryList => ({
+        addEventListener: () => undefined,
+        addListener: () => undefined,
+        dispatchEvent: () => false,
+        matches: false,
+        media: query,
+        onchange: null,
+        removeEventListener: () => undefined,
+        removeListener: () => undefined,
+      }),
     });
     Object.defineProperty(window, "scrollY", {
       configurable: true,
@@ -259,7 +273,7 @@ describe("App", () => {
       expect(lessonLink).not.toBeNull();
       fireEvent.click(lessonLink as HTMLAnchorElement);
 
-      expect(startViewTransition).not.toHaveBeenCalled();
+      expect(startViewTransition).toHaveBeenCalledTimes(1);
       expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
       expect(
         await screen.findByRole("heading", { name: "Memuat Data" }, lazyRouteTimeout),
@@ -272,6 +286,12 @@ describe("App", () => {
         });
       } else {
         Reflect.deleteProperty(document, "startViewTransition");
+      }
+
+      if (originalMatchMediaDescriptor) {
+        Object.defineProperty(window, "matchMedia", originalMatchMediaDescriptor);
+      } else {
+        Reflect.deleteProperty(window, "matchMedia");
       }
 
       if (originalScrollYDescriptor) {

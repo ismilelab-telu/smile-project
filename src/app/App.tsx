@@ -122,10 +122,6 @@ function getRouteTransition(fromPath: string, toPath: string): RouteTransition {
   return getRouteDirection(fromPath, toPath);
 }
 
-function shouldSkipRouteTransition(routeTransition: RouteTransition) {
-  return routeTransition === "content-fade" && window.scrollY > 0;
-}
-
 function getRouteScrollStorageKey(pathname: string) {
   return `${routeScrollStorageKeyPrefix}${pathname}`;
 }
@@ -352,12 +348,7 @@ function AppRoutes() {
       const involvesAuthRoute = isAuthRoute(currentPath) || isAuthRoute(url.pathname);
       const routeTransition = getRouteTransition(currentPath, url.pathname);
 
-      if (
-        !shouldReduceRouteTransition &&
-        startViewTransition &&
-        !involvesAuthRoute &&
-        !shouldSkipRouteTransition(routeTransition)
-      ) {
+      if (!shouldReduceRouteTransition && startViewTransition && !involvesAuthRoute) {
         document.documentElement.dataset.routeTransition = routeTransition;
 
         try {

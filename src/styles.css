@@ -159,27 +159,31 @@
   }
 }
 
-@keyframes route-content-old-fade {
+@keyframes route-learning-old-fade {
   from {
     filter: blur(0);
     opacity: 1;
+    transform: translateY(0);
   }
 
   to {
-    filter: blur(2px);
+    filter: blur(3px);
     opacity: 0;
+    transform: translateY(-6px);
   }
 }
 
-@keyframes route-content-new-fade {
+@keyframes route-learning-new-fade {
   from {
-    filter: blur(2px);
+    filter: blur(3px);
     opacity: 0;
+    transform: translateY(8px);
   }
 
   to {
     filter: blur(0);
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -423,46 +427,17 @@
     view-transition-name: none;
   }
 
-  html[data-route-transition="content-fade"] .route-content-transition-target {
-    view-transition-name: route-content;
-  }
-
   html[data-route-transition="content-fade"]::view-transition-group(root) {
-    animation-duration: 1ms;
+    animation-duration: 260ms;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   html[data-route-transition="content-fade"]::view-transition-old(root) {
-    animation: none;
-    opacity: 0;
+    animation-name: route-learning-old-fade;
   }
 
   html[data-route-transition="content-fade"]::view-transition-new(root) {
-    animation: none;
-    opacity: 1;
-  }
-
-  html[data-route-transition="content-fade"]::view-transition-group(route-content) {
-    animation: none;
-    overflow: clip;
-    z-index: 20;
-  }
-
-  html[data-route-transition="content-fade"]::view-transition-old(route-content),
-  html[data-route-transition="content-fade"]::view-transition-new(route-content) {
-    animation-duration: 240ms;
-    animation-fill-mode: both;
-    animation-timing-function: ease-out;
-    height: 100%;
-    mix-blend-mode: normal;
-    width: 100%;
-  }
-
-  html[data-route-transition="content-fade"]::view-transition-old(route-content) {
-    animation-name: route-content-old-fade;
-  }
-
-  html[data-route-transition="content-fade"]::view-transition-new(route-content) {
-    animation-name: route-content-new-fade;
+    animation-name: route-learning-new-fade;
   }
 
   .understand-title-word {
