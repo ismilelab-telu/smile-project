@@ -895,6 +895,7 @@ function AuthFormPanel({
         <ConfirmPasswordStatus
           isMatch={confirmPassword.length > 0 && password === confirmPassword}
           isVisible={showConfirmPasswordError}
+          locale={locale}
           message={confirmPasswordError}
         />
       ) : undefined;
@@ -1550,17 +1551,21 @@ function FieldErrorStatus({
 function ConfirmPasswordStatus({
   isMatch,
   isVisible,
+  locale,
   message,
 }: {
   isMatch: boolean;
   isVisible: boolean;
+  locale: Locale;
   message: string;
 }) {
+  const statusMessage = message || getConfirmPasswordMismatchMessage(locale);
   const shouldShowStatus = isVisible && !isMatch;
 
   return (
     <p
       aria-live="polite"
+      aria-hidden={!shouldShowStatus}
       className={`mt-1.5 flex items-center gap-1.5 overflow-hidden text-xs leading-4 font-medium transition-[max-height,opacity,transform,color] duration-300 ease-out ${
         shouldShowStatus ? "max-h-8 translate-y-0 opacity-100" : "max-h-0 -translate-y-1 opacity-0"
       } text-rose-700`}
@@ -1572,7 +1577,7 @@ function ConfirmPasswordStatus({
       >
         <HugeiconsIcon className="size-3.5" icon={Cancel01Icon} strokeWidth={2.4} />
       </span>
-      <span>{message}</span>
+      <span>{statusMessage}</span>
     </p>
   );
 }
@@ -1935,6 +1940,10 @@ function getConfirmPasswordValidationMessage(
     return "";
   }
 
+  return getConfirmPasswordMismatchMessage(locale);
+}
+
+function getConfirmPasswordMismatchMessage(locale: Locale) {
   return locale === "en"
     ? "Password confirmation does not match."
     : "Konfirmasi sandi tidak cocok.";
