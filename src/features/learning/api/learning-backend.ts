@@ -1,4 +1,5 @@
-import { getAuthAuthorizationHeader } from "@/features/auth/auth-session";
+import type { AuthSession } from "@/features/auth/auth-session";
+import { getFreshStoredAuthSession } from "@/features/auth/auth-session-refresh";
 import { getLearningBackendUrl } from "@/lib/learning-backend-url";
 import type { CodeDiagnostic } from "../components/pandas-code-editor-utils";
 
@@ -27,6 +28,10 @@ export type LearningBackendValidationResponse = {
   tabularFilePath?: string;
 };
 
+type LearningBackendAuthOptions = {
+  getFreshSession?: (options?: { force?: boolean }) => Promise<AuthSession | null>;
+};
+
 export async function readLearningBackendJson<T>(response: Response): Promise<T> {
   const body = (await response.json().catch(() => ({}))) as { message?: string };
 
@@ -37,15 +42,20 @@ export async function readLearningBackendJson<T>(response: Response): Promise<T>
   return body as T;
 }
 
-async function postLearningBackendJson<T>(path: string, body: unknown): Promise<T> {
-  const authorization = getAuthAuthorizationHeader();
+async function postLearningBackendJson<T>(
+  path: string,
+  body: unknown,
+  options: LearningBackendAuthOptions = {},
+): Promise<T> {
+  let authorization = await getLearningBackendAuthorizationHeader(options);
 
   if (!authorization) {
     throw new Error("Sign in before using this lesson backend.");
   }
 
-  const response = await fetch(`${getLearningBackendUrl()}${path}`, {
-    body: JSON.stringify(body),
+  const requestBody = JSON.stringify(body);
+  let response = await fetch(`${getLearningBackendUrl()}${path}`, {
+    body: requestBody,
     headers: {
       authorization,
       "content-type": "application/json",
@@ -53,10 +63,39 @@ async function postLearningBackendJson<T>(path: string, body: unknown): Promise<
     method: "POST",
   });
 
+  if (response.status === 401) {
+    authorization = await getLearningBackendAuthorizationHeader(options, { force: true });
+
+    if (authorization) {
+      response = await fetch(`${getLearningBackendUrl()}${path}`, {
+        body: requestBody,
+        headers: {
+          authorization,
+          "content-type": "application/json",
+        },
+        method: "POST",
+      });
+    }
+  }
+
   return readLearningBackendJson<T>(response);
 }
 
-export async function inspectGuidedDownloadArchiveWithBackend(file: File) {
+async function getLearningBackendAuthorizationHeader(
+  options: LearningBackendAuthOptions,
+  refreshOptions: { force?: boolean } = {},
+) {
+  const session = options.getFreshSession
+    ? await options.getFreshSession(refreshOptions)
+    : await getFreshStoredAuthSession(refreshOptions);
+
+  return session ? `Bearer ${session.idToken}` : "";
+}
+
+export async function inspectGuidedDownloadArchiveWithBackend(
+  file: File,
+  options: LearningBackendAuthOptions = {},
+) {
   const contentType = file.type || "application/zip";
   const presign = await postLearningBackendJson<LearningBackendPresignResponse>(
     "/uploads/presign",
@@ -64,6 +103,7 @@ export async function inspectGuidedDownloadArchiveWithBackend(file: File) {
       contentType,
       fileName: file.name,
     },
+    options,
   );
 
   if (!presign.objectKey || !presign.uploadUrl) {
@@ -87,6 +127,7 @@ export async function inspectGuidedDownloadArchiveWithBackend(file: File) {
     {
       objectKey: presign.objectKey,
     },
+    options,
   );
 
   if (!inspection.tabularFilePath) {
@@ -99,18 +140,25 @@ export async function inspectGuidedDownloadArchiveWithBackend(file: File) {
   };
 }
 
-export async function validateGuidedDownloadCodeWithBackend({
-  code,
-  extractedFilePath,
-  objectKey,
-}: {
-  code: string;
-  extractedFilePath: string;
-  objectKey: string;
-}) {
-  return postLearningBackendJson<LearningBackendValidationResponse>("/pandas/validate", {
+export async function validateGuidedDownloadCodeWithBackend(
+  {
     code,
-    csvPath: extractedFilePath,
+    extractedFilePath,
     objectKey,
-  });
+  }: {
+    code: string;
+    extractedFilePath: string;
+    objectKey: string;
+  },
+  options: LearningBackendAuthOptions = {},
+) {
+  return postLearningBackendJson<LearningBackendValidationResponse>(
+    "/pandas/validate",
+    {
+      code,
+      csvPath: extractedFilePath,
+      objectKey,
+    },
+    options,
+  );
 }

@@ -74,7 +74,7 @@ function writeLearningProgress(progress: LearningProgress) {
 }
 
 export function useLearningProgress() {
-  const { isReady: isAuthReady, session } = useAuth();
+  const { getFreshSession, isReady: isAuthReady, session } = useAuth();
   const [progress, setProgress] = useState<LearningProgress>(() => readLearningProgress());
   const [syncState, setSyncState] = useState<ProgressSyncState>("local");
   const lastRemoteProgressJsonRef = useRef("");
@@ -110,41 +110,52 @@ export function useLearningProgress() {
 
     let isActive = true;
 
-    void fetchRemoteLearningProgress(session.idToken)
-      .then((remoteProgress) => {
-        if (!isActive || syncRunRef.current !== syncRun) {
-          return;
-        }
+    void (async () => {
+      const freshSession = await getFreshSession();
 
-        const localOwner = readLearningProgressOwner();
-        const localProgressForSync =
-          !localOwner || localOwner === userId
-            ? progressRef.current
-            : createInitialLearningProgress();
-        const mergedProgress = remoteProgress
-          ? mergeLearningProgress(remoteProgress, localProgressForSync)
-          : localProgressForSync;
+      if (!isActive || syncRunRef.current !== syncRun) {
+        return;
+      }
 
-        writeLearningProgressOwner(userId);
-        syncedUserIdRef.current = userId;
-        lastRemoteProgressJsonRef.current = remoteProgress
-          ? serializeLearningProgress(remoteProgress)
-          : "";
-        setProgress(mergedProgress);
-        setSyncState("synced");
-      })
-      .catch(() => {
-        if (!isActive || syncRunRef.current !== syncRun) {
-          return;
-        }
-
+      if (!freshSession) {
         setSyncState("local");
-      });
+        return;
+      }
+
+      const remoteProgress = await fetchRemoteLearningProgress(freshSession.idToken);
+
+      if (!isActive || syncRunRef.current !== syncRun) {
+        return;
+      }
+
+      const localOwner = readLearningProgressOwner();
+      const localProgressForSync =
+        !localOwner || localOwner === userId
+          ? progressRef.current
+          : createInitialLearningProgress();
+      const mergedProgress = remoteProgress
+        ? mergeLearningProgress(remoteProgress, localProgressForSync)
+        : localProgressForSync;
+
+      writeLearningProgressOwner(userId);
+      syncedUserIdRef.current = userId;
+      lastRemoteProgressJsonRef.current = remoteProgress
+        ? serializeLearningProgress(remoteProgress)
+        : "";
+      setProgress(mergedProgress);
+      setSyncState("synced");
+    })().catch(() => {
+      if (!isActive || syncRunRef.current !== syncRun) {
+        return;
+      }
+
+      setSyncState("local");
+    });
 
     return () => {
       isActive = false;
     };
-  }, [isAuthReady, session]);
+  }, [getFreshSession, isAuthReady, session]);
 
   useEffect(() => {
     const userId = getSessionUserId(session);
@@ -166,9 +177,20 @@ export function useLearningProgress() {
     }
 
     const saveTimer = window.setTimeout(() => {
-      void saveRemoteLearningProgress(session.idToken, progress)
-        .then(() => {
-          lastRemoteProgressJsonRef.current = nextProgressJson;
+      void (async () => {
+        const freshSession = await getFreshSession();
+
+        if (!freshSession || getSessionUserId(freshSession) !== userId) {
+          return false;
+        }
+
+        await saveRemoteLearningProgress(freshSession.idToken, progress);
+        return true;
+      })()
+        .then((didSave) => {
+          if (didSave) {
+            lastRemoteProgressJsonRef.current = nextProgressJson;
+          }
         })
         .catch(() => {
           // Keep local progress authoritative if the network save is temporarily unavailable.
@@ -178,7 +200,7 @@ export function useLearningProgress() {
     return () => {
       window.clearTimeout(saveTimer);
     };
-  }, [isAuthReady, progress, session, syncState]);
+  }, [getFreshSession, isAuthReady, progress, session, syncState]);
 
   const completeLesson = useCallback(
     (input: {

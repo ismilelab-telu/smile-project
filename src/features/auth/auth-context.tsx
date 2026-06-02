@@ -10,22 +10,24 @@ import {
 
 import {
   confirmSignUpWithCognito,
-  refreshCognitoSession,
   resendConfirmationCodeWithCognito,
   signInWithCognito,
   signInWithUsername,
   signUpWithCognito,
 } from "./cognito-auth";
 import {
+  authSessionChangedEvent,
   clearAuthSession,
   getStoredAuthSession,
   isAuthSessionExpired,
   storeAuthSession,
   type AuthSession,
 } from "./auth-session";
+import { authRefreshSkewMs, getFreshStoredAuthSession } from "./auth-session-refresh";
 
 type AuthContextValue = {
   confirmSignUp: (input: { code: string; email: string; password: string }) => Promise<void>;
+  getFreshSession: (options?: { force?: boolean }) => Promise<AuthSession | null>;
   isAuthenticated: boolean;
   isReady: boolean;
   resendConfirmationCode: (email: string) => Promise<{
@@ -55,56 +57,78 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
   const [isReady, setIsReady] = useState(false);
 
+  const syncSessionFromStorage = useCallback(() => {
+    const storedSession = getStoredAuthSession({ includeExpired: true });
+    setSession(storedSession);
+  }, []);
+
+  const getFreshSession = useCallback(
+    async (options: { force?: boolean } = {}) => {
+      const freshSession = await getFreshStoredAuthSession(options);
+      syncSessionFromStorage();
+
+      return freshSession;
+    },
+    [syncSessionFromStorage],
+  );
+
   useEffect(() => {
     let isActive = true;
-    const storedSession = getStoredAuthSession({ includeExpired: true });
 
-    if (!storedSession) {
-      setSession(null);
-      setIsReady(true);
-      return;
-    }
-
-    if (!isAuthSessionExpired(storedSession)) {
-      setSession(storedSession);
-      setIsReady(true);
-      return;
-    }
-
-    if (!storedSession.refreshToken) {
-      clearAuthSession();
-      setSession(null);
-      setIsReady(true);
-      return;
-    }
-
-    void refreshCognitoSession(storedSession)
-      .then((nextSession) => {
-        if (!isActive) {
-          return;
-        }
-
-        storeAuthSession(nextSession);
-        setSession(nextSession);
-      })
-      .catch(() => {
-        if (!isActive) {
-          return;
-        }
-
-        clearAuthSession();
-        setSession(null);
-      })
-      .finally(() => {
-        if (isActive) {
-          setIsReady(true);
-        }
-      });
+    void getFreshStoredAuthSession().finally(() => {
+      if (isActive) {
+        syncSessionFromStorage();
+        setIsReady(true);
+      }
+    });
 
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [syncSessionFromStorage]);
+
+  useEffect(() => {
+    window.addEventListener(authSessionChangedEvent, syncSessionFromStorage);
+
+    return () => {
+      window.removeEventListener(authSessionChangedEvent, syncSessionFromStorage);
+    };
+  }, [syncSessionFromStorage]);
+
+  useEffect(() => {
+    if (!isReady || !session?.refreshToken) {
+      return;
+    }
+
+    const refreshDelayMs = Math.max(0, session.expiresAt - Date.now() - authRefreshSkewMs);
+    const refreshTimer = window.setTimeout(() => {
+      void getFreshSession();
+    }, refreshDelayMs);
+
+    return () => {
+      window.clearTimeout(refreshTimer);
+    };
+  }, [getFreshSession, isReady, session?.expiresAt, session?.refreshToken]);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    const refreshVisibleSession = () => {
+      if (document.visibilityState !== "hidden") {
+        void getFreshSession();
+      }
+    };
+
+    window.addEventListener("focus", refreshVisibleSession);
+    document.addEventListener("visibilitychange", refreshVisibleSession);
+
+    return () => {
+      window.removeEventListener("focus", refreshVisibleSession);
+      document.removeEventListener("visibilitychange", refreshVisibleSession);
+    };
+  }, [getFreshSession, isReady]);
 
   const signIn = useCallback(async (input: SignInInput) => {
     const nextSession =
@@ -155,6 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       confirmSignUp,
+      getFreshSession,
       isAuthenticated: Boolean(session && !isAuthSessionExpired(session)),
       isReady,
       resendConfirmationCode,
@@ -163,7 +188,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       signUp,
     }),
-    [confirmSignUp, isReady, resendConfirmationCode, session, signIn, signOut, signUp],
+    [
+      confirmSignUp,
+      getFreshSession,
+      isReady,
+      resendConfirmationCode,
+      session,
+      signIn,
+      signOut,
+      signUp,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

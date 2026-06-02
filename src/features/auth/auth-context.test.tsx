@@ -1,0 +1,132 @@
+import { act, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { AuthProvider, useAuth } from "./auth-context";
+import { authStorageKey, storeAuthSession, type AuthSession } from "./auth-session";
+import { authRefreshSkewMs } from "./auth-session-refresh";
+
+function createJwt(payload: Record<string, unknown>) {
+  const encodedPayload = window
+    .btoa(JSON.stringify(payload))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
+
+  return `header.${encodedPayload}.signature`;
+}
+
+function createSession(partial: Partial<AuthSession> = {}): AuthSession {
+  const expiresAt = Date.now() + 60 * 60 * 1000;
+
+  return {
+    accessToken: "access-token",
+    expiresAt,
+    idToken: createJwt({
+      email: "student@example.com",
+      exp: Math.floor(expiresAt / 1000),
+      name: "Student",
+      sub: "student-1",
+    }),
+    refreshToken: "refresh-token",
+    user: {
+      email: "student@example.com",
+      initials: "ST",
+      name: "Student",
+      sub: "student-1",
+    },
+    ...partial,
+  };
+}
+
+function AuthProbe() {
+  const auth = useAuth();
+
+  return (
+    <output data-ready={auth.isReady} data-token={auth.session?.idToken ?? ""} role="status">
+      {auth.isAuthenticated ? "authenticated" : "signed-out"}
+    </output>
+  );
+}
+
+describe("AuthProvider token lifecycle", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+    vi.stubEnv("VITE_COGNITO_CLIENT_ID", "web-client");
+    vi.stubEnv("VITE_COGNITO_REGION", "ap-southeast-1");
+    vi.stubEnv("VITE_COGNITO_USER_POOL_ID", "user-pool");
+  });
+
+  it("refreshes an open session before the Cognito token expires", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-02T00:00:00.000Z"));
+
+    const initialExpiresAt = Date.now() + 10 * 60 * 1000;
+    const refreshedExpiresAt = Date.now() + 70 * 60 * 1000;
+    const refreshedIdToken = createJwt({
+      email: "student@example.com",
+      exp: Math.floor(refreshedExpiresAt / 1000),
+      name: "Student",
+      sub: "student-1",
+    });
+
+    storeAuthSession(
+      createSession({
+        expiresAt: initialExpiresAt,
+        idToken: createJwt({
+          email: "student@example.com",
+          exp: Math.floor(initialExpiresAt / 1000),
+          name: "Student",
+          sub: "student-1",
+        }),
+      }),
+    );
+
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          AuthenticationResult: {
+            AccessToken: "refreshed-access-token",
+            ExpiresIn: 3600,
+            IdToken: refreshedIdToken,
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole("status")).toHaveAttribute("data-ready", "true");
+    expect(fetch).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10 * 60 * 1000 - authRefreshSkewMs);
+    });
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("status")).toHaveAttribute("data-token", refreshedIdToken);
+    expect(window.localStorage.getItem(authStorageKey)).toBeNull();
+
+    const storedSession = JSON.parse(window.sessionStorage.getItem(authStorageKey) ?? "{}");
+
+    expect(storedSession).toMatchObject({
+      accessToken: "refreshed-access-token",
+      idToken: refreshedIdToken,
+    });
+    expect(storedSession).not.toHaveProperty("refreshToken");
+  });
+});

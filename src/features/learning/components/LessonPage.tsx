@@ -96,6 +96,7 @@ import {
 import { CopyButton } from "@/components/ui/copy-button";
 import { LinkPreview } from "@/components/ui/link-preview";
 import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
+import { useAuth } from "@/features/auth/auth-context";
 import { useLocalization, type Locale } from "@/features/localization/localization";
 import { shouldReduceMotion } from "@/lib/motion";
 
@@ -1884,6 +1885,7 @@ export function LessonPage({
   onSubmitResult,
   previousLessonHref,
 }: LessonPageProps) {
+  const { getFreshSession } = useAuth();
   const { locale, t } = useLocalization();
   const localizedLesson = useMemo(() => localizeLesson(lesson, locale), [lesson, locale]);
   const exerciseEntries = useMemo(
@@ -2528,7 +2530,7 @@ export function LessonPage({
     }));
 
     try {
-      const inspection = await inspectGuidedDownloadArchiveWithBackend(file);
+      const inspection = await inspectGuidedDownloadArchiveWithBackend(file, { getFreshSession });
 
       setGuidedDownloadExtractedFilePathsByExerciseId((current) => ({
         ...current,
@@ -2608,11 +2610,14 @@ export function LessonPage({
     const startedAt = getHighResolutionNow();
 
     try {
-      const backendResult = await validateGuidedDownloadCodeWithBackend({
-        code,
-        extractedFilePath,
-        objectKey: archive.objectKey,
-      });
+      const backendResult = await validateGuidedDownloadCodeWithBackend(
+        {
+          code,
+          extractedFilePath,
+          objectKey: archive.objectKey,
+        },
+        { getFreshSession },
+      );
       const durationMs = getHighResolutionNow() - startedAt;
 
       setPandasCodeRunResultsByExerciseId((current) => ({
@@ -2804,11 +2809,14 @@ export function LessonPage({
       try {
         const code = guidedDownloadCodeByExerciseId[exercise.id] ?? "";
         const startedAt = getHighResolutionNow();
-        const backendResult = await validateGuidedDownloadCodeWithBackend({
-          code,
-          extractedFilePath,
-          objectKey: archive.objectKey,
-        });
+        const backendResult = await validateGuidedDownloadCodeWithBackend(
+          {
+            code,
+            extractedFilePath,
+            objectKey: archive.objectKey,
+          },
+          { getFreshSession },
+        );
         const durationMs = getHighResolutionNow() - startedAt;
         const pandasCodeRunResult = createPandasCodeRunResult(backendResult, {
           code,

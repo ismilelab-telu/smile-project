@@ -1,4 +1,5 @@
 export const authStorageKey = "smile-auth-session";
+export const authSessionChangedEvent = "smile-auth-session-changed";
 
 export type AuthUser = {
   email: string;
@@ -13,6 +14,10 @@ export type AuthSession = {
   idToken: string;
   refreshToken: string;
   user: AuthUser;
+};
+
+type StoredAuthSession = Omit<AuthSession, "refreshToken"> & {
+  refreshToken?: string;
 };
 
 type CognitoAuthResult = {
@@ -31,6 +36,8 @@ type JwtPayload = {
   sub?: string;
   username?: string;
 };
+
+let inMemoryRefreshToken = "";
 
 export function createAuthSession({
   authResult,
@@ -77,17 +84,26 @@ export function getStoredAuthSession({ includeExpired = false } = {}) {
     return null;
   }
 
-  const rawSession = window.localStorage.getItem(authStorageKey);
+  const storedRawSession = window.sessionStorage.getItem(authStorageKey);
+  const rawSession = storedRawSession ?? migrateLegacyLocalAuthSession();
 
   if (!rawSession) {
     return null;
   }
 
   try {
-    const session = JSON.parse(rawSession) as AuthSession;
+    const storedSession = JSON.parse(rawSession) as StoredAuthSession;
 
-    if (!isAuthSessionShape(session)) {
+    if (!isStoredAuthSessionShape(storedSession)) {
+      window.localStorage.removeItem(authStorageKey);
+      window.sessionStorage.removeItem(authStorageKey);
       return null;
+    }
+
+    const session = hydrateStoredAuthSession(storedSession);
+
+    if (!storedRawSession || storedSession.refreshToken) {
+      writeStoredAuthSession(session);
     }
 
     if (!includeExpired && isAuthSessionExpired(session)) {
@@ -105,7 +121,13 @@ export function storeAuthSession(session: AuthSession) {
     return;
   }
 
-  window.localStorage.setItem(authStorageKey, JSON.stringify(session));
+  if (session.refreshToken) {
+    inMemoryRefreshToken = session.refreshToken;
+  }
+
+  writeStoredAuthSession(session);
+  window.localStorage.removeItem(authStorageKey);
+  dispatchAuthSessionChanged();
 }
 
 export function clearAuthSession() {
@@ -113,7 +135,10 @@ export function clearAuthSession() {
     return;
   }
 
+  window.sessionStorage.removeItem(authStorageKey);
   window.localStorage.removeItem(authStorageKey);
+  inMemoryRefreshToken = "";
+  dispatchAuthSessionChanged();
 }
 
 export function isAuthSessionExpired(session: AuthSession, skewMs = 30_000) {
@@ -126,22 +151,60 @@ export function getAuthAuthorizationHeader() {
   return session ? `Bearer ${session.idToken}` : "";
 }
 
-function isAuthSessionShape(value: unknown): value is AuthSession {
+function isStoredAuthSessionShape(value: unknown): value is StoredAuthSession {
   if (!value || typeof value !== "object") {
     return false;
   }
 
-  const session = value as Partial<AuthSession>;
+  const session = value as Partial<StoredAuthSession>;
 
   return (
     typeof session.accessToken === "string" &&
     typeof session.expiresAt === "number" &&
     typeof session.idToken === "string" &&
-    typeof session.refreshToken === "string" &&
+    (session.refreshToken === undefined || typeof session.refreshToken === "string") &&
     Boolean(session.user) &&
     typeof session.user?.email === "string" &&
     typeof session.user?.name === "string"
   );
+}
+
+function hydrateStoredAuthSession(storedSession: StoredAuthSession): AuthSession {
+  if (storedSession.refreshToken) {
+    inMemoryRefreshToken = storedSession.refreshToken;
+  }
+
+  return {
+    ...storedSession,
+    refreshToken: inMemoryRefreshToken,
+  };
+}
+
+function writeStoredAuthSession(session: AuthSession) {
+  const storedSession: StoredAuthSession = {
+    accessToken: session.accessToken,
+    expiresAt: session.expiresAt,
+    idToken: session.idToken,
+    user: session.user,
+  };
+
+  window.sessionStorage.setItem(authStorageKey, JSON.stringify(storedSession));
+}
+
+function migrateLegacyLocalAuthSession() {
+  const rawSession = window.localStorage.getItem(authStorageKey);
+
+  if (!rawSession) {
+    return null;
+  }
+
+  window.localStorage.removeItem(authStorageKey);
+
+  return rawSession;
+}
+
+function dispatchAuthSessionChanged() {
+  window.dispatchEvent(new Event(authSessionChangedEvent));
 }
 
 function decodeJwtPayload(token: string): JwtPayload {

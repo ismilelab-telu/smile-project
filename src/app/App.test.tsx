@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
-import { authStorageKey } from "@/features/auth/auth-session";
+import { storeAuthSession } from "@/features/auth/auth-session";
 import { localizationStorageKey } from "@/features/localization/localization";
 import { learningProgressStorageKey } from "@/features/learning/progress/learning-progress";
 
@@ -40,21 +40,18 @@ function seedCompletedLessons(completedLessonIds: string[]) {
 }
 
 function seedAuthSession() {
-  window.localStorage.setItem(
-    authStorageKey,
-    JSON.stringify({
-      accessToken: "access-token",
-      expiresAt: Date.now() + 60 * 60 * 1000,
-      idToken: "id-token",
-      refreshToken: "refresh-token",
-      user: {
-        email: "student@example.com",
-        initials: "ST",
-        name: "Student",
-        sub: "student-1",
-      },
-    }),
-  );
+  storeAuthSession({
+    accessToken: "access-token",
+    expiresAt: Date.now() + 60 * 60 * 1000,
+    idToken: "id-token",
+    refreshToken: "refresh-token",
+    user: {
+      email: "student@example.com",
+      initials: "ST",
+      name: "Student",
+      sub: "student-1",
+    },
+  });
 }
 
 function getStoredCompletedLessonIds() {
