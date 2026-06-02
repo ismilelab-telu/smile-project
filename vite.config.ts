@@ -119,7 +119,15 @@ export default defineConfig({
     include: ["src/**/*.test.{ts,tsx}", "tests/unit/**/*.test.{ts,tsx}"],
     exclude: ["tests/e2e/**"],
   },
+  staged: {
+    "*.{js,jsx,ts,tsx}": "vp check --fix",
+    "*.{json,html,css,md,mdx}": "vp fmt --write",
+  },
   lint: {
+    env: {
+      browser: true,
+      node: true,
+    },
     ignorePatterns: [
       "coverage/**",
       "dist/**",
@@ -127,6 +135,9 @@ export default defineConfig({
       "playwright-report/**",
       "test-results/**",
     ],
+    rules: {
+      "no-undef": "error",
+    },
   },
   fmt: {
     semi: true,

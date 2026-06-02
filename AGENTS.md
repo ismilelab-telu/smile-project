@@ -16,6 +16,7 @@
 - Production build: `vp build`
 - Preview production build: `vp preview`
 - Project check: `vp check src`
+- Pre-commit staged check: `vp staged`
 - Lint: `vp lint <edited files>`
 - Format: `vp fmt --write <edited files>`
 - Unit tests: `vp test run`
@@ -28,9 +29,12 @@
 - Use `vp check` without path arguments for a full codebase scan.
 - Use `vp check [paths]` only for intentionally targeted checks during iteration.
 - Run `vp check` after coherent code changes that affect TypeScript types, imports/exports, hooks, component logic, config, or cross-file contracts.
+- Run `vp staged` before committing changes that affect files covered by pre-commit staged rules.
 - Run `vp test run` after changes that affect component state, data flow, model logic, user interactions, tests, or behavior covered by tests.
 - Run `vp fmt --write [changed files]` after editing multiple files or when formatting churn is expected. Do not run it just to mask unclear code changes.
-- Skip validation for documentation-only edits, comments, whitespace-only changes, copy tweaks, and small Tailwind class value changes that do not touch component logic.
+- Skip validation for documentation-only edits, comments, whitespace-only changes, copy tweaks, and Tailwind/className-only visual tweaks that do not touch component logic, props, state, imports, data flow, accessibility attributes, or shared config.
+- Do not run `vp check` just because a component file changed when the edit is limited to low-risk Tailwind classes such as spacing, color, border, shadow, typography, width, or responsive utility values.
+- For Tailwind/className-only edits, run validation only when the change affects conditional class logic, generated class names, accessibility-visible state, layout-critical containers, or a user-reported visual regression that needs verification.
 - If validation is intentionally skipped, say why in the final response.
 
 # Local Servers
@@ -53,7 +57,7 @@
 
 - When writing learning material in `src/features/learning/content/mdx`, use short paragraphs supported by bullets for lists, workflows, comparisons, and decision criteria. Avoid long paragraph-only pages.
 - Use **bold** for important concepts, section-level emphasis, and tool/library names when they need visual weight. Do not bold only one item inside a uniform list unless it is intentionally different.
-- Use *italic* for light emphasis, term introductions, or translated/explained phrases.
+- Use _italic_ for light emphasis, term introductions, or translated/explained phrases.
 - Use `inline code` only for literal technical tokens such as file extensions, commands, code identifiers, column names, IDs, or short snippets. Do not use `inline code` for normal product/library names like Python, Pandas, or TensorFlow unless referring to an actual import/package token.
 - Keep exercise wording related to the lesson but not copied verbatim from the material. Exercises should test transfer of understanding with different phrasing.
 - When editing a bilingual lesson, keep the Indonesian and English MDX structure aligned unless the user explicitly asks for one language only.
@@ -87,3 +91,5 @@
 # Git
 
 - When creating commits, use the `git-commit` skill.
+- Pre-commit runs `vp staged`, which reads staged-file rules from `vite.config.ts`.
+- Keep manual commit validation aligned with pre-commit: run `vp staged` for staged files, then run broader `vp check`, `vp test run`, or `vp build` when the change risk calls for it.
