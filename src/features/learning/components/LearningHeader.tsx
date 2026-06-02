@@ -366,7 +366,7 @@ function LearningMenu() {
       >
         <button
           aria-label={t("menu.close")}
-          className="absolute inset-0 bg-neutral-950/35 opacity-0 will-change-[opacity]"
+          className="absolute inset-0 bg-white/45 opacity-0 backdrop-blur-md supports-[backdrop-filter]:bg-white/35 will-change-[opacity,backdrop-filter]"
           data-learning-menu-backdrop
           onClick={() => setMenuOpen(false)}
           type="button"
