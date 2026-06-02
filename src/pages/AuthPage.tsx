@@ -272,7 +272,7 @@ export function AuthPage({
             />
           </motion.button>
           <AuthLanguageSwitcher isCompact={isConfirmingAuthStep} isRegister={isRegister} />
-          <AuthIllustration />
+          <AuthIllustration isRegister={isRegister} />
           <LayoutGroup id="auth-form-layout">
             <motion.section
               className={`relative z-10 grid ${
@@ -516,6 +516,12 @@ function AuthFormPanel({
   const confirmationTitle = getConfirmationStepTitle(locale);
   const resendCooldownSeconds = Math.max(0, Math.ceil((resendAvailableAt - resendClock) / 1000));
   const canResendCode = resendCooldownSeconds <= 0 && !isSubmitting;
+  const credentialsPanelPaddingClass = getCredentialsPanelPaddingClass({
+    hasFeedback: Boolean(visibleErrorMessage || renderedStatusMessage),
+    hasPassword: password.length > 0,
+    hasRevealedConfirmPassword: canShowConfirmPassword,
+    isRegister,
+  });
 
   useEffect(() => {
     setConfirmationCode("");
@@ -1070,9 +1076,7 @@ function AuthFormPanel({
       transition={authSharedLayoutTransition}
     >
       <div
-        className={`flex flex-1 items-center justify-center transition-[padding] duration-200 ${
-          canShowConfirmPassword ? "pt-10 pb-12 md:pt-12 md:pb-14" : "py-20"
-        }`}
+        className={`flex flex-1 items-center justify-center transition-[padding] duration-200 ${credentialsPanelPaddingClass}`}
       >
         <div className="w-full max-w-sm text-foreground">
           <motion.div
@@ -1417,7 +1421,9 @@ function PasswordRequirements({
   ruleState: Record<PasswordRule, boolean>;
 }) {
   const hasPassword = password.length > 0;
+  const isPasswordComplete = Object.values(ruleState).every(Boolean);
   const shouldShowHint = !hasPassword && error.length > 0;
+  const shouldShowRequirements = hasPassword && !isPasswordComplete;
 
   return (
     <>
@@ -1431,8 +1437,9 @@ function PasswordRequirements({
       ) : null}
       <ul
         aria-label={locale === "en" ? "Password requirements" : "Syarat sandi"}
+        aria-hidden={!shouldShowRequirements}
         className={`space-y-1.5 overflow-hidden pl-0.5 transition-[max-height,opacity,transform,margin] duration-300 ease-out ${
-          hasPassword
+          shouldShowRequirements
             ? "mt-2 max-h-32 translate-y-0 overflow-visible opacity-100"
             : "mt-0 max-h-0 translate-y-1 opacity-0"
         }`}
@@ -1548,44 +1555,36 @@ function ConfirmPasswordStatus({
   message: string;
 }) {
   const statusMessage =
-    message ||
-    (isMatch
-      ? locale === "en"
-        ? "matches password"
-        : "cocok dengan sandi"
-      : locale === "en"
-        ? "does not match password"
-        : "tidak cocok dengan sandi");
+    message || (locale === "en" ? "does not match password" : "tidak cocok dengan sandi");
+  const shouldShowStatus = isVisible && !isMatch;
 
   return (
     <p
       aria-live="polite"
       className={`mt-1.5 flex items-center gap-1.5 overflow-hidden text-xs leading-4 font-medium transition-[max-height,opacity,transform,color] duration-300 ease-out ${
-        isVisible ? "max-h-8 translate-y-0 opacity-100" : "max-h-0 -translate-y-1 opacity-0"
-      } ${isMatch ? "text-emerald-700" : "text-rose-700"}`}
+        shouldShowStatus ? "max-h-8 translate-y-0 opacity-100" : "max-h-0 -translate-y-1 opacity-0"
+      } text-rose-700`}
       id="confirm-password-status"
     >
       <span
         aria-hidden="true"
         className="inline-flex size-3.5 shrink-0 items-center justify-center"
       >
-        <HugeiconsIcon
-          className="size-3.5"
-          icon={isMatch ? CheckIcon : Cancel01Icon}
-          strokeWidth={2.4}
-        />
+        <HugeiconsIcon className="size-3.5" icon={Cancel01Icon} strokeWidth={2.4} />
       </span>
       <span>{statusMessage}</span>
     </p>
   );
 }
 
-function AuthIllustration() {
+function AuthIllustration({ isRegister }: { isRegister: boolean }) {
   return (
     <motion.div
       animate={authIllustrationVisible}
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 z-0 origin-left overflow-hidden bg-white"
+      className={`pointer-events-none absolute inset-0 z-0 overflow-hidden bg-white ${
+        isRegister ? "origin-right" : "origin-left"
+      }`}
       exit={authIllustrationHidden}
       initial={authIllustrationHidden}
       layout="position"
@@ -1593,7 +1592,9 @@ function AuthIllustration() {
     >
       <motion.img
         alt=""
-        className="h-[min(720px,calc(100vh_-_2.5rem))] w-[min(64rem,calc(100vw_-_2rem))] max-w-none object-cover object-left-top md:h-[min(760px,calc(100vh_-_4rem))] md:w-[min(64rem,calc(100vw_-_4rem))]"
+        className={`block h-[min(720px,calc(100vh_-_2.5rem))] w-[min(64rem,calc(100vw_-_2rem))] max-w-none object-cover md:h-[min(760px,calc(100vh_-_4rem))] md:w-[min(64rem,calc(100vw_-_4rem))] ${
+          isRegister ? "ml-auto object-right-top" : "object-left-top"
+        }`}
         decoding="async"
         layout="position"
         loading="eager"
@@ -1699,6 +1700,32 @@ function findAuthField(fields: AuthField[], fieldId: string) {
   }
 
   return field;
+}
+
+function getCredentialsPanelPaddingClass({
+  hasFeedback,
+  hasPassword,
+  hasRevealedConfirmPassword,
+  isRegister,
+}: {
+  hasFeedback: boolean;
+  hasPassword: boolean;
+  hasRevealedConfirmPassword: boolean;
+  isRegister: boolean;
+}) {
+  if (!isRegister) {
+    return "py-20";
+  }
+
+  if (hasFeedback || hasRevealedConfirmPassword) {
+    return "pt-5 pb-8 md:pt-6 md:pb-9";
+  }
+
+  if (hasPassword) {
+    return "pt-8 pb-10 md:pt-9 md:pb-11";
+  }
+
+  return "pt-12 pb-14 md:pt-14 md:pb-16";
 }
 
 function getConfirmationStepTitle(locale: Locale) {
