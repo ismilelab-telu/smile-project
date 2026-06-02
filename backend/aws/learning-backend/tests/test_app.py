@@ -383,15 +383,9 @@ class LearningBackendTest(unittest.TestCase):
             is_valid_learning_progress({"completedLessonIds": [123], "version": 1})
         )
 
-    def test_accepts_valid_guest_session_for_dataset_tools(self) -> None:
-        user = require_learning_backend_user({"headers": {}}, {"guestId": "guest_12345678"})
-
-        self.assertEqual(user["sub"], "guest/guest_12345678")
-        self.assertTrue(user["isGuest"])
-
-    def test_rejects_invalid_guest_session_for_dataset_tools(self) -> None:
+    def test_rejects_guest_session_for_dataset_tools(self) -> None:
         with self.assertRaises(AuthenticationError):
-            require_learning_backend_user({"headers": {}}, {"guestId": "../bad"})
+            require_learning_backend_user({"headers": {}}, {"guestId": "guest_12345678"})
 
     def test_username_reservation_is_pending_until_email_confirmation(self) -> None:
         app.USERNAME_RESERVATION_TABLE = "username-reservations"

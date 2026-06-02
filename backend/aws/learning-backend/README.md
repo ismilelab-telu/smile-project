@@ -4,15 +4,17 @@ AWS SAM backend for dataset ZIP upload and Pandas loading validation.
 
 ## Endpoints
 
-- `POST /uploads/presign`: creates a temporary S3 PUT URL.
-- `POST /datasets/inspect`: reads the uploaded ZIP, finds the first CSV, and returns the `data/...` path.
-- `POST /pandas/validate`: runs restricted Pandas code against the extracted CSV.
+- `POST /uploads/presign`: creates a temporary S3 PUT URL for a signed-in Cognito user.
+- `POST /datasets/inspect`: reads the signed-in user's uploaded ZIP, finds the first CSV, and returns the `data/...` path.
+- `POST /pandas/validate`: runs restricted Pandas code against the signed-in user's extracted CSV.
 - `POST /auth/confirmation/confirm`: confirms Cognito sign-up codes after checking the app-level 5 minute expiry window.
 - `POST /auth/confirmation/resend`: resends Cognito confirmation codes with a backend-enforced cooldown.
 - `POST /auth/username/sign-in`: resolves a confirmed username to Cognito email sign-in.
 - `GET /health`: basic health check.
 
 The backend does not execute submitted learner code with `exec` or `eval`. It compiles the submitted Python to get real syntax errors, extracts the allowed `pd.read_csv(...)` path from the AST, then runs Pandas from trusted backend code and returns the real dataframe output or Python/Pandas runtime error.
+
+Dataset upload, inspection, validation, and progress endpoints require `Authorization: Bearer <Cognito token>`.
 
 Usernames are reserved by a Cognito PreSignUp trigger with a short TTL, then marked confirmed only by the Cognito PostConfirmation trigger after email verification succeeds. Pending reservations are not accepted for username sign-in.
 

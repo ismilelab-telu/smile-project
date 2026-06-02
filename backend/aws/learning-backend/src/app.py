@@ -76,7 +76,6 @@ MAX_UNZIPPED_BYTES = int(os.environ.get("MAX_UNZIPPED_BYTES", "104857600"))
 MAX_PROGRESS_JSON_BYTES = int(os.environ.get("MAX_PROGRESS_JSON_BYTES", "300000"))
 MAX_ZIP_ENTRIES = 512
 PRESIGN_EXPIRES_IN_SECONDS = 600
-GUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{7,127}$")
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 USERNAME_RESERVATION_TTL_SECONDS = 24 * 60 * 60
@@ -559,22 +558,8 @@ def require_authenticated_user(event: dict[str, Any]) -> dict[str, Any]:
     return verify_cognito_token(token)
 
 
-def require_learning_backend_user(event: dict[str, Any], body: dict[str, Any]) -> dict[str, Any]:
-    if get_header(event, "authorization"):
-        return require_authenticated_user(event)
-
-    guest_id = get_optional_string(body, "guestId")
-    if not guest_id:
-        raise AuthenticationError("Sign in or use a guest session before using this lesson backend.")
-
-    if not GUEST_ID_PATTERN.fullmatch(guest_id):
-        raise AuthenticationError("Guest session is not valid.")
-
-    return {
-        "email": "",
-        "isGuest": True,
-        "sub": f"guest/{guest_id}",
-    }
+def require_learning_backend_user(event: dict[str, Any], _body: dict[str, Any]) -> dict[str, Any]:
+    return require_authenticated_user(event)
 
 
 def verify_cognito_token(token: str) -> dict[str, Any]:

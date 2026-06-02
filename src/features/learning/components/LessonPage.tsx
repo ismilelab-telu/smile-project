@@ -637,14 +637,13 @@ function getGuidedDownloadUploadErrorMessage(error: unknown, locale: Locale) {
 
   if (
     normalizedMessage.includes("sign in before using this lesson backend") ||
-    normalizedMessage.includes("guest session") ||
     normalizedMessage.includes("auth token") ||
     normalizedMessage.includes("authorization") ||
     normalizedMessage.includes("bearer token")
   ) {
     return locale === "en"
-      ? "The guest session could not be used. Reload this page, then upload the ZIP again."
-      : "Sesi guest belum bisa dipakai. Muat ulang halaman, lalu upload ZIP lagi.";
+      ? "Your signed-in session could not be used. Sign in again, then upload the ZIP again."
+      : "Sesi masukmu belum bisa dipakai. Masuk ulang, lalu upload ZIP lagi.";
   }
 
   if (message === "ZIP upload failed." || message === "AWS storage operation failed.") {

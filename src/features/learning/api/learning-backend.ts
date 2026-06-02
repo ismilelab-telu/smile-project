@@ -27,9 +27,6 @@ export type LearningBackendValidationResponse = {
   tabularFilePath?: string;
 };
 
-const learningBackendGuestIdStorageKey = "smile-learning-backend-guest-id-v1";
-const learningBackendGuestIdPattern = /^[A-Za-z0-9][A-Za-z0-9_-]{7,127}$/;
-
 export async function readLearningBackendJson<T>(response: Response): Promise<T> {
   const body = (await response.json().catch(() => ({}))) as { message?: string };
 
@@ -42,54 +39,21 @@ export async function readLearningBackendJson<T>(response: Response): Promise<T>
 
 async function postLearningBackendJson<T>(path: string, body: unknown): Promise<T> {
   const authorization = getAuthAuthorizationHeader();
-  const requestBody = authorization ? body : addLearningBackendGuestId(body);
+
+  if (!authorization) {
+    throw new Error("Sign in before using this lesson backend.");
+  }
+
   const response = await fetch(`${getLearningBackendUrl()}${path}`, {
-    body: JSON.stringify(requestBody),
+    body: JSON.stringify(body),
     headers: {
-      ...(authorization ? { authorization } : {}),
+      authorization,
       "content-type": "application/json",
     },
     method: "POST",
   });
 
   return readLearningBackendJson<T>(response);
-}
-
-function addLearningBackendGuestId(body: unknown) {
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return body;
-  }
-
-  return {
-    ...(body as Record<string, unknown>),
-    guestId: getLearningBackendGuestId(),
-  };
-}
-
-function getLearningBackendGuestId() {
-  if (typeof window === "undefined") {
-    return createLearningBackendGuestId();
-  }
-
-  const storedGuestId = window.localStorage.getItem(learningBackendGuestIdStorageKey);
-  if (storedGuestId && learningBackendGuestIdPattern.test(storedGuestId)) {
-    return storedGuestId;
-  }
-
-  const guestId = createLearningBackendGuestId();
-  window.localStorage.setItem(learningBackendGuestIdStorageKey, guestId);
-
-  return guestId;
-}
-
-function createLearningBackendGuestId() {
-  const cryptoApi = globalThis.crypto;
-  const randomPart =
-    typeof cryptoApi?.randomUUID === "function"
-      ? cryptoApi.randomUUID()
-      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-
-  return `guest_${randomPart.replace(/[^A-Za-z0-9_-]/g, "")}`.slice(0, 128);
 }
 
 export async function inspectGuidedDownloadArchiveWithBackend(file: File) {
