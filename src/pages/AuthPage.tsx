@@ -626,12 +626,17 @@ function AuthFormPanel({
         return;
       }
 
-      if (passwordError || confirmPasswordError || !confirmPassword) {
+      if (passwordError || !confirmPassword) {
         setErrorMessage(
           locale === "en"
             ? "Check the password and confirmation first."
             : "Cek sandi dan konfirmasinya dulu.",
         );
+        return;
+      }
+
+      if (confirmPasswordError) {
+        setErrorMessage("");
         return;
       }
     }
@@ -890,7 +895,6 @@ function AuthFormPanel({
         <ConfirmPasswordStatus
           isMatch={confirmPassword.length > 0 && password === confirmPassword}
           isVisible={showConfirmPasswordError}
-          locale={locale}
           message={confirmPasswordError}
         />
       ) : undefined;
@@ -1546,16 +1550,12 @@ function FieldErrorStatus({
 function ConfirmPasswordStatus({
   isMatch,
   isVisible,
-  locale,
   message,
 }: {
   isMatch: boolean;
   isVisible: boolean;
-  locale: Locale;
   message: string;
 }) {
-  const statusMessage =
-    message || (locale === "en" ? "does not match password" : "tidak cocok dengan sandi");
   const shouldShowStatus = isVisible && !isMatch;
 
   return (
@@ -1572,7 +1572,7 @@ function ConfirmPasswordStatus({
       >
         <HugeiconsIcon className="size-3.5" icon={Cancel01Icon} strokeWidth={2.4} />
       </span>
-      <span>{statusMessage}</span>
+      <span>{message}</span>
     </p>
   );
 }
