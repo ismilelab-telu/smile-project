@@ -3,10 +3,18 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { fileURLToPath, URL } from "node:url";
-import { defineConfig } from "vite-plus";
+import { defineConfig, loadEnv } from "vite-plus";
 import type { Plugin } from "vite-plus";
 
 import { handleDatasetSourcePageValidationRequest } from "./src/features/learning/server/dataset-source-page-validation.ts";
+import { handleLearningBackendProxyRequest } from "./src/features/learning/server/learning-backend-proxy.ts";
+
+const learningBackendProxyDevPath = "/api/learning-backend";
+
+type LearningBackendProxyDevEnv = {
+  LEARNING_BACKEND_PROXY_SECRET?: string;
+  LEARNING_BACKEND_URL?: string;
+};
 
 function readIncomingRequestBody(request: IncomingMessage) {
   return new Promise<ArrayBuffer>((resolve, reject) => {
@@ -33,15 +41,82 @@ async function writeWebResponse(response: Response, serverResponse: ServerRespon
   serverResponse.end(Buffer.from(await response.arrayBuffer()));
 }
 
+function getIncomingRequestOrigin(request: IncomingMessage) {
+  return `${request.headers["x-forwarded-proto"] ?? "http"}://${request.headers.host ?? "127.0.0.1"}`;
+}
+
+function shouldReadIncomingRequestBody(method = "GET") {
+  return !["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase());
+}
+
+function createLocalProxyHeaders(request: IncomingMessage) {
+  const headers = new Headers();
+
+  for (const [name, value] of Object.entries(request.headers)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        headers.append(name, item);
+      }
+    } else if (typeof value === "string") {
+      headers.set(name, value);
+    }
+  }
+
+  const source = request.socket.remoteAddress?.replace(/^::ffff:/, "") || "127.0.0.1";
+  headers.set("cf-connecting-ip", source);
+  headers.set("x-forwarded-for", source);
+
+  return headers;
+}
+
+function getLearningBackendProxyPath(requestUrl = "/") {
+  const url = new URL(requestUrl, "http://local.test");
+  const pathWithoutDevPrefix = url.pathname.startsWith(learningBackendProxyDevPath)
+    ? url.pathname.slice(learningBackendProxyDevPath.length)
+    : url.pathname;
+
+  return pathWithoutDevPrefix
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => decodeURIComponent(segment));
+}
+
+function learningBackendProxyDevPlugin(env: LearningBackendProxyDevEnv): Plugin {
+  return {
+    configureServer(server) {
+      server.middlewares.use(learningBackendProxyDevPath, async (request, response) => {
+        const origin = getIncomingRequestOrigin(request);
+        const body = shouldReadIncomingRequestBody(request.method)
+          ? await readIncomingRequestBody(request)
+          : undefined;
+        const webRequest = new Request(`${origin}${request.url ?? ""}`, {
+          body,
+          headers: createLocalProxyHeaders(request),
+          method: request.method,
+        });
+        const webResponse = await handleLearningBackendProxyRequest({
+          env,
+          params: { path: getLearningBackendProxyPath(request.url) },
+          request: webRequest,
+        });
+
+        await writeWebResponse(webResponse, response);
+      });
+    },
+    name: "smile-learning-backend-proxy-dev",
+  };
+}
+
 function datasetSourceValidationDevPlugin(): Plugin {
   return {
     configureServer(server) {
       server.middlewares.use(
         "/api/learning/dataset-source-validation",
         async (request, response) => {
-          const origin = `${request.headers["x-forwarded-proto"] ?? "http"}://${request.headers.host ?? "127.0.0.1"}`;
-          const body =
-            request.method === "GET" ? undefined : await readIncomingRequestBody(request);
+          const origin = getIncomingRequestOrigin(request);
+          const body = shouldReadIncomingRequestBody(request.method)
+            ? await readIncomingRequestBody(request)
+            : undefined;
           const webRequest = new Request(`${origin}${request.url ?? ""}`, {
             body,
             headers: request.headers as HeadersInit,
@@ -57,8 +132,22 @@ function datasetSourceValidationDevPlugin(): Plugin {
   };
 }
 
+const learningBackendProxyEnv = loadEnv("development", process.cwd(), "");
+
 export default defineConfig({
-  plugins: [datasetSourceValidationDevPlugin(), tailwindcss(), mdx(), react()],
+  plugins: [
+    learningBackendProxyDevPlugin({
+      LEARNING_BACKEND_PROXY_SECRET:
+        process.env.LEARNING_BACKEND_PROXY_SECRET ??
+        learningBackendProxyEnv.LEARNING_BACKEND_PROXY_SECRET,
+      LEARNING_BACKEND_URL:
+        process.env.LEARNING_BACKEND_URL ?? learningBackendProxyEnv.LEARNING_BACKEND_URL,
+    }),
+    datasetSourceValidationDevPlugin(),
+    tailwindcss(),
+    mdx(),
+    react(),
+  ],
   build: {
     rolldownOptions: {
       output: {

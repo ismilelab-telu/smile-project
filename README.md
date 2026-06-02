@@ -33,6 +33,16 @@ Start the development server:
 vp dev
 ```
 
+For local auth and learning-backend testing, keep browser traffic on the same-origin proxy path:
+
+```sh
+VITE_LEARNING_BACKEND_URL=/api/learning-backend
+LEARNING_BACKEND_URL=<Lambda Function URL>
+LEARNING_BACKEND_PROXY_SECRET=<shared proxy secret>
+```
+
+`LEARNING_BACKEND_URL` and `LEARNING_BACKEND_PROXY_SECRET` are server-side dev proxy env values used by `vp dev`. Do not prefix the proxy secret with `VITE_`.
+
 Run project checks:
 
 ```sh
