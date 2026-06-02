@@ -7,6 +7,7 @@ AWS SAM backend for dataset ZIP upload and Pandas loading validation.
 - `POST /uploads/presign`: creates a temporary S3 PUT URL.
 - `POST /datasets/inspect`: reads the uploaded ZIP, finds the first CSV, and returns the `data/...` path.
 - `POST /pandas/validate`: runs restricted Pandas code against the extracted CSV.
+- `POST /auth/confirmation/confirm`: confirms Cognito sign-up codes after checking the app-level 5 minute expiry window.
 - `POST /auth/confirmation/resend`: resends Cognito confirmation codes with a backend-enforced cooldown.
 - `POST /auth/username/sign-in`: resolves a confirmed username to Cognito email sign-in.
 - `GET /health`: basic health check.
@@ -15,7 +16,11 @@ The backend does not execute submitted learner code with `exec` or `eval`. It co
 
 Usernames are reserved by a Cognito PreSignUp trigger with a short TTL, then marked confirmed only by the Cognito PostConfirmation trigger after email verification succeeds. Pending reservations are not accepted for username sign-in.
 
-Auth emails use a Cognito custom email sender trigger. Cognito encrypts verification and recovery codes with a stack-owned KMS key, the Lambda decrypts the code, then sends the email through Resend. Store the Resend API key in Secrets Manager before deploying:
+Auth emails use a Cognito custom email sender trigger. Cognito encrypts verification and recovery codes with a stack-owned KMS key, the Lambda decrypts the code, then sends the email through Resend.
+
+Sign-up confirmation codes are tracked by the custom email sender and accepted by the app backend for 5 minutes. Cognito still has its own provider-level code validity, so keep the frontend on the backend confirm endpoint when enforcing the shorter app window.
+
+Store the Resend API key in Secrets Manager before deploying:
 
 ```bash
 aws secretsmanager create-secret \

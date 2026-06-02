@@ -10,15 +10,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import app
 from app import (
+    AuthCodeExpiredError,
     AuthCooldownError,
     AuthenticationError,
     CognitoSignInError,
     UsernameReservationError,
     build_expected_pandas_code,
+    confirm_sign_up,
     confirm_username_reservation,
     get_confirmed_email_for_username,
     inspect_zip_bytes,
     is_valid_learning_progress,
+    record_confirmation_code_expiry,
     require_learning_backend_user,
     reserve_confirmation_resend,
     reserve_username_for_signup,
@@ -71,6 +74,10 @@ class FakeDynamoDbClient:
         item = kwargs["Item"]
         if "cooldownKey" in item:
             cooldown_key = item["cooldownKey"]["S"]
+            if "ConditionExpression" not in kwargs:
+                self.items[cooldown_key] = item
+                return {}
+
             existing_item = self.items.get(cooldown_key)
             now = int(kwargs["ExpressionAttributeValues"].get(":now", {"N": "0"})["N"])
 
@@ -140,6 +147,11 @@ class FakeCognitoIdentityProviderClient:
 
         return {}
 
+    def confirm_sign_up(self, **kwargs):
+        self.calls.append(kwargs)
+
+        return {}
+
 
 class LearningBackendTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -148,6 +160,7 @@ class LearningBackendTest(unittest.TestCase):
         self.original_dynamodb_client = app._dynamodb_client
         self.original_learning_progress_table = app.LEARNING_PROGRESS_TABLE
         self.original_auth_cooldown_table = app.AUTH_COOLDOWN_TABLE
+        self.original_auth_confirmation_code_ttl_seconds = app.AUTH_CONFIRMATION_CODE_TTL_SECONDS
         self.original_decrypt_cognito_sender_code = app.decrypt_cognito_sender_code
         self.original_send_resend_email = app.send_resend_email
         self.original_username_reservation_table = app.USERNAME_RESERVATION_TABLE
@@ -158,6 +171,9 @@ class LearningBackendTest(unittest.TestCase):
         app._dynamodb_client = self.original_dynamodb_client
         app.LEARNING_PROGRESS_TABLE = self.original_learning_progress_table
         app.AUTH_COOLDOWN_TABLE = self.original_auth_cooldown_table
+        app.AUTH_CONFIRMATION_CODE_TTL_SECONDS = (
+            self.original_auth_confirmation_code_ttl_seconds
+        )
         app.decrypt_cognito_sender_code = self.original_decrypt_cognito_sender_code
         app.send_resend_email = self.original_send_resend_email
         app.USERNAME_RESERVATION_TABLE = self.original_username_reservation_table
@@ -468,9 +484,61 @@ class LearningBackendTest(unittest.TestCase):
         self.assertEqual(context.exception.next_allowed_at, 130)
         self.assertEqual(reserve_confirmation_resend("student@example.com", now=130), 160)
 
+    def test_confirm_sign_up_rejects_code_after_custom_expiry(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.AUTH_CONFIRMATION_CODE_TTL_SECONDS = 300
+        app.COGNITO_CLIENT_ID = "web-client"
+        app._dynamodb_client = FakeDynamoDbClient()
+        app._cognito_identity_provider_client = FakeCognitoIdentityProviderClient()
+
+        record_confirmation_code_expiry(
+            create_cognito_event(
+                "student@example.com",
+                "Student_One",
+                trigger_source="CustomEmailSender_SignUp",
+            ),
+            now=100,
+        )
+
+        with self.assertRaises(AuthCodeExpiredError):
+            confirm_sign_up({"code": "123456", "email": "student@example.com"}, now=401)
+
+    def test_confirm_sign_up_calls_cognito_before_custom_expiry(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.AUTH_CONFIRMATION_CODE_TTL_SECONDS = 300
+        app.COGNITO_CLIENT_ID = "web-client"
+        app._dynamodb_client = FakeDynamoDbClient()
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        app._cognito_identity_provider_client = fake_cognito
+
+        record_confirmation_code_expiry(
+            create_cognito_event(
+                "student@example.com",
+                "Student_One",
+                trigger_source="CustomEmailSender_SignUp",
+            ),
+            now=100,
+        )
+
+        result = confirm_sign_up({"code": "123456", "email": "student@example.com"}, now=399)
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(
+            fake_cognito.calls[0],
+            {
+                "ClientId": "web-client",
+                "ConfirmationCode": "123456",
+                "Username": "student@example.com",
+            },
+        )
+
     def test_custom_email_sender_sends_decrypted_verification_code_with_resend(self) -> None:
         sent_messages: list[dict[str, str]] = []
 
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.AUTH_CONFIRMATION_CODE_TTL_SECONDS = 300
+        fake_dynamodb = FakeDynamoDbClient()
+        app._dynamodb_client = fake_dynamodb
         app.decrypt_cognito_sender_code = lambda encrypted_code: f"code-{encrypted_code}"
 
         def fake_send_resend_email(**kwargs):
@@ -492,6 +560,10 @@ class LearningBackendTest(unittest.TestCase):
         self.assertIn("Kode verifikasi", sent_messages[0]["subject"])
         self.assertIn("code-encrypted", sent_messages[0]["text_body"])
         self.assertIn("spam atau junk", sent_messages[0]["text_body"])
+        expiry_key = app.create_auth_cooldown_key(
+            "confirmation-code-expiry", "student@example.com"
+        )
+        self.assertIn(expiry_key, fake_dynamodb.items)
 
     def test_extracts_resend_api_key_from_plain_or_json_secret(self) -> None:
         self.assertEqual(app.extract_resend_api_key_from_secret("re_plain"), "re_plain")

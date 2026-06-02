@@ -3,7 +3,9 @@ import {
   Cancel01Icon,
   CheckIcon,
   ChevronUpIcon,
+  EyeOffIcon,
   LanguageSkillIcon,
+  ViewIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
@@ -50,6 +52,10 @@ type AuthStatusMessage =
   | { kind: "account-unconfirmed" };
 
 type PasswordRule = "case" | "length" | "number";
+
+function isAuthIdentifierField(fieldId: string) {
+  return fieldId === "auth-email" || fieldId === "auth-username";
+}
 
 type AuthModeCopy = {
   description: string;
@@ -449,7 +455,9 @@ function AuthFormPanel({
   const [email, setEmail] = useState("");
   const [loginMethod, setLoginMethod] = useState<AuthLoginMethod>("username");
   const [password, setPassword] = useState("");
+  const [isPasswordVisible, setPasswordVisible] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isConfirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const [confirmationCode, setConfirmationCode] = useState("");
   const [confirmationDestination, setConfirmationDestination] = useState("");
   const [confirmationEmail, setConfirmationEmail] = useState("");
@@ -488,9 +496,7 @@ function AuthFormPanel({
     Boolean(confirmPasswordError) &&
     (confirmPassword.length > 0 || isConfirmPasswordTouched);
   const isConfirmingAccount = confirmationEmail.length > 0;
-  const renderedStatusMessage = statusMessage
-    ? getAuthStatusMessage(statusMessage, locale, isConfirmingAccount)
-    : "";
+  const renderedStatusMessage = statusMessage ? getAuthStatusMessage(statusMessage, locale) : "";
   const confirmationTitle = getConfirmationStepTitle(locale);
   const resendCooldownSeconds = Math.max(0, Math.ceil((resendAvailableAt - resendClock) / 1000));
   const canResendCode = resendCooldownSeconds <= 0 && !isSubmitting;
@@ -505,9 +511,11 @@ function AuthFormPanel({
     setLoginMethod("username");
     setName("");
     setPassword("");
+    setPasswordVisible(false);
     setNameTouched(false);
     setEmailTouched(false);
     setPasswordTouched(false);
+    setConfirmPasswordVisible(false);
     setConfirmPasswordTouched(false);
     setResendAvailableAt(0);
     setResendClock(Date.now());
@@ -712,7 +720,7 @@ function AuthFormPanel({
       return name;
     }
 
-    if (fieldId === "auth-email") {
+    if (isAuthIdentifierField(fieldId)) {
       return email;
     }
 
@@ -732,7 +740,7 @@ function AuthFormPanel({
       return setName;
     }
 
-    if (fieldId === "auth-email") {
+    if (isAuthIdentifierField(fieldId)) {
       return setEmail;
     }
 
@@ -749,12 +757,15 @@ function AuthFormPanel({
   const currentFields = getAuthFields(locale, mode, loginMethod);
   const registerFields = getAuthFields(locale, "register");
   const nameField = findAuthField(registerFields, "auth-name");
-  const emailField = findAuthField(currentFields, "auth-email");
+  const emailField = findAuthField(
+    currentFields,
+    loginMethod === "username" && !isRegister ? "auth-username" : "auth-email",
+  );
   const passwordField = findAuthField(currentFields, "auth-password");
   const confirmPasswordField = findAuthField(registerFields, "auth-confirm-password");
   const switchMode: AuthMode = isRegister ? "login" : "register";
   const switchClassName =
-    "font-medium text-foreground underline underline-offset-4 transition-colors hover:text-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400";
+    "font-medium text-foreground underline underline-offset-4 transition-colors hover:text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400";
   const loginMethodToggleLabel =
     loginMethod === "username"
       ? locale === "en"
@@ -765,7 +776,7 @@ function AuthFormPanel({
         : "Pakai username";
   const loginMethodToggle = !isRegister ? (
     <button
-      className="text-xs font-semibold text-muted-foreground underline underline-offset-4 transition-colors hover:text-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+      className="text-xs font-semibold text-foreground underline underline-offset-4 transition-colors hover:text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
       onClick={() => {
         setEmail("");
         setEmailTouched(false);
@@ -793,10 +804,24 @@ function AuthFormPanel({
       layoutId?: string;
     } = {},
   ) => {
+    const isPasswordField = field.id === "auth-password";
+    const isConfirmPasswordField = field.id === "auth-confirm-password";
+    const isPasswordInputVisible = isPasswordField
+      ? isPasswordVisible
+      : isConfirmPasswordField
+        ? isConfirmPasswordVisible
+        : false;
+    const passwordToggleLabel = isPasswordInputVisible
+      ? locale === "en"
+        ? "Hide password"
+        : "Sembunyikan sandi"
+      : locale === "en"
+        ? "Show password"
+        : "Tampilkan sandi";
     const validationContent =
       isRegister && field.id === "auth-name" ? (
         <UsernameStatus isVisible={showNameValidation} locale={locale} message={usernameError} />
-      ) : field.id === "auth-email" ? (
+      ) : isAuthIdentifierField(field.id) ? (
         isEmailFieldActive ? (
           <EmailStatus isVisible={showEmailValidation} locale={locale} />
         ) : (
@@ -827,7 +852,7 @@ function AuthFormPanel({
         ariaDescribedBy={
           isRegister && field.id === "auth-name"
             ? "username-status"
-            : field.id === "auth-email"
+            : isAuthIdentifierField(field.id)
               ? isEmailFieldActive
                 ? "email-status"
                 : "username-status"
@@ -842,8 +867,8 @@ function AuthFormPanel({
         isDisabled={isDisabled}
         isInvalid={
           (field.id === "auth-name" && showNameValidation) ||
-          (field.id === "auth-email" && showEmailValidation && !isEmailValid) ||
-          (field.id === "auth-email" && showLoginUsernameValidation) ||
+          (isAuthIdentifierField(field.id) && showEmailValidation && !isEmailValid) ||
+          (isAuthIdentifierField(field.id) && showLoginUsernameValidation) ||
           (field.id === "auth-password" && showPasswordError) ||
           (field.id === "auth-confirm-password" && showConfirmPasswordError)
         }
@@ -852,7 +877,7 @@ function AuthFormPanel({
         onBlur={
           isRegister && field.id === "auth-name"
             ? () => setNameTouched(true)
-            : field.id === "auth-email"
+            : isAuthIdentifierField(field.id)
               ? () => setEmailTouched(true)
               : isRegister && field.id === "auth-password"
                 ? () => setPasswordTouched(true)
@@ -861,6 +886,32 @@ function AuthFormPanel({
                   : undefined
         }
         onChange={getFieldChangeHandler(field.id)}
+        inputType={field.type === "password" && isPasswordInputVisible ? "text" : undefined}
+        trailingControl={
+          field.type === "password" ? (
+            <button
+              aria-label={passwordToggleLabel}
+              className="absolute top-1/2 right-2 inline-flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-none text-neutral-950 transition-colors hover:text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:text-neutral-300"
+              disabled={isDisabled}
+              onClick={() => {
+                if (isPasswordField) {
+                  setPasswordVisible((current) => !current);
+                  return;
+                }
+
+                setConfirmPasswordVisible((current) => !current);
+              }}
+              type="button"
+            >
+              <HugeiconsIcon
+                aria-hidden="true"
+                className="size-[18px]"
+                icon={isPasswordInputVisible ? EyeOffIcon : ViewIcon}
+                strokeWidth={2}
+              />
+            </button>
+          ) : undefined
+        }
         value={getFieldValue(field.id)}
       >
         {validationContent}
@@ -916,7 +967,7 @@ function AuthFormPanel({
                 </p>
               ) : null}
               {renderedStatusMessage ? (
-                <p className="mt-5 text-sm leading-6 font-medium text-sky-700" aria-live="polite">
+                <p className="mt-5 text-sm leading-6 text-muted-foreground" aria-live="polite">
                   {renderedStatusMessage}
                 </p>
               ) : null}
@@ -953,7 +1004,7 @@ function AuthFormPanel({
                   {locale === "en" ? "Back" : "Kembali"}
                 </button>
                 <button
-                  className="cursor-pointer font-semibold text-sky-700 underline underline-offset-4 transition-colors hover:text-sky-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:text-neutral-400"
+                  className="cursor-pointer font-semibold text-foreground underline underline-offset-4 transition-colors hover:text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:text-neutral-400"
                   disabled={!canResendCode}
                   onClick={handleResendCode}
                   type="button"
@@ -1099,24 +1150,28 @@ function AuthInput({
   children,
   className = "",
   field,
+  inputType,
   isDisabled = false,
   isInvalid = false,
   labelAction,
   layoutId,
   onBlur,
   onChange,
+  trailingControl,
   value,
 }: {
   ariaDescribedBy?: string;
   children?: ReactNode;
   className?: string;
   field: AuthField;
+  inputType?: AuthField["type"];
   isDisabled?: boolean;
   isInvalid?: boolean;
   labelAction?: ReactNode;
   layoutId?: string;
   onBlur?: () => void;
   onChange?: (value: string) => void;
+  trailingControl?: ReactNode;
   value?: string;
 }) {
   return (
@@ -1132,25 +1187,30 @@ function AuthInput({
         </label>
         {labelAction ? <span className="shrink-0">{labelAction}</span> : null}
       </div>
-      <input
-        aria-describedby={ariaDescribedBy}
-        aria-invalid={isInvalid}
-        autoComplete={field.autoComplete}
-        className={`flex h-10 w-full rounded-none border bg-white/92 px-3 text-sm text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.02)] outline-none transition-colors placeholder:text-zinc-400 hover:border-zinc-500 focus:ring-2 ${
-          isInvalid
-            ? "border-rose-500 shadow-[0_0_0_2px_rgb(253_164_175_/_0.55),0_1px_2px_rgba(0,0,0,0.02)] focus:border-rose-500 focus:ring-rose-300/55"
-            : "border-zinc-300 focus:border-zinc-500 focus:ring-zinc-500/45"
-        }`}
-        disabled={isDisabled}
-        id={field.id}
-        name={field.id}
-        onBlur={onBlur}
-        onChange={onChange ? (event) => onChange(event.target.value) : undefined}
-        placeholder={field.placeholder}
-        required={!isDisabled}
-        type={field.type}
-        value={value}
-      />
+      <div className="relative">
+        <input
+          aria-describedby={ariaDescribedBy}
+          aria-invalid={isInvalid}
+          autoComplete={field.autoComplete}
+          className={`flex h-10 w-full rounded-none border bg-white/92 px-3 text-sm text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.02)] outline-none transition-colors placeholder:text-zinc-400 hover:border-zinc-500 focus:ring-2 ${
+            trailingControl ? "pr-11" : ""
+          } ${
+            isInvalid
+              ? "border-rose-500 shadow-[0_0_0_2px_rgb(253_164_175_/_0.55),0_1px_2px_rgba(0,0,0,0.02)] focus:border-rose-500 focus:ring-rose-300/55"
+              : "border-zinc-300 focus:border-zinc-500 focus:ring-zinc-500/45"
+          }`}
+          disabled={isDisabled}
+          id={field.id}
+          name={field.id}
+          onBlur={onBlur}
+          onChange={onChange ? (event) => onChange(event.target.value) : undefined}
+          placeholder={field.placeholder}
+          required={!isDisabled}
+          type={inputType ?? field.type}
+          value={value}
+        />
+        {trailingControl}
+      </div>
       {children ??
         (field.helper ? (
           <p className="mt-1.5 text-xs leading-4 text-muted-foreground">{field.helper}</p>
@@ -1528,8 +1588,8 @@ function getAuthFields(
 
     return [
       {
-        autoComplete: isUsernameLogin ? "username" : "email",
-        id: "auth-email",
+        autoComplete: isUsernameLogin ? "nickname" : "email",
+        id: isUsernameLogin ? "auth-username" : "auth-email",
         label: isUsernameLogin ? copy.username : copy.email,
         placeholder: isUsernameLogin ? "john_doe" : "m@example.com",
         type: isUsernameLogin ? "text" : "email",
@@ -1648,39 +1708,22 @@ function getSubmitLabel({
   return submit;
 }
 
-function getAuthStatusMessage(
-  message: AuthStatusMessage,
-  locale: Locale,
-  shouldHideDestination = false,
-) {
+function getAuthStatusMessage(message: AuthStatusMessage, locale: Locale) {
   if (message.kind === "account-unconfirmed") {
     return locale === "en"
       ? "If it does not show up, check your spam or junk folder."
       : "Kalau belum muncul, cek folder spam atau junk juga.";
   }
 
-  return getConfirmationSentMessage(
-    locale,
-    shouldHideDestination ? undefined : message.destination,
-  );
+  return getConfirmationSentMessage(locale);
 }
 
-function getConfirmationSentMessage(locale: Locale, destination?: string) {
-  const displayDestination = destination?.trim();
-
+function getConfirmationSentMessage(locale: Locale) {
   if (locale === "en") {
-    const sentMessage = displayDestination
-      ? `Verification code sent to ${displayDestination}.`
-      : "Verification code sent to your email.";
-
-    return `${sentMessage} If it does not show up, check your spam or junk folder.`;
+    return "The code is valid for 5 minutes. If it does not show up, check your spam or junk folder.";
   }
 
-  const sentMessage = displayDestination
-    ? `Kode verifikasi dikirim ke ${displayDestination}.`
-    : "Kode verifikasi dikirim ke email kamu.";
-
-  return `${sentMessage} Kalau belum muncul, cek folder spam atau junk juga.`;
+  return "Kode berlaku 5 menit. Kalau belum muncul, cek folder spam atau junk juga.";
 }
 
 function sanitizeOtpCode(value: string) {

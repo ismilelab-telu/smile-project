@@ -200,6 +200,7 @@ Resources:
           USERNAME_RESERVATION_TABLE: !Ref UsernameReservationTable
           AUTH_COOLDOWN_TABLE: !Ref AuthCooldownTable
           AUTH_RESEND_COOLDOWN_SECONDS: "30"
+          AUTH_CONFIRMATION_CODE_TTL_SECONDS: "300"
           MAX_ZIP_BYTES: "52428800"
           MAX_UNZIPPED_BYTES: "104857600"
           MAX_PROGRESS_JSON_BYTES: "300000"
@@ -256,10 +257,14 @@ Resources:
       Environment:
         Variables:
           COGNITO_EMAIL_SENDER_KMS_KEY_ARN: !GetAtt CognitoEmailSenderKmsKey.Arn
+          AUTH_COOLDOWN_TABLE: !Ref AuthCooldownTable
+          AUTH_CONFIRMATION_CODE_TTL_SECONDS: "300"
           RESEND_API_KEY_SECRET_ID: !Ref ResendApiKeySecretName
           RESEND_FROM_EMAIL: !Ref ResendFromEmail
           RESEND_REPLY_TO_EMAIL: !Ref ResendReplyToEmail
       Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AuthCooldownTable
         - Statement:
             - Effect: Allow
               Action:

@@ -9,7 +9,7 @@ type ViteImportMeta = ImportMeta & {
   };
 };
 
-type CognitoTarget = "ConfirmSignUp" | "InitiateAuth" | "ResendConfirmationCode" | "SignUp";
+type CognitoTarget = "InitiateAuth" | "SignUp";
 
 type CognitoErrorBody = {
   __type?: string;
@@ -99,13 +99,22 @@ export async function signUpWithCognito({
 }
 
 export async function confirmSignUpWithCognito({ code, email }: { code: string; email: string }) {
-  const config = requireCognitoConfig();
-
-  await cognitoRequest("ConfirmSignUp", {
-    ClientId: config.clientId,
-    ConfirmationCode: code,
-    Username: email,
+  const response = await fetch(`${getLearningBackendUrl()}/auth/confirmation/confirm`, {
+    body: JSON.stringify({ code, email }),
+    headers: {
+      "content-type": "application/json",
+    },
+    method: "POST",
   });
+  const responseBody = (await response.json().catch(() => ({}))) as LearningBackendAuthResponse;
+
+  if (!response.ok) {
+    const errorCode = responseBody.code ?? "CognitoError";
+    throw new CognitoAuthError(
+      errorCode,
+      responseBody.message ?? getFallbackCognitoErrorMessage(errorCode),
+    );
+  }
 }
 
 export async function resendConfirmationCodeWithCognito(email: string) {

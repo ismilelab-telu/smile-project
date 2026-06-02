@@ -68,6 +68,9 @@ RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "Smile Lab <auth@smilela
 RESEND_REPLY_TO_EMAIL = os.environ.get("RESEND_REPLY_TO_EMAIL", "")
 RESEND_REQUEST_TIMEOUT_SECONDS = 10
 AUTH_RESEND_COOLDOWN_SECONDS = int(os.environ.get("AUTH_RESEND_COOLDOWN_SECONDS", "30"))
+AUTH_CONFIRMATION_CODE_TTL_SECONDS = int(
+    os.environ.get("AUTH_CONFIRMATION_CODE_TTL_SECONDS", "300")
+)
 MAX_ZIP_BYTES = int(os.environ.get("MAX_ZIP_BYTES", "52428800"))
 MAX_UNZIPPED_BYTES = int(os.environ.get("MAX_UNZIPPED_BYTES", "104857600"))
 MAX_PROGRESS_JSON_BYTES = int(os.environ.get("MAX_PROGRESS_JSON_BYTES", "300000"))
@@ -110,6 +113,10 @@ class AuthCooldownError(ValueError):
         self.next_allowed_at = next_allowed_at
 
 
+class AuthCodeExpiredError(ValueError):
+    pass
+
+
 class CognitoSignInError(ValueError):
     def __init__(self, code: str, message: str):
         super().__init__(message)
@@ -140,6 +147,9 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
 
         if method == "POST" and path == "/auth/confirmation/resend":
             return response(200, resend_confirmation_code(parse_json_body(event)))
+
+        if method == "POST" and path == "/auth/confirmation/confirm":
+            return response(200, confirm_sign_up(parse_json_body(event)))
 
         if method == "POST" and path == "/auth/username/sign-in":
             return response(200, sign_in_with_username(parse_json_body(event)))
@@ -174,6 +184,8 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 "retryAfterSeconds": error.retry_after_seconds,
             },
         )
+    except AuthCodeExpiredError as error:
+        return response(400, {"code": "ExpiredCodeException", "message": str(error)})
     except UsernameReservationError as error:
         return response(400, {"code": "InvalidUsernameException", "message": str(error)})
     except CognitoSignInError as error:
@@ -271,6 +283,7 @@ def send_cognito_email_with_resend(event: dict[str, Any]) -> None:
 
     code = decrypt_cognito_sender_code(encrypted_code) if encrypted_code else ""
     message = build_cognito_email_message(event.get("triggerSource", ""), code)
+    record_confirmation_code_expiry(event)
 
     send_resend_email(
         html_body=message["html"],
@@ -842,6 +855,38 @@ def resend_confirmation_code(body: dict[str, Any]) -> dict[str, Any]:
     return build_confirmation_resend_response(next_allowed_at)
 
 
+def confirm_sign_up(body: dict[str, Any], now: int | None = None) -> dict[str, Any]:
+    email = normalize_auth_email(get_required_string(body, "email"))
+    code = get_required_string(body, "code")
+
+    if not COGNITO_CLIENT_ID:
+        raise AuthConfigurationError("Cognito client id is missing.")
+
+    assert_confirmation_code_is_active(email, int(time.time()) if now is None else now)
+
+    try:
+        get_cognito_identity_provider_client().confirm_sign_up(
+            ClientId=COGNITO_CLIENT_ID,
+            ConfirmationCode=code,
+            Username=email,
+        )
+    except ClientError as error:
+        code_name = get_client_error_code(error)
+        if code_name in {
+            "CodeMismatchException",
+            "ExpiredCodeException",
+            "InvalidParameterException",
+            "NotAuthorizedException",
+            "TooManyFailedAttemptsException",
+            "UserNotFoundException",
+        }:
+            raise CognitoSignInError(code_name, get_client_error_message(error)) from error
+
+        raise
+
+    return {"ok": True}
+
+
 def reserve_confirmation_resend(email: str, now: int) -> int:
     cooldown_key = create_auth_cooldown_key("confirmation-resend", email)
     next_allowed_at = now + AUTH_RESEND_COOLDOWN_SECONDS
@@ -874,6 +919,45 @@ def reserve_confirmation_resend(email: str, now: int) -> int:
         raise AuthCooldownError(retry_after_seconds, existing_next_allowed_at) from error
 
     return next_allowed_at
+
+
+def record_confirmation_code_expiry(event: dict[str, Any], now: int | None = None) -> int | None:
+    trigger_source = event.get("triggerSource")
+
+    if trigger_source not in {"CustomEmailSender_ResendCode", "CustomEmailSender_SignUp"}:
+        return None
+
+    email = normalize_auth_email(get_cognito_user_attribute(event, "email"))
+    issued_at = int(time.time()) if now is None else now
+    expires_at = issued_at + AUTH_CONFIRMATION_CODE_TTL_SECONDS
+    cooldown_key = create_auth_cooldown_key("confirmation-code-expiry", email)
+
+    get_dynamodb_client().put_item(
+        TableName=require_auth_cooldown_table(),
+        Item={
+            "cooldownKey": {"S": cooldown_key},
+            "expiresAt": {"N": str(expires_at)},
+            "issuedAt": {"N": str(issued_at)},
+            "triggerSource": {"S": str(trigger_source)},
+        },
+    )
+
+    return expires_at
+
+
+def assert_confirmation_code_is_active(email: str, now: int) -> None:
+    item = get_dynamodb_client().get_item(
+        TableName=require_auth_cooldown_table(),
+        Key={"cooldownKey": {"S": create_auth_cooldown_key("confirmation-code-expiry", email)}},
+        ConsistentRead=True,
+    ).get("Item")
+
+    expires_at = get_number_attribute(item or {}, "expiresAt")
+
+    if not expires_at or expires_at <= now:
+        raise AuthCodeExpiredError(
+            "The verification code has expired. Send a new code."
+        )
 
 
 def build_confirmation_resend_response(next_allowed_at: int) -> dict[str, Any]:
