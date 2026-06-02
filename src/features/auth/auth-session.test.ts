@@ -26,45 +26,56 @@ function createSession(partial: Partial<AuthSession> = {}): AuthSession {
 
 describe("auth session storage", () => {
   beforeEach(() => {
+    clearAuthSession();
     window.localStorage.clear();
     window.sessionStorage.clear();
   });
 
-  it("stores tokens in session storage instead of local storage", () => {
+  it("keeps the auth session in memory and clears browser storage", () => {
     const session = createSession();
 
     storeAuthSession(session);
 
-    const storedSession = JSON.parse(window.sessionStorage.getItem(authStorageKey) ?? "{}");
-
     expect(window.localStorage.getItem(authStorageKey)).toBeNull();
-    expect(storedSession).toMatchObject({
-      accessToken: session.accessToken,
-      expiresAt: session.expiresAt,
-      idToken: session.idToken,
-      user: session.user,
-    });
-    expect(storedSession).not.toHaveProperty("refreshToken");
+    expect(window.sessionStorage.getItem(authStorageKey)).toBeNull();
     expect(getStoredAuthSession()).toEqual(session);
   });
 
-  it("migrates and removes a legacy local storage session", () => {
+  it("clears a legacy local storage session instead of hydrating bearer tokens", () => {
     const session = createSession();
 
     window.localStorage.setItem(authStorageKey, JSON.stringify(session));
 
-    expect(getStoredAuthSession()).toEqual(session);
+    expect(getStoredAuthSession()).toBeNull();
     expect(window.localStorage.getItem(authStorageKey)).toBeNull();
+    expect(window.sessionStorage.getItem(authStorageKey)).toBeNull();
+  });
 
-    const storedSession = JSON.parse(window.sessionStorage.getItem(authStorageKey) ?? "{}");
+  it("clears malformed auth storage instead of hydrating it", () => {
+    window.sessionStorage.setItem(authStorageKey, "{bad json");
+    window.localStorage.setItem(authStorageKey, JSON.stringify(createSession()));
 
-    expect(storedSession).toMatchObject({
-      accessToken: session.accessToken,
-      expiresAt: session.expiresAt,
-      idToken: session.idToken,
-      user: session.user,
-    });
-    expect(storedSession).not.toHaveProperty("refreshToken");
+    expect(getStoredAuthSession()).toBeNull();
+    expect(window.localStorage.getItem(authStorageKey)).toBeNull();
+    expect(window.sessionStorage.getItem(authStorageKey)).toBeNull();
+  });
+
+  it("does not restore a tokenless stored session snapshot after reload", () => {
+    window.sessionStorage.setItem(
+      authStorageKey,
+      JSON.stringify({
+        expiresAt: Date.now() + 60 * 60 * 1000,
+        user: {
+          email: "student@example.com",
+          initials: "ST",
+          name: "Student",
+          sub: "student-1",
+        },
+      }),
+    );
+
+    expect(getStoredAuthSession()).toBeNull();
+    expect(window.sessionStorage.getItem(authStorageKey)).toBeNull();
   });
 
   it("clears both current and legacy auth storage", () => {

@@ -5,6 +5,7 @@ import base64
 import binascii
 import csv
 import hashlib
+import hmac
 import html
 import io
 import json
@@ -61,6 +62,7 @@ AWS_REGION = os.environ.get("AWS_REGION", "ap-southeast-1")
 COGNITO_REGION = os.environ.get("COGNITO_REGION", AWS_REGION)
 COGNITO_USER_POOL_ID = os.environ.get("COGNITO_USER_POOL_ID", "")
 COGNITO_CLIENT_ID = os.environ.get("COGNITO_CLIENT_ID", "")
+COGNITO_CLIENT_SECRET = os.environ.get("COGNITO_CLIENT_SECRET", "")
 COGNITO_EMAIL_SENDER_KMS_KEY_ARN = os.environ.get("COGNITO_EMAIL_SENDER_KMS_KEY_ARN", "")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 RESEND_API_KEY_SECRET_ID = os.environ.get("RESEND_API_KEY_SECRET_ID", "")
@@ -68,12 +70,23 @@ RESEND_API_URL = os.environ.get("RESEND_API_URL", "https://api.resend.com/emails
 RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "Smile Lab <auth@smilelab.me>")
 RESEND_REPLY_TO_EMAIL = os.environ.get("RESEND_REPLY_TO_EMAIL", "")
 RESEND_REQUEST_TIMEOUT_SECONDS = 10
+LEARNING_BACKEND_PROXY_SECRET = os.environ.get("LEARNING_BACKEND_PROXY_SECRET", "")
+LEARNING_BACKEND_PROXY_SECRET_HEADER = "x-smile-learning-backend-proxy-secret"
+LEARNING_BACKEND_REQUIRE_PROXY_SECRET = (
+    os.environ.get("LEARNING_BACKEND_REQUIRE_PROXY_SECRET", "").strip().lower() == "true"
+)
 AUTH_RESEND_COOLDOWN_SECONDS = int(os.environ.get("AUTH_RESEND_COOLDOWN_SECONDS", "30"))
 AUTH_CONFIRMATION_CODE_TTL_SECONDS = int(
     os.environ.get("AUTH_CONFIRMATION_CODE_TTL_SECONDS", "300")
 )
+AUTH_PUBLIC_REQUEST_COOLDOWN_SECONDS = int(
+    os.environ.get("AUTH_PUBLIC_REQUEST_COOLDOWN_SECONDS", "3")
+)
+AUTH_SIGN_IN_COOLDOWN_SECONDS = int(os.environ.get("AUTH_SIGN_IN_COOLDOWN_SECONDS", "2"))
+AUTH_SIGN_UP_COOLDOWN_SECONDS = int(os.environ.get("AUTH_SIGN_UP_COOLDOWN_SECONDS", "5"))
 AUTH_CONFIRMATION_CODE_DIGITS = 6
 AUTH_CONFIRMATION_MAX_ATTEMPTS = 5
+COGNITO_THROTTLE_ERROR_CODES = {"LimitExceededException", "TooManyRequestsException"}
 MAX_ZIP_BYTES = int(os.environ.get("MAX_ZIP_BYTES", "52428800"))
 MAX_UNZIPPED_BYTES = int(os.environ.get("MAX_UNZIPPED_BYTES", "104857600"))
 MAX_PROGRESS_JSON_BYTES = int(os.environ.get("MAX_PROGRESS_JSON_BYTES", "300000"))
@@ -81,6 +94,8 @@ MAX_ZIP_ENTRIES = 512
 PRESIGN_EXPIRES_IN_SECONDS = 600
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+PASSWORD_MIN_LENGTH = 12
+PASSWORD_SYMBOLS = set("^$*.[]{}()?\"!@#%&/\\,><':;|_~`=+-")
 USERNAME_RESERVATION_TTL_SECONDS = 24 * 60 * 60
 AUTH_COOLDOWN_TTL_SECONDS = 60 * 60
 
@@ -115,6 +130,13 @@ class AuthCooldownError(ValueError):
         self.next_allowed_at = next_allowed_at
 
 
+class AuthRateLimitError(ValueError):
+    def __init__(self, retry_after_seconds: int, next_allowed_at: int):
+        super().__init__("Too many auth requests. Please wait before trying again.")
+        self.retry_after_seconds = retry_after_seconds
+        self.next_allowed_at = next_allowed_at
+
+
 class AuthCodeExpiredError(ValueError):
     pass
 
@@ -132,6 +154,11 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     method = event.get("requestContext", {}).get("http", {}).get("method", "GET")
     path = event.get("rawPath", "/")
 
+    if is_learning_backend_proxy_required(path) and not is_trusted_learning_backend_proxy_request(
+        event
+    ):
+        return response(403, {"message": "Learning backend proxy is required."})
+
     if method == "OPTIONS":
         return response(204, {})
 
@@ -148,16 +175,86 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             return response(200, save_learning_progress(parse_json_body(event), user))
 
         if method == "POST" and path == "/auth/sign-up/start":
-            return response(200, start_sign_up(parse_json_body(event)))
+            body = parse_json_body(event)
+            enforce_public_auth_rate_limit(
+                event,
+                "sign-up-start",
+                get_optional_string(body, "email"),
+                cooldown_seconds=AUTH_SIGN_UP_COOLDOWN_SECONDS,
+            )
+            return response(200, start_sign_up(body))
 
         if method == "POST" and path == "/auth/confirmation/resend":
-            return response(200, resend_confirmation_code(parse_json_body(event)))
+            body = parse_json_body(event)
+            enforce_public_auth_rate_limit(
+                event,
+                "confirmation-resend",
+                get_optional_string(body, "email"),
+                cooldown_seconds=AUTH_RESEND_COOLDOWN_SECONDS,
+            )
+            return response(200, resend_confirmation_code(body))
 
         if method == "POST" and path == "/auth/confirmation/confirm":
-            return response(200, confirm_sign_up(parse_json_body(event)))
+            body = parse_json_body(event)
+            enforce_public_auth_rate_limit(
+                event,
+                "confirmation-confirm",
+                get_optional_string(body, "email"),
+            )
+            return response(200, confirm_sign_up(body))
+
+        if method == "POST" and path == "/auth/email/sign-in":
+            body = parse_json_body(event)
+            enforce_public_auth_rate_limit(
+                event,
+                "email-sign-in",
+                get_optional_string(body, "email"),
+                cooldown_seconds=AUTH_SIGN_IN_COOLDOWN_SECONDS,
+            )
+            return response(200, sign_in_with_email(body))
+
+        if method == "POST" and path == "/auth/username/sign-in":
+            body = parse_json_body(event)
+            enforce_public_auth_rate_limit(
+                event,
+                "username-sign-in",
+                get_optional_string(body, "username"),
+                cooldown_seconds=AUTH_SIGN_IN_COOLDOWN_SECONDS,
+            )
+            return response(200, sign_in_with_username(body))
 
         if method == "POST" and path == "/auth/username/resolve":
-            return response(200, resolve_username_sign_in_email(parse_json_body(event)))
+            parse_json_body(event)
+            return response(400, get_generic_sign_in_error_body())
+
+        if method == "POST" and path == "/auth/session/refresh":
+            body = parse_json_body(event)
+            enforce_public_auth_rate_limit(
+                event,
+                "session-refresh",
+                get_optional_string(body, "userSub"),
+                cooldown_seconds=AUTH_SIGN_IN_COOLDOWN_SECONDS,
+            )
+            return response(200, refresh_cognito_session(body))
+
+        if method == "POST" and path == "/auth/password-reset/request":
+            body = parse_json_body(event)
+            enforce_public_auth_rate_limit(
+                event,
+                "password-reset-request",
+                get_optional_string(body, "email"),
+                cooldown_seconds=AUTH_RESEND_COOLDOWN_SECONDS,
+            )
+            return response(200, request_password_reset(body))
+
+        if method == "POST" and path == "/auth/password-reset/confirm":
+            body = parse_json_body(event)
+            enforce_public_auth_rate_limit(
+                event,
+                "password-reset-confirm",
+                get_optional_string(body, "email"),
+            )
+            return response(200, confirm_password_reset(body))
 
         if method == "POST" and path == "/uploads/presign":
             body = parse_json_body(event)
@@ -189,6 +286,16 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 "retryAfterSeconds": error.retry_after_seconds,
             },
         )
+    except AuthRateLimitError as error:
+        return response(
+            429,
+            {
+                "code": "AuthRateLimitExceededException",
+                "message": str(error),
+                "nextAllowedAt": error.next_allowed_at,
+                "retryAfterSeconds": error.retry_after_seconds,
+            },
+        )
     except AuthCodeExpiredError as error:
         return response(400, {"code": "ExpiredCodeException", "message": str(error)})
     except UsernameReservationError as error:
@@ -198,7 +305,7 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     except ClientInputError as error:
         return response(400, {"message": str(error)})
     except ClientError:
-        return response(502, {"message": "AWS storage operation failed."})
+        return response(502, {"message": "Backend AWS operation failed."})
     except zipfile.BadZipFile:
         return response(400, {"message": "The uploaded file is not a readable ZIP archive."})
 
@@ -553,6 +660,20 @@ def require_cognito_user_pool_id() -> str:
     return COGNITO_USER_POOL_ID
 
 
+def require_cognito_client_id() -> str:
+    if not COGNITO_CLIENT_ID:
+        raise AuthConfigurationError("Cognito app client id is missing.")
+
+    return COGNITO_CLIENT_ID
+
+
+def require_cognito_client_secret() -> str:
+    if not COGNITO_CLIENT_SECRET:
+        raise AuthConfigurationError("Cognito app client secret is missing.")
+
+    return COGNITO_CLIENT_SECRET
+
+
 def is_conditional_check_failed(error: ClientError) -> bool:
     return get_client_error_code(error) == "ConditionalCheckFailedException"
 
@@ -560,7 +681,11 @@ def is_conditional_check_failed(error: ClientError) -> bool:
 def response(status_code: int, body: dict[str, Any]) -> dict[str, Any]:
     return {
         "statusCode": status_code,
-        "headers": {"content-type": "application/json; charset=utf-8"},
+        "headers": {
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "x-content-type-options": "nosniff",
+        },
         "body": json.dumps(body),
     }
 
@@ -633,6 +758,34 @@ def get_header(event: dict[str, Any], name: str) -> str:
         if key.lower() == name.lower() and isinstance(value, str):
             return value
     return ""
+
+
+def get_request_source(event: dict[str, Any]) -> str:
+    if is_trusted_learning_backend_proxy_request(event):
+        source = get_header(event, "cf-connecting-ip").strip()
+        if source:
+            return source
+
+    source_ip = event.get("requestContext", {}).get("http", {}).get("sourceIp", "")
+    if isinstance(source_ip, str) and source_ip.strip():
+        return source_ip.strip()
+
+    return "unknown"
+
+
+def is_trusted_learning_backend_proxy_request(event: dict[str, Any]) -> bool:
+    configured_secret = LEARNING_BACKEND_PROXY_SECRET.strip()
+    provided_secret = get_header(event, LEARNING_BACKEND_PROXY_SECRET_HEADER)
+
+    return bool(
+        configured_secret
+        and provided_secret
+        and secrets.compare_digest(provided_secret, configured_secret)
+    )
+
+
+def is_learning_backend_proxy_required(path: str) -> bool:
+    return LEARNING_BACKEND_REQUIRE_PROXY_SECRET and path != "/health"
 
 
 def get_cognito_issuer() -> str:
@@ -795,7 +948,10 @@ def start_sign_up(body: dict[str, Any], now: int | None = None) -> dict[str, Any
     require_cognito_user_pool_id()
 
     if cognito_user_exists(email):
-        raise CognitoSignInError("UsernameExistsException", "An account already exists.")
+        return build_sign_up_confirmation_response(
+            email,
+            request_time + AUTH_RESEND_COOLDOWN_SECONDS,
+        )
 
     existing_item = get_pending_signup_item(email)
     reserved_username_key = ""
@@ -849,6 +1005,10 @@ def start_sign_up(body: dict[str, Any], now: int | None = None) -> dict[str, Any
 
     send_pending_signup_confirmation_email(email, code)
 
+    return build_sign_up_confirmation_response(email, next_allowed_at)
+
+
+def build_sign_up_confirmation_response(email: str, next_allowed_at: int) -> dict[str, Any]:
     return build_confirmation_resend_response(next_allowed_at) | {
         "CodeDeliveryDetails": {
             "AttributeName": "email",
@@ -860,14 +1020,228 @@ def start_sign_up(body: dict[str, Any], now: int | None = None) -> dict[str, Any
 
 
 def resolve_username_sign_in_email(body: dict[str, Any]) -> dict[str, Any]:
+    get_required_string(body, "username")
+    raise CognitoSignInError("NotAuthorizedException", "Username or password is not correct.")
+
+
+def sign_in_with_email(body: dict[str, Any]) -> dict[str, Any]:
+    email = normalize_auth_email(get_required_string(body, "email"))
+    password = get_required_string(body, "password")
+
+    return initiate_cognito_password_auth(email=email, password=password)
+
+
+def sign_in_with_username(body: dict[str, Any]) -> dict[str, Any]:
     username = get_required_string(body, "username")
+    password = get_required_string(body, "password")
     username_key = normalize_signup_username(username)
     email = get_confirmed_email_for_username(username_key)
 
     if not email:
         raise CognitoSignInError("NotAuthorizedException", "Username or password is not correct.")
 
-    return {"email": email}
+    return initiate_cognito_password_auth(email=email, password=password)
+
+
+def initiate_cognito_password_auth(*, email: str, password: str) -> dict[str, Any]:
+    client_id = require_cognito_client_id()
+    user_pool_id = require_cognito_user_pool_id()
+
+    try:
+        result = get_cognito_identity_provider_client().admin_initiate_auth(
+            AuthFlow="ADMIN_USER_PASSWORD_AUTH",
+            AuthParameters={
+                "PASSWORD": password,
+                "SECRET_HASH": create_cognito_secret_hash(email),
+                "USERNAME": email,
+            },
+            ClientId=client_id,
+            UserPoolId=user_pool_id,
+        )
+    except ClientError as error:
+        code_name = get_client_error_code(error)
+        if code_name in {
+            "NotAuthorizedException",
+            "PasswordResetRequiredException",
+            "UserNotConfirmedException",
+            "UserNotFoundException",
+        }:
+            raise CognitoSignInError(
+                normalize_cognito_sign_in_error_code(code_name),
+                get_generic_sign_in_error_message(code_name),
+            ) from error
+
+        if is_cognito_throttle_error_code(code_name):
+            raise create_auth_rate_limit_error(AUTH_SIGN_IN_COOLDOWN_SECONDS) from error
+
+        raise
+
+    return {"authenticationResult": result.get("AuthenticationResult", {})}
+
+
+def refresh_cognito_session(body: dict[str, Any]) -> dict[str, Any]:
+    refresh_token = get_required_string(body, "refreshToken")
+    user_sub = get_required_string(body, "userSub")
+    client_id = require_cognito_client_id()
+    user_pool_id = require_cognito_user_pool_id()
+
+    try:
+        result = get_cognito_identity_provider_client().admin_initiate_auth(
+            AuthFlow="REFRESH_TOKEN_AUTH",
+            AuthParameters={
+                "REFRESH_TOKEN": refresh_token,
+                "SECRET_HASH": create_cognito_secret_hash(user_sub),
+            },
+            ClientId=client_id,
+            UserPoolId=user_pool_id,
+        )
+    except ClientError as error:
+        code_name = get_client_error_code(error)
+        if code_name in {
+            "InvalidParameterException",
+            "NotAuthorizedException",
+            "UserNotFoundException",
+        }:
+            raise CognitoSignInError(
+                "NotAuthorizedException",
+                "Username or password is not correct.",
+            ) from error
+
+        if is_cognito_throttle_error_code(code_name):
+            raise create_auth_rate_limit_error(AUTH_SIGN_IN_COOLDOWN_SECONDS) from error
+
+        raise
+
+    return {"authenticationResult": result.get("AuthenticationResult", {})}
+
+
+def request_password_reset(body: dict[str, Any]) -> dict[str, Any]:
+    email = normalize_auth_email(get_required_string(body, "email"))
+    client_id = require_cognito_client_id()
+
+    try:
+        result = get_cognito_identity_provider_client().forgot_password(
+            ClientId=client_id,
+            SecretHash=create_cognito_secret_hash(email),
+            Username=email,
+        )
+    except ClientError as error:
+        code_name = get_client_error_code(error)
+        if code_name in {
+            "InvalidParameterException",
+            "NotAuthorizedException",
+            "UserNotFoundException",
+        }:
+            return build_password_reset_response(email)
+
+        if is_cognito_throttle_error_code(code_name):
+            raise create_auth_rate_limit_error(AUTH_RESEND_COOLDOWN_SECONDS) from error
+
+        raise
+
+    return build_password_reset_response(
+        email,
+        result.get("CodeDeliveryDetails") if isinstance(result, dict) else None,
+    )
+
+
+def confirm_password_reset(body: dict[str, Any]) -> dict[str, Any]:
+    email = normalize_auth_email(get_required_string(body, "email"))
+    code = get_required_string(body, "code")
+    password = get_required_string(body, "password")
+    client_id = require_cognito_client_id()
+
+    try:
+        get_cognito_identity_provider_client().confirm_forgot_password(
+            ClientId=client_id,
+            ConfirmationCode=code,
+            Password=password,
+            SecretHash=create_cognito_secret_hash(email),
+            Username=email,
+        )
+    except ClientError as error:
+        code_name = get_client_error_code(error)
+        if code_name in {
+            "CodeMismatchException",
+            "ExpiredCodeException",
+            "InvalidPasswordException",
+            "TooManyFailedAttemptsException",
+        }:
+            raise CognitoSignInError(
+                code_name,
+                get_generic_password_reset_error_message(code_name),
+            ) from error
+
+        if is_cognito_throttle_error_code(code_name):
+            raise create_auth_rate_limit_error(AUTH_PUBLIC_REQUEST_COOLDOWN_SECONDS) from error
+
+        if code_name in {
+            "InvalidParameterException",
+            "NotAuthorizedException",
+            "UserNotFoundException",
+        }:
+            raise CognitoSignInError(
+                "CodeMismatchException",
+                "The verification code is not correct.",
+            ) from error
+
+        raise
+
+    return {"ok": True}
+
+
+def build_password_reset_response(
+    email: str,
+    code_delivery_details: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    delivery_details = code_delivery_details if isinstance(code_delivery_details, dict) else {}
+
+    return {
+        "CodeDeliveryDetails": {
+            "AttributeName": str(delivery_details.get("AttributeName") or "email"),
+            "DeliveryMedium": str(delivery_details.get("DeliveryMedium") or "EMAIL"),
+            "Destination": str(
+                delivery_details.get("Destination") or mask_email_destination(email)
+            ),
+        },
+    }
+
+
+def get_generic_password_reset_error_message(code_name: str) -> str:
+    if code_name == "ExpiredCodeException":
+        return "The verification code has expired. Send a new code."
+
+    if code_name == "InvalidPasswordException":
+        return "Password does not meet the password policy."
+
+    if code_name in {"LimitExceededException", "TooManyFailedAttemptsException"}:
+        return "Too many failed verification attempts. Send a new code."
+
+    return "The verification code is not correct."
+
+
+def normalize_cognito_sign_in_error_code(code_name: str) -> str:
+    if code_name == "UserNotFoundException":
+        return "NotAuthorizedException"
+
+    return code_name
+
+
+def get_generic_sign_in_error_message(code_name: str) -> str:
+    if code_name == "PasswordResetRequiredException":
+        return "This account needs a password reset before signing in."
+
+    if code_name == "UserNotConfirmedException":
+        return "This account still needs email verification."
+
+    return "Username or password is not correct."
+
+
+def get_generic_sign_in_error_body() -> dict[str, Any]:
+    return {
+        "code": "NotAuthorizedException",
+        "message": "Username or password is not correct.",
+    }
 
 
 def get_confirmed_email_for_username(username_key: str) -> str:
@@ -956,6 +1330,9 @@ def confirm_sign_up(body: dict[str, Any], now: int | None = None) -> dict[str, A
             "UsernameExistsException",
         }:
             raise CognitoSignInError(code_name, get_client_error_message(error)) from error
+
+        if is_cognito_throttle_error_code(code_name):
+            raise create_auth_rate_limit_error(AUTH_PUBLIC_REQUEST_COOLDOWN_SECONDS) from error
 
         raise
 
@@ -1150,16 +1527,47 @@ def cognito_user_exists(email: str) -> bool:
     except ClientError as error:
         if get_client_error_code(error) == "UserNotFoundException":
             return False
+        if is_cognito_throttle_error_code(get_client_error_code(error)):
+            raise create_auth_rate_limit_error(AUTH_SIGN_UP_COOLDOWN_SECONDS) from error
         raise
 
     return True
 
 
+def is_cognito_throttle_error_code(code_name: str) -> bool:
+    return code_name in COGNITO_THROTTLE_ERROR_CODES
+
+
+def create_auth_rate_limit_error(
+    cooldown_seconds: int = AUTH_PUBLIC_REQUEST_COOLDOWN_SECONDS,
+    now: int | None = None,
+) -> AuthRateLimitError:
+    request_time = int(time.time()) if now is None else now
+    retry_after_seconds = max(1, cooldown_seconds)
+
+    return AuthRateLimitError(
+        retry_after_seconds,
+        request_time + retry_after_seconds,
+    )
+
+
+def create_cognito_secret_hash(username: str) -> str:
+    client_id = require_cognito_client_id()
+    client_secret = require_cognito_client_secret()
+    digest = hmac.new(
+        client_secret.encode("utf-8"),
+        f"{username}{client_id}".encode("utf-8"),
+        hashlib.sha256,
+    ).digest()
+
+    return base64.b64encode(digest).decode("utf-8")
+
+
 def validate_signup_password(password: str) -> None:
-    if len(password) < 8:
+    if len(password) < PASSWORD_MIN_LENGTH:
         raise CognitoSignInError(
             "InvalidPasswordException",
-            "Password must be at least 8 characters.",
+            f"Password must be at least {PASSWORD_MIN_LENGTH} characters.",
         )
 
     if not re.search(r"[a-z]", password) or not re.search(r"[A-Z]", password):
@@ -1172,6 +1580,12 @@ def validate_signup_password(password: str) -> None:
         raise CognitoSignInError(
             "InvalidPasswordException",
             "Password must include a number.",
+        )
+
+    if not any(character in PASSWORD_SYMBOLS for character in password):
+        raise CognitoSignInError(
+            "InvalidPasswordException",
+            "Password must include a symbol.",
         )
 
 
@@ -1301,6 +1715,71 @@ def create_auth_cooldown_key(scope: str, value: str) -> str:
     digest = hashlib.sha256(value.encode("utf-8")).hexdigest()
 
     return f"{scope}#{digest}"
+
+
+def enforce_public_auth_rate_limit(
+    event: dict[str, Any],
+    scope: str,
+    identifier: str | None = None,
+    *,
+    cooldown_seconds: int = AUTH_PUBLIC_REQUEST_COOLDOWN_SECONDS,
+    now: int | None = None,
+) -> None:
+    request_time = int(time.time()) if now is None else now
+    source = get_request_source(event)
+    reserve_auth_rate_limit(
+        f"{scope}:source",
+        source,
+        cooldown_seconds=cooldown_seconds,
+        now=request_time,
+    )
+
+    normalized_identifier = (identifier or "").strip().lower()
+    if normalized_identifier:
+        reserve_auth_rate_limit(
+            f"{scope}:identifier",
+            normalized_identifier,
+            cooldown_seconds=cooldown_seconds,
+            now=request_time,
+        )
+
+
+def reserve_auth_rate_limit(
+    scope: str,
+    value: str,
+    *,
+    cooldown_seconds: int,
+    now: int,
+) -> int:
+    cooldown_key = create_auth_cooldown_key(f"rate-limit:{scope}", value or "unknown")
+    next_allowed_at = now + max(1, cooldown_seconds)
+
+    try:
+        get_dynamodb_client().put_item(
+            TableName=require_auth_cooldown_table(),
+            Item={
+                "cooldownKey": {"S": cooldown_key},
+                "expiresAt": {"N": str(now + AUTH_COOLDOWN_TTL_SECONDS)},
+                "nextAllowedAt": {"N": str(next_allowed_at)},
+                "updatedAt": {"N": str(now)},
+            },
+            ConditionExpression="attribute_not_exists(cooldownKey) OR nextAllowedAt <= :now",
+            ExpressionAttributeValues={":now": {"N": str(now)}},
+        )
+    except ClientError as error:
+        if not is_conditional_check_failed(error):
+            raise
+
+        item = get_dynamodb_client().get_item(
+            TableName=require_auth_cooldown_table(),
+            Key={"cooldownKey": {"S": cooldown_key}},
+            ConsistentRead=True,
+        ).get("Item", {})
+        existing_next_allowed_at = get_number_attribute(item, "nextAllowedAt") or next_allowed_at
+        retry_after_seconds = max(1, existing_next_allowed_at - now)
+        raise AuthRateLimitError(retry_after_seconds, existing_next_allowed_at) from error
+
+    return next_allowed_at
 
 
 def get_number_attribute(item: dict[str, Any], name: str) -> int | None:

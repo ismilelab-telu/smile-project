@@ -17,6 +17,7 @@ This document describes the current authentication system in Smile Project from 
 | Learning route auth gate                             | `src/pages/LearningPage.tsx`                                                                                      |
 | Learning header login/register/profile/logout UI     | `src/features/learning/components/LearningHeader.tsx`                                                             |
 | Guided-download backend client                       | `src/features/learning/api/learning-backend.ts`                                                                   |
+| Cloudflare Pages backend proxy                       | `functions/api/learning-backend/[[path]].ts`, `src/features/learning/server/learning-backend-proxy.ts`            |
 | Learning progress account sync                       | `src/features/learning/progress/learning-progress.ts`, `src/features/learning/progress/learning-progress-sync.ts` |
 | Backend Lambda, Cognito triggers, token verification | `backend/aws/learning-backend/src/app.py`                                                                         |
 | AWS auth infrastructure                              | `backend/aws/learning-backend/template.yaml`, `backend/aws/learning-backend/samconfig.toml`                       |
@@ -28,51 +29,49 @@ This document describes the current authentication system in Smile Project from 
 The system has four auth-related layers:
 
 1. The React app renders `/login` and `/register` as a shared modal over the current app route.
-2. The React auth context stores the Cognito session in browser memory/session storage and exposes `signIn`, `signUp`, `confirmSignUp`, `resendConfirmationCode`, `getFreshSession`, and `signOut`.
-3. Cognito issues ID, access, and refresh tokens through the public app client.
-4. The learning backend is a public Lambda Function URL with app-level auth. It verifies Cognito bearer tokens for protected routes and runs custom backend-owned sign-up endpoints for registration.
+2. The React auth context keeps the Cognito bearer session in browser module memory and exposes `signIn`, `signUp`, `confirmSignUp`, `resendConfirmationCode`, `getFreshSession`, and `signOut`.
+3. Cognito issues ID, access, and refresh tokens through the confidential backend-owned app client.
+4. The learning backend is exposed by a Lambda Function URL, but production non-health routes require the Cloudflare Pages proxy secret before route handlers run. It verifies Cognito bearer tokens for protected routes and runs custom backend-owned sign-up endpoints for registration.
 
 Important non-goals in the current implementation:
 
 - No Cognito Hosted UI.
 - No Amplify auth client.
 - No cookie session.
-- No refresh token persisted to browser storage.
-- No password reset UI in the frontend, although the backend custom email sender has copy for Cognito forgot-password emails if that Cognito flow is introduced later.
+- No Cognito bearer tokens persisted to browser storage.
 - No MFA flow in the frontend.
 
 ## Frontend Configuration
 
-The frontend reads these Vite env values:
+The frontend reads this Vite env value:
 
-| Env                         | Used by                             | Meaning                                                                                                                                           |
-| --------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `VITE_LEARNING_BACKEND_URL` | `src/lib/learning-backend-url.ts`   | Base URL for the Lambda Function URL. If absent, the code falls back to the committed ap-southeast-1 Function URL. Trailing slashes are stripped. |
-| `VITE_COGNITO_REGION`       | `src/features/auth/cognito-auth.ts` | Cognito region used to call `https://cognito-idp.{region}.amazonaws.com/`.                                                                        |
-| `VITE_COGNITO_USER_POOL_ID` | `src/features/auth/cognito-auth.ts` | User pool ID. Frontend uses it only to decide whether auth is configured.                                                                         |
-| `VITE_COGNITO_CLIENT_ID`    | `src/features/auth/cognito-auth.ts` | Public app client ID passed to Cognito `InitiateAuth`.                                                                                            |
+| Env                         | Used by                                           | Meaning                                                                                                                                                                                                                                                                                |
+| --------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_LEARNING_BACKEND_URL` | `src/lib/learning-backend-url.ts`, auth/API calls | Base URL for the learning backend. Required. Production should use the same-origin Cloudflare Pages proxy path `/api/learning-backend`; local/dev may use the Lambda Function URL. If absent, backend-dependent auth and learning requests fail closed. Trailing slashes are stripped. |
 
-`getCognitoConfig()` trims the three Cognito env values and sets `isConfigured` only when all are present. `requireCognitoConfig()` throws `CognitoAuthError` with code `AuthNotConfigured` when any value is missing.
+The frontend no longer calls Cognito directly for password sign-in, username sign-in, password reset, sign-up confirmation, or token refresh. Cognito region, user pool ID, app client ID, and app client secret are backend-owned deployment values.
 
-`.env.local` currently contains these four frontend keys and is ignored by git through `.gitignore`.
+`.env.local` may contain older Cognito keys from previous builds, but current frontend auth only requires `VITE_LEARNING_BACKEND_URL`. Production and preview deploys must set it explicitly.
 
 ## Auth Context API
 
 `AuthProvider` wraps the whole app in `src/app/App.tsx`, inside `LocalizationProvider` and outside app routes. It exposes:
 
-| Field                           | Meaning                                                                                                         |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `session`                       | Current `AuthSession` or `null`. May include an expired session during startup while refresh is attempted.      |
-| `isReady`                       | `true` after initial stored-session refresh/check finishes. Learning routes use this before showing auth gates. |
-| `isAuthenticated`               | `true` only when a session exists and is not expired under the default 30 second expiry skew.                   |
-| `signIn(input)`                 | Signs in with email or username and stores the session.                                                         |
-| `signUp(input)`                 | Clears any current session, starts backend-owned sign-up, and returns masked delivery details.                  |
-| `confirmSignUp(input)`          | Confirms backend-owned sign-up. It does not store a session by itself. The UI signs in after confirmation.      |
-| `resendConfirmationCode(email)` | Resends the backend-owned verification code and returns cooldown details.                                       |
-| `getFreshSession(options)`      | Returns a usable stored session, refreshing it if needed or forced.                                             |
-| `signOut()`                     | Clears current and legacy auth storage and sets `session` to `null`.                                            |
+| Field                           | Meaning                                                                                                                |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `session`                       | Current `AuthSession` or `null`. May include an expired session during startup while refresh is attempted.             |
+| `isReady`                       | `true` after the initial in-memory session refresh/check finishes. Learning routes use this before showing auth gates. |
+| `isAuthenticated`               | `true` only when a session exists and is not expired under the default 30 second expiry skew.                          |
+| `signIn(input)`                 | Signs in with email or username and keeps the session in memory.                                                       |
+| `signUp(input)`                 | Clears any current session, starts backend-owned sign-up, and returns masked delivery details.                         |
+| `confirmSignUp(input)`          | Confirms backend-owned sign-up. It does not store a session by itself. The UI signs in after confirmation.             |
+| `resendConfirmationCode(email)` | Resends the backend-owned verification code and returns cooldown details.                                              |
+| `requestPasswordReset(email)`   | Starts Cognito forgot-password and returns masked delivery details.                                                    |
+| `confirmPasswordReset(input)`   | Confirms Cognito forgot-password with the reset code and new password.                                                 |
+| `getFreshSession(options)`      | Returns a usable in-memory session, refreshing it if needed or forced.                                                 |
+| `signOut()`                     | Clears the in-memory session plus legacy auth storage and sets `session` to `null`.                                    |
 
-`AuthProvider` listens for the custom `smile-auth-session-changed` browser event so state updates when helper functions write or clear auth storage.
+`AuthProvider` listens for the custom `smile-auth-session-changed` browser event so state updates when helper functions write or clear the in-memory auth session.
 
 ## Route Entry Points
 
@@ -107,21 +106,20 @@ Flow:
 AuthPage
   -> auth.signIn({ method: "email", identifier: email, password })
   -> signInWithCognito()
-  -> Cognito InitiateAuth USER_PASSWORD_AUTH
+  -> POST /auth/email/sign-in with { email, password }
+  -> backend calls Cognito AdminInitiateAuth ADMIN_USER_PASSWORD_AUTH with SECRET_HASH
+  -> backend returns Cognito AuthenticationResult
   -> createAuthSession()
   -> storeAuthSession()
 ```
 
 Request details:
 
-- Cognito endpoint: `https://cognito-idp.{VITE_COGNITO_REGION}.amazonaws.com/`
-- Header `x-amz-target`: `AWSCognitoIdentityProviderService.InitiateAuth`
-- `AuthFlow`: `USER_PASSWORD_AUTH`
-- `AuthParameters.USERNAME`: normalized lowercase email
-- `AuthParameters.PASSWORD`: password
-- `ClientId`: `VITE_COGNITO_CLIENT_ID`
+- Frontend endpoint: `{VITE_LEARNING_BACKEND_URL}/auth/email/sign-in`
+- Request body: normalized lowercase `email` plus `password`
+- Backend Cognito flow: `ADMIN_USER_PASSWORD_AUTH` with `AuthParameters.USERNAME = email` and backend-generated `SECRET_HASH`
 
-The password is sent directly from the browser to Cognito for normal email sign-in.
+Email sign-in intentionally goes through the backend so the same app-level source and email cooldowns protect all password sign-in flows. The backend does not store the password. The Cognito app client is confidential and does not allow public `USER_PASSWORD_AUTH` or `USER_SRP_AUTH`, so knowing the app client ID is not enough to bypass backend rate limits.
 
 ### Username Sign-In
 
@@ -131,16 +129,38 @@ Flow:
 AuthPage
   -> auth.signIn({ method: "username", identifier: username, password })
   -> signInWithUsername()
-  -> POST /auth/username/resolve with { username }
-  -> backend returns confirmed email
-  -> Cognito InitiateAuth USER_PASSWORD_AUTH with email + password
+  -> POST /auth/username/sign-in with { username, password }
+  -> backend resolves confirmed username internally
+  -> backend calls Cognito AdminInitiateAuth ADMIN_USER_PASSWORD_AUTH with the account email + password + SECRET_HASH
+  -> backend returns Cognito AuthenticationResult only
   -> createAuthSession()
   -> storeAuthSession()
 ```
 
-The password is not sent to the backend for username sign-in. The backend only receives the username and returns an email if the username reservation status is `confirmed`. Pending username reservations are ignored and return `NotAuthorizedException`.
+Username sign-in intentionally sends the password to the backend so the backend can resolve the display username without exposing the account email to the browser. The backend does not store the password. It uses the resolved email only inside the Cognito `AdminInitiateAuth` request, returns Cognito tokens, and never returns the email lookup result. Pending username reservations and unknown usernames return the same generic `NotAuthorizedException`.
+
+The deprecated backend `/auth/username/resolve` route no longer returns emails. It parses the request for compatibility and returns a generic sign-in failure if it is reached directly in local/dev or with the backend proxy secret. The production Cloudflare Pages proxy does not forward this route.
 
 The UI defaults to username login. Users can toggle to email login with the field label action.
+
+## Password Reset Flow
+
+Password reset uses Cognito's forgot-password APIs and the existing Cognito custom email sender:
+
+```text
+AuthPage forgot-password action
+  -> auth.requestPasswordReset(email)
+  -> POST /auth/password-reset/request with { email }
+  -> backend calls Cognito ForgotPassword
+  -> AuthEmailSenderFunction sends the reset code through Resend
+  -> AuthPage reset step collects code + new password
+  -> auth.confirmPasswordReset({ email, code, password })
+  -> POST /auth/password-reset/confirm with { email, code, password }
+  -> backend calls Cognito ConfirmForgotPassword
+  -> user signs in with the new password
+```
+
+The frontend requires an email address before starting reset. It does not resolve usernames to emails. Reset-copy and backend fallback responses are generic so they do not reveal whether an email is registered.
 
 ## Backend-Owned Registration Flow
 
@@ -162,10 +182,10 @@ The display username is stored in Cognito's `name` attribute. Cognito's actual u
 
 Frontend, backend, and Cognito policy are aligned:
 
-- Minimum 8 characters.
+- Minimum 12 characters.
 - Must include lowercase and uppercase letters.
 - Must include a number.
-- Symbols are not required.
+- Must include a symbol.
 
 The frontend shows live password requirements. The backend validates the password again before creating the Cognito user. Cognito also enforces the same policy.
 
@@ -178,6 +198,7 @@ AuthPage register step
   -> auth.signUp({ email, name })
   -> POST /auth/sign-up/start
   -> backend normalizes email
+  -> backend applies public auth rate limits by source and email
   -> backend checks Cognito AdminGetUser
   -> backend reserves username in UsernameReservationTable
   -> backend creates 6 digit code
@@ -217,10 +238,13 @@ Current backend policy:
 - Verification code length: 6 digits.
 - Code TTL: 300 seconds.
 - Resend/start cooldown: 30 seconds.
+- Public auth endpoint cooldowns: sign-up source/email 5 seconds, username sign-in source/username 2 seconds, session refresh source/user-sub 2 seconds, confirmation source/email 3 seconds unless overridden by env.
 - Max failed confirmation attempts: 5.
 - Pending username reservation TTL: 24 hours.
 - Auth cooldown table TTL for generic cooldown helpers: 1 hour.
 - The raw code is not stored. `codeHash = sha256("{salt}:{email}:{code}")`.
+
+If the submitted email already belongs to a Cognito user, `/auth/sign-up/start` returns the same confirmation-shaped response but does not reserve a username or send an email. This avoids revealing whether an email already has an account.
 
 If the same email has an active pending sign-up and the cooldown has elapsed, a repeated start request reuses the original pending username instead of changing it. If the pending sign-up is no longer active, the backend releases the old pending username reservation and reserves the newly requested username.
 
@@ -240,7 +264,7 @@ AuthPage confirmation step
   -> backend AdminSetUserPassword Permanent true
   -> backend marks username reservation confirmed
   -> backend deletes pending sign-up
-  -> frontend signs in by email through Cognito
+  -> frontend signs in by email through backend-owned Cognito auth
 ```
 
 Request:
@@ -249,7 +273,7 @@ Request:
 {
   "email": "student@example.com",
   "code": "123456",
-  "password": "Password1"
+  "password": "StrongPass1!"
 }
 ```
 
@@ -340,21 +364,19 @@ The browser-side decode is not an authoritative signature verification step. It 
 
 Storage behavior:
 
-- Storage key: `smile-auth-session`.
-- The persisted current session lives in `window.sessionStorage`.
-- `localStorage` is only used for legacy migration and cleanup.
-- The stored JSON omits `refreshToken`.
-- `refreshToken` is kept in module memory (`inMemoryRefreshToken`) after sign-in, refresh, or legacy migration.
-- `clearAuthSession()` removes both session and legacy local storage keys and clears in-memory refresh token.
+- Storage key: `smile-auth-session` exists only for legacy cleanup.
+- `storeAuthSession()` keeps the full `AuthSession` in module memory and removes any `smile-auth-session` value from `window.sessionStorage` and `window.localStorage`.
+- No `idToken`, `accessToken`, or `refreshToken` is persisted to browser storage.
+- Legacy token-bearing storage, malformed storage, and tokenless session snapshots are cleared instead of hydrated.
+- `clearAuthSession()` removes current/legacy storage keys and clears the in-memory session.
 
 Reload behavior:
 
-- `sessionStorage` survives page reload in the same tab, so the ID/access token and user info can survive reload.
-- The in-memory refresh token does not survive page reload.
-- After a reload, an otherwise valid session can remain authenticated until it reaches the refresh window, but it cannot refresh unless the refresh token is still in module memory or was just migrated from legacy local storage.
-- Because `authRefreshSkewMs` is 5 minutes, a reloaded tab without a refresh token will be cleared when `getFreshStoredAuthSession()` decides the token is within 5 minutes of expiry.
+- A page reload creates a new JavaScript runtime, so the in-memory Cognito bearer session is lost.
+- After reload, `AuthProvider` starts signed out and clears any stale legacy browser storage it finds.
+- This intentionally trades silent reload persistence for lower token exposure in an XSS or browser-storage compromise scenario.
 
-This is a deliberate short-lived browser-session posture. Do not change it to persistent refresh-token storage without a separate security review.
+This is a deliberate memory-only browser-session posture. Do not change it to persistent token storage without a separate security review.
 
 ## Token Refresh Lifecycle
 
@@ -367,25 +389,22 @@ Refresh constants and behavior:
 - Focus and `visibilitychange` trigger a freshness check when the page becomes visible/active.
 - `getFreshStoredAuthSession({ force: true })` forces refresh if a refresh token exists.
 - Concurrent refreshes dedupe through a module-level `pendingAuthSessionRefresh` promise.
-- Any refresh failure clears auth storage and returns `null`.
+- Any refresh failure clears the in-memory auth session, removes legacy storage, and returns `null`.
 
 Refresh request:
 
 ```json
 {
-  "AuthFlow": "REFRESH_TOKEN_AUTH",
-  "AuthParameters": {
-    "REFRESH_TOKEN": "<refresh token>"
-  },
-  "ClientId": "<VITE_COGNITO_CLIENT_ID>"
+  "refreshToken": "<refresh token>",
+  "userSub": "<Cognito sub>"
 }
 ```
 
-Cognito may omit a new refresh token during refresh. `createAuthSession()` preserves the previous refresh token through `previousRefreshToken`.
+Frontend sends this to `{VITE_LEARNING_BACKEND_URL}/auth/session/refresh`. The refresh request intentionally does not send email; the proxy and Lambda rate-limit refresh by request source and `userSub`, because `userSub` is the Cognito identity used for the refresh `SECRET_HASH`. The backend calls Cognito `AdminInitiateAuth` with `REFRESH_TOKEN_AUTH` and backend-generated `SECRET_HASH`. For refresh-token auth on this email-as-username user pool, Cognito verifies the secret hash against the user `sub`/internal username rather than the sign-in email. Cognito may omit a new refresh token during refresh, so `createAuthSession()` preserves the previous refresh token through `previousRefreshToken`.
 
 ## Learning Backend Authorization
 
-Frontend protected backend clients use `idToken`:
+Frontend protected backend clients use `idToken` and should reach AWS through the same-origin Cloudflare Pages proxy in production:
 
 - `fetchRemoteLearningProgress(idToken)`
 - `saveRemoteLearningProgress(idToken, progress)`
@@ -399,6 +418,19 @@ Header format:
 ```http
 Authorization: Bearer <Cognito ID token>
 ```
+
+Production proxy path:
+
+```text
+Browser
+  -> /api/learning-backend/<backend path>
+  -> Cloudflare Pages Function edge cooldown and header forwarding
+  -> AWS Lambda Function URL
+```
+
+The proxy forwards only `authorization`, `content-type`, the proxy-derived source IP, and the private `x-smile-learning-backend-proxy-secret` header. It does not forward browser cookies. It enforces a backend-route and method allowlist, rejects request bodies larger than 300 KB before forwarding, strips query strings, and fails closed for non-health routes when `LEARNING_BACKEND_PROXY_SECRET` is missing. Public auth routes receive edge cooldowns before reaching AWS; the Lambda keeps its DynamoDB-backed cooldowns as the authoritative app-level control.
+
+The proxy reads only Cloudflare's `cf-connecting-ip` header as the browser source. Browser-supplied `x-real-ip` and `x-forwarded-for` values are ignored; the `x-forwarded-for` value sent to Lambda is generated from the trusted Cloudflare source, or `unknown` when Cloudflare did not provide one. The Lambda also trusts only `cf-connecting-ip`, and only when `LEARNING_BACKEND_PROXY_SECRET` is configured and the proxy secret header matches. If that trusted source is unavailable, Lambda falls back to the Function URL `requestContext.http.sourceIp`. In production, `LEARNING_BACKEND_REQUIRE_PROXY_SECRET=true` makes every non-health HTTP route return `403` unless that shared secret is present, so direct Lambda Function URL callers cannot bypass Cloudflare edge cooldowns or spoof the auth cooldown source.
 
 The backend verifier accepts both Cognito ID tokens and access tokens:
 
@@ -449,12 +481,18 @@ Frontend local learning progress:
 
 Public auth endpoints:
 
-| Method | Path                         | Auth | Purpose                                                                      |
-| ------ | ---------------------------- | ---- | ---------------------------------------------------------------------------- |
-| `POST` | `/auth/sign-up/start`        | None | Start backend-owned pending sign-up and send verification code.              |
-| `POST` | `/auth/confirmation/confirm` | None | Verify pending sign-up code, create Cognito user, set password.              |
-| `POST` | `/auth/confirmation/resend`  | None | Send a new pending sign-up code if cooldown allows.                          |
-| `POST` | `/auth/username/resolve`     | None | Resolve confirmed display username to Cognito email for client-side sign-in. |
+| Method | Path                           | Auth | Purpose                                                                        |
+| ------ | ------------------------------ | ---- | ------------------------------------------------------------------------------ |
+| `POST` | `/auth/sign-up/start`          | None | Start backend-owned pending sign-up and send verification code.                |
+| `POST` | `/auth/confirmation/confirm`   | None | Verify pending sign-up code, create Cognito user, set password.                |
+| `POST` | `/auth/confirmation/resend`    | None | Send a new pending sign-up code if cooldown allows.                            |
+| `POST` | `/auth/email/sign-in`          | None | Sign in with email through backend-enforced public auth cooldowns.             |
+| `POST` | `/auth/username/sign-in`       | None | Sign in with display username without returning the resolved account email.    |
+| `POST` | `/auth/session/refresh`        | None | Refresh a memory-held Cognito session through backend-owned Cognito auth.      |
+| `POST` | `/auth/password-reset/request` | None | Start Cognito password reset through backend-enforced public auth cooldowns.   |
+| `POST` | `/auth/password-reset/confirm` | None | Confirm Cognito password reset through backend-enforced public auth cooldowns. |
+
+Public auth endpoints apply DynamoDB-backed cooldowns by request source and identifier. This is an app-level guard and should be paired with edge-level rate limiting in deployment. The deprecated `/auth/username/resolve` compatibility route is intentionally excluded from the production Pages proxy allowlist.
 
 Protected endpoints:
 
@@ -479,20 +517,25 @@ Common error mapping:
 | `AuthenticationError`                        | `401`  | `{ "message": "..." }`                                                                                                      |
 | `AuthConfigurationError`                     | `500`  | `{ "message": "Auth is not configured for this backend." }`                                                                 |
 | `AuthCooldownError`                          | `429`  | `{ "code": "ResendConfirmationCooldownException", "message": "...", "nextAllowedAt": number, "retryAfterSeconds": number }` |
+| `AuthRateLimitError`                         | `429`  | `{ "code": "AuthRateLimitExceededException", "message": "...", "nextAllowedAt": number, "retryAfterSeconds": number }`      |
 | `AuthCodeExpiredError`                       | `400`  | `{ "code": "ExpiredCodeException", "message": "..." }`                                                                      |
 | `UsernameReservationError`                   | `400`  | `{ "code": "InvalidUsernameException", "message": "..." }`                                                                  |
 | `CognitoSignInError`                         | `400`  | `{ "code": error.code, "message": "..." }`                                                                                  |
 | `ClientInputError`                           | `400`  | `{ "message": "..." }`                                                                                                      |
-| AWS `ClientError` outside handled auth cases | `502`  | `{ "message": "AWS storage operation failed." }`                                                                            |
+| AWS `ClientError` outside handled auth cases | `502`  | `{ "message": "Backend AWS operation failed." }`                                                                            |
 | `zipfile.BadZipFile`                         | `400`  | `{ "message": "The uploaded file is not a readable ZIP archive." }`                                                         |
+
+Handled Cognito throttling errors such as `LimitExceededException` and `TooManyRequestsException` are normalized to `AuthRateLimitError`, so public auth throttling returns `429` instead of falling through as a generic backend failure.
 
 Frontend auth error mapping lives in `getAuthErrorMessage()` in `AuthPage`. Known mapped codes include:
 
 - `AuthNotConfigured`
+- `AuthRateLimitExceededException`
 - `CodeMismatchException`
 - `ExpiredCodeException`
 - `InvalidPasswordException`
 - `InvalidUsernameException`
+- `LimitExceededException`
 - `NotAuthorizedException`
 - `PasswordResetRequiredException`
 - `TooManyFailedAttemptsException`
@@ -512,7 +555,8 @@ Current settings:
 - `AutoVerifiedAttributes: [email]`
 - Account recovery through verified email.
 - Public self-sign-up disabled with `AllowAdminCreateUserOnly: true`.
-- Password policy: minimum 8, uppercase, lowercase, number, no required symbol.
+- Deletion protection enabled with `DeletionProtection: ACTIVE`.
+- Password policy: minimum 12, uppercase, lowercase, number, and symbol.
 - Attributes: required `email`, mutable optional `name`.
 - Lambda triggers:
   - `PreSignUp`: `AuthUsernameFunction`
@@ -526,17 +570,17 @@ Because the main registration path is backend-owned and creates users with admin
 
 Current settings:
 
-- `GenerateSecret: false`
+- `GenerateSecret: true`
 - Explicit auth flows:
-  - `ALLOW_USER_PASSWORD_AUTH`
-  - `ALLOW_USER_SRP_AUTH`
+  - `ALLOW_ADMIN_USER_PASSWORD_AUTH`
   - `ALLOW_REFRESH_TOKEN_AUTH`
 - `PreventUserExistenceErrors: ENABLED`
+- `EnableTokenRevocation: true`
 - Access token validity: 1 hour.
 - ID token validity: 1 hour.
-- Refresh token validity: 30 days.
+- Refresh token validity: 7 days.
 
-The current frontend uses `USER_PASSWORD_AUTH` and `REFRESH_TOKEN_AUTH`. It does not use SRP even though the app client permits it.
+The current frontend does not call Cognito directly. Password sign-in and refresh go through backend-owned Cognito calls with `SECRET_HASH`. Direct public `USER_PASSWORD_AUTH`, `USER_SRP_AUTH`, forgot-password, and confirm-forgot-password calls with only the client ID should fail because the app client has a secret that is only available to the backend.
 
 ### DynamoDB Tables
 
@@ -567,6 +611,7 @@ The current frontend uses `USER_PASSWORD_AUTH` and `REFRESH_TOKEN_AUTH`. It does
 `LearningBackendFunction`
 
 - Public Lambda Function URL with `AuthType: NONE`.
+- Production non-health routes require the Cloudflare Pages proxy secret before app route logic runs.
 - App-level auth happens inside `require_authenticated_user()`.
 - Owns auth HTTP endpoints, protected progress endpoints, and guided-download backend endpoints.
 - Has S3, DynamoDB, Cognito admin, and Resend API key secret-read permissions.
@@ -650,52 +695,67 @@ Cloudflare Pages:
 - `wrangler.jsonc` builds from `dist`.
 - `public/_redirects` rewrites all routes to `/index.html`, so modal routes and deep learning routes work on refresh.
 - `public/_headers` sets CSP, HSTS, frame protection, and other security headers.
-- Current CSP `connect-src` allows `'self'` and `https://*.amazonaws.com`, which covers Cognito, the Lambda Function URL, and S3 presigned upload URLs.
+- `functions/api/learning-backend/[[path]].ts` proxies backend calls through Cloudflare Pages before AWS with exact route/method allowlists, trusted Lambda Function URL validation, a 300 KB request-body limit, secret-header injection, no cookie forwarding, no query-string forwarding, and `Authorization` forwarding only for protected backend routes. Unknown `/auth/...` paths are rejected at the edge instead of being forwarded to AWS.
+- Current CSP `connect-src` allows `'self'`, `https://s3.ap-southeast-1.amazonaws.com`, and `https://*.s3.ap-southeast-1.amazonaws.com`. This supports the same-origin proxy and S3 presigned uploads without allowing browser calls to direct Cognito or Lambda Function URL origins.
 
 AWS:
 
-- Lambda Function URL CORS `AllowOrigins` comes from SAM parameter `AllowedOrigins`.
+- Lambda Function URL CORS `AllowOrigins` comes from SAM parameter `FunctionUrlAllowedOrigins`, which should stay limited to local/dev origins because production browser traffic uses the Pages proxy.
 - Lambda Function URL allows `GET`, `POST`, `PUT`.
 - Lambda Function URL allows headers `authorization` and `content-type`.
-- S3 upload CORS also uses `AllowedOrigins`, allows `PUT`, exposes `ETag`, and accepts all headers.
+- Production `LearningBackendFunction` sets `LEARNING_BACKEND_REQUIRE_PROXY_SECRET=true`, so direct Function URL app requests can only use `/health`; non-health app routes must arrive through the Pages proxy with the shared secret.
+- Lambda JSON responses set `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`.
+- S3 upload CORS uses SAM parameter `AllowedOrigins`, allows `PUT`, exposes `ETag`, and accepts all headers.
 
 Deployment must keep these aligned:
 
-1. Cloudflare Pages origin must be included in SAM `AllowedOrigins`.
-2. `VITE_LEARNING_BACKEND_URL` must point at the deployed `LearningBackendFunctionUrl`.
-3. `VITE_COGNITO_REGION`, `VITE_COGNITO_USER_POOL_ID`, and `VITE_COGNITO_CLIENT_ID` must match the same SAM stack outputs.
-4. CSP must continue allowing the Cognito, Lambda Function URL, and S3 upload origins.
+1. Cloudflare Pages origin must be included in SAM `AllowedOrigins` for S3 upload CORS.
+2. Production `VITE_LEARNING_BACKEND_URL` must be `/api/learning-backend` so browser backend traffic uses the Cloudflare proxy.
+3. Cloudflare Pages Function `LEARNING_BACKEND_URL` must point at the SAM `LearningBackendFunctionUrl`; the proxy rejects non-HTTPS, credentialed, path-scoped, or non-`*.lambda-url.<region>.on.aws` backend URLs before forwarding bearer tokens or proxy secrets.
+4. SAM `LearningBackendProxySecret` must match Cloudflare Pages Function `LEARNING_BACKEND_PROXY_SECRET`.
+5. Backend `COGNITO_REGION`, `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`, and `COGNITO_CLIENT_SECRET` must come from the same SAM stack.
+6. `FunctionUrlAllowedOrigins` should remain local/dev only unless a separate review approves direct browser access to the Function URL.
+7. CSP must continue allowing the same-origin proxy plus S3 upload origins; do not add direct Cognito or Lambda Function URL origins without a separate review.
 
-Current `backend/aws/learning-backend/samconfig.toml` deploy defaults use stack `smile-learning-backend`, region `ap-southeast-1`, profile `smile-dev`, and `AllowedOrigins` for local dev plus `https://smile-project.pages.dev`.
+Current `backend/aws/learning-backend/samconfig.toml` deploy defaults use stack `smile-learning-backend`, region `ap-southeast-1`, profile `smile-dev`, `LearningBackendRequireProxySecret=true`, `AllowedOrigins` for local dev plus `https://smile-project.pages.dev`, and `FunctionUrlAllowedOrigins` for local dev only. It intentionally does not store `LearningBackendProxySecret`, `ResendFromEmail`, or `ResendReplyToEmail`; production deploys must pass the current shared secret or preserve the existing CloudFormation `NoEcho` value, and sender overrides must be verified after deploy if they are customized.
 
 ## Environment Mapping After Backend Deploy
 
 SAM outputs map to frontend env like this:
 
-| SAM output                   | Frontend env                |
-| ---------------------------- | --------------------------- |
-| `LearningBackendFunctionUrl` | `VITE_LEARNING_BACKEND_URL` |
-| `CognitoRegion`              | `VITE_COGNITO_REGION`       |
-| `CognitoUserPoolId`          | `VITE_COGNITO_USER_POOL_ID` |
-| `CognitoUserPoolClientId`    | `VITE_COGNITO_CLIENT_ID`    |
+| SAM output or value          | Deployment env                                                                                               |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `/api/learning-backend`      | Frontend `VITE_LEARNING_BACKEND_URL`                                                                         |
+| `LearningBackendFunctionUrl` | Required Cloudflare Pages Function `LEARNING_BACKEND_URL` env                                                |
+| `LearningBackendProxySecret` | SAM parameter `LearningBackendProxySecret` and Cloudflare Pages Function `LEARNING_BACKEND_PROXY_SECRET` env |
+| `CognitoRegion`              | Backend `COGNITO_REGION`                                                                                     |
+| `CognitoUserPoolId`          | Backend `COGNITO_USER_POOL_ID`                                                                               |
+| `CognitoUserPoolClientId`    | Backend `COGNITO_CLIENT_ID`                                                                                  |
+| `SmileUserPoolClient` secret | Backend `COGNITO_CLIENT_SECRET`; never expose this to the frontend                                           |
 
 Backend auth-related environment is set by SAM:
 
-| Backend env                          | Source or default                            |
-| ------------------------------------ | -------------------------------------------- |
-| `UPLOAD_BUCKET`                      | `DatasetUploadBucket`                        |
-| `LEARNING_PROGRESS_TABLE`            | `LearningProgressTable`                      |
-| `USERNAME_RESERVATION_TABLE`         | `UsernameReservationTable`                   |
-| `AUTH_COOLDOWN_TABLE`                | `AuthCooldownTable`                          |
-| `AUTH_RESEND_COOLDOWN_SECONDS`       | `30`                                         |
-| `AUTH_CONFIRMATION_CODE_TTL_SECONDS` | `300`                                        |
-| `COGNITO_USER_POOL_ID`               | `SmileUserPool`                              |
-| `COGNITO_CLIENT_ID`                  | `SmileUserPoolClient`                        |
-| `COGNITO_REGION`                     | AWS region                                   |
-| `COGNITO_EMAIL_SENDER_KMS_KEY_ARN`   | `CognitoEmailSenderKmsKey` for custom sender |
-| `RESEND_API_KEY_SECRET_ID`           | `ResendApiKeySecretName` parameter           |
-| `RESEND_FROM_EMAIL`                  | `ResendFromEmail` parameter                  |
-| `RESEND_REPLY_TO_EMAIL`              | `ResendReplyToEmail` parameter               |
+| Backend env                             | Source or default                                       |
+| --------------------------------------- | ------------------------------------------------------- |
+| `UPLOAD_BUCKET`                         | `DatasetUploadBucket`                                   |
+| `LEARNING_PROGRESS_TABLE`               | `LearningProgressTable`                                 |
+| `USERNAME_RESERVATION_TABLE`            | `UsernameReservationTable`                              |
+| `AUTH_COOLDOWN_TABLE`                   | `AuthCooldownTable`                                     |
+| `AUTH_RESEND_COOLDOWN_SECONDS`          | `30`                                                    |
+| `AUTH_CONFIRMATION_CODE_TTL_SECONDS`    | `300`                                                   |
+| `AUTH_PUBLIC_REQUEST_COOLDOWN_SECONDS`  | `3`                                                     |
+| `AUTH_SIGN_IN_COOLDOWN_SECONDS`         | `2`                                                     |
+| `AUTH_SIGN_UP_COOLDOWN_SECONDS`         | `5`                                                     |
+| `COGNITO_USER_POOL_ID`                  | `SmileUserPool`                                         |
+| `COGNITO_CLIENT_ID`                     | `SmileUserPoolClient`                                   |
+| `COGNITO_CLIENT_SECRET`                 | `SmileUserPoolClient.ClientSecret`                      |
+| `COGNITO_REGION`                        | AWS region                                              |
+| `COGNITO_EMAIL_SENDER_KMS_KEY_ARN`      | `CognitoEmailSenderKmsKey` for custom sender            |
+| `RESEND_API_KEY_SECRET_ID`              | `ResendApiKeySecretName` parameter                      |
+| `RESEND_FROM_EMAIL`                     | `ResendFromEmail` parameter                             |
+| `RESEND_REPLY_TO_EMAIL`                 | `ResendReplyToEmail` parameter                          |
+| `LEARNING_BACKEND_PROXY_SECRET`         | `LearningBackendProxySecret` parameter                  |
+| `LEARNING_BACKEND_REQUIRE_PROXY_SECRET` | `LearningBackendRequireProxySecret`, defaults to `true` |
 
 Local backend code also supports direct `RESEND_API_KEY`, `RESEND_API_URL`, and AWS SDK region env values, but the SAM path uses Secrets Manager for the Resend key.
 
@@ -704,21 +764,27 @@ Local backend code also supports direct `RESEND_API_KEY`, `RESEND_API_URL`, and 
 Frontend auth-related tests:
 
 - `src/features/auth/auth-session.test.ts`
-  - Stores auth session in `sessionStorage`.
-  - Does not persist refresh token in stored JSON.
-  - Migrates and removes legacy `localStorage` auth session.
+  - Keeps the active auth session in module memory only.
+  - Does not persist ID, access, or refresh tokens in browser storage.
+  - Clears legacy `localStorage` and `sessionStorage` auth sessions instead of hydrating bearer tokens.
   - Clears current and legacy storage.
 - `src/features/auth/auth-context.test.tsx`
   - Refreshes an open session before token expiry.
-  - Stores refreshed tokens without putting refresh token in persisted JSON.
+  - Keeps refreshed tokens out of browser storage.
 - `src/features/auth/cognito-auth.test.ts`
   - Starts sign-up through learning backend.
   - Confirms sign-up through learning backend with password.
-  - Resolves username through backend without sending password, then signs in through Cognito.
+  - Signs in with username through the backend without receiving the resolved account email.
+  - Requests and confirms Cognito password reset.
+  - Refreshes sessions through the backend instead of calling Cognito directly.
 - `src/features/learning/api/learning-backend.test.ts`
   - Does not call backend upload endpoints without signed-in session.
   - Sends `Authorization: Bearer <idToken>` for guided backend calls.
   - Refreshes stale token before guided backend requests.
+- `src/features/learning/server/learning-backend-proxy.test.ts`
+  - Forwards allowed backend requests with auth and original source headers.
+  - Applies edge cooldown before repeated public auth requests reach AWS.
+  - Rate-limits refresh requests by `userSub` without requiring email.
 - `src/features/learning/progress/learning-progress.test.tsx`
   - Merges guest progress into signed-in account.
   - Clears guest bucket after remote save.
@@ -730,11 +796,14 @@ Frontend auth-related tests:
 Backend auth-related tests in `backend/aws/learning-backend/tests/test_app.py` cover:
 
 - Rejecting guest session/body for dataset tools.
+- Cognito JWT verifier accepting configured ID tokens and rejecting wrong audiences.
 - Username reservation pending and confirmed states.
 - Duplicate username rejection.
-- Username sign-in resolution from confirmed reservations only.
+- Deprecated username resolution not returning email.
+- Username sign-in from confirmed reservations only, with Cognito tokens returned and no email field.
+- Public auth rate limit cooldowns for source and identifier.
 - Resend cooldown helper behavior.
-- Backend-owned sign-up storage, code hashing, email sending, and cooldown.
+- Backend-owned sign-up storage, code hashing, email sending, existing-email generic response, and cooldown.
 - Reusing active pending username after cooldown.
 - Resend confirmation behavior.
 - Confirmation code expiry.
@@ -769,14 +838,41 @@ Use direct `vp` commands for frontend checks. The Python/SAM commands apply to t
 - `reserve_confirmation_resend()` and `assert_confirmation_code_is_active()` in backend code are tested helpers but are not the main HTTP pending-sign-up flow. The HTTP flow uses the pending sign-up item's `nextAllowedAt`, `expiresAt`, and `attempts`.
 - Frontend sends `idToken` to the learning backend. Backend accepts both ID and access tokens, but if the frontend switches to access tokens, verify downstream assumptions around `email` because access tokens may not include the same claims as ID tokens.
 - `AuthProvider` may hold an expired session during startup until refresh/check completes. Use `isReady` when route behavior depends on knowing auth state.
-- A session can be visible after reload without a refresh token. It will be cleared when it reaches the 5 minute refresh window and cannot refresh.
-- Username sign-in sends only username to the backend. Do not add password to `/auth/username/resolve`.
+- A session is intentionally not restored after reload because Cognito bearer tokens are memory-only.
+- Refresh tokens expire after 7 days even if a tab remains open, limiting replay windows for a token that is exposed during an active browser session.
+- Username sign-in sends username and password to `/auth/username/sign-in` by design so the backend can hide the resolved account email. Do not reintroduce client-side email resolution, proxy `/auth/username/resolve` in production, or return email from that deprecated backend route.
 - Registration confirmation sends password to the backend by design. If that changes, the whole backend-owned Cognito user creation model must be redesigned.
-- The user pool app client permits SRP, but the current frontend uses `USER_PASSWORD_AUTH`. A switch to SRP would affect `cognito-auth.ts` and tests.
+- Do not enable public `USER_PASSWORD_AUTH` or `USER_SRP_AUTH` on the app client. Doing so would let clients bypass backend public-auth cooldowns.
 - Cognito user pool self-sign-up is disabled. Enabling it would bypass the backend-owned pending sign-up policy unless Cognito triggers are hardened and the frontend flow is rewritten.
 - `name` in Cognito is the display username, not a full name.
 - Confirmed username reservations never expire because `expiresAt` is removed.
-- Pending sign-up responses avoid user enumeration in resend by returning `ok` even when no active pending sign-up exists.
+- Pending sign-up responses avoid user enumeration in start/resend by returning confirmation-shaped `ok` responses even when no email is sent.
+- Public auth endpoint cooldowns are DynamoDB-backed application controls. Keep edge-level rate limiting enabled for the deployed origin as an additional production control.
 - Protected backend authorization is app-level inside Lambda because Function URL `AuthType` is `NONE`.
+- Forwarded IP headers are trusted only when the Pages proxy shared secret matches.
 - CSP and SAM CORS must be updated together when origins change.
-- There is no frontend password reset flow yet. Backend email copy supports `CustomEmailSender_ForgotPassword`, but no UI starts that Cognito flow.
+
+## Production Hardening Checklist
+
+Current required controls before deploy:
+
+- Frontend env must define `VITE_LEARNING_BACKEND_URL`; the app no longer falls back to a committed backend URL.
+- Production `VITE_LEARNING_BACKEND_URL` must use `/api/learning-backend` so Cloudflare edge cooldowns run before AWS.
+- Cloudflare Pages Function env must define `LEARNING_BACKEND_URL`; the proxy fails closed without it.
+- Cloudflare Pages Function `LEARNING_BACKEND_URL` must be the trusted HTTPS Lambda Function URL from the SAM stack output, not an arbitrary custom origin.
+- Cloudflare Pages Function env must define `LEARNING_BACKEND_PROXY_SECRET`; the proxy fails closed for non-health routes without it.
+- Cloudflare Pages proxy must forward bearer tokens only to protected routes (`/progress`, `/uploads/presign`, `/datasets/inspect`, `/pandas/validate`) and must not forward browser query strings to the Lambda backend.
+- `LearningBackendProxySecret` in SAM must match Cloudflare Pages Function env `LEARNING_BACKEND_PROXY_SECRET`.
+- `LearningBackendRequireProxySecret` must remain `true` in production so direct Function URL app routes return `403`.
+- Username login must use `/auth/username/sign-in`; `/auth/username/resolve` must not be proxied in production and must not return account emails.
+- Email login and password reset must use backend `/auth/...` endpoints so public auth cooldowns apply.
+- Public auth routes must keep DynamoDB cooldowns enabled through `AUTH_COOLDOWN_TABLE`.
+- Existing-email sign-up must stay confirmation-shaped and generic.
+- Password policy must stay aligned across Cognito, backend validation, and frontend copy: minimum 12, uppercase, lowercase, number, and symbol.
+- Password reset must use Cognito ForgotPassword/ConfirmForgotPassword with generic copy.
+- Cognito app client must keep `GenerateSecret=true`, `ALLOW_ADMIN_USER_PASSWORD_AUTH`, and `ALLOW_REFRESH_TOKEN_AUTH`; do not re-enable public password or SRP auth flows.
+- Cognito app client must keep token revocation enabled and refresh-token validity short enough for the memory-only browser-session posture.
+- Protected learning routes must require backend-verified Cognito bearer tokens.
+- Backend JSON responses must include `Cache-Control: no-store`.
+- Cloudflare CSP and S3 CORS origins must remain aligned with the deployed frontend origin; Lambda Function URL CORS should remain local/dev only, and CSP should not allow direct Cognito or Lambda Function URL calls in production.
+- Cloudflare Pages proxy edge cooldowns must remain enabled for public auth routes in addition to DynamoDB cooldowns.

@@ -10,5 +10,8 @@ capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
 resolve_s3 = true
 fail_on_empty_changeset = false
-parameter_overrides = "AllowedOrigins=\"http://127.0.0.1:5317,http://localhost:5317,https://smile-project.pages.dev\" ResendApiKeySecretName=\"smile/resend/api-key\" ResendFromEmail=\"Smile Lab <auth@smilelab.me>\" ResendReplyToEmail=\"\""
+# Do not store LearningBackendProxySecret in this file. For production deploys,
+# pass the current shared secret with --parameter-overrides or preserve the
+# existing CloudFormation NoEcho value; otherwise non-health routes fail closed.
+parameter_overrides = "AllowedOrigins=\"http://127.0.0.1:5317,http://localhost:5317,https://smile-project.pages.dev\" FunctionUrlAllowedOrigins=\"http://127.0.0.1:5317,http://localhost:5317\" ResendApiKeySecretName=\"smile/resend/api-key\" LearningBackendRequireProxySecret=\"true\""
 tags = "Project=\"Smile\" Environment=\"dev\""

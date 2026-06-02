@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
-import { storeAuthSession } from "@/features/auth/auth-session";
+import { clearAuthSession, storeAuthSession } from "@/features/auth/auth-session";
 import { localizationStorageKey } from "@/features/localization/localization";
 import { learningProgressStorageKey } from "@/features/learning/progress/learning-progress";
 
@@ -112,6 +112,7 @@ describe("App", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    clearAuthSession();
     window.localStorage.clear();
     window.sessionStorage.clear();
     window.history.pushState(null, "", "/");
@@ -432,7 +433,6 @@ describe("App", () => {
   });
 
   it("completes the first lesson, persists progress, and unlocks the next lesson", async () => {
-    seedAuthSession();
     window.history.pushState(null, "", lesson01Path);
     render(<App />);
 

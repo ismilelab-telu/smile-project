@@ -49,9 +49,11 @@ type AuthField = {
 
 type AuthStatusMessage =
   | { destination?: string; kind: "confirmation-sent" }
-  | { kind: "account-unconfirmed" };
+  | { kind: "account-unconfirmed" }
+  | { destination?: string; kind: "password-reset-sent" }
+  | { kind: "password-reset-complete" };
 
-type PasswordRule = "case" | "length" | "number";
+type PasswordRule = "case" | "length" | "number" | "symbol";
 
 function isAuthIdentifierField(fieldId: string) {
   return fieldId === "auth-email" || fieldId === "auth-username";
@@ -118,10 +120,13 @@ const authIllustrationImageUrl = new URL(
   "../../assets/43096caa-9b82-474a-a51d-99d4721a99ca.png",
   import.meta.url,
 ).href;
+const passwordMinLength = 12;
+const passwordSymbols = "^$*.[]{}()?\"!@#%&/\\,><':;|_~`=+-";
 const passwordRules: Array<{ id: PasswordRule; label: Record<Locale, string> }> = [
-  { id: "length", label: { en: "8 characters long", id: "Minimal 8 karakter" } },
+  { id: "length", label: { en: "12 characters long", id: "Minimal 12 karakter" } },
   { id: "case", label: { en: "Uppercase and lowercase", id: "Huruf besar dan kecil" } },
   { id: "number", label: { en: "Number", id: "Angka" } },
+  { id: "symbol", label: { en: "Symbol", id: "Simbol" } },
 ];
 const OTP_CODE_LENGTH = 6;
 const authPortalBackdropVisible = { filter: "blur(0px)", opacity: 1 };
@@ -160,7 +165,7 @@ export function AuthPage({
   const resolvedSuccessHref = successHref ?? safeCloseHref;
   const safeSuccessHref = isAuthHref(resolvedSuccessHref) ? "/learn" : resolvedSuccessHref;
   const dialogTitle = isConfirmingAuthStep
-    ? getConfirmationStepTitle(locale)
+    ? getSecondaryAuthStepTitle(locale)
     : (titleOverride ?? authCopy[locale][mode].title);
 
   const navigateToCloseHref = useCallback(() => {
@@ -461,8 +466,10 @@ function AuthFormPanel({
   const [confirmationCode, setConfirmationCode] = useState("");
   const [confirmationDestination, setConfirmationDestination] = useState("");
   const [confirmationEmail, setConfirmationEmail] = useState("");
+  const [passwordResetEmail, setPasswordResetEmail] = useState("");
+  const [passwordResetPassword, setPasswordResetPassword] = useState("");
+  const [passwordResetConfirmPassword, setPasswordResetConfirmPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [registeredEmailErrorValue, setRegisteredEmailErrorValue] = useState("");
   const [isNameTouched, setNameTouched] = useState(false);
   const [isEmailTouched, setEmailTouched] = useState(false);
   const [isPasswordTouched, setPasswordTouched] = useState(false);
@@ -475,7 +482,7 @@ function AuthFormPanel({
   const email = isRegister ? registerEmail : loginIdentifier;
   const password = isRegister ? registerPassword : loginPassword;
   const confirmPassword = registerConfirmPassword;
-  const normalizedRegisterEmail = registerEmail.trim().toLowerCase();
+  const activePassword = passwordResetEmail ? passwordResetPassword : password;
   const usernameError = getUsernameValidationMessage(name, locale);
   const trimmedEmail = email.trim();
   const isUsernameSignIn = !isRegister && loginMethod === "username";
@@ -488,8 +495,8 @@ function AuthFormPanel({
     isEmailFieldActive && isEmailTouched && trimmedEmail.length > 0 && !isEmailValid;
   const showLoginUsernameValidation =
     isUsernameSignIn && isEmailTouched && trimmedEmail.length > 0 && loginUsernameError !== "";
-  const passwordRuleState = getPasswordRuleState(password);
-  const passwordError = getPasswordValidationMessage(password, locale);
+  const passwordRuleState = getPasswordRuleState(activePassword);
+  const passwordError = getPasswordValidationMessage(activePassword, locale);
   const canShowConfirmPassword = isRegister && password.length > 0 && passwordError === "";
   const showPasswordError = isRegister && isPasswordTouched && passwordError !== "";
   const confirmPasswordError = getConfirmPasswordValidationMessage(
@@ -497,19 +504,24 @@ function AuthFormPanel({
     confirmPassword,
     locale,
   );
+  const passwordResetConfirmPasswordError = getConfirmPasswordValidationMessage(
+    passwordResetPassword,
+    passwordResetConfirmPassword,
+    locale,
+  );
   const showConfirmPasswordError =
     isRegister &&
     Boolean(confirmPasswordError) &&
     (confirmPassword.length > 0 || isConfirmPasswordTouched);
   const isConfirmingAccount = confirmationEmail.length > 0;
-  const registeredEmailErrorMessage =
-    isRegister &&
-    !isConfirmingAccount &&
-    registeredEmailErrorValue &&
-    normalizedRegisterEmail === registeredEmailErrorValue
-      ? getRegisteredEmailErrorMessage(locale)
-      : "";
-  const visibleErrorMessage = errorMessage || registeredEmailErrorMessage;
+  const isResettingPassword = passwordResetEmail.length > 0;
+  const isSecondaryAuthStep = isConfirmingAccount || isResettingPassword;
+  const showPasswordResetError = isResettingPassword && isPasswordTouched && passwordError !== "";
+  const showPasswordResetConfirmPasswordError =
+    isResettingPassword &&
+    Boolean(passwordResetConfirmPasswordError) &&
+    (passwordResetConfirmPassword.length > 0 || isConfirmPasswordTouched);
+  const visibleErrorMessage = errorMessage;
   const renderedStatusMessage = statusMessage ? getAuthStatusMessage(statusMessage, locale) : "";
   const confirmationTitle = getConfirmationStepTitle(locale);
   const resendCooldownSeconds = Math.max(0, Math.ceil((resendAvailableAt - resendClock) / 1000));
@@ -525,6 +537,9 @@ function AuthFormPanel({
     setConfirmationCode("");
     setConfirmationDestination("");
     setConfirmationEmail("");
+    setPasswordResetEmail("");
+    setPasswordResetPassword("");
+    setPasswordResetConfirmPassword("");
     setErrorMessage("");
     setPasswordVisible(false);
     setNameTouched(false);
@@ -538,8 +553,8 @@ function AuthFormPanel({
   }, [mode]);
 
   useEffect(() => {
-    onConfirmingChange?.(isConfirmingAccount);
-  }, [isConfirmingAccount, onConfirmingChange]);
+    onConfirmingChange?.(isSecondaryAuthStep);
+  }, [isSecondaryAuthStep, onConfirmingChange]);
 
   useEffect(() => {
     if (resendAvailableAt <= Date.now()) {
@@ -564,6 +579,55 @@ function AuthFormPanel({
 
     setErrorMessage("");
     setStatusMessage(null);
+
+    if (isResettingPassword) {
+      setPasswordTouched(true);
+      setConfirmPasswordTouched(true);
+
+      if (confirmationCode.trim().length < OTP_CODE_LENGTH) {
+        setErrorMessage(
+          locale === "en" ? "Enter the 6-digit reset code." : "Masukkan 6 digit kode reset.",
+        );
+        return;
+      }
+
+      if (passwordError || !passwordResetConfirmPassword) {
+        setErrorMessage(
+          locale === "en"
+            ? "Check the new password and confirmation first."
+            : "Cek sandi baru dan konfirmasinya dulu.",
+        );
+        return;
+      }
+
+      if (passwordResetConfirmPasswordError) {
+        setErrorMessage(passwordResetConfirmPasswordError);
+        return;
+      }
+
+      setIsSubmitting(true);
+
+      try {
+        await auth.confirmPasswordReset({
+          code: confirmationCode.trim(),
+          email: passwordResetEmail,
+          password: passwordResetPassword,
+        });
+        setConfirmationCode("");
+        setPasswordResetPassword("");
+        setPasswordResetConfirmPassword("");
+        setLoginMethod("email");
+        setLoginIdentifier(passwordResetEmail);
+        setLoginPassword("");
+        setPasswordResetEmail("");
+        setStatusMessage({ kind: "password-reset-complete" });
+      } catch (error) {
+        setErrorMessage(getAuthErrorMessage(error, locale));
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
 
     if (!trimmedIdentifier) {
       setErrorMessage(
@@ -591,16 +655,6 @@ function AuthFormPanel({
       setErrorMessage(
         locale === "en" ? "Enter a valid email address." : "Masukkan email yang valid.",
       );
-      return;
-    }
-
-    if (
-      isRegister &&
-      !isConfirmingAccount &&
-      registeredEmailErrorValue &&
-      normalizedEmail === registeredEmailErrorValue
-    ) {
-      setEmailTouched(true);
       return;
     }
 
@@ -665,7 +719,7 @@ function AuthFormPanel({
 
         setConfirmationDestination(signUpResult.destination ?? "");
         setConfirmationEmail(normalizedEmail);
-        setResendAvailableAt(Date.now() + 30_000);
+        setResendAvailableAt(getResendCooldownUntil(signUpResult));
         setResendClock(Date.now());
         setStatusMessage({ destination: signUpResult.destination, kind: "confirmation-sent" });
         return;
@@ -689,17 +743,6 @@ function AuthFormPanel({
       });
       redirectAfterAuth(successHref, onAuthenticated);
     } catch (error) {
-      if (
-        isRegister &&
-        error instanceof CognitoAuthError &&
-        error.code === "UsernameExistsException"
-      ) {
-        setRegisteredEmailErrorValue(normalizedEmail);
-        setEmailTouched(true);
-        setErrorMessage("");
-        return;
-      }
-
       if (error instanceof CognitoAuthError && error.code === "UserNotConfirmedException") {
         if (isSubmittingUsername) {
           setErrorMessage(
@@ -721,8 +764,43 @@ function AuthFormPanel({
     }
   };
 
+  const handleForgotPassword = async () => {
+    const resetEmail = loginIdentifier.trim().toLowerCase();
+
+    setErrorMessage("");
+    setStatusMessage(null);
+
+    if (loginMethod !== "email" || !isValidEmailAddress(resetEmail)) {
+      setLoginMethod("email");
+      setEmailTouched(true);
+      setErrorMessage(
+        locale === "en"
+          ? "Enter your account email to reset the password."
+          : "Masukkan email akun untuk reset sandi.",
+      );
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const result = await auth.requestPasswordReset(resetEmail);
+      setConfirmationCode("");
+      setPasswordResetEmail(resetEmail);
+      setPasswordResetPassword("");
+      setPasswordResetConfirmPassword("");
+      setResendAvailableAt(Date.now() + 30_000);
+      setResendClock(Date.now());
+      setStatusMessage({ destination: result.destination, kind: "password-reset-sent" });
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error, locale));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleResendCode = async () => {
-    const resendEmail = confirmationEmail || email.trim().toLowerCase();
+    const resendEmail = passwordResetEmail || confirmationEmail || email.trim().toLowerCase();
 
     if (!resendEmail || !canResendCode) {
       return;
@@ -734,10 +812,16 @@ function AuthFormPanel({
     setIsSubmitting(true);
 
     try {
-      const result = await auth.resendConfirmationCode(resendEmail);
-      setResendAvailableAt(getResendCooldownUntil(result));
+      if (passwordResetEmail) {
+        const result = await auth.requestPasswordReset(passwordResetEmail);
+        setResendAvailableAt(Date.now() + 30_000);
+        setStatusMessage({ destination: result.destination, kind: "password-reset-sent" });
+      } else {
+        const result = await auth.resendConfirmationCode(resendEmail);
+        setResendAvailableAt(getResendCooldownUntil(result));
+        setStatusMessage({ destination: confirmationDestination, kind: "confirmation-sent" });
+      }
       setResendClock(Date.now());
-      setStatusMessage({ destination: confirmationDestination, kind: "confirmation-sent" });
     } catch (error) {
       if (error instanceof CognitoAuthError && error.retryAfterSeconds) {
         setResendAvailableAt(Date.now() + error.retryAfterSeconds * 1000);
@@ -753,6 +837,9 @@ function AuthFormPanel({
     setConfirmationCode("");
     setConfirmationDestination("");
     setConfirmationEmail("");
+    setPasswordResetEmail("");
+    setPasswordResetPassword("");
+    setPasswordResetConfirmPassword("");
     setErrorMessage("");
     setStatusMessage(null);
   };
@@ -809,12 +896,6 @@ function AuthFormPanel({
   const switchClassName =
     "font-medium text-foreground underline underline-offset-4 transition-colors hover:text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400";
   const handleModeSwitch = () => {
-    if (switchMode === "login" && registeredEmailErrorMessage) {
-      setLoginMethod("email");
-      setLoginIdentifier(normalizedRegisterEmail);
-      setLoginPassword(registerPassword);
-    }
-
     onModeChange?.(switchMode);
   };
   const loginMethodToggleLabel =
@@ -991,6 +1072,160 @@ function AuthFormPanel({
     );
   };
 
+  if (isResettingPassword) {
+    const resetTitle = locale === "en" ? "Reset your password" : "Reset sandi kamu";
+
+    return (
+      <motion.div
+        className={`relative flex h-full min-h-0 flex-col overflow-y-auto bg-white px-6 pt-20 pb-28 text-foreground md:px-8 ${className}`}
+        data-auth-panel={mode}
+        data-auth-step="password-reset"
+        data-page-surface="auth-panel"
+        layout="position"
+        transition={authSharedLayoutTransition}
+      >
+        <div className="flex min-h-0 flex-1 items-center justify-center">
+          <div className="w-full max-w-[23rem] text-foreground">
+            <motion.div
+              className="space-y-3 text-left"
+              layout
+              transition={authSharedLayoutTransition}
+            >
+              <motion.h1
+                className="text-[2rem] leading-tight font-semibold tracking-normal text-foreground"
+                layout="position"
+                transition={authSharedLayoutTransition}
+              >
+                {resetTitle}
+              </motion.h1>
+              <p className="text-sm leading-6 text-muted-foreground">
+                {locale === "en"
+                  ? `Enter the 6-digit code sent to ${passwordResetEmail}, then choose a new password.`
+                  : `Masukkan 6 digit kode yang dikirim ke ${passwordResetEmail}, lalu buat sandi baru.`}
+              </p>
+            </motion.div>
+
+            <motion.form
+              className="mt-8"
+              layout
+              onSubmit={handleSubmit}
+              transition={authSharedLayoutTransition}
+            >
+              <OtpCodeInput
+                isInvalid={Boolean(errorMessage)}
+                locale={locale}
+                onChange={setConfirmationCode}
+                value={confirmationCode}
+              />
+
+              <AuthInput
+                ariaDescribedBy="password-requirements"
+                className="mt-6"
+                field={{
+                  autoComplete: "new-password",
+                  id: "auth-reset-password",
+                  label: locale === "en" ? "New Password" : "Sandi Baru",
+                  placeholder: "",
+                  type: "password",
+                }}
+                isInvalid={showPasswordResetError}
+                onBlur={() => setPasswordTouched(true)}
+                onChange={setPasswordResetPassword}
+                value={passwordResetPassword}
+              >
+                <PasswordRequirements
+                  error={showPasswordResetError ? passwordError : ""}
+                  locale={locale}
+                  password={passwordResetPassword}
+                  ruleState={passwordRuleState}
+                />
+              </AuthInput>
+
+              <AuthInput
+                ariaDescribedBy="confirm-password-status"
+                className="mt-6"
+                field={{
+                  autoComplete: "new-password",
+                  id: "auth-reset-confirm-password",
+                  label: locale === "en" ? "Confirm New Password" : "Konfirmasi Sandi Baru",
+                  placeholder: "",
+                  type: "password",
+                }}
+                isInvalid={showPasswordResetConfirmPasswordError}
+                onBlur={() => setConfirmPasswordTouched(true)}
+                onChange={setPasswordResetConfirmPassword}
+                value={passwordResetConfirmPassword}
+              >
+                <ConfirmPasswordStatus
+                  isMatch={
+                    passwordResetConfirmPassword.length > 0 &&
+                    passwordResetPassword === passwordResetConfirmPassword
+                  }
+                  isVisible={showPasswordResetConfirmPasswordError}
+                  locale={locale}
+                  message={passwordResetConfirmPasswordError}
+                />
+              </AuthInput>
+
+              {errorMessage ? (
+                <p className="mt-5 text-sm leading-6 font-medium text-rose-700" role="alert">
+                  {errorMessage}
+                </p>
+              ) : null}
+              {renderedStatusMessage ? (
+                <p className="mt-5 text-sm leading-6 text-muted-foreground" aria-live="polite">
+                  {renderedStatusMessage}
+                </p>
+              ) : null}
+
+              <motion.button
+                className="mt-6 inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-none bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:bg-zinc-400"
+                disabled={isSubmitting}
+                layout="position"
+                layoutId="auth-submit-button"
+                transition={authSharedLayoutTransition}
+                type="submit"
+              >
+                {getSubmitLabel({
+                  isConfirmingAccount,
+                  isResettingPassword,
+                  isSubmitting,
+                  locale,
+                  submit: copy.submit,
+                })}
+              </motion.button>
+
+              <div className="mt-5 flex flex-col items-center gap-3 text-sm sm:flex-row sm:justify-between">
+                <button
+                  className="inline-flex cursor-pointer items-center gap-2 font-semibold text-foreground transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+                  disabled={isSubmitting}
+                  onClick={handleBackToCredentials}
+                  type="button"
+                >
+                  <HugeiconsIcon
+                    aria-hidden="true"
+                    className="size-4"
+                    icon={ArrowLeft02Icon}
+                    strokeWidth={2}
+                  />
+                  {locale === "en" ? "Back" : "Kembali"}
+                </button>
+                <button
+                  className="cursor-pointer font-semibold text-foreground underline underline-offset-4 transition-colors hover:text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:text-neutral-400"
+                  disabled={!canResendCode}
+                  onClick={handleResendCode}
+                  type="button"
+                >
+                  {getResendCodeLabel(locale, resendCooldownSeconds)}
+                </button>
+              </div>
+            </motion.form>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
   if (isConfirmingAccount) {
     return (
       <motion.div
@@ -1054,6 +1289,7 @@ function AuthFormPanel({
               >
                 {getSubmitLabel({
                   isConfirmingAccount,
+                  isResettingPassword,
                   isSubmitting,
                   locale,
                   submit: copy.submit,
@@ -1134,6 +1370,16 @@ function AuthFormPanel({
             </AuthRevealSlot>
             {renderAuthInput(emailField, { labelAction: loginMethodToggle })}
             {renderAuthInput(passwordField, { className: "mt-6" })}
+            {!isRegister ? (
+              <button
+                className="mt-3 cursor-pointer text-xs font-semibold text-foreground underline underline-offset-4 transition-colors hover:text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:text-neutral-400"
+                disabled={isSubmitting}
+                onClick={handleForgotPassword}
+                type="button"
+              >
+                {locale === "en" ? "Forgot password?" : "Lupa sandi?"}
+              </button>
+            ) : null}
             <AuthRevealSlot isVisible={canShowConfirmPassword} spacing="before">
               {renderAuthInput(confirmPasswordField, {
                 isDisabled: !canShowConfirmPassword,
@@ -1188,6 +1434,7 @@ function AuthFormPanel({
             >
               {getSubmitLabel({
                 isConfirmingAccount,
+                isResettingPassword,
                 isSubmitting,
                 locale,
                 submit: copy.submit,
@@ -1765,6 +2012,10 @@ function getConfirmationStepTitle(locale: Locale) {
   return locale === "en" ? "Confirm your email" : "Konfirmasi email kamu";
 }
 
+function getSecondaryAuthStepTitle(locale: Locale) {
+  return locale === "en" ? "Verify your account" : "Verifikasi akun kamu";
+}
+
 function getConfirmationStepDescription(locale: Locale, email: string) {
   const trimmedEmail = email.trim();
 
@@ -1799,11 +2050,13 @@ function getResendCooldownUntil(result: { cooldownSeconds?: number; nextAllowedA
 
 function getSubmitLabel({
   isConfirmingAccount,
+  isResettingPassword,
   isSubmitting,
   locale,
   submit,
 }: {
   isConfirmingAccount: boolean;
+  isResettingPassword: boolean;
   isSubmitting: boolean;
   locale: Locale;
   submit: string;
@@ -1816,6 +2069,10 @@ function getSubmitLabel({
     return locale === "en" ? "Confirm email" : "Konfirmasi email";
   }
 
+  if (isResettingPassword) {
+    return locale === "en" ? "Reset password" : "Reset sandi";
+  }
+
   return submit;
 }
 
@@ -1826,25 +2083,31 @@ function getAuthStatusMessage(message: AuthStatusMessage, locale: Locale) {
       : "Kalau belum muncul, cek folder spam atau junk juga.";
   }
 
+  if (message.kind === "password-reset-complete") {
+    return locale === "en"
+      ? "Password reset complete. Sign in with the new password."
+      : "Reset sandi selesai. Masuk dengan sandi baru.";
+  }
+
+  if (message.kind === "password-reset-sent") {
+    return locale === "en"
+      ? "If the account is eligible, the reset code is valid for a short time. Check your spam or junk folder if it does not show up."
+      : "Jika akun memenuhi syarat, kode reset berlaku singkat. Cek folder spam atau junk kalau belum muncul.";
+  }
+
   return getConfirmationSentMessage(locale);
 }
 
 function getConfirmationSentMessage(locale: Locale) {
   if (locale === "en") {
-    return "The code is valid for 5 minutes. If it does not show up, check your spam or junk folder.";
+    return "If the request is eligible, the code is valid for 5 minutes. If it does not show up, check your spam or junk folder.";
   }
 
-  return "Kode berlaku 5 menit. Kalau belum muncul, cek folder spam atau junk juga.";
+  return "Jika permintaan memenuhi syarat, kode berlaku 5 menit. Kalau belum muncul, cek folder spam atau junk juga.";
 }
 
 function sanitizeOtpCode(value: string) {
   return value.replace(/\D/g, "").slice(0, OTP_CODE_LENGTH);
-}
-
-function getRegisteredEmailErrorMessage(locale: Locale) {
-  return locale === "en"
-    ? "This email is already registered. Sign in instead."
-    : "Email ini sudah terdaftar. Masuk saja.";
 }
 
 function getAuthErrorMessage(error: unknown, locale: Locale) {
@@ -1863,6 +2126,10 @@ function getAuthErrorMessage(error: unknown, locale: Locale) {
         en: "Auth is not configured yet. Deploy the backend and set the Cognito env values.",
         id: "Auth belum dikonfigurasi. Deploy backend dulu lalu isi env Cognito.",
       },
+      AuthRateLimitExceededException: {
+        en: "Too many auth requests. Please wait a moment, then try again.",
+        id: "Terlalu banyak permintaan auth. Tunggu sebentar, lalu coba lagi.",
+      },
       CodeMismatchException: {
         en: "The verification code is not correct.",
         id: "Kode verifikasi belum benar.",
@@ -1872,12 +2139,16 @@ function getAuthErrorMessage(error: unknown, locale: Locale) {
         id: "Kode verifikasi sudah kedaluwarsa. Kirim ulang kode.",
       },
       InvalidPasswordException: {
-        en: "Password must be at least 8 characters and include uppercase, lowercase, and number.",
-        id: "Sandi minimal 8 karakter dan punya huruf besar, huruf kecil, serta angka.",
+        en: "Password must be at least 12 characters and include uppercase, lowercase, number, and symbol.",
+        id: "Sandi minimal 12 karakter dan punya huruf besar, huruf kecil, angka, serta simbol.",
       },
       InvalidUsernameException: {
         en: "Check the username format first.",
         id: "Cek format username dulu.",
+      },
+      LimitExceededException: {
+        en: "Too many auth requests. Please wait a moment, then try again.",
+        id: "Terlalu banyak permintaan auth. Tunggu sebentar, lalu coba lagi.",
       },
       NotAuthorizedException: {
         en: "Username/email or password is not correct.",
@@ -1892,12 +2163,12 @@ function getAuthErrorMessage(error: unknown, locale: Locale) {
         id: "Terlalu banyak percobaan kode yang gagal. Kirim kode baru.",
       },
       UsernameExistsException: {
-        en: getRegisteredEmailErrorMessage("en"),
-        id: getRegisteredEmailErrorMessage("id"),
+        en: "If the request is eligible, check your email for the next step.",
+        id: "Jika permintaan memenuhi syarat, cek email kamu untuk langkah berikutnya.",
       },
       UserNotFoundException: {
-        en: "No account was found for that username/email.",
-        id: "Akun dengan username/email itu belum ditemukan.",
+        en: "Username/email or password is not correct.",
+        id: "Username/email atau sandi belum sesuai.",
       },
     };
 
@@ -1928,8 +2199,9 @@ function shouldReduceMotion() {
 function getPasswordRuleState(password: string): Record<PasswordRule, boolean> {
   return {
     case: /[a-z]/.test(password) && /[A-Z]/.test(password),
-    length: password.length >= 8,
+    length: password.length >= passwordMinLength,
     number: /[0-9]/.test(password),
+    symbol: Array.from(password).some((character) => passwordSymbols.includes(character)),
   };
 }
 
@@ -1942,8 +2214,8 @@ function getPasswordValidationMessage(password: string, locale: Locale) {
 
   if (!ruleState.length) {
     return locale === "en"
-      ? "Password must be at least 8 characters."
-      : "Sandi minimal 8 karakter.";
+      ? "Password must be at least 12 characters."
+      : "Sandi minimal 12 karakter.";
   }
 
   if (!ruleState.case) {
@@ -1954,6 +2226,10 @@ function getPasswordValidationMessage(password: string, locale: Locale) {
 
   if (!ruleState.number) {
     return locale === "en" ? "Password must include a number." : "Sandi harus punya angka.";
+  }
+
+  if (!ruleState.symbol) {
+    return locale === "en" ? "Password must include a symbol." : "Sandi harus punya simbol.";
   }
 
   return "";

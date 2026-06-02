@@ -1,0 +1,359 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  clearLearningBackendProxyRateLimitsForTests,
+  handleLearningBackendProxyRequest,
+} from "./learning-backend-proxy";
+
+const trustedLearningBackendUrl = "https://backend.lambda-url.ap-southeast-1.on.aws";
+
+describe("learning backend proxy", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    clearLearningBackendProxyRateLimitsForTests();
+  });
+
+  it("forwards allowed backend requests with auth and original source headers", async () => {
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        headers: { "content-type": "application/json; charset=utf-8" },
+        status: 200,
+      }),
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    const response = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: `${trustedLearningBackendUrl}/`,
+      },
+      params: { path: ["progress"] },
+      request: new Request("https://smile.test/api/learning-backend/progress?token=leaky", {
+        headers: {
+          authorization: "Bearer token",
+          "cf-connecting-ip": "203.0.113.10",
+        },
+        method: "GET",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(String(fetch.mock.calls[0]?.[0])).toBe(`${trustedLearningBackendUrl}/progress`);
+
+    const init = fetch.mock.calls[0]?.[1] as RequestInit;
+    const headers = init.headers as Headers;
+
+    expect(headers.get("authorization")).toBe("Bearer token");
+    expect(headers.get("cf-connecting-ip")).toBe("203.0.113.10");
+    expect(headers.get("x-forwarded-for")).toBe("203.0.113.10");
+    expect(headers.get("x-smile-learning-backend-proxy-secret")).toBe("proxy-secret");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("ignores spoofable source headers when Cloudflare source is absent", async () => {
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        headers: { "content-type": "application/json; charset=utf-8" },
+        status: 200,
+      }),
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    const response = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      },
+      params: { path: ["progress"] },
+      request: new Request("https://smile.test/api/learning-backend/progress", {
+        headers: {
+          authorization: "Bearer token",
+          "x-forwarded-for": "198.51.100.30",
+          "x-real-ip": "198.51.100.31",
+        },
+        method: "GET",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+
+    const init = fetch.mock.calls[0]?.[1] as RequestInit;
+    const headers = init.headers as Headers;
+
+    expect(headers.get("cf-connecting-ip")).toBe("unknown");
+    expect(headers.get("x-forwarded-for")).toBe("unknown");
+  });
+
+  it("does not forward bearer tokens from public auth requests", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ message: "backend" }), { status: 400 }));
+    vi.stubGlobal("fetch", fetch);
+
+    const response = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      },
+      params: { path: ["auth", "email", "sign-in"] },
+      request: new Request("https://smile.test/api/learning-backend/auth/email/sign-in", {
+        body: JSON.stringify({ email: "student@example.com", password: "StrongPass1!" }),
+        headers: {
+          authorization: "Bearer stale-token",
+          "content-type": "application/json",
+        },
+        method: "POST",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+
+    const init = fetch.mock.calls[0]?.[1] as RequestInit;
+    const headers = init.headers as Headers;
+
+    expect(headers.get("authorization")).toBeNull();
+    expect(headers.get("content-type")).toBe("application/json");
+    expect(headers.get("x-smile-learning-backend-proxy-secret")).toBe("proxy-secret");
+  });
+
+  it("rate limits repeated public auth requests at the edge", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ message: "backend" }), { status: 400 }));
+    vi.stubGlobal("fetch", fetch);
+
+    const createRequest = () =>
+      new Request("https://smile.test/api/learning-backend/auth/username/sign-in", {
+        body: JSON.stringify({ password: "StrongPass1!", username: "student_one" }),
+        headers: {
+          "cf-connecting-ip": "203.0.113.20",
+          "content-type": "application/json",
+        },
+        method: "POST",
+      });
+
+    const firstResponse = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      },
+      params: { path: ["auth", "username", "sign-in"] },
+      request: createRequest(),
+    });
+    const secondResponse = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      },
+      params: { path: ["auth", "username", "sign-in"] },
+      request: createRequest(),
+    });
+
+    expect(firstResponse.status).toBe(400);
+    expect(secondResponse.status).toBe(429);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await expect(secondResponse.json()).resolves.toMatchObject({
+      code: "AuthRateLimitExceededException",
+    });
+  });
+
+  it("rate limits refresh requests by user sub without requiring email", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ message: "backend" }), { status: 400 }));
+    vi.stubGlobal("fetch", fetch);
+
+    const createRequest = (source: string) =>
+      new Request("https://smile.test/api/learning-backend/auth/session/refresh", {
+        body: JSON.stringify({
+          refreshToken: "refresh-token",
+          userSub: "student-sub",
+        }),
+        headers: {
+          "cf-connecting-ip": source,
+          "content-type": "application/json",
+        },
+        method: "POST",
+      });
+
+    const firstResponse = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      },
+      params: { path: ["auth", "session", "refresh"] },
+      request: createRequest("203.0.113.20"),
+    });
+    const secondResponse = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      },
+      params: { path: ["auth", "session", "refresh"] },
+      request: createRequest("203.0.113.21"),
+    });
+
+    expect(firstResponse.status).toBe(400);
+    expect(secondResponse.status).toBe(429);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails closed for non-health routes when the proxy secret env is missing", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+
+    const response = await handleLearningBackendProxyRequest({
+      env: { LEARNING_BACKEND_URL: trustedLearningBackendUrl },
+      params: { path: ["progress"] },
+      request: new Request("https://smile.test/api/learning-backend/progress", {
+        headers: {
+          authorization: "Bearer token",
+        },
+        method: "GET",
+      }),
+    });
+
+    expect(response.status).toBe(500);
+    expect(fetch).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toMatchObject({
+      message: "Learning backend proxy secret is not configured.",
+    });
+  });
+
+  it("rejects backend methods outside the proxy allowlist", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+
+    const response = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      },
+      params: { path: ["progress"] },
+      request: new Request("https://smile.test/api/learning-backend/progress", {
+        method: "POST",
+      }),
+    });
+
+    expect(response.status).toBe(405);
+    expect(fetch).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toMatchObject({
+      message: "Learning backend method is not allowed.",
+    });
+  });
+
+  it("rejects unknown auth routes at the edge", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+
+    const response = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      },
+      params: { path: ["auth", "session", "revoke"] },
+      request: new Request("https://smile.test/api/learning-backend/auth/session/revoke", {
+        body: JSON.stringify({ refreshToken: "refresh-token" }),
+        method: "POST",
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(fetch).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toMatchObject({
+      message: "Learning backend route not found.",
+    });
+  });
+
+  it("does not proxy the deprecated username resolution compatibility route", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+
+    const response = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      },
+      params: { path: ["auth", "username", "resolve"] },
+      request: new Request("https://smile.test/api/learning-backend/auth/username/resolve", {
+        body: JSON.stringify({ username: "student_one" }),
+        method: "POST",
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(fetch).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toMatchObject({
+      message: "Learning backend route not found.",
+    });
+  });
+
+  it("rejects oversized backend request bodies at the edge", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+
+    const response = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      },
+      params: { path: ["auth", "email", "sign-in"] },
+      request: new Request("https://smile.test/api/learning-backend/auth/email/sign-in", {
+        body: "x".repeat(300_001),
+        method: "POST",
+      }),
+    });
+
+    expect(response.status).toBe(413);
+    expect(fetch).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toMatchObject({
+      message: "Learning backend request body is too large.",
+    });
+  });
+
+  it("fails closed when the backend URL env is missing", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+
+    const response = await handleLearningBackendProxyRequest({
+      params: { path: ["health"] },
+      request: new Request("https://smile.test/api/learning-backend/health"),
+    });
+
+    expect(response.status).toBe(500);
+    expect(fetch).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toMatchObject({
+      message: "Learning backend URL is not configured.",
+    });
+  });
+
+  it.each([
+    ["plain HTTP", "http://backend.lambda-url.ap-southeast-1.on.aws"],
+    ["non-Lambda host", "https://backend.example.test"],
+    ["URL with credentials", "https://user:pass@backend.lambda-url.ap-southeast-1.on.aws"],
+  ])("fails closed when the backend URL env is %s", async (_label, backendUrl) => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+
+    const response = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: backendUrl,
+      },
+      params: { path: ["progress"] },
+      request: new Request("https://smile.test/api/learning-backend/progress", {
+        headers: {
+          authorization: "Bearer token",
+        },
+        method: "GET",
+      }),
+    });
+
+    expect(response.status).toBe(500);
+    expect(fetch).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toMatchObject({
+      message: "Learning backend URL is not a trusted Lambda Function URL.",
+    });
+  });
+});

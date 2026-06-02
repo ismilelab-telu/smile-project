@@ -1,22 +1,6 @@
 import { createAuthSession, type AuthSession } from "./auth-session";
 import { getLearningBackendUrl } from "@/lib/learning-backend-url";
 
-type ViteImportMeta = ImportMeta & {
-  env?: {
-    VITE_COGNITO_CLIENT_ID?: string;
-    VITE_COGNITO_REGION?: string;
-    VITE_COGNITO_USER_POOL_ID?: string;
-  };
-};
-
-type CognitoTarget = "InitiateAuth";
-
-type CognitoErrorBody = {
-  __type?: string;
-  code?: string;
-  message?: string;
-};
-
 type BackendSignUpResponse = {
   CodeDeliveryDetails?: {
     AttributeName?: string;
@@ -26,20 +10,19 @@ type BackendSignUpResponse = {
   UserConfirmed?: boolean;
 };
 
-type CognitoInitiateAuthResponse = {
-  AuthenticationResult?: {
-    AccessToken?: string;
-    ExpiresIn?: number;
-    IdToken?: string;
-    RefreshToken?: string;
-  };
+type CognitoAuthResult = {
+  AccessToken?: string;
+  ExpiresIn?: number;
+  IdToken?: string;
+  RefreshToken?: string;
 };
 
+type CognitoCodeDeliveryResponse = Pick<BackendSignUpResponse, "CodeDeliveryDetails">;
+
 type LearningBackendAuthResponse = {
-  authenticationResult?: CognitoInitiateAuthResponse["AuthenticationResult"];
+  authenticationResult?: CognitoAuthResult;
   code?: string;
   cooldownSeconds?: number;
-  email?: string;
   message?: string;
   nextAllowedAt?: number;
   retryAfterSeconds?: number;
@@ -63,24 +46,8 @@ export class CognitoAuthError extends Error {
   }
 }
 
-export function getCognitoConfig() {
-  const env = (import.meta as ViteImportMeta).env;
-  const region = env?.VITE_COGNITO_REGION?.trim() ?? "";
-  const userPoolId = env?.VITE_COGNITO_USER_POOL_ID?.trim() ?? "";
-  const clientId = env?.VITE_COGNITO_CLIENT_ID?.trim() ?? "";
-
-  return {
-    clientId,
-    isConfigured: Boolean(region && userPoolId && clientId),
-    region,
-    userPoolId,
-  };
-}
-
 export async function signUpWithCognito({ email, name }: { email: string; name: string }) {
-  requireCognitoConfig();
-
-  const response = await fetch(`${getLearningBackendUrl()}/auth/sign-up/start`, {
+  const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/sign-up/start`, {
     body: JSON.stringify({ email, name }),
     headers: {
       "content-type": "application/json",
@@ -110,7 +77,7 @@ export async function confirmSignUpWithCognito({
   email: string;
   password: string;
 }) {
-  const response = await fetch(`${getLearningBackendUrl()}/auth/confirmation/confirm`, {
+  const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/confirmation/confirm`, {
     body: JSON.stringify({ code, email, password }),
     headers: {
       "content-type": "application/json",
@@ -124,12 +91,16 @@ export async function confirmSignUpWithCognito({
     throw new CognitoAuthError(
       errorCode,
       responseBody.message ?? getFallbackCognitoErrorMessage(errorCode),
+      {
+        nextAllowedAt: responseBody.nextAllowedAt,
+        retryAfterSeconds: responseBody.retryAfterSeconds,
+      },
     );
   }
 }
 
 export async function resendConfirmationCodeWithCognito(email: string) {
-  const response = await fetch(`${getLearningBackendUrl()}/auth/confirmation/resend`, {
+  const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/confirmation/resend`, {
     body: JSON.stringify({ email }),
     headers: {
       "content-type": "application/json",
@@ -152,19 +123,83 @@ export async function resendConfirmationCodeWithCognito(email: string) {
   };
 }
 
-export async function signInWithCognito({ email, password }: { email: string; password: string }) {
-  const config = requireCognitoConfig();
-  const response = await cognitoRequest<CognitoInitiateAuthResponse>("InitiateAuth", {
-    AuthFlow: "USER_PASSWORD_AUTH",
-    AuthParameters: {
-      PASSWORD: password,
-      USERNAME: email,
+export async function requestPasswordResetWithCognito(email: string) {
+  const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/password-reset/request`, {
+    body: JSON.stringify({ email }),
+    headers: {
+      "content-type": "application/json",
     },
-    ClientId: config.clientId,
+    method: "POST",
   });
+  const responseBody = (await response.json().catch(() => ({}))) as CognitoCodeDeliveryResponse &
+    LearningBackendAuthResponse;
+
+  if (!response.ok) {
+    const code = responseBody.code ?? "CognitoError";
+    throw new CognitoAuthError(code, responseBody.message ?? getFallbackCognitoErrorMessage(code), {
+      nextAllowedAt: responseBody.nextAllowedAt,
+      retryAfterSeconds: responseBody.retryAfterSeconds,
+    });
+  }
+
+  return responseBody;
+}
+
+export async function confirmPasswordResetWithCognito({
+  code,
+  email,
+  password,
+}: {
+  code: string;
+  email: string;
+  password: string;
+}) {
+  const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/password-reset/confirm`, {
+    body: JSON.stringify({ code, email, password }),
+    headers: {
+      "content-type": "application/json",
+    },
+    method: "POST",
+  });
+  const responseBody = (await response.json().catch(() => ({}))) as LearningBackendAuthResponse;
+
+  if (!response.ok) {
+    const errorCode = responseBody.code ?? "CognitoError";
+    throw new CognitoAuthError(
+      errorCode,
+      responseBody.message ?? getFallbackCognitoErrorMessage(errorCode),
+      {
+        nextAllowedAt: responseBody.nextAllowedAt,
+        retryAfterSeconds: responseBody.retryAfterSeconds,
+      },
+    );
+  }
+}
+
+export async function signInWithCognito({ email, password }: { email: string; password: string }) {
+  const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/email/sign-in`, {
+    body: JSON.stringify({ email, password }),
+    headers: {
+      "content-type": "application/json",
+    },
+    method: "POST",
+  });
+  const responseBody = (await response.json().catch(() => ({}))) as LearningBackendAuthResponse;
+
+  if (!response.ok) {
+    const code = responseBody.code ?? "CognitoError";
+    throw new CognitoAuthError(code, responseBody.message ?? getFallbackCognitoErrorMessage(code), {
+      nextAllowedAt: responseBody.nextAllowedAt,
+      retryAfterSeconds: responseBody.retryAfterSeconds,
+    });
+  }
+
+  if (!responseBody.authenticationResult) {
+    throw new CognitoAuthError("CognitoError", "Backend did not return a complete auth session.");
+  }
 
   return createAuthSession({
-    authResult: response.AuthenticationResult ?? {},
+    authResult: responseBody.authenticationResult,
     fallbackEmail: email,
   });
 }
@@ -176,8 +211,8 @@ export async function signInWithUsername({
   password: string;
   username: string;
 }) {
-  const response = await fetch(`${getLearningBackendUrl()}/auth/username/resolve`, {
-    body: JSON.stringify({ username }),
+  const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/username/sign-in`, {
+    body: JSON.stringify({ password, username }),
     headers: {
       "content-type": "application/json",
     },
@@ -187,85 +222,64 @@ export async function signInWithUsername({
 
   if (!response.ok) {
     const code = responseBody.code ?? "CognitoError";
-    throw new CognitoAuthError(code, responseBody.message ?? getFallbackCognitoErrorMessage(code));
+    throw new CognitoAuthError(code, responseBody.message ?? getFallbackCognitoErrorMessage(code), {
+      nextAllowedAt: responseBody.nextAllowedAt,
+      retryAfterSeconds: responseBody.retryAfterSeconds,
+    });
   }
 
-  const email = responseBody.email?.trim();
-  if (!email) {
-    throw new CognitoAuthError("CognitoError", "Backend did not return a sign-in email.");
+  if (!responseBody.authenticationResult) {
+    throw new CognitoAuthError("CognitoError", "Backend did not return a complete auth session.");
   }
-
-  const config = requireCognitoConfig();
-  const cognitoResponse = await cognitoRequest<CognitoInitiateAuthResponse>("InitiateAuth", {
-    AuthFlow: "USER_PASSWORD_AUTH",
-    AuthParameters: {
-      PASSWORD: password,
-      USERNAME: email,
-    },
-    ClientId: config.clientId,
-  });
 
   return createAuthSession({
-    authResult: cognitoResponse.AuthenticationResult ?? {},
-    fallbackEmail: email,
+    authResult: responseBody.authenticationResult,
     fallbackName: username,
   });
 }
 
 export async function refreshCognitoSession(session: AuthSession) {
-  const config = requireCognitoConfig();
-  const response = await cognitoRequest<CognitoInitiateAuthResponse>("InitiateAuth", {
-    AuthFlow: "REFRESH_TOKEN_AUTH",
-    AuthParameters: {
-      REFRESH_TOKEN: session.refreshToken,
+  const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/session/refresh`, {
+    body: JSON.stringify({
+      refreshToken: session.refreshToken,
+      userSub: session.user.sub,
+    }),
+    headers: {
+      "content-type": "application/json",
     },
-    ClientId: config.clientId,
+    method: "POST",
   });
+  const responseBody = (await response.json().catch(() => ({}))) as LearningBackendAuthResponse;
+
+  if (!response.ok) {
+    const code = responseBody.code ?? "CognitoError";
+    throw new CognitoAuthError(code, responseBody.message ?? getFallbackCognitoErrorMessage(code), {
+      nextAllowedAt: responseBody.nextAllowedAt,
+      retryAfterSeconds: responseBody.retryAfterSeconds,
+    });
+  }
+
+  if (!responseBody.authenticationResult) {
+    throw new CognitoAuthError("CognitoError", "Backend did not return a complete auth session.");
+  }
 
   return createAuthSession({
-    authResult: response.AuthenticationResult ?? {},
+    authResult: responseBody.authenticationResult,
     fallbackEmail: session.user.email,
     fallbackName: session.user.name,
     previousRefreshToken: session.refreshToken,
   });
 }
 
-function requireCognitoConfig() {
-  const config = getCognitoConfig();
-
-  if (!config.isConfigured) {
+function requireLearningBackendAuthUrl() {
+  try {
+    return getLearningBackendUrl();
+  } catch {
     throw new CognitoAuthError(
       "AuthNotConfigured",
-      "Auth belum dikonfigurasi. Jalankan deploy backend lalu isi env Cognito.",
+      "Auth belum dikonfigurasi. Isi env URL backend learning.",
     );
   }
-
-  return config;
-}
-
-async function cognitoRequest<T>(target: CognitoTarget, body: unknown): Promise<T> {
-  const config = requireCognitoConfig();
-  const response = await fetch(`https://cognito-idp.${config.region}.amazonaws.com/`, {
-    body: JSON.stringify(body),
-    headers: {
-      "content-type": "application/x-amz-json-1.1",
-      "x-amz-target": `AWSCognitoIdentityProviderService.${target}`,
-    },
-    method: "POST",
-  });
-
-  const responseBody = (await response.json().catch(() => ({}))) as CognitoErrorBody;
-
-  if (!response.ok) {
-    const code = getCognitoErrorCode(responseBody);
-    throw new CognitoAuthError(code, responseBody.message ?? getFallbackCognitoErrorMessage(code));
-  }
-
-  return responseBody as T;
-}
-
-function getCognitoErrorCode(body: CognitoErrorBody) {
-  return (body.__type ?? body.code ?? "CognitoError").split("#").pop() ?? "CognitoError";
 }
 
 function getFallbackCognitoErrorMessage(code: string) {

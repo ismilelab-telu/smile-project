@@ -6,7 +6,11 @@ Parameters:
   AllowedOrigins:
     Type: CommaDelimitedList
     Default: "http://127.0.0.1:5317,http://localhost:5317"
-    Description: Browser origins allowed to call the Lambda Function URL and upload to S3.
+    Description: Browser origins allowed to upload directly to S3 with presigned URLs.
+  FunctionUrlAllowedOrigins:
+    Type: CommaDelimitedList
+    Default: "http://127.0.0.1:5317,http://localhost:5317"
+    Description: Local/dev browser origins allowed to call the Lambda Function URL directly. Production browser traffic should use the Cloudflare Pages proxy.
   ResendApiKeySecretName:
     Type: String
     Default: "smile/resend/api-key"
@@ -19,6 +23,18 @@ Parameters:
     Type: String
     Default: ""
     Description: Optional reply-to email address for Cognito auth emails.
+  LearningBackendProxySecret:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Shared secret that allows the Cloudflare Pages proxy to pass original source IP headers.
+  LearningBackendRequireProxySecret:
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Require the Cloudflare Pages proxy secret for every non-health HTTP backend route.
 
 Globals:
   Function:
@@ -110,6 +126,7 @@ Resources:
     Type: AWS::Cognito::UserPool
     Properties:
       UserPoolName: !Sub "${AWS::StackName}-users"
+      DeletionProtection: ACTIVE
       UsernameAttributes:
         - email
       AutoVerifiedAttributes:
@@ -122,10 +139,10 @@ Resources:
         AllowAdminCreateUserOnly: true
       Policies:
         PasswordPolicy:
-          MinimumLength: 8
+          MinimumLength: 12
           RequireLowercase: true
           RequireNumbers: true
-          RequireSymbols: false
+          RequireSymbols: true
           RequireUppercase: true
       Schema:
         - Name: email
@@ -149,13 +166,13 @@ Resources:
     Properties:
       ClientName: !Sub "${AWS::StackName}-web-client"
       UserPoolId: !Ref SmileUserPool
-      GenerateSecret: false
+      GenerateSecret: true
       ExplicitAuthFlows:
-        - ALLOW_USER_PASSWORD_AUTH
-        - ALLOW_USER_SRP_AUTH
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
         - ALLOW_REFRESH_TOKEN_AUTH
       PreventUserExistenceErrors: ENABLED
-      RefreshTokenValidity: 30
+      EnableTokenRevocation: true
+      RefreshTokenValidity: 7
       AccessTokenValidity: 1
       IdTokenValidity: 1
       TokenValidityUnits:
@@ -201,15 +218,21 @@ Resources:
           AUTH_COOLDOWN_TABLE: !Ref AuthCooldownTable
           AUTH_RESEND_COOLDOWN_SECONDS: "30"
           AUTH_CONFIRMATION_CODE_TTL_SECONDS: "300"
+          AUTH_PUBLIC_REQUEST_COOLDOWN_SECONDS: "3"
+          AUTH_SIGN_IN_COOLDOWN_SECONDS: "2"
+          AUTH_SIGN_UP_COOLDOWN_SECONDS: "5"
           MAX_ZIP_BYTES: "52428800"
           MAX_UNZIPPED_BYTES: "104857600"
           MAX_PROGRESS_JSON_BYTES: "300000"
           COGNITO_USER_POOL_ID: !Ref SmileUserPool
           COGNITO_CLIENT_ID: !Ref SmileUserPoolClient
+          COGNITO_CLIENT_SECRET: !GetAtt SmileUserPoolClient.ClientSecret
           COGNITO_REGION: !Ref AWS::Region
           RESEND_API_KEY_SECRET_ID: !Ref ResendApiKeySecretName
           RESEND_FROM_EMAIL: !Ref ResendFromEmail
           RESEND_REPLY_TO_EMAIL: !Ref ResendReplyToEmail
+          LEARNING_BACKEND_PROXY_SECRET: !Ref LearningBackendProxySecret
+          LEARNING_BACKEND_REQUIRE_PROXY_SECRET: !Ref LearningBackendRequireProxySecret
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref DatasetUploadBucket
@@ -225,7 +248,10 @@ Resources:
                 - cognito-idp:AdminCreateUser
                 - cognito-idp:AdminDeleteUser
                 - cognito-idp:AdminGetUser
+                - cognito-idp:AdminInitiateAuth
                 - cognito-idp:AdminSetUserPassword
+                - cognito-idp:ConfirmForgotPassword
+                - cognito-idp:ForgotPassword
               Resource: !GetAtt SmileUserPool.Arn
             - Effect: Allow
               Action:
@@ -234,7 +260,7 @@ Resources:
       FunctionUrlConfig:
         AuthType: NONE
         Cors:
-          AllowOrigins: !Ref AllowedOrigins
+          AllowOrigins: !Ref FunctionUrlAllowedOrigins
           AllowMethods:
             - GET
             - POST
@@ -303,13 +329,13 @@ Outputs:
     Description: Public HTTPS endpoint for the learning backend.
     Value: !GetAtt LearningBackendFunctionUrl.FunctionUrl
   CognitoUserPoolId:
-    Description: Cognito user pool used by the Smile web app.
+    Description: Cognito user pool used by backend-owned auth.
     Value: !Ref SmileUserPool
   CognitoUserPoolClientId:
-    Description: Public Cognito app client ID used by the Smile web app.
+    Description: Confidential Cognito app client ID used by backend-owned auth.
     Value: !Ref SmileUserPoolClient
   CognitoRegion:
-    Description: Cognito region used by the Smile web app.
+    Description: Cognito region used by backend-owned auth.
     Value: !Ref AWS::Region
   DatasetUploadBucketName:
     Description: Private temporary dataset upload bucket.

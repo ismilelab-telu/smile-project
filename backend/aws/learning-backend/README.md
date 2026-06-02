@@ -10,14 +10,29 @@ AWS SAM backend for dataset ZIP upload and Pandas loading validation.
 - `POST /auth/sign-up/start`: starts a backend-owned pending sign-up with email and username, then sends the verification code through Resend.
 - `POST /auth/confirmation/confirm`: verifies the backend-owned sign-up code, creates the Cognito user with admin APIs, and confirms the username reservation.
 - `POST /auth/confirmation/resend`: resends the backend-owned sign-up code with a backend-enforced cooldown.
-- `POST /auth/username/resolve`: resolves a confirmed username to the Cognito email used for client-side sign-in.
+- `POST /auth/email/sign-in`: signs in with email through backend-enforced public auth cooldowns.
+- `POST /auth/username/sign-in`: signs in with a confirmed display username without returning the resolved account email.
+- `POST /auth/username/resolve`: deprecated compatibility route that returns a generic sign-in failure if reached directly in local/dev; it is not exposed by the production Cloudflare Pages proxy.
+- `POST /auth/session/refresh`: refreshes a memory-held Cognito session through backend-owned Cognito auth.
+- `POST /auth/password-reset/request`: starts Cognito password reset through backend-enforced public auth cooldowns.
+- `POST /auth/password-reset/confirm`: confirms Cognito password reset through backend-enforced public auth cooldowns.
 - `GET /health`: basic health check.
 
 The backend does not execute submitted learner code with `exec` or `eval`. It compiles the submitted Python to get real syntax errors, extracts the allowed `pd.read_csv(...)` path from the AST, then runs Pandas from trusted backend code and returns the real dataframe output or Python/Pandas runtime error.
 
 Dataset upload, inspection, validation, and progress endpoints require `Authorization: Bearer <Cognito token>`.
 
-Usernames are reserved while a backend-owned sign-up is pending, then marked confirmed only after the backend verifies the code and creates the Cognito user. Pending reservations are not accepted for username sign-in. Username sign-in resolves the email through the backend, then sends the password directly to Cognito from the client.
+Usernames are reserved while a backend-owned sign-up is pending, then marked confirmed only after the backend verifies the code and creates the Cognito user. Pending reservations are not accepted for username sign-in. Username sign-in sends the username and password to the backend; the backend resolves the account email internally, calls Cognito, returns only Cognito tokens, and never returns the resolved email.
+
+The Cognito app client is confidential (`GenerateSecret: true`). Browser code does not call Cognito directly for password sign-in, username sign-in, password reset, or refresh. The backend owns those calls, sends Cognito `SECRET_HASH`, and uses `AdminInitiateAuth` for password and refresh-token auth. Do not re-enable public `USER_PASSWORD_AUTH` or `USER_SRP_AUTH` on the app client.
+
+Session refresh requests send only the refresh token and Cognito `sub`; they do not send account email. Refresh cooldowns are keyed by request source and `userSub`.
+
+Frontend, backend validation, and Cognito policy require passwords to be at least 12 characters and include lowercase, uppercase, number, and symbol.
+
+The Cognito user pool has deletion protection enabled. The app client has token revocation enabled and a 7 day refresh-token validity window, which matches the memory-only browser session posture.
+
+Public auth endpoints use DynamoDB-backed cooldowns by request source and identifier. Browser traffic should reach this backend through the Cloudflare Pages `/api/learning-backend` proxy, which applies an edge cooldown before AWS receives public auth requests, enforces exact route/method allowlists, validates that `LEARNING_BACKEND_URL` is a trusted HTTPS Lambda Function URL, rejects oversized request bodies, forwards no browser cookies, strips query strings, and forwards `Authorization` only to protected backend routes. The deprecated username resolution compatibility route is not exposed by the production proxy. The proxy and Lambda must share `LEARNING_BACKEND_PROXY_SECRET`; Lambda trusts only the proxy's `cf-connecting-ip` source header when that secret matches and otherwise falls back to the Function URL source IP. Production deploys keep `LEARNING_BACKEND_REQUIRE_PROXY_SECRET=true`, so direct Lambda Function URL app requests can only use `/health`; non-health app routes must arrive through the proxy.
 
 Sign-up emails are sent directly by the backend through Resend. Other Cognito auth emails, such as password recovery, still use a Cognito custom email sender trigger. Cognito encrypts those codes with a stack-owned KMS key, the Lambda decrypts the code, then sends the email through Resend.
 
@@ -44,10 +59,14 @@ sam validate --template-file backend/aws/learning-backend/template.yaml --region
 
 ## Deploy
 
-Deploy only after confirming the Cloudflare Pages origin to allow in CORS:
+Deploy only after confirming the Cloudflare Pages origin to allow in S3 CORS. Keep `FunctionUrlAllowedOrigins` limited to local/dev origins because production browser traffic must use the Cloudflare Pages proxy:
 
 ```bash
 cd backend/aws/learning-backend
 sam build
-sam deploy --parameter-overrides 'AllowedOrigins="http://127.0.0.1:5317,http://localhost:5317,https://YOUR-CLOUDFLARE-PAGES-DOMAIN" ResendApiKeySecretName="smile/resend/api-key" ResendFromEmail="Smile Lab <auth@smilelab.me>"'
+sam deploy --parameter-overrides 'AllowedOrigins="http://127.0.0.1:5317,http://localhost:5317,https://YOUR-CLOUDFLARE-PAGES-DOMAIN" FunctionUrlAllowedOrigins="http://127.0.0.1:5317,http://localhost:5317" ResendApiKeySecretName="smile/resend/api-key" LearningBackendProxySecret="REPLACE_WITH_RANDOM_64_HEX" LearningBackendRequireProxySecret="true"'
 ```
+
+The template default sender is `Smile Lab <auth@smilelab.me>`. If you override `ResendFromEmail`, verify the Lambda environment after deploy because shell and SAM parameter quoting can split display names with spaces.
+
+Build the frontend for production with `VITE_LEARNING_BACKEND_URL=/api/learning-backend` so backend traffic uses the Cloudflare Pages proxy. Configure Cloudflare Pages Function env `LEARNING_BACKEND_URL` from the SAM `LearningBackendFunctionUrl` output; the proxy rejects non-HTTPS, credentialed, path-scoped, or non-Lambda Function URL origins before forwarding sensitive headers. Configure the same random value as SAM `LearningBackendProxySecret` plus Cloudflare Pages Function secret `LEARNING_BACKEND_PROXY_SECRET`.

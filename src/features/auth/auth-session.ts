@@ -16,10 +16,6 @@ export type AuthSession = {
   user: AuthUser;
 };
 
-type StoredAuthSession = Omit<AuthSession, "refreshToken"> & {
-  refreshToken?: string;
-};
-
 type CognitoAuthResult = {
   AccessToken?: string;
   ExpiresIn?: number;
@@ -37,7 +33,7 @@ type JwtPayload = {
   username?: string;
 };
 
-let inMemoryRefreshToken = "";
+let inMemoryAuthSession: AuthSession | null = null;
 
 export function createAuthSession({
   authResult,
@@ -84,60 +80,37 @@ export function getStoredAuthSession({ includeExpired = false } = {}) {
     return null;
   }
 
-  const storedRawSession = window.sessionStorage.getItem(authStorageKey);
-  const rawSession = storedRawSession ?? migrateLegacyLocalAuthSession();
-
-  if (!rawSession) {
+  if (!inMemoryAuthSession) {
+    clearStoredAuthSessionData();
     return null;
   }
 
-  try {
-    const storedSession = JSON.parse(rawSession) as StoredAuthSession;
-
-    if (!isStoredAuthSessionShape(storedSession)) {
-      window.localStorage.removeItem(authStorageKey);
-      window.sessionStorage.removeItem(authStorageKey);
-      return null;
-    }
-
-    const session = hydrateStoredAuthSession(storedSession);
-
-    if (!storedRawSession || storedSession.refreshToken) {
-      writeStoredAuthSession(session);
-    }
-
-    if (!includeExpired && isAuthSessionExpired(session)) {
-      return null;
-    }
-
-    return session;
-  } catch {
+  if (!includeExpired && isAuthSessionExpired(inMemoryAuthSession)) {
     return null;
   }
+
+  return inMemoryAuthSession;
 }
 
 export function storeAuthSession(session: AuthSession) {
+  inMemoryAuthSession = session;
+
   if (typeof window === "undefined") {
     return;
   }
 
-  if (session.refreshToken) {
-    inMemoryRefreshToken = session.refreshToken;
-  }
-
-  writeStoredAuthSession(session);
-  window.localStorage.removeItem(authStorageKey);
+  clearStoredAuthSessionData();
   dispatchAuthSessionChanged();
 }
 
 export function clearAuthSession() {
+  inMemoryAuthSession = null;
+
   if (typeof window === "undefined") {
     return;
   }
 
-  window.sessionStorage.removeItem(authStorageKey);
-  window.localStorage.removeItem(authStorageKey);
-  inMemoryRefreshToken = "";
+  clearStoredAuthSessionData();
   dispatchAuthSessionChanged();
 }
 
@@ -151,56 +124,9 @@ export function getAuthAuthorizationHeader() {
   return session ? `Bearer ${session.idToken}` : "";
 }
 
-function isStoredAuthSessionShape(value: unknown): value is StoredAuthSession {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const session = value as Partial<StoredAuthSession>;
-
-  return (
-    typeof session.accessToken === "string" &&
-    typeof session.expiresAt === "number" &&
-    typeof session.idToken === "string" &&
-    (session.refreshToken === undefined || typeof session.refreshToken === "string") &&
-    Boolean(session.user) &&
-    typeof session.user?.email === "string" &&
-    typeof session.user?.name === "string"
-  );
-}
-
-function hydrateStoredAuthSession(storedSession: StoredAuthSession): AuthSession {
-  if (storedSession.refreshToken) {
-    inMemoryRefreshToken = storedSession.refreshToken;
-  }
-
-  return {
-    ...storedSession,
-    refreshToken: inMemoryRefreshToken,
-  };
-}
-
-function writeStoredAuthSession(session: AuthSession) {
-  const storedSession: StoredAuthSession = {
-    accessToken: session.accessToken,
-    expiresAt: session.expiresAt,
-    idToken: session.idToken,
-    user: session.user,
-  };
-
-  window.sessionStorage.setItem(authStorageKey, JSON.stringify(storedSession));
-}
-
-function migrateLegacyLocalAuthSession() {
-  const rawSession = window.localStorage.getItem(authStorageKey);
-
-  if (!rawSession) {
-    return null;
-  }
-
+function clearStoredAuthSessionData() {
   window.localStorage.removeItem(authStorageKey);
-
-  return rawSession;
+  window.sessionStorage.removeItem(authStorageKey);
 }
 
 function dispatchAuthSessionChanged() {

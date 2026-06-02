@@ -65,7 +65,9 @@ function renderProgressProbe() {
 describe("learning progress auth ownership", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+    vi.stubEnv("VITE_LEARNING_BACKEND_URL", "https://backend.example.test");
     clearAuthSession();
     window.localStorage.clear();
     window.sessionStorage.clear();

@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { authStorageKey, storeAuthSession, type AuthSession } from "@/features/auth/auth-session";
+import {
+  authStorageKey,
+  clearAuthSession,
+  storeAuthSession,
+  type AuthSession,
+} from "@/features/auth/auth-session";
 import { inspectGuidedDownloadArchiveWithBackend } from "./learning-backend";
 
 function seedAuthSession(partial: Partial<AuthSession> = {}) {
@@ -24,7 +29,10 @@ describe("learning backend auth", () => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+    vi.stubEnv("VITE_LEARNING_BACKEND_URL", "https://backend.example.test");
+    clearAuthSession();
     window.localStorage.clear();
+    window.sessionStorage.clear();
   });
 
   it("does not create a guest upload request without a signed-in session", async () => {
@@ -75,9 +83,6 @@ describe("learning backend auth", () => {
   });
 
   it("refreshes a stale token before sending guided backend requests", async () => {
-    vi.stubEnv("VITE_COGNITO_CLIENT_ID", "web-client");
-    vi.stubEnv("VITE_COGNITO_REGION", "ap-southeast-1");
-    vi.stubEnv("VITE_COGNITO_USER_POOL_ID", "user-pool");
     seedAuthSession({
       expiresAt: Date.now() - 1000,
       idToken: "expired-id-token",
@@ -87,7 +92,7 @@ describe("learning backend auth", () => {
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
-            AuthenticationResult: {
+            authenticationResult: {
               AccessToken: "fresh-access-token",
               ExpiresIn: 3600,
               IdToken: "fresh-id-token",
@@ -120,12 +125,11 @@ describe("learning backend auth", () => {
     await inspectGuidedDownloadArchiveWithBackend(new File(["zip"], "dataset.zip"));
 
     expect(fetch).toHaveBeenCalledTimes(4);
-    expect(String(fetch.mock.calls[0]?.[0])).toContain("cognito-idp.ap-southeast-1.amazonaws.com");
-    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toMatchObject({
-      AuthFlow: "REFRESH_TOKEN_AUTH",
-      AuthParameters: {
-        REFRESH_TOKEN: "refresh-token",
-      },
+    expect(String(fetch.mock.calls[0]?.[0])).toContain("/auth/session/refresh");
+    expect(String(fetch.mock.calls[0]?.[0])).not.toContain("cognito-idp.");
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual({
+      refreshToken: "refresh-token",
+      userSub: "student-1",
     });
 
     const presignRequest = fetch.mock.calls[1]?.[1] as RequestInit;
@@ -135,12 +139,6 @@ describe("learning backend auth", () => {
     expect(inspectRequest.headers).toMatchObject({ authorization: "Bearer fresh-id-token" });
     expect(window.localStorage.getItem(authStorageKey)).toBeNull();
 
-    const storedSession = JSON.parse(window.sessionStorage.getItem(authStorageKey) ?? "{}");
-
-    expect(storedSession).toMatchObject({
-      accessToken: "fresh-access-token",
-      idToken: "fresh-id-token",
-    });
-    expect(storedSession).not.toHaveProperty("refreshToken");
+    expect(window.sessionStorage.getItem(authStorageKey)).toBeNull();
   });
 });

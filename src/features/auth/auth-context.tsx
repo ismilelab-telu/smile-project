@@ -9,7 +9,9 @@ import {
 } from "react";
 
 import {
+  confirmPasswordResetWithCognito,
   confirmSignUpWithCognito,
+  requestPasswordResetWithCognito,
   resendConfirmationCodeWithCognito,
   signInWithCognito,
   signInWithUsername,
@@ -26,6 +28,7 @@ import {
 import { authRefreshSkewMs, getFreshStoredAuthSession } from "./auth-session-refresh";
 
 type AuthContextValue = {
+  confirmPasswordReset: (input: { code: string; email: string; password: string }) => Promise<void>;
   confirmSignUp: (input: { code: string; email: string; password: string }) => Promise<void>;
   getFreshSession: (options?: { force?: boolean }) => Promise<AuthSession | null>;
   isAuthenticated: boolean;
@@ -34,11 +37,16 @@ type AuthContextValue = {
     cooldownSeconds?: number;
     nextAllowedAt?: number;
   }>;
+  requestPasswordReset: (email: string) => Promise<{
+    destination?: string;
+  }>;
   session: AuthSession | null;
   signIn: (input: SignInInput) => Promise<AuthSession>;
   signOut: () => void;
   signUp: (input: { email: string; name: string }) => Promise<{
+    cooldownSeconds?: number;
     destination?: string;
+    nextAllowedAt?: number;
     userConfirmed: boolean;
   }>;
 };
@@ -155,7 +163,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const response = await signUpWithCognito(input);
 
     return {
+      cooldownSeconds: response.cooldownSeconds,
       destination: response.CodeDeliveryDetails?.Destination,
+      nextAllowedAt: response.nextAllowedAt,
       userConfirmed: response.UserConfirmed === true,
     };
   }, []);
@@ -163,6 +173,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const confirmSignUp = useCallback(
     async (input: { code: string; email: string; password: string }) => {
       await confirmSignUpWithCognito(input);
+    },
+    [],
+  );
+
+  const requestPasswordReset = useCallback(async (email: string) => {
+    const response = await requestPasswordResetWithCognito(email);
+
+    return {
+      destination: response.CodeDeliveryDetails?.Destination,
+    };
+  }, []);
+
+  const confirmPasswordReset = useCallback(
+    async (input: { code: string; email: string; password: string }) => {
+      await confirmPasswordResetWithCognito(input);
     },
     [],
   );
@@ -178,21 +203,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AuthContextValue>(
     () => ({
+      confirmPasswordReset,
       confirmSignUp,
       getFreshSession,
       isAuthenticated: Boolean(session && !isAuthSessionExpired(session)),
       isReady,
       resendConfirmationCode,
+      requestPasswordReset,
       session,
       signIn,
       signOut,
       signUp,
     }),
     [
+      confirmPasswordReset,
       confirmSignUp,
       getFreshSession,
       isReady,
       resendConfirmationCode,
+      requestPasswordReset,
       session,
       signIn,
       signOut,

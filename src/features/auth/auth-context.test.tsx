@@ -2,7 +2,12 @@ import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthProvider, useAuth } from "./auth-context";
-import { authStorageKey, storeAuthSession, type AuthSession } from "./auth-session";
+import {
+  authStorageKey,
+  clearAuthSession,
+  storeAuthSession,
+  type AuthSession,
+} from "./auth-session";
 import { authRefreshSkewMs } from "./auth-session-refresh";
 
 function createJwt(payload: Record<string, unknown>) {
@@ -54,11 +59,10 @@ describe("AuthProvider token lifecycle", () => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     vi.useRealTimers();
+    clearAuthSession();
     window.localStorage.clear();
     window.sessionStorage.clear();
-    vi.stubEnv("VITE_COGNITO_CLIENT_ID", "web-client");
-    vi.stubEnv("VITE_COGNITO_REGION", "ap-southeast-1");
-    vi.stubEnv("VITE_COGNITO_USER_POOL_ID", "user-pool");
+    vi.stubEnv("VITE_LEARNING_BACKEND_URL", "https://backend.example.test");
   });
 
   it("refreshes an open session before the Cognito token expires", async () => {
@@ -89,7 +93,7 @@ describe("AuthProvider token lifecycle", () => {
     const fetch = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
-          AuthenticationResult: {
+          authenticationResult: {
             AccessToken: "refreshed-access-token",
             ExpiresIn: 3600,
             IdToken: refreshedIdToken,
@@ -118,15 +122,15 @@ describe("AuthProvider token lifecycle", () => {
     });
 
     expect(fetch).toHaveBeenCalledTimes(1);
+    expect(String(fetch.mock.calls[0]?.[0])).toContain("/auth/session/refresh");
+    expect(String(fetch.mock.calls[0]?.[0])).not.toContain("cognito-idp.");
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toMatchObject({
+      refreshToken: "refresh-token",
+      userSub: "student-1",
+    });
     expect(screen.getByRole("status")).toHaveAttribute("data-token", refreshedIdToken);
     expect(window.localStorage.getItem(authStorageKey)).toBeNull();
 
-    const storedSession = JSON.parse(window.sessionStorage.getItem(authStorageKey) ?? "{}");
-
-    expect(storedSession).toMatchObject({
-      accessToken: "refreshed-access-token",
-      idToken: refreshedIdToken,
-    });
-    expect(storedSession).not.toHaveProperty("refreshToken");
+    expect(window.sessionStorage.getItem(authStorageKey)).toBeNull();
   });
 });

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import io
 import sys
 import unittest
@@ -12,22 +15,28 @@ import app
 from app import (
     AuthCodeExpiredError,
     AuthCooldownError,
+    AuthRateLimitError,
     AuthenticationError,
     CognitoSignInError,
     UsernameReservationError,
     build_expected_pandas_code,
+    confirm_password_reset,
     confirm_sign_up,
     confirm_username_reservation,
     get_confirmed_email_for_username,
     inspect_zip_bytes,
     is_valid_learning_progress,
+    request_password_reset,
     record_confirmation_code_expiry,
+    refresh_cognito_session,
     require_learning_backend_user,
     reserve_confirmation_resend,
     reserve_username_for_signup,
     resolve_username_sign_in_email,
     run_pandas_loading_code,
     sanitize_file_name,
+    sign_in_with_email,
+    sign_in_with_username,
     start_sign_up,
     validate_pandas_loading_code,
 )
@@ -65,6 +74,18 @@ def create_client_error(code: str, message: str = ""):
         error.response = response
 
     return error
+
+
+def create_expected_cognito_secret_hash(
+    username: str, client_id: str = "web-client", client_secret: str = "client-secret"
+) -> str:
+    digest = hmac.new(
+        client_secret.encode("utf-8"),
+        f"{username}{client_id}".encode("utf-8"),
+        hashlib.sha256,
+    ).digest()
+
+    return base64.b64encode(digest).decode("utf-8")
 
 
 class FakeDynamoDbClient:
@@ -217,7 +238,7 @@ class FakeCognitoIdentityProviderClient:
         self.users[username]["permanent"] = kwargs["Permanent"]
         return {}
 
-    def initiate_auth(self, **kwargs):
+    def admin_initiate_auth(self, **kwargs):
         self.calls.append(kwargs)
 
         return {
@@ -228,6 +249,22 @@ class FakeCognitoIdentityProviderClient:
                 "RefreshToken": "refresh-token",
             }
         }
+
+    def forgot_password(self, **kwargs):
+        self.calls.append(kwargs)
+
+        return {
+            "CodeDeliveryDetails": {
+                "AttributeName": "email",
+                "DeliveryMedium": "EMAIL",
+                "Destination": "s***t@example.com",
+            }
+        }
+
+    def confirm_forgot_password(self, **kwargs):
+        self.calls.append(kwargs)
+
+        return {}
 
     def resend_confirmation_code(self, **kwargs):
         self.calls.append(kwargs)
@@ -240,30 +277,72 @@ class FakeCognitoIdentityProviderClient:
         return {}
 
 
+class FakeJwtModule:
+    def __init__(self, claims: dict[str, object]) -> None:
+        self.claims = claims
+        self.calls: list[dict[str, object]] = []
+
+    def decode(self, token, signing_key, algorithms, issuer, options):
+        self.calls.append(
+            {
+                "algorithms": algorithms,
+                "issuer": issuer,
+                "options": options,
+                "signing_key": signing_key,
+                "token": token,
+            }
+        )
+
+        return self.claims
+
+
+class FakeJwksClient:
+    def get_signing_key_from_jwt(self, token):
+        return type("FakeSigningKey", (), {"key": f"key-for-{token}"})()
+
+
 class LearningBackendTest(unittest.TestCase):
     def setUp(self) -> None:
         self.original_cognito_client_id = app.COGNITO_CLIENT_ID
+        self.original_cognito_client_secret = app.COGNITO_CLIENT_SECRET
+        self.original_cognito_region = app.COGNITO_REGION
         self.original_cognito_user_pool_id = app.COGNITO_USER_POOL_ID
         self.original_cognito_identity_provider_client = app._cognito_identity_provider_client
         self.original_create_confirmation_code = app.create_confirmation_code
         self.original_dynamodb_client = app._dynamodb_client
+        self.original_jwt = app.jwt
+        self.original_jwks_client = app._jwks_client
+        self.original_py_jwk_client = app.PyJWKClient
         self.original_learning_progress_table = app.LEARNING_PROGRESS_TABLE
         self.original_auth_cooldown_table = app.AUTH_COOLDOWN_TABLE
         self.original_auth_confirmation_code_ttl_seconds = app.AUTH_CONFIRMATION_CODE_TTL_SECONDS
+        self.original_learning_backend_proxy_secret = app.LEARNING_BACKEND_PROXY_SECRET
+        self.original_learning_backend_require_proxy_secret = (
+            app.LEARNING_BACKEND_REQUIRE_PROXY_SECRET
+        )
         self.original_decrypt_cognito_sender_code = app.decrypt_cognito_sender_code
         self.original_send_resend_email = app.send_resend_email
         self.original_username_reservation_table = app.USERNAME_RESERVATION_TABLE
 
     def tearDown(self) -> None:
         app.COGNITO_CLIENT_ID = self.original_cognito_client_id
+        app.COGNITO_CLIENT_SECRET = self.original_cognito_client_secret
+        app.COGNITO_REGION = self.original_cognito_region
         app.COGNITO_USER_POOL_ID = self.original_cognito_user_pool_id
         app._cognito_identity_provider_client = self.original_cognito_identity_provider_client
         app.create_confirmation_code = self.original_create_confirmation_code
         app._dynamodb_client = self.original_dynamodb_client
+        app.jwt = self.original_jwt
+        app._jwks_client = self.original_jwks_client
+        app.PyJWKClient = self.original_py_jwk_client
         app.LEARNING_PROGRESS_TABLE = self.original_learning_progress_table
         app.AUTH_COOLDOWN_TABLE = self.original_auth_cooldown_table
         app.AUTH_CONFIRMATION_CODE_TTL_SECONDS = (
             self.original_auth_confirmation_code_ttl_seconds
+        )
+        app.LEARNING_BACKEND_PROXY_SECRET = self.original_learning_backend_proxy_secret
+        app.LEARNING_BACKEND_REQUIRE_PROXY_SECRET = (
+            self.original_learning_backend_require_proxy_secret
         )
         app.decrypt_cognito_sender_code = self.original_decrypt_cognito_sender_code
         app.send_resend_email = self.original_send_resend_email
@@ -478,6 +557,46 @@ class LearningBackendTest(unittest.TestCase):
         with self.assertRaises(AuthenticationError):
             require_learning_backend_user({"headers": {}}, {"guestId": "guest_12345678"})
 
+    def test_verify_cognito_token_accepts_id_token_for_configured_client(self) -> None:
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_REGION = "ap-southeast-1"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        fake_jwt = FakeJwtModule(
+            {
+                "aud": "web-client",
+                "email": "student@example.com",
+                "sub": "student-1",
+                "token_use": "id",
+            }
+        )
+        app.jwt = fake_jwt
+        app.PyJWKClient = object
+        app._jwks_client = FakeJwksClient()
+
+        user = app.verify_cognito_token("jwt-token")
+
+        self.assertEqual(user, {"email": "student@example.com", "sub": "student-1"})
+        self.assertEqual(fake_jwt.calls[0]["issuer"], app.get_cognito_issuer())
+        self.assertEqual(fake_jwt.calls[0]["options"], {"verify_aud": False})
+
+    def test_verify_cognito_token_rejects_wrong_audience(self) -> None:
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_REGION = "ap-southeast-1"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        app.jwt = FakeJwtModule(
+            {
+                "aud": "other-client",
+                "email": "student@example.com",
+                "sub": "student-1",
+                "token_use": "id",
+            }
+        )
+        app.PyJWKClient = object
+        app._jwks_client = FakeJwksClient()
+
+        with self.assertRaises(AuthenticationError):
+            app.verify_cognito_token("jwt-token")
+
     def test_username_reservation_is_pending_until_email_confirmation(self) -> None:
         app.USERNAME_RESERVATION_TABLE = "username-reservations"
         fake_dynamodb = FakeDynamoDbClient()
@@ -514,7 +633,7 @@ class LearningBackendTest(unittest.TestCase):
         with self.assertRaises(UsernameReservationError):
             reserve_username_for_signup(create_cognito_event("other@example.com", "student_one"))
 
-    def test_resolve_username_sign_in_email_uses_confirmed_email(self) -> None:
+    def test_deprecated_username_resolution_does_not_return_email(self) -> None:
         app.USERNAME_RESERVATION_TABLE = "username-reservations"
         fake_dynamodb = FakeDynamoDbClient()
         fake_dynamodb.items["student_one"] = {
@@ -527,10 +646,229 @@ class LearningBackendTest(unittest.TestCase):
         app._dynamodb_client = fake_dynamodb
         app._cognito_identity_provider_client = fake_cognito
 
-        result = resolve_username_sign_in_email({"username": "Student_One"})
+        with self.assertRaises(CognitoSignInError) as context:
+            resolve_username_sign_in_email({"username": "Student_One"})
 
-        self.assertEqual(result["email"], "student@example.com")
+        self.assertEqual(context.exception.code, "NotAuthorizedException")
         self.assertEqual(fake_cognito.calls, [])
+
+    def test_username_sign_in_uses_confirmed_email_without_returning_it(self) -> None:
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        fake_dynamodb = FakeDynamoDbClient()
+        fake_dynamodb.items["student_one"] = {
+            "email": {"S": "student@example.com"},
+            "status": {"S": "confirmed"},
+            "username": {"S": "Student_One"},
+            "usernameKey": {"S": "student_one"},
+        }
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        app._dynamodb_client = fake_dynamodb
+        app._cognito_identity_provider_client = fake_cognito
+
+        result = sign_in_with_username({"password": "StrongPass1!", "username": "Student_One"})
+
+        self.assertEqual(result["authenticationResult"]["IdToken"], "id-token")
+        self.assertNotIn("email", result)
+        self.assertEqual(fake_cognito.calls[0]["AuthFlow"], "ADMIN_USER_PASSWORD_AUTH")
+        self.assertEqual(fake_cognito.calls[0]["AuthParameters"]["USERNAME"], "student@example.com")
+        self.assertEqual(fake_cognito.calls[0]["AuthParameters"]["PASSWORD"], "StrongPass1!")
+        self.assertEqual(
+            fake_cognito.calls[0]["AuthParameters"]["SECRET_HASH"],
+            create_expected_cognito_secret_hash("student@example.com"),
+        )
+        self.assertEqual(fake_cognito.calls[0]["ClientId"], "web-client")
+        self.assertEqual(fake_cognito.calls[0]["UserPoolId"], "user-pool")
+
+    def test_email_sign_in_returns_tokens_without_cognito_direct_from_client(self) -> None:
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        app._cognito_identity_provider_client = fake_cognito
+
+        result = sign_in_with_email(
+            {"email": "Student@Example.com", "password": "StrongPass1!"}
+        )
+
+        self.assertEqual(result["authenticationResult"]["IdToken"], "id-token")
+        self.assertEqual(fake_cognito.calls[0]["AuthFlow"], "ADMIN_USER_PASSWORD_AUTH")
+        self.assertEqual(fake_cognito.calls[0]["AuthParameters"]["USERNAME"], "student@example.com")
+        self.assertEqual(fake_cognito.calls[0]["AuthParameters"]["PASSWORD"], "StrongPass1!")
+        self.assertEqual(
+            fake_cognito.calls[0]["AuthParameters"]["SECRET_HASH"],
+            create_expected_cognito_secret_hash("student@example.com"),
+        )
+        self.assertEqual(fake_cognito.calls[0]["ClientId"], "web-client")
+        self.assertEqual(fake_cognito.calls[0]["UserPoolId"], "user-pool")
+
+    def test_email_sign_in_maps_cognito_throttle_to_auth_rate_limit(self) -> None:
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        fake_cognito.admin_initiate_auth = lambda **kwargs: (_ for _ in ()).throw(
+            create_client_error("TooManyRequestsException")
+        )
+        app._cognito_identity_provider_client = fake_cognito
+
+        with self.assertRaises(AuthRateLimitError) as context:
+            sign_in_with_email({"email": "Student@Example.com", "password": "StrongPass1!"})
+
+        self.assertEqual(context.exception.retry_after_seconds, 2)
+
+    def test_session_refresh_uses_backend_owned_admin_auth(self) -> None:
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        app._cognito_identity_provider_client = fake_cognito
+
+        result = refresh_cognito_session(
+            {
+                "refreshToken": "refresh-token",
+                "userSub": "student-sub",
+            }
+        )
+
+        self.assertEqual(result["authenticationResult"]["IdToken"], "id-token")
+        self.assertEqual(fake_cognito.calls[0]["AuthFlow"], "REFRESH_TOKEN_AUTH")
+        self.assertEqual(fake_cognito.calls[0]["AuthParameters"]["REFRESH_TOKEN"], "refresh-token")
+        self.assertEqual(
+            fake_cognito.calls[0]["AuthParameters"]["SECRET_HASH"],
+            create_expected_cognito_secret_hash("student-sub"),
+        )
+        self.assertEqual(fake_cognito.calls[0]["ClientId"], "web-client")
+        self.assertEqual(fake_cognito.calls[0]["UserPoolId"], "user-pool")
+
+    def test_session_refresh_rate_limit_uses_user_sub_identifier(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        app._cognito_identity_provider_client = fake_cognito
+        app._dynamodb_client = FakeDynamoDbClient()
+
+        first_event = {
+            "body": (
+                '{"refreshToken":"refresh-token","userSub":"student-sub"}'
+            ),
+            "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.10"}},
+            "rawPath": "/auth/session/refresh",
+        }
+        second_event = {
+            "body": (
+                '{"refreshToken":"refresh-token","userSub":"student-sub"}'
+            ),
+            "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.11"}},
+            "rawPath": "/auth/session/refresh",
+        }
+
+        first_result = app.lambda_handler(first_event, None)
+        second_result = app.lambda_handler(second_event, None)
+
+        self.assertEqual(first_result["statusCode"], 200)
+        self.assertEqual(second_result["statusCode"], 429)
+        self.assertEqual(len(fake_cognito.calls), 1)
+
+    def test_password_reset_request_uses_generic_delivery_for_missing_user(self) -> None:
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        fake_cognito.forgot_password = lambda **kwargs: (_ for _ in ()).throw(
+            create_client_error("UserNotFoundException")
+        )
+        app._cognito_identity_provider_client = fake_cognito
+
+        result = request_password_reset({"email": "Student@Example.com"})
+
+        self.assertEqual(result["CodeDeliveryDetails"]["DeliveryMedium"], "EMAIL")
+        self.assertEqual(result["CodeDeliveryDetails"]["Destination"], "s***t@example.com")
+
+    def test_password_reset_request_sends_cognito_secret_hash(self) -> None:
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        app._cognito_identity_provider_client = fake_cognito
+
+        result = request_password_reset({"email": "Student@Example.com"})
+
+        self.assertEqual(result["CodeDeliveryDetails"]["DeliveryMedium"], "EMAIL")
+        self.assertEqual(fake_cognito.calls[0]["ClientId"], "web-client")
+        self.assertEqual(
+            fake_cognito.calls[0]["SecretHash"],
+            create_expected_cognito_secret_hash("student@example.com"),
+        )
+        self.assertEqual(fake_cognito.calls[0]["Username"], "student@example.com")
+
+    def test_password_reset_request_maps_cognito_throttle_to_auth_rate_limit(self) -> None:
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        fake_cognito.forgot_password = lambda **kwargs: (_ for _ in ()).throw(
+            create_client_error("LimitExceededException")
+        )
+        app._cognito_identity_provider_client = fake_cognito
+
+        with self.assertRaises(AuthRateLimitError) as context:
+            request_password_reset({"email": "Student@Example.com"})
+
+        self.assertEqual(context.exception.retry_after_seconds, 30)
+
+    def test_confirm_password_reset_calls_cognito(self) -> None:
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        app._cognito_identity_provider_client = fake_cognito
+
+        result = confirm_password_reset(
+            {"code": "123456", "email": "Student@Example.com", "password": "StrongPass1!"}
+        )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(fake_cognito.calls[0]["ClientId"], "web-client")
+        self.assertEqual(fake_cognito.calls[0]["ConfirmationCode"], "123456")
+        self.assertEqual(
+            fake_cognito.calls[0]["SecretHash"],
+            create_expected_cognito_secret_hash("student@example.com"),
+        )
+        self.assertEqual(fake_cognito.calls[0]["Username"], "student@example.com")
+
+    def test_confirm_password_reset_maps_cognito_throttle_to_auth_rate_limit(self) -> None:
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        fake_cognito.confirm_forgot_password = lambda **kwargs: (_ for _ in ()).throw(
+            create_client_error("TooManyRequestsException")
+        )
+        app._cognito_identity_provider_client = fake_cognito
+
+        with self.assertRaises(AuthRateLimitError) as context:
+            confirm_password_reset(
+                {"code": "123456", "email": "Student@Example.com", "password": "StrongPass1!"}
+            )
+
+        self.assertEqual(context.exception.retry_after_seconds, 3)
+
+    def test_signup_password_policy_requires_length_case_number_and_symbol(self) -> None:
+        weak_passwords = [
+            "Short1!",
+            "longpassword1!",
+            "Longpassword!",
+            "Longpassword1",
+        ]
+
+        for password in weak_passwords:
+            with self.subTest(password=password):
+                with self.assertRaises(CognitoSignInError) as context:
+                    app.validate_signup_password(password)
+
+                self.assertEqual(context.exception.code, "InvalidPasswordException")
+
+        app.validate_signup_password("StrongPass1!")
 
     def test_resolve_username_sign_in_email_ignores_pending_reservation(self) -> None:
         app.USERNAME_RESERVATION_TABLE = "username-reservations"
@@ -593,6 +931,196 @@ class LearningBackendTest(unittest.TestCase):
         self.assertEqual(result["CodeDeliveryDetails"]["Destination"], "s***t@example.com")
         self.assertFalse(result["UserConfirmed"])
         self.assertIn("123456", sent_messages[0]["text_body"])
+
+    def test_start_sign_up_returns_generic_response_for_existing_email(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        app._dynamodb_client = FakeDynamoDbClient()
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        fake_cognito.users["student@example.com"] = {"attributes": [], "password": ""}
+        app._cognito_identity_provider_client = fake_cognito
+        sent_messages: list[dict[str, str]] = []
+        app.send_resend_email = lambda **kwargs: sent_messages.append(kwargs)
+
+        result = start_sign_up(
+            {
+                "email": "student@example.com",
+                "name": "Student_One",
+            },
+            now=100,
+        )
+
+        self.assertFalse(result["UserConfirmed"])
+        self.assertEqual(result["CodeDeliveryDetails"]["Destination"], "s***t@example.com")
+        self.assertEqual(result["nextAllowedAt"], 130)
+        self.assertEqual(sent_messages, [])
+
+    def test_start_sign_up_maps_cognito_lookup_throttle_to_auth_rate_limit(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        app._dynamodb_client = FakeDynamoDbClient()
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        fake_cognito.admin_get_user = lambda **kwargs: (_ for _ in ()).throw(
+            create_client_error("TooManyRequestsException")
+        )
+        app._cognito_identity_provider_client = fake_cognito
+
+        with self.assertRaises(AuthRateLimitError) as context:
+            start_sign_up(
+                {
+                    "email": "student@example.com",
+                    "name": "Student_One",
+                },
+                now=100,
+            )
+
+        self.assertEqual(context.exception.retry_after_seconds, 5)
+
+    def test_public_auth_rate_limit_enforces_source_and_identifier(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app._dynamodb_client = FakeDynamoDbClient()
+        event = {"requestContext": {"http": {"sourceIp": "203.0.113.10"}}}
+
+        app.enforce_public_auth_rate_limit(
+            event,
+            "username-sign-in",
+            "Student_One",
+            cooldown_seconds=5,
+            now=100,
+        )
+
+        with self.assertRaises(AuthRateLimitError) as context:
+            app.enforce_public_auth_rate_limit(
+                event,
+                "username-sign-in",
+                "Student_One",
+                cooldown_seconds=5,
+                now=101,
+            )
+
+        self.assertEqual(context.exception.retry_after_seconds, 4)
+        self.assertEqual(context.exception.next_allowed_at, 105)
+
+    def test_request_source_prefers_forwarded_cloudflare_ip_with_proxy_secret(self) -> None:
+        app.LEARNING_BACKEND_PROXY_SECRET = "proxy-secret"
+        event = {
+            "headers": {
+                "cf-connecting-ip": "198.51.100.20",
+                "x-smile-learning-backend-proxy-secret": "proxy-secret",
+                "x-forwarded-for": "198.51.100.21",
+            },
+            "requestContext": {"http": {"sourceIp": "203.0.113.10"}},
+        }
+
+        self.assertEqual(app.get_request_source(event), "198.51.100.20")
+
+    def test_request_source_ignores_forwarded_ip_without_proxy_secret(self) -> None:
+        app.LEARNING_BACKEND_PROXY_SECRET = "proxy-secret"
+        event = {
+            "headers": {
+                "cf-connecting-ip": "198.51.100.20",
+                "x-smile-learning-backend-proxy-secret": "wrong-secret",
+                "x-forwarded-for": "198.51.100.21",
+            },
+            "requestContext": {"http": {"sourceIp": "203.0.113.10"}},
+        }
+
+        self.assertEqual(app.get_request_source(event), "203.0.113.10")
+
+    def test_request_source_ignores_spoofable_forwarded_headers_with_proxy_secret(
+        self,
+    ) -> None:
+        app.LEARNING_BACKEND_PROXY_SECRET = "proxy-secret"
+        event = {
+            "headers": {
+                "x-smile-learning-backend-proxy-secret": "proxy-secret",
+                "x-forwarded-for": "198.51.100.21",
+                "x-real-ip": "198.51.100.22",
+            },
+            "requestContext": {"http": {"sourceIp": "203.0.113.10"}},
+        }
+
+        self.assertEqual(app.get_request_source(event), "203.0.113.10")
+
+    def test_lambda_requires_proxy_secret_for_non_health_routes_when_enabled(self) -> None:
+        app.LEARNING_BACKEND_REQUIRE_PROXY_SECRET = True
+        app.LEARNING_BACKEND_PROXY_SECRET = "proxy-secret"
+        event = {
+            "body": '{"username":"Student_One"}',
+            "headers": {},
+            "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.10"}},
+            "rawPath": "/auth/username/resolve",
+        }
+
+        result = app.lambda_handler(event, None)
+
+        self.assertEqual(result["statusCode"], 403)
+        self.assertEqual(
+            result["body"],
+            '{"message": "Learning backend proxy is required."}',
+        )
+
+    def test_lambda_requires_proxy_secret_for_non_health_options_when_enabled(self) -> None:
+        app.LEARNING_BACKEND_REQUIRE_PROXY_SECRET = True
+        app.LEARNING_BACKEND_PROXY_SECRET = "proxy-secret"
+        event = {
+            "headers": {},
+            "requestContext": {"http": {"method": "OPTIONS", "sourceIp": "203.0.113.10"}},
+            "rawPath": "/auth/email/sign-in",
+        }
+
+        result = app.lambda_handler(event, None)
+
+        self.assertEqual(result["statusCode"], 403)
+        self.assertEqual(
+            result["body"],
+            '{"message": "Learning backend proxy is required."}',
+        )
+
+    def test_lambda_allows_health_without_proxy_secret_when_proxy_required(self) -> None:
+        app.LEARNING_BACKEND_REQUIRE_PROXY_SECRET = True
+        app.LEARNING_BACKEND_PROXY_SECRET = "proxy-secret"
+        event = {
+            "headers": {},
+            "requestContext": {"http": {"method": "GET", "sourceIp": "203.0.113.10"}},
+            "rawPath": "/health",
+        }
+
+        result = app.lambda_handler(event, None)
+
+        self.assertEqual(result["statusCode"], 200)
+        self.assertEqual(result["body"], '{"ok": true}')
+
+    def test_lambda_allows_trusted_proxy_options_when_proxy_secret_required(self) -> None:
+        app.LEARNING_BACKEND_REQUIRE_PROXY_SECRET = True
+        app.LEARNING_BACKEND_PROXY_SECRET = "proxy-secret"
+        event = {
+            "headers": {"x-smile-learning-backend-proxy-secret": "proxy-secret"},
+            "requestContext": {"http": {"method": "OPTIONS", "sourceIp": "203.0.113.10"}},
+            "rawPath": "/auth/email/sign-in",
+        }
+
+        result = app.lambda_handler(event, None)
+
+        self.assertEqual(result["statusCode"], 204)
+        self.assertEqual(result["body"], "{}")
+
+    def test_lambda_allows_trusted_proxy_when_proxy_secret_required(self) -> None:
+        app.LEARNING_BACKEND_REQUIRE_PROXY_SECRET = True
+        app.LEARNING_BACKEND_PROXY_SECRET = "proxy-secret"
+        event = {
+            "body": '{"username":"Student_One"}',
+            "headers": {"x-smile-learning-backend-proxy-secret": "proxy-secret"},
+            "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.10"}},
+            "rawPath": "/auth/username/resolve",
+        }
+
+        result = app.lambda_handler(event, None)
+
+        self.assertEqual(result["statusCode"], 400)
+        self.assertIn("NotAuthorizedException", result["body"])
 
     def test_start_sign_up_enforces_pending_cooldown_before_reserving_username(
         self,
@@ -720,7 +1248,7 @@ class LearningBackendTest(unittest.TestCase):
 
         with self.assertRaises(AuthCodeExpiredError):
             confirm_sign_up(
-                {"code": "123456", "email": "student@example.com", "password": "Password1"},
+                {"code": "123456", "email": "student@example.com", "password": "StrongPass1!"},
                 now=401,
             )
 
@@ -743,7 +1271,7 @@ class LearningBackendTest(unittest.TestCase):
 
         with self.assertRaises(CognitoSignInError) as context:
             confirm_sign_up(
-                {"code": "000000", "email": "student@example.com", "password": "Password1"},
+                {"code": "000000", "email": "student@example.com", "password": "StrongPass1!"},
                 now=120,
             )
 
@@ -799,15 +1327,44 @@ class LearningBackendTest(unittest.TestCase):
         )
 
         result = confirm_sign_up(
-            {"code": "123456", "email": "student@example.com", "password": "Password1"},
+            {"code": "123456", "email": "student@example.com", "password": "StrongPass1!"},
             now=120,
         )
 
         self.assertTrue(result["ok"])
         self.assertIn("student@example.com", fake_cognito.users)
-        self.assertEqual(fake_cognito.users["student@example.com"]["password"], "Password1")
+        self.assertEqual(fake_cognito.users["student@example.com"]["password"], "StrongPass1!")
         self.assertEqual(fake_dynamodb.items["student_one"]["status"]["S"], "confirmed")
         self.assertNotIn(app.create_pending_signup_key("student@example.com"), fake_dynamodb.items)
+
+    def test_confirm_sign_up_maps_cognito_admin_throttle_to_auth_rate_limit(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        fake_dynamodb = FakeDynamoDbClient()
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        app._dynamodb_client = fake_dynamodb
+        app._cognito_identity_provider_client = fake_cognito
+        app.create_confirmation_code = lambda: "123456"
+        app.send_resend_email = lambda **kwargs: None
+        start_sign_up(
+            {
+                "email": "student@example.com",
+                "name": "Student_One",
+            },
+            now=100,
+        )
+        fake_cognito.admin_create_user = lambda **kwargs: (_ for _ in ()).throw(
+            create_client_error("TooManyRequestsException")
+        )
+
+        with self.assertRaises(AuthRateLimitError) as context:
+            confirm_sign_up(
+                {"code": "123456", "email": "student@example.com", "password": "StrongPass1!"},
+                now=120,
+            )
+
+        self.assertEqual(context.exception.retry_after_seconds, 3)
 
     def test_custom_email_sender_sends_decrypted_verification_code_with_resend(self) -> None:
         sent_messages: list[dict[str, str]] = []
