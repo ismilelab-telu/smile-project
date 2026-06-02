@@ -27,6 +27,7 @@ import { localeOptions, useLocalization, type Locale } from "@/features/localiza
 
 type AuthMode = "login" | "register";
 type AuthLoginMethod = "email" | "username";
+type AuthSecondaryStep = "confirmation" | "password-reset";
 
 type AuthPageProps = {
   closeHref?: string;
@@ -160,10 +161,13 @@ export function AuthPage({
   const [isClosing, setIsClosing] = useState(false);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   const { locale } = useLocalization();
-  const [isConfirmingAuthStep, setConfirmingAuthStep] = useState(false);
+  const [authSecondaryStep, setAuthSecondaryStep] = useState<AuthSecondaryStep | null>(null);
   const safeCloseHref = isAuthHref(closeHref) ? "/learn" : closeHref;
   const resolvedSuccessHref = successHref ?? safeCloseHref;
   const safeSuccessHref = isAuthHref(resolvedSuccessHref) ? "/learn" : resolvedSuccessHref;
+  const isConfirmingAuthStep = authSecondaryStep !== null;
+  const isPasswordResetStep = authSecondaryStep === "password-reset";
+  const authStep = authSecondaryStep ?? "credentials";
   const dialogTitle = isConfirmingAuthStep
     ? getSecondaryAuthStepTitle(locale)
     : (titleOverride ?? authCopy[locale][mode].title);
@@ -303,15 +307,17 @@ export function AuthPage({
           aria-labelledby="auth-dialog-title"
           aria-modal="true"
           className={`relative grid w-full transform-gpu overflow-hidden border-2 border-neutral-950 bg-white text-foreground shadow-2xl outline-none ${
-            isConfirmingAuthStep
-              ? "h-[min(760px,calc(100vh_-_2.5rem))] max-w-[30rem] md:h-[min(760px,calc(100vh_-_4rem))]"
-              : "h-[min(720px,calc(100vh_-_2.5rem))] max-w-5xl md:h-[min(760px,calc(100vh_-_4rem))]"
+            isPasswordResetStep
+              ? "max-h-[min(760px,calc(100vh_-_2.5rem))] max-w-[30rem] md:max-h-[min(760px,calc(100vh_-_4rem))]"
+              : isConfirmingAuthStep
+                ? "h-[min(760px,calc(100vh_-_2.5rem))] max-w-[30rem] md:h-[min(760px,calc(100vh_-_4rem))]"
+                : "h-[min(720px,calc(100vh_-_2.5rem))] max-w-5xl md:h-[min(760px,calc(100vh_-_4rem))]"
           }`}
           data-auth-mode={mode}
-          data-auth-step={isConfirmingAuthStep ? "confirmation" : "credentials"}
+          data-auth-step={authStep}
           initial={authPortalPanelHidden}
           layout
-          layoutDependency={isConfirmingAuthStep ? "confirmation" : "credentials"}
+          layoutDependency={authStep}
           onAnimationComplete={handlePanelAnimationComplete}
           ref={rootRef}
           role="dialog"
@@ -340,11 +346,15 @@ export function AuthPage({
           <LayoutGroup id="auth-form-layout">
             <motion.section
               className={`relative z-10 grid ${
-                isConfirmingAuthStep ? "h-full" : "h-full lg:grid-cols-2"
+                isConfirmingAuthStep
+                  ? isPasswordResetStep
+                    ? ""
+                    : "h-full"
+                  : "h-full lg:grid-cols-2"
               }`}
               data-auth-layout="split"
               layout
-              layoutDependency={isConfirmingAuthStep ? "confirmation" : "credentials"}
+              layoutDependency={authStep}
               transition={authSharedLayoutTransition}
             >
               <AuthFormPanel
@@ -353,7 +363,7 @@ export function AuthPage({
                 }
                 mode={mode}
                 onAuthenticated={onAuthenticated}
-                onConfirmingChange={setConfirmingAuthStep}
+                onConfirmingChange={setAuthSecondaryStep}
                 onModeChange={onModeChange}
                 successHref={safeSuccessHref}
                 titleOverride={titleOverride}
@@ -503,7 +513,7 @@ function AuthFormPanel({
   className: string;
   mode: AuthMode;
   onAuthenticated?: () => void;
-  onConfirmingChange?: (isConfirming: boolean) => void;
+  onConfirmingChange?: (step: AuthSecondaryStep | null) => void;
   onModeChange?: (mode: AuthMode) => void;
   successHref: string;
   titleOverride?: string;
@@ -574,10 +584,16 @@ function AuthFormPanel({
     (confirmPassword.length > 0 || isConfirmPasswordTouched);
   const isConfirmingAccount = confirmationEmail.length > 0;
   const isResettingPassword = passwordResetEmail.length > 0;
-  const isSecondaryAuthStep = isConfirmingAccount || isResettingPassword;
+  const secondaryAuthStep: AuthSecondaryStep | null = isResettingPassword
+    ? "password-reset"
+    : isConfirmingAccount
+      ? "confirmation"
+      : null;
+  const canShowPasswordResetConfirmPassword =
+    isResettingPassword && passwordResetPassword.length > 0 && passwordError === "";
   const showPasswordResetError = isResettingPassword && isPasswordTouched && passwordError !== "";
   const showPasswordResetConfirmPasswordError =
-    isResettingPassword &&
+    canShowPasswordResetConfirmPassword &&
     Boolean(passwordResetConfirmPasswordError) &&
     (passwordResetConfirmPassword.length > 0 || isConfirmPasswordTouched);
   const visibleErrorMessage = errorMessage;
@@ -612,8 +628,8 @@ function AuthFormPanel({
   }, [mode]);
 
   useEffect(() => {
-    onConfirmingChange?.(isSecondaryAuthStep);
-  }, [isSecondaryAuthStep, onConfirmingChange]);
+    onConfirmingChange?.(secondaryAuthStep);
+  }, [secondaryAuthStep, onConfirmingChange]);
 
   useEffect(() => {
     if (resendAvailableAt <= Date.now()) {
@@ -626,7 +642,7 @@ function AuthFormPanel({
   }, [resendAvailableAt]);
 
   useEffect(() => {
-    return () => onConfirmingChange?.(false);
+    return () => onConfirmingChange?.(null);
   }, [onConfirmingChange]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -851,6 +867,8 @@ function AuthFormPanel({
       setPasswordResetEmail(resetEmail);
       setPasswordResetPassword("");
       setPasswordResetConfirmPassword("");
+      setPasswordVisible(false);
+      setConfirmPasswordVisible(false);
       setResendAvailableAt(Date.now() + 30_000);
       setResendClock(Date.now());
       setStatusMessage({ destination: result.destination, kind: "password-reset-sent" });
@@ -902,6 +920,8 @@ function AuthFormPanel({
     setPasswordResetEmail("");
     setPasswordResetPassword("");
     setPasswordResetConfirmPassword("");
+    setPasswordVisible(false);
+    setConfirmPasswordVisible(false);
     setErrorMessage("");
     setStatusMessage(null);
   };
@@ -983,6 +1003,41 @@ function AuthFormPanel({
       {loginMethodToggleLabel}
     </button>
   ) : undefined;
+  const getPasswordToggleLabel = (isVisible: boolean) =>
+    isVisible
+      ? locale === "en"
+        ? "Hide password"
+        : "Sembunyikan sandi"
+      : locale === "en"
+        ? "Show password"
+        : "Tampilkan sandi";
+  const renderPasswordVisibilityControl = ({
+    isDisabled = false,
+    isVisible,
+    onToggle,
+    value,
+  }: {
+    isDisabled?: boolean;
+    isVisible: boolean;
+    onToggle: () => void;
+    value: string;
+  }) =>
+    value.length > 0 ? (
+      <button
+        aria-label={getPasswordToggleLabel(isVisible)}
+        className="absolute top-1/2 right-2 inline-flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-none text-neutral-950 transition-colors hover:text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:text-neutral-300"
+        disabled={isDisabled}
+        onClick={onToggle}
+        type="button"
+      >
+        <HugeiconsIcon
+          aria-hidden="true"
+          className="size-[18px]"
+          icon={isVisible ? EyeOffIcon : ViewIcon}
+          strokeWidth={2}
+        />
+      </button>
+    ) : undefined;
 
   const renderAuthInput = (
     field: AuthField,
@@ -1005,13 +1060,6 @@ function AuthFormPanel({
       : isConfirmPasswordField
         ? isConfirmPasswordVisible
         : false;
-    const passwordToggleLabel = isPasswordInputVisible
-      ? locale === "en"
-        ? "Hide password"
-        : "Sembunyikan sandi"
-      : locale === "en"
-        ? "Show password"
-        : "Tampilkan sandi";
     const validationContent =
       isRegister && field.id === "auth-name" ? (
         <UsernameStatus isVisible={showNameValidation} locale={locale} message={usernameError} />
@@ -1082,29 +1130,21 @@ function AuthFormPanel({
         onChange={getFieldChangeHandler(field.id)}
         inputType={field.type === "password" && isPasswordInputVisible ? "text" : undefined}
         trailingControl={
-          field.type === "password" && getFieldValue(field.id).length > 0 ? (
-            <button
-              aria-label={passwordToggleLabel}
-              className="absolute top-1/2 right-2 inline-flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-none text-neutral-950 transition-colors hover:text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:text-neutral-300"
-              disabled={isDisabled}
-              onClick={() => {
-                if (isPasswordField) {
-                  setPasswordVisible((current) => !current);
-                  return;
-                }
+          field.type === "password"
+            ? renderPasswordVisibilityControl({
+                isDisabled,
+                isVisible: isPasswordInputVisible,
+                onToggle: () => {
+                  if (isPasswordField) {
+                    setPasswordVisible((current) => !current);
+                    return;
+                  }
 
-                setConfirmPasswordVisible((current) => !current);
-              }}
-              type="button"
-            >
-              <HugeiconsIcon
-                aria-hidden="true"
-                className="size-[18px]"
-                icon={isPasswordInputVisible ? EyeOffIcon : ViewIcon}
-                strokeWidth={2}
-              />
-            </button>
-          ) : undefined
+                  setConfirmPasswordVisible((current) => !current);
+                },
+                value: getFieldValue(field.id),
+              })
+            : undefined
         }
         value={getFieldValue(field.id)}
       >
@@ -1118,7 +1158,7 @@ function AuthFormPanel({
 
     return (
       <motion.div
-        className={`relative flex h-full min-h-0 scroll-pb-36 flex-col overflow-y-auto bg-white px-6 pt-16 pb-36 text-foreground md:px-8 md:pt-20 ${className}`}
+        className={`relative flex max-h-[min(760px,calc(100vh_-_2.5rem))] scroll-pb-10 flex-col overflow-y-auto bg-white px-6 pt-16 pb-8 text-foreground md:max-h-[min(760px,calc(100vh_-_4rem))] md:px-8 md:pt-20 md:pb-10 ${className}`}
         data-auth-panel={mode}
         data-auth-step="password-reset"
         data-page-surface="auth-panel"
@@ -1141,8 +1181,8 @@ function AuthFormPanel({
               </motion.h1>
               <p className="text-sm leading-6 text-muted-foreground">
                 {locale === "en"
-                  ? `Enter the 6-digit code sent to ${passwordResetEmail}, then choose a new password.`
-                  : `Masukkan 6 digit kode yang dikirim ke ${passwordResetEmail}, lalu buat sandi baru.`}
+                  ? `Enter the 6-digit code sent to ${passwordResetEmail}.`
+                  : `Masukkan 6 digit kode yang dikirim ke ${passwordResetEmail}.`}
               </p>
             </motion.div>
 
@@ -1169,9 +1209,15 @@ function AuthFormPanel({
                   placeholder: "",
                   type: "password",
                 }}
+                inputType={isPasswordVisible ? "text" : undefined}
                 isInvalid={showPasswordResetError}
                 onBlur={() => setPasswordTouched(true)}
                 onChange={setPasswordResetPassword}
+                trailingControl={renderPasswordVisibilityControl({
+                  isVisible: isPasswordVisible,
+                  onToggle: () => setPasswordVisible((current) => !current),
+                  value: passwordResetPassword,
+                })}
                 value={passwordResetPassword}
               >
                 <PasswordRequirements
@@ -1182,31 +1228,38 @@ function AuthFormPanel({
                 />
               </AuthInput>
 
-              <AuthInput
-                ariaDescribedBy="confirm-password-status"
-                className="mt-6"
-                field={{
-                  autoComplete: "new-password",
-                  id: "auth-reset-confirm-password",
-                  label: locale === "en" ? "Confirm New Password" : "Konfirmasi Sandi Baru",
-                  placeholder: "",
-                  type: "password",
-                }}
-                isInvalid={showPasswordResetConfirmPasswordError}
-                onBlur={() => setConfirmPasswordTouched(true)}
-                onChange={setPasswordResetConfirmPassword}
-                value={passwordResetConfirmPassword}
-              >
-                <ConfirmPasswordStatus
-                  isMatch={
-                    passwordResetConfirmPassword.length > 0 &&
-                    passwordResetPassword === passwordResetConfirmPassword
-                  }
-                  isVisible={showPasswordResetConfirmPasswordError}
-                  locale={locale}
-                  message={passwordResetConfirmPasswordError}
-                />
-              </AuthInput>
+              <AuthRevealSlot isVisible={canShowPasswordResetConfirmPassword} spacing="before">
+                <AuthInput
+                  ariaDescribedBy="confirm-password-status"
+                  field={{
+                    autoComplete: "new-password",
+                    id: "auth-reset-confirm-password",
+                    label: locale === "en" ? "Confirm New Password" : "Konfirmasi Sandi Baru",
+                    placeholder: "",
+                    type: "password",
+                  }}
+                  inputType={isConfirmPasswordVisible ? "text" : undefined}
+                  isInvalid={showPasswordResetConfirmPasswordError}
+                  onBlur={() => setConfirmPasswordTouched(true)}
+                  onChange={setPasswordResetConfirmPassword}
+                  trailingControl={renderPasswordVisibilityControl({
+                    isVisible: isConfirmPasswordVisible,
+                    onToggle: () => setConfirmPasswordVisible((current) => !current),
+                    value: passwordResetConfirmPassword,
+                  })}
+                  value={passwordResetConfirmPassword}
+                >
+                  <ConfirmPasswordStatus
+                    isMatch={
+                      passwordResetConfirmPassword.length > 0 &&
+                      passwordResetPassword === passwordResetConfirmPassword
+                    }
+                    isVisible={showPasswordResetConfirmPasswordError}
+                    locale={locale}
+                    message={passwordResetConfirmPasswordError}
+                  />
+                </AuthInput>
+              </AuthRevealSlot>
 
               {errorMessage ? (
                 <p className="mt-5 text-sm leading-6 font-medium text-rose-700" role="alert">
