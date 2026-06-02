@@ -193,7 +193,7 @@ export function LandingPage({ onRendered, skipIntroAnimation = false }: LandingP
 
 function DesktopOnlyNotice() {
   return (
-    <main className="flex min-h-[100svh] items-center justify-center bg-background px-6 py-10 text-foreground">
+    <main className="flex min-h-svh items-center justify-center bg-background px-6 py-10 text-foreground">
       <section
         aria-labelledby="desktop-only-title"
         className="mx-auto flex w-full max-w-md flex-col items-center text-center"
@@ -280,13 +280,19 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
       const visibleTargets = `${contentTarget}, ${surfaceTarget}`;
 
       if (typeof window.matchMedia !== "function") {
-        gsap.set(visibleTargets, { autoAlpha: 1, clearProps: "all" });
+        gsap.set(visibleTargets, {
+          autoAlpha: 1,
+          clearProps: "all",
+        });
         gsap.set(fadeTarget, { autoAlpha: 0 });
         return;
       }
 
       if (shouldReduceMotion()) {
-        gsap.set(visibleTargets, { autoAlpha: 1, clearProps: "all" });
+        gsap.set(visibleTargets, {
+          autoAlpha: 1,
+          clearProps: "all",
+        });
         gsap.set(fadeTarget, { autoAlpha: 0 });
         return;
       }
@@ -294,7 +300,10 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
       const motionPreferences = gsap.matchMedia();
 
       motionPreferences.add("(prefers-reduced-motion: reduce)", () => {
-        gsap.set(visibleTargets, { autoAlpha: 1, clearProps: "all" });
+        gsap.set(visibleTargets, {
+          autoAlpha: 1,
+          clearProps: "all",
+        });
         gsap.set(fadeTarget, { autoAlpha: 0 });
       });
 
@@ -403,7 +412,9 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
           exploreZone.removeEventListener("mousemove", handleMouseMove);
           exploreZone.removeEventListener("mouseleave", handleMouseLeave);
           gsap.killTweensOf(magneticTargets);
-          gsap.set(magneticTargets, { clearProps: "transform" });
+          gsap.set(magneticTargets, {
+            clearProps: "transform",
+          });
         };
       });
 
@@ -423,7 +434,10 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
       }
 
       if (typeof window.matchMedia !== "function" || shouldReduceMotion()) {
-        gsap.set(heroAction, { autoAlpha: 1, clearProps: "transform" });
+        gsap.set(heroAction, {
+          autoAlpha: 1,
+          clearProps: "transform",
+        });
         return;
       }
 
@@ -508,8 +522,14 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
       }
 
       const applyReducedIntroState = () => {
-        gsap.set(introSection, { autoAlpha: 1, clearProps: "transform" });
-        gsap.set(introCard, { autoAlpha: 1, clearProps: "transform" });
+        gsap.set(introSection, {
+          autoAlpha: 1,
+          clearProps: "transform",
+        });
+        gsap.set(introCard, {
+          autoAlpha: 1,
+          clearProps: "transform",
+        });
         gsap.set(introEyebrowElement, {
           clearProps: "filter",
           scale: 0.44,
@@ -581,13 +601,19 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
           const currentScale = Number(gsap.getProperty(introEyebrowElement, "scale")) || 1;
           const range = document.createRange();
 
-          gsap.set(introEyebrowElement, { scale: 1, x: 0 });
+          gsap.set(introEyebrowElement, {
+            scale: 1,
+            x: 0,
+          });
           range.setStart(textNode, cutCharacterIndex);
           range.setEnd(textNode, cutCharacterIndex + 1);
 
           const characterBounds = range.getBoundingClientRect();
 
-          gsap.set(introEyebrowElement, { scale: currentScale, x: currentX });
+          gsap.set(introEyebrowElement, {
+            scale: currentScale,
+            x: currentX,
+          });
 
           if (characterBounds.width <= 0) {
             return -window.innerWidth * 0.14;
@@ -1096,10 +1122,17 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
       const getFirstSlideEntryEndScrollY = () =>
         getStoryPinnedStartScrollY() + getIntroStackScrollDistance();
       const applyReducedStoryState = () => {
-        gsap.set(storySection, { clearProps: "backgroundColor" });
+        gsap.set(storySection, {
+          clearProps: "backgroundColor",
+        });
         gsap.set(storyStage, { clearProps: "backgroundColor" });
-        gsap.set([simpleCard, openCard, unpackCard], { autoAlpha: 0 });
-        gsap.set(conclusionSlide, { autoAlpha: 1, clearProps: "transform" });
+        gsap.set([simpleCard, openCard, unpackCard], {
+          autoAlpha: 0,
+        });
+        gsap.set(conclusionSlide, {
+          autoAlpha: 1,
+          clearProps: "transform",
+        });
         gsap.set(storyVisual, {
           autoAlpha: 1,
           backgroundColor: "#fafafa",
@@ -1114,11 +1147,27 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
         });
         gsap.set(editorShell, { autoAlpha: 0 });
         gsap.set(boxContent, { autoAlpha: 0 });
-        gsap.set(diagramContent, { autoAlpha: 1, height: getBoardHeight });
-        gsap.set(diagramNodes, { autoAlpha: 1, display: "inline", scale: 1 });
-        gsap.set(diagramLineStrokes, { autoAlpha: 1, drawSVG: "0% 100%" });
-        gsap.set(diagramArrowheads, { autoAlpha: 1, drawSVG: "0% 100%" });
-        gsap.set(conclusionTitle, { autoAlpha: 1, clearProps: "filter,transform" });
+        gsap.set(diagramContent, {
+          autoAlpha: 1,
+          height: getBoardHeight,
+        });
+        gsap.set(diagramNodes, {
+          autoAlpha: 1,
+          display: "inline",
+          scale: 1,
+        });
+        gsap.set(diagramLineStrokes, {
+          autoAlpha: 1,
+          drawSVG: "0% 100%",
+        });
+        gsap.set(diagramArrowheads, {
+          autoAlpha: 1,
+          drawSVG: "0% 100%",
+        });
+        gsap.set(conclusionTitle, {
+          autoAlpha: 1,
+          clearProps: "filter,transform",
+        });
       };
 
       if (shouldReduceMotion()) {
@@ -1140,8 +1189,12 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
         const conclusionTitleWords =
           conclusionTitleSplit.words.length > 0 ? conclusionTitleSplit.words : [conclusionTitle];
 
-        gsap.set(storySection, { clearProps: "backgroundColor" });
-        gsap.set(storyStage, { clearProps: "backgroundColor" });
+        gsap.set(storySection, {
+          clearProps: "backgroundColor",
+        });
+        gsap.set(storyStage, {
+          clearProps: "backgroundColor",
+        });
         gsap.set(introSection, {
           scale: 1,
           transformOrigin: "50% 50%",
@@ -1178,7 +1231,10 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
           transformOrigin: "50% 50%",
           willChange: "filter, opacity, transform",
         });
-        gsap.set(codeCharacters, { autoAlpha: 0, display: "none" });
+        gsap.set(codeCharacters, {
+          autoAlpha: 0,
+          display: "none",
+        });
         gsap.set(codeCursors, {
           autoAlpha: 0,
           display: "inline-block",
@@ -1969,7 +2025,9 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
           invalidateOnRefresh: true,
           onRefresh: syncMorphLayer,
           onLeaveBack: () => {
-            gsap.set(storyStage, { backgroundColor: "#fafafa" });
+            gsap.set(storyStage, {
+              backgroundColor: "#fafafa",
+            });
             gsap.set(dotMorphSvg, { autoAlpha: 0 });
           },
           scrub: true,
@@ -2127,10 +2185,19 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
 
       if (typeof window.matchMedia !== "function" || shouldReduceMotion()) {
         gsap.set(finalSection, { backgroundColor: "#09090b" });
-        gsap.set(finalWordElements, { autoAlpha: 1, clearProps: "filter,transform" });
-        gsap.set(loveTarget, { autoAlpha: 1, clearProps: "transform" });
+        gsap.set(finalWordElements, {
+          autoAlpha: 1,
+          clearProps: "filter,transform",
+        });
+        gsap.set(loveTarget, {
+          autoAlpha: 1,
+          clearProps: "transform",
+        });
         gsap.set(inlineLove, { autoAlpha: 0 });
-        gsap.set(loveBounceDot, { autoAlpha: 0, clearProps: "transform" });
+        gsap.set(loveBounceDot, {
+          autoAlpha: 0,
+          clearProps: "transform",
+        });
         gsap.set(dotMorphSvg, { autoAlpha: 0 });
         dispatchLoveScrollProgress(0, 0);
         return;
@@ -2180,7 +2247,10 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
         transformOrigin: "50% 50%",
         willChange: "opacity, transform",
       });
-      gsap.set(loveTarget, { autoAlpha: 1, clearProps: "transform" });
+      gsap.set(loveTarget, {
+        autoAlpha: 1,
+        clearProps: "transform",
+      });
       gsap.set(inlineLove, {
         autoAlpha: 0,
         scale: 1,
@@ -2450,7 +2520,11 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
         .to(finalDot, { autoAlpha: 0, duration: 0.06, ease: "none" }, finalDotZoomStart)
         .to(
           loveScrollState,
-          { coverProgress: 1, duration: 0.18, ease: "power1.in" },
+          {
+            coverProgress: 1,
+            duration: 0.18,
+            ease: "power1.in",
+          },
           finalDotZoomStart,
         )
         .to(
@@ -2555,7 +2629,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
       <OrchestratedEaseReverseMenu />
       <svg
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-[2000] h-[100svh] w-full opacity-0"
+        className="pointer-events-none fixed inset-0 z-2000 h-svh w-full opacity-0"
         data-final-dot-morph-svg
         preserveAspectRatio="none"
         ref={finalDotMorphSvgRef}
@@ -2577,7 +2651,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
         <DottedSurface data-landing-scroll-surface />
 
         <section
-          className="relative z-10 mx-auto flex min-h-[100svh] w-[min(1180px,calc(100%_-_32px))] flex-col items-center justify-center pt-28 pb-28 text-center"
+          className="relative z-10 mx-auto flex min-h-svh w-[min(1180px,calc(100%-32px))] flex-col items-center justify-center pt-28 pb-28 text-center"
           aria-labelledby="landing-title"
           data-landing-scroll-content
         >
@@ -2587,7 +2661,10 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
                 className={landingTitleClassName}
                 data-landing-scroll-title
                 id="landing-title"
-                style={{ overflow: "visible", whiteSpace: "nowrap" }}
+                style={{
+                  overflow: "visible",
+                  whiteSpace: "nowrap",
+                }}
               >
                 Smile Project
               </h1>
@@ -2602,7 +2679,10 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
                 id="landing-title"
                 onLetterAnimationHalfway={startDescriptionAnimation}
                 splitType="chars"
-                style={{ overflow: "visible", whiteSpace: "nowrap" }}
+                style={{
+                  overflow: "visible",
+                  whiteSpace: "nowrap",
+                }}
                 tag="h1"
                 text="Smile Project"
                 textAlign="center"
@@ -2619,7 +2699,10 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
                 delay={100}
                 duration={0.6}
                 ease="expo.out"
-                from={{ opacity: 0, yPercent: 100 }}
+                from={{
+                  opacity: 0,
+                  yPercent: 100,
+                }}
                 mask="lines"
                 onLetterAnimationHalfway={revealHeroAction}
                 splitType="words,lines"
@@ -2638,7 +2721,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
             ref={heroActionRef}
           >
             <div
-              className="flex size-[200px] cursor-pointer items-center justify-center -my-[76px]"
+              className="flex size-50 cursor-pointer items-center justify-center -my-19"
               data-hero-explore-zone
               data-mode="true"
               data-wiggle="false"
@@ -2672,7 +2755,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
                   ref={exploreLabelRef}
                 >
                   Explore
-                  <ArrowRightIcon aria-hidden="true" className="size-[18px] shrink-0" />
+                  <ArrowRightIcon aria-hidden="true" className="size-4.5 shrink-0" />
                 </span>
               </a>
             </div>
@@ -2681,7 +2764,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
 
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-[46svh] bg-gradient-to-b from-transparent via-background/82 to-background opacity-0"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-[46svh] bg-linear-to-b from-transparent via-background/82 to-background opacity-0"
           data-landing-scroll-fade
         />
       </main>
@@ -2717,7 +2800,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
                 >
                   <h2
                     aria-label={`${introEyebrow} ${introTitle}. ${introSubtitleCopy}`}
-                    className="absolute inset-x-10 top-[calc(31%-140px)] z-10 h-[280px] text-center min-[2200px]:top-[calc(31%-170px)] min-[2200px]:h-[340px]"
+                    className="absolute inset-x-10 top-[calc(31%-140px)] z-10 h-70 text-center min-[2200px]:top-[calc(31%-170px)] min-[2200px]:h-85"
                     id="landing-intro-title"
                   >
                     <span
@@ -2737,7 +2820,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
                   </h2>
 
                   <p
-                    className="absolute inset-x-12 top-[39%] z-10 mx-auto max-w-4xl text-center text-[clamp(1.1rem,min(1.65vw,2.5svh),1.45rem)] leading-[1.5] font-normal text-neutral-600 opacity-0 will-change-[transform,opacity] min-[2200px]:top-[41%] min-[2200px]:max-w-6xl min-[2200px]:text-[clamp(1.45rem,1vw,1.7rem)]"
+                    className="absolute inset-x-12 top-[39%] z-10 mx-auto max-w-4xl text-center text-[clamp(1.1rem,min(1.65vw,2.5svh),1.45rem)] leading-normal font-normal text-neutral-600 opacity-0 will-change-[transform,opacity] min-[2200px]:top-[41%] min-[2200px]:max-w-6xl min-[2200px]:text-[clamp(1.45rem,1vw,1.7rem)]"
                     data-landing-intro-subtitle
                   >
                     {introSubtitleCopy}
@@ -2745,7 +2828,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
 
                   <figure
                     aria-hidden="true"
-                    className="pointer-events-none absolute left-1/2 top-[55%] z-10 aspect-[170/95] w-[min(28vw,680px)] -translate-x-1/2 opacity-0 will-change-[opacity]"
+                    className="pointer-events-none absolute left-1/2 top-[55%] z-10 aspect-170/95 w-[min(28vw,680px)] -translate-x-1/2 opacity-0 will-change-[opacity]"
                     data-landing-intro-chart
                   >
                     <LandingIntroAxes className="absolute inset-0 z-0 h-full w-full overflow-visible text-neutral-700" />
@@ -2838,7 +2921,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
                         {line.map((segment, segmentIndex) =>
                           segment.text.split("").map((character, characterIndex) => (
                             <span
-                              className={segment.className}
+                              className={"className" in segment ? segment.className : undefined}
                               data-blackbox-code-char
                               key={`blackbox-code-char-${lineIndex}-${segmentIndex}-${characterIndex}`}
                             >
@@ -2847,7 +2930,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
                           )),
                         )}
                         <span
-                          className="inline-block h-[1.08em] w-[0.62em] -translate-y-[0.02em] align-middle opacity-0"
+                          className="inline-block h-[1.08em] w-[0.62em] translate-y-[-0.02em] align-middle opacity-0"
                           data-blackbox-code-cursor
                         >
                           <span
@@ -2881,7 +2964,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
 
               <section
                 aria-labelledby="understand-process-title"
-                className="absolute inset-0 z-[60] flex items-center justify-center overflow-hidden rounded-t-2xl bg-neutral-50 px-6 text-neutral-950"
+                className="absolute inset-0 z-60 flex items-center justify-center overflow-hidden rounded-t-2xl bg-neutral-50 px-6 text-neutral-950"
                 data-understand-slide
               >
                 <h2
@@ -2903,7 +2986,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
           data-teaching-story-section
         >
           <div
-            className="sticky top-0 flex h-[100svh] items-center justify-center overflow-hidden bg-neutral-50 px-6 py-20 sm:py-24 lg:py-28"
+            className="sticky top-0 flex h-svh items-center justify-center overflow-hidden bg-neutral-50 px-6 py-20 sm:py-24 lg:py-28"
             data-teaching-story-stage
           >
             <svg
@@ -2998,12 +3081,12 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
             data-love-scroll-section
           />
           <div
-            className="pointer-events-none sticky top-0 z-[1400] flex h-[100svh] items-center justify-center overflow-hidden px-6 py-20 text-neutral-50 sm:py-24 lg:py-28"
+            className="pointer-events-none sticky top-0 z-1400 flex h-svh items-center justify-center overflow-hidden px-6 py-20 text-neutral-50 sm:py-24 lg:py-28"
             data-final-love-story-stage
           >
             <h2
               aria-label={finalHeadlineAriaLabel}
-              className="relative z-[1400] mx-auto flex w-full max-w-screen-2xl flex-col items-center justify-center text-center font-extrabold tracking-normal"
+              className="relative z-1400 mx-auto flex w-full max-w-screen-2xl flex-col items-center justify-center text-center font-extrabold tracking-normal"
             >
               <span
                 aria-hidden="true"
@@ -3092,7 +3175,7 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
 
         <section
           aria-labelledby="horizontal-quote-title"
-          className="relative -mx-6 flex h-[100svh] w-[calc(100%+3rem)] items-center overflow-hidden bg-neutral-50 text-neutral-950"
+          className="relative -mx-6 flex h-svh w-[calc(100%+3rem)] items-center overflow-hidden bg-neutral-50 text-neutral-950"
           data-horizontal-quote-section
           data-navigation-menu-hide-zone
           ref={horizontalQuoteSectionRef}

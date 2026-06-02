@@ -75,17 +75,20 @@ const FooterTextButton = ({
 
 export function CinematicFooter() {
   const scrollToTop = () => {
-    window.scrollTo({ behavior: shouldReduceMotion() ? "auto" : "smooth", top: 0 });
+    window.scrollTo({
+      behavior: shouldReduceMotion() ? "auto" : "smooth",
+      top: 0,
+    });
   };
 
   return (
     <>
       <div
         data-navigation-menu-hide-zone
-        className="relative h-[100svh] w-full [clip-path:polygon(0%_0,100%_0%,100%_100%,0_100%)] [mask-image:linear-gradient(to_bottom,transparent_0%,black_14%,black_100%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent_0%,black_14%,black_100%)]"
+        className="relative h-svh w-full [clip-path:polygon(0%_0,100%_0%,100%_100%,0_100%)] mask-[linear-gradient(to_bottom,transparent_0%,black_14%,black_100%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent_0%,black_14%,black_100%)]"
       >
         <footer
-          className="fixed bottom-0 left-0 flex h-[100svh] w-full flex-col justify-between overflow-hidden bg-background font-sans text-foreground antialiased"
+          className="fixed bottom-0 left-0 flex h-svh w-full flex-col justify-between overflow-hidden bg-background font-sans text-foreground antialiased"
           style={footerThemeStyle}
         >
           <div aria-hidden="true" className="absolute inset-0 z-0 bg-background">
@@ -123,7 +126,7 @@ export function CinematicFooter() {
 
           <div
             className={cn(
-              "pointer-events-none absolute -bottom-[4vh] left-1/2 z-0 -translate-x-1/2 select-none whitespace-nowrap",
+              "pointer-events-none absolute bottom-[-4vh] left-1/2 z-0 -translate-x-1/2 select-none whitespace-nowrap",
               giantTextClassName,
             )}
           >
@@ -226,7 +229,7 @@ export function CinematicFooter() {
 
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 -top-[5svh] z-20 h-[16svh] bg-gradient-to-b from-background via-background/95 to-transparent"
+          className="pointer-events-none absolute inset-x-0 top-[-5svh] z-20 h-[16svh] bg-linear-to-b from-background via-background/95 to-transparent"
         />
       </div>
     </>
