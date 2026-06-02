@@ -134,7 +134,7 @@ const authPortalPanelVisible = {
   opacity: 1,
   transform: "perspective(500px) rotateX(0deg) scale(1)",
 };
-const authIllustrationHidden = { filter: "blur(16px)", opacity: 0, scale: 1.025 };
+const authIllustrationHidden = { filter: "blur(0px)", opacity: 0, scale: 1 };
 const authIllustrationVisible = { filter: "blur(0px)", opacity: 1, scale: 1 };
 const authPortalBackdropTransition = { duration: 0.2, ease: "easeInOut" };
 const authIllustrationTransition = { duration: 0.32, ease: "easeOut" };
@@ -256,10 +256,12 @@ export function AuthPage({
           tabIndex={-1}
           transition={authPortalPanelTransition}
         >
-          <button
+          <motion.button
             aria-label={locale === "en" ? "Close" : "Tutup"}
             className="absolute top-5 right-5 z-30 inline-flex size-10 cursor-pointer items-center justify-center bg-white/90 text-neutral-950 transition-colors hover:text-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+            layout="position"
             onClick={closePortal}
+            transition={authSharedLayoutTransition}
             type="button"
           >
             <HugeiconsIcon
@@ -268,11 +270,9 @@ export function AuthPage({
               icon={Cancel01Icon}
               strokeWidth={2}
             />
-          </button>
+          </motion.button>
           <AuthLanguageSwitcher isCompact={isConfirmingAuthStep} isRegister={isRegister} />
-          <AnimatePresence>
-            {isConfirmingAuthStep ? null : <AuthIllustration key="auth-illustration" />}
-          </AnimatePresence>
+          <AuthIllustration />
           <LayoutGroup id="auth-form-layout">
             <motion.section
               className={`relative z-10 grid ${
@@ -1585,15 +1585,17 @@ function AuthIllustration() {
     <motion.div
       animate={authIllustrationVisible}
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 z-0 bg-white"
+      className="pointer-events-none absolute inset-0 z-0 origin-left overflow-hidden bg-white"
       exit={authIllustrationHidden}
       initial={authIllustrationHidden}
+      layout="position"
       transition={authIllustrationTransition}
     >
-      <img
+      <motion.img
         alt=""
-        className="h-full w-full object-cover"
+        className="h-[min(720px,calc(100vh_-_2.5rem))] w-[min(64rem,calc(100vw_-_2rem))] max-w-none object-cover object-left-top md:h-[min(760px,calc(100vh_-_4rem))] md:w-[min(64rem,calc(100vw_-_4rem))]"
         decoding="async"
+        layout="position"
         loading="eager"
         src={authIllustrationImageUrl}
       />
