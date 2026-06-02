@@ -140,7 +140,7 @@ const authPortalBackdropTransition = { duration: 0.2, ease: "easeInOut" };
 const authIllustrationTransition = { duration: 0.32, ease: "easeOut" };
 const authPortalPanelTransition = { duration: 0.36, ease: "easeOut" };
 const authSharedLayoutTransition = { duration: 0.36, ease: "easeOut" };
-const authRegisterFieldRevealTransition = { duration: 0.24, ease: "easeOut" };
+const authRegisterFieldRevealTransition = { duration: 0.36, ease: "easeOut" };
 
 export function AuthPage({
   closeHref = "/learn",
@@ -1080,9 +1080,7 @@ function AuthFormPanel({
       layout
       transition={authSharedLayoutTransition}
     >
-      <div
-        className={`flex flex-1 items-center justify-center transition-[padding] duration-200 ${credentialsPanelPaddingClass}`}
-      >
+      <div className={`flex flex-1 items-center justify-center ${credentialsPanelPaddingClass}`}>
         <div className="w-full max-w-sm text-foreground">
           <motion.div
             className="space-y-1 text-left"
@@ -1434,7 +1432,7 @@ function PasswordRequirements({
     <>
       {shouldShowHint ? (
         <p
-          className="mt-1.5 overflow-hidden text-xs leading-4 text-rose-700 transition-[max-height,opacity,transform,color] duration-300 ease-out"
+          className="mt-1.5 overflow-hidden text-xs leading-4 text-rose-700 transition-[max-height,opacity,transform,color] duration-[360ms] ease-out"
           id="password-requirements-hint"
         >
           {error}
@@ -1443,7 +1441,7 @@ function PasswordRequirements({
       <ul
         aria-label={locale === "en" ? "Password requirements" : "Syarat sandi"}
         aria-hidden={!shouldShowRequirements}
-        className={`space-y-1.5 overflow-hidden pl-0.5 transition-[max-height,opacity,transform,margin] duration-300 ease-out ${
+        className={`space-y-1.5 overflow-hidden pl-0.5 transition-[max-height,opacity,transform,margin] duration-[360ms] ease-out ${
           shouldShowRequirements
             ? "mt-2 max-h-32 translate-y-0 overflow-visible opacity-100"
             : "mt-0 max-h-0 translate-y-1 opacity-0"
@@ -1471,7 +1469,7 @@ function PasswordRequirementItem({ isValid, label }: { isValid: boolean; label: 
     >
       <span
         aria-hidden="true"
-        className={`inline-flex size-4 shrink-0 items-center justify-center rounded-none border transition-[background-color,border-color,color,transform] duration-300 ease-out ${
+        className={`inline-flex size-4 shrink-0 items-center justify-center rounded-none border transition-[background-color,border-color,color,transform] duration-[360ms] ease-out ${
           isValid
             ? "scale-105 border-emerald-700 bg-emerald-700 text-white"
             : "scale-100 border-zinc-400 bg-white text-transparent"
@@ -1483,7 +1481,7 @@ function PasswordRequirementItem({ isValid, label }: { isValid: boolean; label: 
         {label}
         <span
           aria-hidden="true"
-          className={`absolute right-0 left-0 top-1/2 h-px origin-left -translate-y-1/2 bg-current transition-transform duration-300 ease-out ${
+          className={`absolute right-0 left-0 top-1/2 h-px origin-left -translate-y-1/2 bg-current transition-transform duration-[360ms] ease-out ${
             isValid ? "scale-x-100" : "scale-x-0"
           }`}
         />
@@ -1532,7 +1530,7 @@ function FieldErrorStatus({
   return (
     <p
       aria-live="polite"
-      className={`mt-1.5 flex items-center gap-1.5 overflow-hidden text-xs leading-4 font-medium transition-[max-height,opacity,transform,color] duration-300 ease-out ${
+      className={`mt-1.5 flex items-center gap-1.5 overflow-hidden text-xs leading-4 font-medium transition-[max-height,opacity,transform,color] duration-[360ms] ease-out ${
         isVisible ? "max-h-8 translate-y-0 opacity-100" : "max-h-0 -translate-y-1 opacity-0"
       } text-rose-700`}
       id={id}
@@ -1566,7 +1564,7 @@ function ConfirmPasswordStatus({
     <p
       aria-live="polite"
       aria-hidden={!shouldShowStatus}
-      className={`mt-1.5 flex items-center gap-1.5 overflow-hidden text-xs leading-4 font-medium transition-[max-height,opacity,transform,color] duration-300 ease-out ${
+      className={`mt-1.5 flex items-center gap-1.5 overflow-hidden text-xs leading-4 font-medium transition-[max-height,opacity,transform,color] duration-[360ms] ease-out ${
         shouldShowStatus ? "max-h-8 translate-y-0 opacity-100" : "max-h-0 -translate-y-1 opacity-0"
       } text-rose-700`}
       id="confirm-password-status"
