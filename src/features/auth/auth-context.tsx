@@ -37,7 +37,7 @@ type AuthContextValue = {
   session: AuthSession | null;
   signIn: (input: SignInInput) => Promise<AuthSession>;
   signOut: () => void;
-  signUp: (input: { email: string; name: string; password: string }) => Promise<{
+  signUp: (input: { email: string; name: string }) => Promise<{
     destination?: string;
     userConfirmed: boolean;
   }>;
@@ -148,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return nextSession;
   }, []);
 
-  const signUp = useCallback(async (input: { email: string; name: string; password: string }) => {
+  const signUp = useCallback(async (input: { email: string; name: string }) => {
     clearAuthSession();
     setSession(null);
 

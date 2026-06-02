@@ -156,8 +156,8 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         if method == "POST" and path == "/auth/confirmation/confirm":
             return response(200, confirm_sign_up(parse_json_body(event)))
 
-        if method == "POST" and path == "/auth/username/sign-in":
-            return response(200, sign_in_with_username(parse_json_body(event)))
+        if method == "POST" and path == "/auth/username/resolve":
+            return response(200, resolve_username_sign_in_email(parse_json_body(event)))
 
         if method == "POST" and path == "/uploads/presign":
             body = parse_json_body(event)
@@ -790,10 +790,8 @@ def validate_uploaded_dataset_code(body: dict[str, Any], user: dict[str, Any]) -
 def start_sign_up(body: dict[str, Any], now: int | None = None) -> dict[str, Any]:
     email = normalize_auth_email(get_required_string(body, "email"))
     requested_username = get_required_string(body, "name")
-    password = get_required_string(body, "password")
     request_time = int(time.time()) if now is None else now
 
-    validate_signup_password(password)
     require_cognito_user_pool_id()
 
     if cognito_user_exists(email):
@@ -861,40 +859,15 @@ def start_sign_up(body: dict[str, Any], now: int | None = None) -> dict[str, Any
     }
 
 
-def sign_in_with_username(body: dict[str, Any]) -> dict[str, Any]:
+def resolve_username_sign_in_email(body: dict[str, Any]) -> dict[str, Any]:
     username = get_required_string(body, "username")
-    password = get_required_string(body, "password")
     username_key = normalize_signup_username(username)
     email = get_confirmed_email_for_username(username_key)
 
     if not email:
         raise CognitoSignInError("NotAuthorizedException", "Username or password is not correct.")
 
-    if not COGNITO_CLIENT_ID:
-        raise AuthConfigurationError("Cognito client id is missing.")
-
-    try:
-        result = get_cognito_identity_provider_client().initiate_auth(
-            AuthFlow="USER_PASSWORD_AUTH",
-            AuthParameters={
-                "PASSWORD": password,
-                "USERNAME": email,
-            },
-            ClientId=COGNITO_CLIENT_ID,
-        )
-    except ClientError as error:
-        code = get_client_error_code(error)
-        if code in {
-            "NotAuthorizedException",
-            "PasswordResetRequiredException",
-            "UserNotConfirmedException",
-            "UserNotFoundException",
-        }:
-            raise CognitoSignInError(code, get_client_error_message(error)) from error
-
-        raise
-
-    return {"authenticationResult": result.get("AuthenticationResult", {})}
+    return {"email": email}
 
 
 def get_confirmed_email_for_username(username_key: str) -> str:

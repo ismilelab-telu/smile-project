@@ -25,9 +25,9 @@ from app import (
     require_learning_backend_user,
     reserve_confirmation_resend,
     reserve_username_for_signup,
+    resolve_username_sign_in_email,
     run_pandas_loading_code,
     sanitize_file_name,
-    sign_in_with_username,
     start_sign_up,
     validate_pandas_loading_code,
 )
@@ -514,8 +514,7 @@ class LearningBackendTest(unittest.TestCase):
         with self.assertRaises(UsernameReservationError):
             reserve_username_for_signup(create_cognito_event("other@example.com", "student_one"))
 
-    def test_sign_in_with_username_uses_confirmed_email(self) -> None:
-        app.COGNITO_CLIENT_ID = "web-client"
+    def test_resolve_username_sign_in_email_uses_confirmed_email(self) -> None:
         app.USERNAME_RESERVATION_TABLE = "username-reservations"
         fake_dynamodb = FakeDynamoDbClient()
         fake_dynamodb.items["student_one"] = {
@@ -528,16 +527,12 @@ class LearningBackendTest(unittest.TestCase):
         app._dynamodb_client = fake_dynamodb
         app._cognito_identity_provider_client = fake_cognito
 
-        result = sign_in_with_username({"password": "Password1", "username": "Student_One"})
+        result = resolve_username_sign_in_email({"username": "Student_One"})
 
-        self.assertEqual(result["authenticationResult"]["AccessToken"], "access-token")
-        self.assertEqual(
-            fake_cognito.calls[0]["AuthParameters"],
-            {"PASSWORD": "Password1", "USERNAME": "student@example.com"},
-        )
+        self.assertEqual(result["email"], "student@example.com")
+        self.assertEqual(fake_cognito.calls, [])
 
-    def test_sign_in_with_username_ignores_pending_reservation(self) -> None:
-        app.COGNITO_CLIENT_ID = "web-client"
+    def test_resolve_username_sign_in_email_ignores_pending_reservation(self) -> None:
         app.USERNAME_RESERVATION_TABLE = "username-reservations"
         fake_dynamodb = FakeDynamoDbClient()
         fake_dynamodb.items["student_one"] = {
@@ -550,7 +545,7 @@ class LearningBackendTest(unittest.TestCase):
         app._dynamodb_client = fake_dynamodb
 
         with self.assertRaises(CognitoSignInError) as context:
-            sign_in_with_username({"password": "Password1", "username": "Student_One"})
+            resolve_username_sign_in_email({"username": "Student_One"})
 
         self.assertEqual(context.exception.code, "NotAuthorizedException")
 
@@ -584,7 +579,6 @@ class LearningBackendTest(unittest.TestCase):
             {
                 "email": "Student@Example.com",
                 "name": "Student_One",
-                "password": "Password1",
             },
             now=100,
         )
@@ -617,7 +611,6 @@ class LearningBackendTest(unittest.TestCase):
             {
                 "email": "student@example.com",
                 "name": "Student_One",
-                "password": "Password1",
             },
             now=100,
         )
@@ -627,7 +620,6 @@ class LearningBackendTest(unittest.TestCase):
                 {
                     "email": "student@example.com",
                     "name": "Student_Two",
-                    "password": "Password1",
                 },
                 now=110,
             )
@@ -653,7 +645,6 @@ class LearningBackendTest(unittest.TestCase):
             {
                 "email": "student@example.com",
                 "name": "Student_One",
-                "password": "Password1",
             },
             now=100,
         )
@@ -661,7 +652,6 @@ class LearningBackendTest(unittest.TestCase):
             {
                 "email": "student@example.com",
                 "name": "Student_Two",
-                "password": "Password1",
             },
             now=130,
         )
@@ -686,7 +676,6 @@ class LearningBackendTest(unittest.TestCase):
             {
                 "email": "student@example.com",
                 "name": "Student_One",
-                "password": "Password1",
             },
             now=100,
         )
@@ -725,7 +714,6 @@ class LearningBackendTest(unittest.TestCase):
             {
                 "email": "student@example.com",
                 "name": "Student_One",
-                "password": "Password1",
             },
             now=100,
         )
@@ -749,7 +737,6 @@ class LearningBackendTest(unittest.TestCase):
             {
                 "email": "student@example.com",
                 "name": "Student_One",
-                "password": "Password1",
             },
             now=100,
         )
@@ -782,7 +769,6 @@ class LearningBackendTest(unittest.TestCase):
             {
                 "email": "student@example.com",
                 "name": "Student_One",
-                "password": "Password1",
             },
             now=100,
         )
@@ -808,7 +794,6 @@ class LearningBackendTest(unittest.TestCase):
             {
                 "email": "student@example.com",
                 "name": "Student_One",
-                "password": "Password1",
             },
             now=100,
         )

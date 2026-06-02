@@ -655,7 +655,6 @@ function AuthFormPanel({
         const signUpResult = await auth.signUp({
           email: normalizedEmail,
           name: name.trim(),
-          password,
         });
 
         if (signUpResult.userConfirmed) {

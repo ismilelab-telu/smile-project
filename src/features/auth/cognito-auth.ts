@@ -39,6 +39,7 @@ type LearningBackendAuthResponse = {
   authenticationResult?: CognitoInitiateAuthResponse["AuthenticationResult"];
   code?: string;
   cooldownSeconds?: number;
+  email?: string;
   message?: string;
   nextAllowedAt?: number;
   retryAfterSeconds?: number;
@@ -76,19 +77,11 @@ export function getCognitoConfig() {
   };
 }
 
-export async function signUpWithCognito({
-  email,
-  name,
-  password,
-}: {
-  email: string;
-  name: string;
-  password: string;
-}) {
+export async function signUpWithCognito({ email, name }: { email: string; name: string }) {
   requireCognitoConfig();
 
   const response = await fetch(`${getLearningBackendUrl()}/auth/sign-up/start`, {
-    body: JSON.stringify({ email, name, password }),
+    body: JSON.stringify({ email, name }),
     headers: {
       "content-type": "application/json",
     },
@@ -183,8 +176,8 @@ export async function signInWithUsername({
   password: string;
   username: string;
 }) {
-  const response = await fetch(`${getLearningBackendUrl()}/auth/username/sign-in`, {
-    body: JSON.stringify({ password, username }),
+  const response = await fetch(`${getLearningBackendUrl()}/auth/username/resolve`, {
+    body: JSON.stringify({ username }),
     headers: {
       "content-type": "application/json",
     },
@@ -197,8 +190,24 @@ export async function signInWithUsername({
     throw new CognitoAuthError(code, responseBody.message ?? getFallbackCognitoErrorMessage(code));
   }
 
+  const email = responseBody.email?.trim();
+  if (!email) {
+    throw new CognitoAuthError("CognitoError", "Backend did not return a sign-in email.");
+  }
+
+  const config = requireCognitoConfig();
+  const cognitoResponse = await cognitoRequest<CognitoInitiateAuthResponse>("InitiateAuth", {
+    AuthFlow: "USER_PASSWORD_AUTH",
+    AuthParameters: {
+      PASSWORD: password,
+      USERNAME: email,
+    },
+    ClientId: config.clientId,
+  });
+
   return createAuthSession({
-    authResult: responseBody.authenticationResult ?? {},
+    authResult: cognitoResponse.AuthenticationResult ?? {},
+    fallbackEmail: email,
     fallbackName: username,
   });
 }
