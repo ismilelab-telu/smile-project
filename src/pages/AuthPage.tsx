@@ -1655,8 +1655,8 @@ function getAuthStatusMessage(
 ) {
   if (message.kind === "account-unconfirmed") {
     return locale === "en"
-      ? "This account still needs the verification code from email. If it does not show up, check your spam or junk folder."
-      : "Akun ini masih perlu kode verifikasi dari email. Kalau belum muncul, cek folder spam atau junk juga.";
+      ? "If it does not show up, check your spam or junk folder."
+      : "Kalau belum muncul, cek folder spam atau junk juga.";
   }
 
   return getConfirmationSentMessage(
