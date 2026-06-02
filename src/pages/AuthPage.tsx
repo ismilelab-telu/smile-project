@@ -1587,7 +1587,7 @@ function AuthIllustration({ isRegister }: { isRegister: boolean }) {
     <motion.div
       animate={authIllustrationVisible}
       aria-hidden="true"
-      className={`pointer-events-none absolute inset-0 z-0 overflow-hidden bg-white ${
+      className={`pointer-events-none absolute inset-0 z-0 ${
         isRegister ? "origin-right" : "origin-left"
       }`}
       exit={authIllustrationHidden}
