@@ -937,9 +937,30 @@ function AuthFormPanel({
                   : undefined
         }
         onChange={getFieldChangeHandler(field.id)}
+        onCopy={
+          field.type === "password"
+            ? (event) => {
+                event.preventDefault();
+              }
+            : undefined
+        }
+        onCut={
+          field.type === "password"
+            ? (event) => {
+                event.preventDefault();
+              }
+            : undefined
+        }
+        onPaste={
+          isConfirmPasswordField
+            ? (event) => {
+                event.preventDefault();
+              }
+            : undefined
+        }
         inputType={field.type === "password" && isPasswordInputVisible ? "text" : undefined}
         trailingControl={
-          field.type === "password" ? (
+          field.type === "password" && getFieldValue(field.id).length > 0 ? (
             <button
               aria-label={passwordToggleLabel}
               className="absolute top-1/2 right-2 inline-flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-none text-neutral-950 transition-colors hover:text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:text-neutral-300"
@@ -1213,6 +1234,9 @@ function AuthInput({
   layoutId,
   onBlur,
   onChange,
+  onCopy,
+  onCut,
+  onPaste,
   trailingControl,
   value,
 }: {
@@ -1227,6 +1251,9 @@ function AuthInput({
   layoutId?: string;
   onBlur?: () => void;
   onChange?: (value: string) => void;
+  onCopy?: (event: ClipboardEvent<HTMLInputElement>) => void;
+  onCut?: (event: ClipboardEvent<HTMLInputElement>) => void;
+  onPaste?: (event: ClipboardEvent<HTMLInputElement>) => void;
   trailingControl?: ReactNode;
   value?: string;
 }) {
@@ -1260,6 +1287,9 @@ function AuthInput({
           name={field.id}
           onBlur={onBlur}
           onChange={onChange ? (event) => onChange(event.target.value) : undefined}
+          onCopy={onCopy}
+          onCut={onCut}
+          onPaste={onPaste}
           placeholder={field.placeholder}
           required={!isDisabled}
           type={inputType ?? field.type}
