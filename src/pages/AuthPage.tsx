@@ -138,8 +138,8 @@ const authIllustrationHidden = { filter: "blur(16px)", opacity: 0, scale: 1.025 
 const authIllustrationVisible = { filter: "blur(0px)", opacity: 1, scale: 1 };
 const authPortalBackdropTransition = { duration: 0.2, ease: "easeInOut" };
 const authIllustrationTransition = { duration: 0.32, ease: "easeOut" };
-const authPortalPanelTransition = { damping: 25, stiffness: 150, type: "spring" };
-const authSharedLayoutTransition = { damping: 32, mass: 0.9, stiffness: 260, type: "spring" };
+const authPortalPanelTransition = { duration: 0.22, ease: "easeOut" };
+const authSharedLayoutTransition = { duration: 0.24, ease: "easeOut" };
 const authRegisterFieldRevealTransition = { duration: 0.24, ease: "easeOut" };
 
 export function AuthPage({
