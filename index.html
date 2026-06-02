@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-route-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,22 +7,6 @@
       name="description"
       content="Interactive machine learning playground for learning regression models."
     />
-    <style>
-      html[data-route-theme="dark"],
-      html[data-route-theme="dark"] body,
-      html[data-route-theme="dark"] #root {
-        background: oklch(0% 0 0);
-        color-scheme: dark;
-      }
-    </style>
-    <script>
-      if ("scrollRestoration" in window.history) {
-        window.history.scrollRestoration = "manual";
-      }
-
-      document.documentElement.dataset.routeTheme =
-        window.location.pathname === "/" ? "light" : "dark";
-    </script>
     <title>Smile Project</title>
   </head>
   <body>

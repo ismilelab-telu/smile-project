@@ -11,6 +11,7 @@ if ("scrollRestoration" in window.history) {
   window.history.scrollRestoration = "manual";
 }
 
+document.documentElement.dataset.routeTheme = window.location.pathname === "/" ? "light" : "dark";
 window.scrollTo(0, 0);
 
 const rootElement = document.getElementById("root");
