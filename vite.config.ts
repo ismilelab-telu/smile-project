@@ -9,14 +9,17 @@ import type { Plugin } from "vite-plus";
 import { handleDatasetSourcePageValidationRequest } from "./src/features/learning/server/dataset-source-page-validation.ts";
 
 function readIncomingRequestBody(request: IncomingMessage) {
-  return new Promise<Buffer>((resolve, reject) => {
+  return new Promise<ArrayBuffer>((resolve, reject) => {
     const chunks: Buffer[] = [];
 
     request.on("data", (chunk: Buffer) => {
       chunks.push(chunk);
     });
     request.on("end", () => {
-      resolve(Buffer.concat(chunks));
+      const body = Buffer.concat(chunks);
+      const arrayBuffer = body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength);
+
+      resolve(arrayBuffer as ArrayBuffer);
     });
     request.on("error", reject);
   });
