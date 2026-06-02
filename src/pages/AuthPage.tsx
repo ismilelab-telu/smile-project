@@ -451,17 +451,20 @@ function AuthFormPanel({
   const copy = authCopy[locale][mode];
   const title = titleOverride ?? copy.title;
   const isRegister = mode === "register";
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [registerName, setRegisterName] = useState("");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
+  const [registerConfirmPassword, setRegisterConfirmPassword] = useState("");
+  const [loginIdentifier, setLoginIdentifier] = useState("");
   const [loginMethod, setLoginMethod] = useState<AuthLoginMethod>("username");
-  const [password, setPassword] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
   const [isPasswordVisible, setPasswordVisible] = useState(false);
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [isConfirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const [confirmationCode, setConfirmationCode] = useState("");
   const [confirmationDestination, setConfirmationDestination] = useState("");
   const [confirmationEmail, setConfirmationEmail] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [registeredEmailErrorValue, setRegisteredEmailErrorValue] = useState("");
   const [isNameTouched, setNameTouched] = useState(false);
   const [isEmailTouched, setEmailTouched] = useState(false);
   const [isPasswordTouched, setPasswordTouched] = useState(false);
@@ -470,6 +473,11 @@ function AuthFormPanel({
   const [resendAvailableAt, setResendAvailableAt] = useState(0);
   const [resendClock, setResendClock] = useState(() => Date.now());
   const [statusMessage, setStatusMessage] = useState<AuthStatusMessage | null>(null);
+  const name = registerName;
+  const email = isRegister ? registerEmail : loginIdentifier;
+  const password = isRegister ? registerPassword : loginPassword;
+  const confirmPassword = registerConfirmPassword;
+  const normalizedRegisterEmail = registerEmail.trim().toLowerCase();
   const usernameError = getUsernameValidationMessage(name, locale);
   const trimmedEmail = email.trim();
   const isUsernameSignIn = !isRegister && loginMethod === "username";
@@ -496,6 +504,14 @@ function AuthFormPanel({
     Boolean(confirmPasswordError) &&
     (confirmPassword.length > 0 || isConfirmPasswordTouched);
   const isConfirmingAccount = confirmationEmail.length > 0;
+  const registeredEmailErrorMessage =
+    isRegister &&
+    !isConfirmingAccount &&
+    registeredEmailErrorValue &&
+    normalizedRegisterEmail === registeredEmailErrorValue
+      ? getRegisteredEmailErrorMessage(locale)
+      : "";
+  const visibleErrorMessage = errorMessage || registeredEmailErrorMessage;
   const renderedStatusMessage = statusMessage ? getAuthStatusMessage(statusMessage, locale) : "";
   const confirmationTitle = getConfirmationStepTitle(locale);
   const resendCooldownSeconds = Math.max(0, Math.ceil((resendAvailableAt - resendClock) / 1000));
@@ -505,12 +521,7 @@ function AuthFormPanel({
     setConfirmationCode("");
     setConfirmationDestination("");
     setConfirmationEmail("");
-    setConfirmPassword("");
-    setEmail("");
     setErrorMessage("");
-    setLoginMethod("username");
-    setName("");
-    setPassword("");
     setPasswordVisible(false);
     setNameTouched(false);
     setEmailTouched(false);
@@ -576,6 +587,16 @@ function AuthFormPanel({
       setErrorMessage(
         locale === "en" ? "Enter a valid email address." : "Masukkan email yang valid.",
       );
+      return;
+    }
+
+    if (
+      isRegister &&
+      !isConfirmingAccount &&
+      registeredEmailErrorValue &&
+      normalizedEmail === registeredEmailErrorValue
+    ) {
+      setEmailTouched(true);
       return;
     }
 
@@ -659,6 +680,17 @@ function AuthFormPanel({
       });
       redirectAfterAuth(successHref, onAuthenticated);
     } catch (error) {
+      if (
+        isRegister &&
+        error instanceof CognitoAuthError &&
+        error.code === "UsernameExistsException"
+      ) {
+        setRegisteredEmailErrorValue(normalizedEmail);
+        setEmailTouched(true);
+        setErrorMessage("");
+        return;
+      }
+
       if (error instanceof CognitoAuthError && error.code === "UserNotConfirmedException") {
         if (isSubmittingUsername) {
           setErrorMessage(
@@ -718,19 +750,19 @@ function AuthFormPanel({
 
   const getFieldValue = (fieldId: string) => {
     if (fieldId === "auth-name") {
-      return name;
+      return registerName;
     }
 
     if (isAuthIdentifierField(fieldId)) {
-      return email;
+      return isRegister ? registerEmail : loginIdentifier;
     }
 
     if (fieldId === "auth-password") {
-      return password;
+      return isRegister ? registerPassword : loginPassword;
     }
 
     if (fieldId === "auth-confirm-password") {
-      return confirmPassword;
+      return registerConfirmPassword;
     }
 
     return "";
@@ -738,19 +770,19 @@ function AuthFormPanel({
 
   const getFieldChangeHandler = (fieldId: string) => {
     if (fieldId === "auth-name") {
-      return setName;
+      return setRegisterName;
     }
 
     if (isAuthIdentifierField(fieldId)) {
-      return setEmail;
+      return isRegister ? setRegisterEmail : setLoginIdentifier;
     }
 
     if (fieldId === "auth-password") {
-      return setPassword;
+      return isRegister ? setRegisterPassword : setLoginPassword;
     }
 
     if (fieldId === "auth-confirm-password") {
-      return setConfirmPassword;
+      return setRegisterConfirmPassword;
     }
 
     return undefined;
@@ -767,6 +799,15 @@ function AuthFormPanel({
   const switchMode: AuthMode = isRegister ? "login" : "register";
   const switchClassName =
     "font-medium text-foreground underline underline-offset-4 transition-colors hover:text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400";
+  const handleModeSwitch = () => {
+    if (switchMode === "login" && registeredEmailErrorMessage) {
+      setLoginMethod("email");
+      setLoginIdentifier(normalizedRegisterEmail);
+      setLoginPassword(registerPassword);
+    }
+
+    onModeChange?.(switchMode);
+  };
   const loginMethodToggleLabel =
     loginMethod === "username"
       ? locale === "en"
@@ -779,7 +820,7 @@ function AuthFormPanel({
     <button
       className="text-xs font-semibold text-foreground underline underline-offset-4 transition-colors hover:text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
       onClick={() => {
-        setEmail("");
+        setLoginIdentifier("");
         setEmailTouched(false);
         setErrorMessage("");
         setStatusMessage(null);
@@ -1028,7 +1069,11 @@ function AuthFormPanel({
       layout
       transition={authSharedLayoutTransition}
     >
-      <div className="flex flex-1 items-center justify-center py-20">
+      <div
+        className={`flex flex-1 items-center justify-center transition-[padding] duration-200 ${
+          canShowConfirmPassword ? "pt-10 pb-12 md:pt-12 md:pb-14" : "py-20"
+        }`}
+      >
         <div className="w-full max-w-sm text-foreground">
           <motion.div
             className="space-y-1 text-left"
@@ -1092,9 +1137,9 @@ function AuthFormPanel({
               </div>
             ) : null}
 
-            {errorMessage ? (
+            {visibleErrorMessage ? (
               <p className="mt-6 text-sm leading-6 font-medium text-rose-700" role="alert">
-                {errorMessage}
+                {visibleErrorMessage}
               </p>
             ) : null}
             {renderedStatusMessage ? (
@@ -1104,7 +1149,9 @@ function AuthFormPanel({
             ) : null}
 
             <motion.button
-              className="mt-6 inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-none bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:bg-zinc-400"
+              className={`inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-none bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:bg-zinc-400 ${
+                visibleErrorMessage || renderedStatusMessage ? "mt-3" : "mt-6"
+              }`}
               disabled={isSubmitting}
               layout="position"
               layoutId="auth-submit-button"
@@ -1127,15 +1174,16 @@ function AuthFormPanel({
           >
             {copy.switchLabel}{" "}
             {onModeChange ? (
-              <button
-                className={switchClassName}
-                onClick={() => onModeChange(switchMode)}
-                type="button"
-              >
+              <button className={switchClassName} onClick={handleModeSwitch} type="button">
                 {copy.switchAction}
               </button>
             ) : (
-              <a className={switchClassName} data-app-link href={copy.switchHref}>
+              <a
+                className={switchClassName}
+                data-app-link
+                href={copy.switchHref}
+                onClick={handleModeSwitch}
+              >
                 {copy.switchAction}
               </a>
             )}
@@ -1731,6 +1779,12 @@ function sanitizeOtpCode(value: string) {
   return value.replace(/\D/g, "").slice(0, OTP_CODE_LENGTH);
 }
 
+function getRegisteredEmailErrorMessage(locale: Locale) {
+  return locale === "en"
+    ? "This email is already registered. Sign in instead."
+    : "Email ini sudah terdaftar. Masuk saja.";
+}
+
 function getAuthErrorMessage(error: unknown, locale: Locale) {
   if (error instanceof CognitoAuthError) {
     if (
@@ -1772,8 +1826,8 @@ function getAuthErrorMessage(error: unknown, locale: Locale) {
         id: "Akun ini perlu reset sandi sebelum bisa masuk.",
       },
       UsernameExistsException: {
-        en: "This email is already registered. Sign in instead.",
-        id: "Email ini sudah terdaftar. Masuk saja.",
+        en: getRegisteredEmailErrorMessage("en"),
+        id: getRegisteredEmailErrorMessage("id"),
       },
       UserNotFoundException: {
         en: "No account was found for that username/email.",
