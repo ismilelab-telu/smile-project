@@ -304,7 +304,7 @@ export function AuthPage({
           aria-modal="true"
           className={`relative grid w-full transform-gpu overflow-hidden border-2 border-neutral-950 bg-white text-foreground shadow-2xl outline-none ${
             isConfirmingAuthStep
-              ? "h-[min(620px,calc(100vh_-_2.5rem))] max-w-[30rem] md:h-[min(640px,calc(100vh_-_4rem))]"
+              ? "h-[min(760px,calc(100vh_-_2.5rem))] max-w-[30rem] md:h-[min(760px,calc(100vh_-_4rem))]"
               : "h-[min(720px,calc(100vh_-_2.5rem))] max-w-5xl md:h-[min(760px,calc(100vh_-_4rem))]"
           }`}
           data-auth-mode={mode}
@@ -320,7 +320,9 @@ export function AuthPage({
         >
           <motion.button
             aria-label={locale === "en" ? "Close" : "Tutup"}
-            className="absolute top-5 right-5 z-30 inline-flex size-10 cursor-pointer items-center justify-center bg-white/90 text-neutral-950 transition-colors hover:text-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+            className={`absolute top-5 z-30 inline-flex size-10 cursor-pointer items-center justify-center bg-white/90 text-neutral-950 transition-colors hover:text-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${
+              isRegister && !isConfirmingAuthStep ? "left-5" : "right-5"
+            }`}
             layout="position"
             onClick={closePortal}
             transition={authSharedLayoutTransition}
@@ -399,12 +401,12 @@ function AuthLanguageSwitcher({
 
   return (
     <motion.div
-      className={`absolute bottom-5 z-30 flex w-[215px] max-w-[calc(100%_-_2.5rem)] flex-col items-stretch md:bottom-7 ${
+      className={`absolute top-5 z-30 flex w-max max-w-[calc(100%_-_2.5rem)] flex-col items-start md:top-7 ${
         isCompact
-          ? "left-1/2 -translate-x-1/2"
+          ? "left-5 md:left-7"
           : isRegister
-            ? "left-5 md:left-7"
-            : "right-5 md:right-7"
+            ? "right-16 md:right-20 lg:right-[calc(50%+2rem)]"
+            : "right-16 md:right-20 lg:left-[calc(50%+2rem)] lg:right-auto"
       }`}
       layout="position"
       ref={rootRef}
@@ -414,15 +416,15 @@ function AuthLanguageSwitcher({
         {isOpen ? (
           <motion.div
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className={`absolute bottom-full mb-3 grid w-full overflow-hidden border border-neutral-300 bg-white shadow-lg ${
+            className={`absolute top-full mt-3 grid w-[215px] max-w-[calc(100vw_-_2.5rem)] overflow-hidden border border-neutral-300 bg-white shadow-lg ${
               isCompact
-                ? "left-1/2 origin-bottom -translate-x-1/2"
+                ? "left-0 origin-top-left"
                 : isRegister
-                  ? "left-0 origin-bottom-left"
-                  : "right-0 origin-bottom-right"
+                  ? "right-0 origin-top-right"
+                  : "right-0 origin-top-right lg:left-0 lg:right-auto lg:origin-top-left"
             }`}
-            exit={{ opacity: 0, scale: 0.98, y: 8 }}
-            initial={{ opacity: 0, scale: 0.98, y: 8 }}
+            exit={{ opacity: 0, scale: 0.98, y: -8 }}
+            initial={{ opacity: 0, scale: 0.98, y: -8 }}
             transition={{ duration: 0.16, ease: "easeOut" }}
           >
             {localeOptions.map((option) => {
@@ -464,7 +466,7 @@ function AuthLanguageSwitcher({
       <button
         aria-expanded={isOpen}
         aria-label={t("language.triggerAria")}
-        className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-none border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-950 transition-colors hover:border-emerald-500 hover:text-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+        className="inline-flex cursor-pointer items-center gap-2 rounded-none bg-transparent p-0 text-sm leading-none font-semibold text-neutral-950 transition-colors hover:text-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
         onClick={() => setIsOpen((current) => !current)}
         type="button"
       >
@@ -480,7 +482,7 @@ function AuthLanguageSwitcher({
         </span>
         <HugeiconsIcon
           aria-hidden="true"
-          className={`ml-auto size-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`size-4 transition-transform ${isOpen ? "" : "rotate-180"}`}
           icon={ChevronUpIcon}
           strokeWidth={2}
         />
@@ -1116,14 +1118,14 @@ function AuthFormPanel({
 
     return (
       <motion.div
-        className={`relative flex h-full min-h-0 flex-col overflow-y-auto bg-white px-6 pt-20 pb-28 text-foreground md:px-8 ${className}`}
+        className={`relative flex h-full min-h-0 scroll-pb-36 flex-col overflow-y-auto bg-white px-6 pt-16 pb-36 text-foreground md:px-8 md:pt-20 ${className}`}
         data-auth-panel={mode}
         data-auth-step="password-reset"
         data-page-surface="auth-panel"
         layout="position"
         transition={authSharedLayoutTransition}
       >
-        <div className="flex min-h-0 flex-1 items-center justify-center">
+        <div className="flex min-h-0 flex-1 items-start justify-center">
           <div className="w-full max-w-[23rem] text-foreground">
             <motion.div
               className="space-y-3 text-left"
