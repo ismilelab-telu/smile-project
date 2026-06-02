@@ -242,8 +242,8 @@ export function AuthPage({
           aria-modal="true"
           className={`relative grid w-full transform-gpu overflow-hidden border-2 border-neutral-950 bg-white text-foreground shadow-2xl outline-none ${
             isConfirmingAuthStep
-              ? "min-h-[min(620px,calc(100vh_-_2.5rem))] max-w-[30rem] md:min-h-[min(640px,calc(100vh_-_4rem))]"
-              : "min-h-[min(720px,calc(100vh_-_2.5rem))] max-w-5xl md:min-h-[min(760px,calc(100vh_-_4rem))]"
+              ? "h-[min(620px,calc(100vh_-_2.5rem))] max-w-[30rem] md:h-[min(640px,calc(100vh_-_4rem))]"
+              : "h-[min(720px,calc(100vh_-_2.5rem))] max-w-5xl md:h-[min(760px,calc(100vh_-_4rem))]"
           }`}
           data-auth-mode={mode}
           data-auth-step={isConfirmingAuthStep ? "confirmation" : "credentials"}
@@ -276,9 +276,7 @@ export function AuthPage({
           <LayoutGroup id="auth-form-layout">
             <motion.section
               className={`relative z-10 grid ${
-                isConfirmingAuthStep
-                  ? "min-h-[min(620px,calc(100vh_-_2.5rem))] md:min-h-[min(640px,calc(100vh_-_4rem))]"
-                  : "min-h-[min(720px,calc(100vh_-_2.5rem))] lg:grid-cols-2 md:min-h-[min(760px,calc(100vh_-_4rem))]"
+                isConfirmingAuthStep ? "h-full" : "h-full lg:grid-cols-2"
               }`}
               data-auth-layout="split"
               layout
@@ -975,14 +973,14 @@ function AuthFormPanel({
   if (isConfirmingAccount) {
     return (
       <motion.div
-        className={`relative flex min-h-full flex-col bg-white px-6 pt-20 pb-28 text-foreground md:px-8 ${className}`}
+        className={`relative flex h-full min-h-0 flex-col overflow-y-auto bg-white px-6 pt-20 pb-28 text-foreground md:px-8 ${className}`}
         data-auth-panel={mode}
         data-auth-step="confirmation"
         data-page-surface="auth-panel"
-        layout
+        layout="position"
         transition={authSharedLayoutTransition}
       >
-        <div className="flex flex-1 items-center justify-center">
+        <div className="flex min-h-0 flex-1 items-center justify-center">
           <div className="w-full max-w-[23rem] text-foreground">
             <motion.div
               className="space-y-3 text-left"
@@ -1074,13 +1072,15 @@ function AuthFormPanel({
 
   return (
     <motion.div
-      className={`relative flex min-h-full flex-col bg-white p-7 text-foreground md:p-8 ${className}`}
+      className={`relative flex h-full min-h-0 flex-col overflow-y-auto bg-white p-7 text-foreground md:p-8 ${className}`}
       data-auth-panel={mode}
       data-page-surface="auth-panel"
-      layout
+      layout="position"
       transition={authSharedLayoutTransition}
     >
-      <div className={`flex flex-1 items-center justify-center ${credentialsPanelPaddingClass}`}>
+      <div
+        className={`flex min-h-0 flex-1 items-center justify-center ${credentialsPanelPaddingClass}`}
+      >
         <div className="w-full max-w-sm text-foreground">
           <motion.div
             className="space-y-1 text-left"
