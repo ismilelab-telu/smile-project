@@ -213,6 +213,62 @@ export function AuthPage({
     rootRef.current?.focus();
   }, [isConfirmingAuthStep, mode]);
 
+  const portalContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const dialog = rootRef.current;
+    if (!dialog) return;
+
+    const handleFocusTrap = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+
+      const focusableSelector =
+        'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+      const focusableElements = dialog.querySelectorAll<HTMLElement>(focusableSelector);
+      if (focusableElements.length === 0) return;
+
+      const firstFocusable = focusableElements[0]!;
+      const lastFocusable = focusableElements[focusableElements.length - 1]!;
+
+      if (event.shiftKey) {
+        if (document.activeElement === firstFocusable || document.activeElement === dialog) {
+          event.preventDefault();
+          lastFocusable.focus();
+        }
+      } else {
+        if (document.activeElement === lastFocusable) {
+          event.preventDefault();
+          firstFocusable.focus();
+        }
+      }
+    };
+
+    dialog.addEventListener("keydown", handleFocusTrap);
+    return () => dialog.removeEventListener("keydown", handleFocusTrap);
+  }, [isConfirmingAuthStep, mode]);
+
+  useEffect(() => {
+    const portalContainer = portalContainerRef.current;
+    if (!portalContainer) return;
+
+    const parentElement = portalContainer.parentElement;
+    if (!parentElement) return;
+
+    const siblings: Element[] = [];
+    for (const child of parentElement.children) {
+      if (child !== portalContainer && !child.hasAttribute("inert")) {
+        child.setAttribute("inert", "");
+        siblings.push(child);
+      }
+    }
+
+    return () => {
+      for (const sibling of siblings) {
+        sibling.removeAttribute("inert");
+      }
+    };
+  }, [portalTarget]);
+
   const isRegister = mode === "register";
 
   if (!portalTarget) {
@@ -223,6 +279,7 @@ export function AuthPage({
     <div
       className="fixed inset-0 z-[100] overflow-y-auto overscroll-contain px-4 md:px-8"
       data-auth-portal
+      ref={portalContainerRef}
     >
       <motion.button
         animate={isClosing ? authPortalBackdropHidden : authPortalBackdropVisible}
@@ -772,6 +829,9 @@ function AuthFormPanel({
 
     if (loginMethod !== "email" || !isValidEmailAddress(resetEmail)) {
       setLoginMethod("email");
+      if (isValidEmailAddress(resetEmail)) {
+        setLoginIdentifier(resetEmail);
+      }
       setEmailTouched(true);
       setErrorMessage(
         locale === "en"
@@ -1018,27 +1078,6 @@ function AuthFormPanel({
                   : undefined
         }
         onChange={getFieldChangeHandler(field.id)}
-        onCopy={
-          field.type === "password"
-            ? (event) => {
-                event.preventDefault();
-              }
-            : undefined
-        }
-        onCut={
-          field.type === "password"
-            ? (event) => {
-                event.preventDefault();
-              }
-            : undefined
-        }
-        onPaste={
-          isConfirmPasswordField
-            ? (event) => {
-                event.preventDefault();
-              }
-            : undefined
-        }
         inputType={field.type === "password" && isPasswordInputVisible ? "text" : undefined}
         trailingControl={
           field.type === "password" && getFieldValue(field.id).length > 0 ? (
@@ -1481,9 +1520,6 @@ function AuthInput({
   layoutId,
   onBlur,
   onChange,
-  onCopy,
-  onCut,
-  onPaste,
   trailingControl,
   value,
 }: {
@@ -1498,9 +1534,6 @@ function AuthInput({
   layoutId?: string;
   onBlur?: () => void;
   onChange?: (value: string) => void;
-  onCopy?: (event: ClipboardEvent<HTMLInputElement>) => void;
-  onCut?: (event: ClipboardEvent<HTMLInputElement>) => void;
-  onPaste?: (event: ClipboardEvent<HTMLInputElement>) => void;
   trailingControl?: ReactNode;
   value?: string;
 }) {
@@ -1534,9 +1567,6 @@ function AuthInput({
           name={field.id}
           onBlur={onBlur}
           onChange={onChange ? (event) => onChange(event.target.value) : undefined}
-          onCopy={onCopy}
-          onCut={onCut}
-          onPaste={onPaste}
           placeholder={field.placeholder}
           required={!isDisabled}
           type={inputType ?? field.type}
