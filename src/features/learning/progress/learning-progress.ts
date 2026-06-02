@@ -11,6 +11,7 @@ import {
 
 export const learningProgressStorageKey = "smile-learning-progress-v1";
 export const learningProgressOwnerStorageKey = "smile-learning-progress-owner-v1";
+export const learningAccountProgressStorageKeyPrefix = "smile-learning-progress-account-v1:";
 
 type ProgressSyncState = "local" | "synced" | "syncing";
 
@@ -35,21 +36,108 @@ function isProgress(value: unknown): value is LearningProgress {
 }
 
 export function readLearningProgress(): LearningProgress {
-  if (typeof window === "undefined") {
+  return readGuestLearningProgress();
+}
+
+function readGuestLearningProgress(): LearningProgress {
+  if (readLearningProgressOwner()) {
     return createInitialLearningProgress();
   }
 
+  return (
+    readLearningProgressFromStorage(learningProgressStorageKey) ?? createInitialLearningProgress()
+  );
+}
+
+function readStoredGuestLearningProgress() {
+  if (readLearningProgressOwner()) {
+    return null;
+  }
+
+  return readLearningProgressFromStorage(learningProgressStorageKey);
+}
+
+function writeGuestLearningProgress(progress: LearningProgress) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(learningProgressStorageKey, serializeLearningProgress(progress));
+  clearLearningProgressOwner();
+}
+
+function clearGuestLearningProgressIfUnchanged(expectedProgressJson: string) {
+  if (typeof window === "undefined" || expectedProgressJson === "") {
+    return;
+  }
+
+  if (window.localStorage.getItem(learningProgressStorageKey) === expectedProgressJson) {
+    window.localStorage.removeItem(learningProgressStorageKey);
+  }
+}
+
+function readLocalLearningProgressForUser(userId: string) {
+  const accountProgress = readLearningProgressFromStorage(getAccountProgressStorageKey(userId));
+
+  if (accountProgress) {
+    return accountProgress;
+  }
+
+  if (readLearningProgressOwner() === userId) {
+    return (
+      readLearningProgressFromStorage(learningProgressStorageKey) ?? createInitialLearningProgress()
+    );
+  }
+
+  return createInitialLearningProgress();
+}
+
+function writeLocalLearningProgressForUser(userId: string, progress: LearningProgress) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(
+    getAccountProgressStorageKey(userId),
+    serializeLearningProgress(progress),
+  );
+
+  if (readLearningProgressOwner() === userId) {
+    window.localStorage.removeItem(learningProgressStorageKey);
+    clearLearningProgressOwner();
+  }
+}
+
+function clearLocalLearningProgressForUser(userId: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.removeItem(getAccountProgressStorageKey(userId));
+
+  if (readLearningProgressOwner() === userId) {
+    window.localStorage.removeItem(learningProgressStorageKey);
+    clearLearningProgressOwner();
+  }
+}
+
+function readLearningProgressFromStorage(storageKey: string) {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
   try {
-    const stored = window.localStorage.getItem(learningProgressStorageKey);
+    const stored = window.localStorage.getItem(storageKey);
 
     if (!stored) {
-      return createInitialLearningProgress();
+      return null;
     }
 
     const parsed = JSON.parse(stored) as unknown;
 
     if (!isProgress(parsed)) {
-      return createInitialLearningProgress();
+      window.localStorage.removeItem(storageKey);
+      return null;
     }
 
     return {
@@ -61,23 +149,23 @@ export function readLearningProgress(): LearningProgress {
       version: 1,
     };
   } catch {
-    return createInitialLearningProgress();
+    window.localStorage.removeItem(storageKey);
+    return null;
   }
 }
 
-function writeLearningProgress(progress: LearningProgress) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(learningProgressStorageKey, JSON.stringify(progress));
+function getAccountProgressStorageKey(userId: string) {
+  return `${learningAccountProgressStorageKeyPrefix}${encodeURIComponent(userId)}`;
 }
 
 export function useLearningProgress() {
   const { getFreshSession, isReady: isAuthReady, session } = useAuth();
   const [progress, setProgress] = useState<LearningProgress>(() => readLearningProgress());
   const [syncState, setSyncState] = useState<ProgressSyncState>("local");
+  const activeProgressOwnerRef = useRef("");
   const lastRemoteProgressJsonRef = useRef("");
+  const lastAuthenticatedUserIdRef = useRef<string | null>(getSessionUserId(session) || null);
+  const pendingGuestClaimProgressJsonRef = useRef("");
   const progressRef = useRef(progress);
   const syncRunRef = useRef(0);
   const syncedUserIdRef = useRef<string | null>(null);
@@ -87,7 +175,14 @@ export function useLearningProgress() {
   }, [progress]);
 
   useEffect(() => {
-    writeLearningProgress(progress);
+    const activeOwner = activeProgressOwnerRef.current;
+
+    if (activeOwner) {
+      writeLocalLearningProgressForUser(activeOwner, progress);
+      return;
+    }
+
+    writeGuestLearningProgress(progress);
   }, [progress]);
 
   useEffect(() => {
@@ -98,17 +193,34 @@ export function useLearningProgress() {
     const userId = getSessionUserId(session);
 
     if (!session || !userId) {
+      const previousUserId = lastAuthenticatedUserIdRef.current ?? syncedUserIdRef.current;
+
+      if (previousUserId) {
+        clearLocalLearningProgressForUser(previousUserId);
+      }
+
+      activeProgressOwnerRef.current = "";
+      lastAuthenticatedUserIdRef.current = null;
+      pendingGuestClaimProgressJsonRef.current = "";
       syncedUserIdRef.current = null;
       lastRemoteProgressJsonRef.current = "";
+      setProgress(readLearningProgress());
       setSyncState("local");
       return;
     }
 
+    lastAuthenticatedUserIdRef.current = userId;
     const syncRun = syncRunRef.current + 1;
     syncRunRef.current = syncRun;
     setSyncState("syncing");
 
     let isActive = true;
+    const guestProgress = readStoredGuestLearningProgress();
+    const guestProgressJson = guestProgress ? serializeLearningProgress(guestProgress) : "";
+    const accountProgress = readLocalLearningProgressForUser(userId);
+    const localProgressForSync = guestProgress
+      ? mergeLearningProgress(accountProgress, guestProgress)
+      : accountProgress;
 
     void (async () => {
       const freshSession = await getFreshSession();
@@ -118,6 +230,8 @@ export function useLearningProgress() {
       }
 
       if (!freshSession) {
+        activeProgressOwnerRef.current = "";
+        setProgress(readLearningProgress());
         setSyncState("local");
         return;
       }
@@ -128,20 +242,40 @@ export function useLearningProgress() {
         return;
       }
 
-      const localOwner = readLearningProgressOwner();
-      const localProgressForSync =
-        !localOwner || localOwner === userId
-          ? progressRef.current
-          : createInitialLearningProgress();
       const mergedProgress = remoteProgress
         ? mergeLearningProgress(remoteProgress, localProgressForSync)
         : localProgressForSync;
+      const mergedProgressJson = serializeLearningProgress(mergedProgress);
+      const remoteProgressJson = remoteProgress ? serializeLearningProgress(remoteProgress) : "";
+      let didSaveMergedProgress = false;
 
-      writeLearningProgressOwner(userId);
+      if (mergedProgressJson !== remoteProgressJson) {
+        try {
+          await saveRemoteLearningProgress(freshSession.idToken, mergedProgress);
+          didSaveMergedProgress = true;
+        } catch {
+          // Keep account progress local and let the debounced save retry while the user remains signed in.
+        }
+      }
+
+      if (!isActive || syncRunRef.current !== syncRun) {
+        return;
+      }
+
+      activeProgressOwnerRef.current = userId;
       syncedUserIdRef.current = userId;
-      lastRemoteProgressJsonRef.current = remoteProgress
-        ? serializeLearningProgress(remoteProgress)
-        : "";
+      pendingGuestClaimProgressJsonRef.current =
+        guestProgressJson && !didSaveMergedProgress ? guestProgressJson : "";
+      lastRemoteProgressJsonRef.current = didSaveMergedProgress
+        ? mergedProgressJson
+        : remoteProgressJson;
+      writeLocalLearningProgressForUser(userId, mergedProgress);
+
+      if (guestProgressJson && didSaveMergedProgress) {
+        clearGuestLearningProgressIfUnchanged(guestProgressJson);
+      }
+
+      progressRef.current = mergedProgress;
       setProgress(mergedProgress);
       setSyncState("synced");
     })().catch(() => {
@@ -149,6 +283,10 @@ export function useLearningProgress() {
         return;
       }
 
+      activeProgressOwnerRef.current = userId;
+      progressRef.current = localProgressForSync;
+      writeLocalLearningProgressForUser(userId, localProgressForSync);
+      setProgress(localProgressForSync);
       setSyncState("local");
     });
 
@@ -190,6 +328,11 @@ export function useLearningProgress() {
         .then((didSave) => {
           if (didSave) {
             lastRemoteProgressJsonRef.current = nextProgressJson;
+
+            if (pendingGuestClaimProgressJsonRef.current) {
+              clearGuestLearningProgressIfUnchanged(pendingGuestClaimProgressJsonRef.current);
+              pendingGuestClaimProgressJsonRef.current = "";
+            }
           }
         })
         .catch(() => {
@@ -286,6 +429,10 @@ export function useLearningProgress() {
   }, []);
 
   const resetProgress = useCallback(() => {
+    if (activeProgressOwnerRef.current) {
+      lastRemoteProgressJsonRef.current = "";
+    }
+
     setProgress(createInitialLearningProgress());
   }, []);
 
@@ -313,10 +460,10 @@ function readLearningProgressOwner() {
   return window.localStorage.getItem(learningProgressOwnerStorageKey) ?? "";
 }
 
-function writeLearningProgressOwner(userId: string) {
+function clearLearningProgressOwner() {
   if (typeof window === "undefined") {
     return;
   }
 
-  window.localStorage.setItem(learningProgressOwnerStorageKey, userId);
+  window.localStorage.removeItem(learningProgressOwnerStorageKey);
 }
