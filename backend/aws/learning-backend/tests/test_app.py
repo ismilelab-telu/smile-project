@@ -102,7 +102,21 @@ class FakeDynamoDbClient:
                 return {}
 
             existing_item = self.items.get(cooldown_key)
-            now = int(kwargs["ExpressionAttributeValues"].get(":now", {"N": "0"})["N"])
+            values = kwargs["ExpressionAttributeValues"]
+            now = int(values.get(":now", {"N": "0"})["N"])
+
+            if "requestCount" in item:
+                max_requests = int(values.get(":maxRequests", {"N": "0"})["N"])
+                if existing_item:
+                    window_expires_at = int(
+                        existing_item.get("windowExpiresAt", {"N": "0"})["N"]
+                    )
+                    request_count = int(existing_item.get("requestCount", {"N": "0"})["N"])
+                    if window_expires_at > now and request_count >= max_requests:
+                        raise create_client_error("ConditionalCheckFailedException")
+
+                self.items[cooldown_key] = item
+                return {}
 
             if existing_item:
                 expires_at = int(existing_item.get("expiresAt", {"N": "0"})["N"])
@@ -139,10 +153,13 @@ class FakeDynamoDbClient:
             values = kwargs["ExpressionAttributeValues"]
             now = int(values[":now"]["N"])
             max_attempts = int(values[":maxAttempts"]["N"])
+            allowed_statuses = {values[":pending"]["S"]}
+            if ":existing" in values:
+                allowed_statuses.add(values[":existing"]["S"])
 
             if (
                 not item
-                or item.get("status", {}).get("S") != values[":pending"]["S"]
+                or item.get("status", {}).get("S") not in allowed_statuses
                 or int(item.get("expiresAt", {"N": "0"})["N"]) <= now
                 or int(item.get("attempts", {"N": "0"})["N"]) >= max_attempts
             ):
@@ -276,6 +293,11 @@ class FakeCognitoIdentityProviderClient:
 
         return {}
 
+    def revoke_token(self, **kwargs):
+        self.calls.append(kwargs)
+
+        return {}
+
 
 class FakeJwtModule:
     def __init__(self, claims: dict[str, object]) -> None:
@@ -316,13 +338,28 @@ class LearningBackendTest(unittest.TestCase):
         self.original_learning_progress_table = app.LEARNING_PROGRESS_TABLE
         self.original_auth_cooldown_table = app.AUTH_COOLDOWN_TABLE
         self.original_auth_confirmation_code_ttl_seconds = app.AUTH_CONFIRMATION_CODE_TTL_SECONDS
+        self.original_auth_confirmation_code_pepper = app.AUTH_CONFIRMATION_CODE_PEPPER
+        self.original_auth_session_revoke_burst_limit = app.AUTH_SESSION_REVOKE_BURST_LIMIT
+        self.original_auth_session_revoke_burst_window_seconds = (
+            app.AUTH_SESSION_REVOKE_BURST_WINDOW_SECONDS
+        )
         self.original_learning_backend_proxy_secret = app.LEARNING_BACKEND_PROXY_SECRET
         self.original_learning_backend_require_proxy_secret = (
             app.LEARNING_BACKEND_REQUIRE_PROXY_SECRET
         )
         self.original_decrypt_cognito_sender_code = app.decrypt_cognito_sender_code
         self.original_send_resend_email = app.send_resend_email
+        self.original_auth_sign_up_min_duration_seconds = app.AUTH_SIGN_UP_MIN_DURATION_SECONDS
+        self.original_auth_sign_up_timing_jitter_seconds = app.AUTH_SIGN_UP_TIMING_JITTER_SECONDS
+        self.original_time_perf_counter = app.time.perf_counter
+        self.original_time_sleep = app.time.sleep
+        self.original_random_uniform = app.random.uniform
         self.original_username_reservation_table = app.USERNAME_RESERVATION_TABLE
+        app.AUTH_SIGN_UP_MIN_DURATION_SECONDS = 0
+        app.AUTH_SIGN_UP_TIMING_JITTER_SECONDS = 0
+        app.AUTH_CONFIRMATION_CODE_PEPPER = "test-confirmation-code-pepper-32"
+        app.AUTH_SESSION_REVOKE_BURST_LIMIT = 30
+        app.AUTH_SESSION_REVOKE_BURST_WINDOW_SECONDS = 60
 
     def tearDown(self) -> None:
         app.COGNITO_CLIENT_ID = self.original_cognito_client_id
@@ -340,12 +377,24 @@ class LearningBackendTest(unittest.TestCase):
         app.AUTH_CONFIRMATION_CODE_TTL_SECONDS = (
             self.original_auth_confirmation_code_ttl_seconds
         )
+        app.AUTH_CONFIRMATION_CODE_PEPPER = self.original_auth_confirmation_code_pepper
+        app.AUTH_SESSION_REVOKE_BURST_LIMIT = self.original_auth_session_revoke_burst_limit
+        app.AUTH_SESSION_REVOKE_BURST_WINDOW_SECONDS = (
+            self.original_auth_session_revoke_burst_window_seconds
+        )
         app.LEARNING_BACKEND_PROXY_SECRET = self.original_learning_backend_proxy_secret
         app.LEARNING_BACKEND_REQUIRE_PROXY_SECRET = (
             self.original_learning_backend_require_proxy_secret
         )
         app.decrypt_cognito_sender_code = self.original_decrypt_cognito_sender_code
         app.send_resend_email = self.original_send_resend_email
+        app.AUTH_SIGN_UP_MIN_DURATION_SECONDS = self.original_auth_sign_up_min_duration_seconds
+        app.AUTH_SIGN_UP_TIMING_JITTER_SECONDS = (
+            self.original_auth_sign_up_timing_jitter_seconds
+        )
+        app.time.perf_counter = self.original_time_perf_counter
+        app.time.sleep = self.original_time_sleep
+        app.random.uniform = self.original_random_uniform
         app.USERNAME_RESERVATION_TABLE = self.original_username_reservation_table
 
     def test_inspects_first_csv_path_and_preview(self) -> None:
@@ -774,6 +823,54 @@ class LearningBackendTest(unittest.TestCase):
         self.assertEqual(second_result["statusCode"], 429)
         self.assertEqual(len(fake_cognito.calls), 1)
 
+    def test_session_revoke_is_not_public_rate_limited(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        app._cognito_identity_provider_client = fake_cognito
+        app._dynamodb_client = FakeDynamoDbClient()
+
+        event = {
+            "body": '{"refreshToken":"refresh-token"}',
+            "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.10"}},
+            "rawPath": "/auth/session/revoke",
+        }
+
+        first_result = app.lambda_handler(event, None)
+        second_result = app.lambda_handler(event, None)
+
+        self.assertEqual(first_result["statusCode"], 200)
+        self.assertEqual(second_result["statusCode"], 200)
+        self.assertEqual(len(fake_cognito.calls), 2)
+        self.assertEqual(fake_cognito.calls[0]["Token"], "refresh-token")
+        self.assertEqual(fake_cognito.calls[1]["Token"], "refresh-token")
+
+    def test_session_revoke_caps_excessive_source_bursts(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.AUTH_SESSION_REVOKE_BURST_LIMIT = 2
+        app.AUTH_SESSION_REVOKE_BURST_WINDOW_SECONDS = 60
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        app._cognito_identity_provider_client = fake_cognito
+        app._dynamodb_client = FakeDynamoDbClient()
+
+        event = {
+            "body": '{"refreshToken":"refresh-token"}',
+            "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.10"}},
+            "rawPath": "/auth/session/revoke",
+        }
+
+        first_result = app.lambda_handler(event, None)
+        second_result = app.lambda_handler(event, None)
+        third_result = app.lambda_handler(event, None)
+
+        self.assertEqual(first_result["statusCode"], 200)
+        self.assertEqual(second_result["statusCode"], 200)
+        self.assertEqual(third_result["statusCode"], 429)
+        self.assertEqual(len(fake_cognito.calls), 2)
+
     def test_password_reset_request_uses_generic_delivery_for_missing_user(self) -> None:
         app.COGNITO_CLIENT_ID = "web-client"
         app.COGNITO_CLIENT_SECRET = "client-secret"
@@ -936,7 +1033,8 @@ class LearningBackendTest(unittest.TestCase):
         app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
         app.COGNITO_USER_POOL_ID = "user-pool"
         app.USERNAME_RESERVATION_TABLE = "username-reservations"
-        app._dynamodb_client = FakeDynamoDbClient()
+        fake_dynamodb = FakeDynamoDbClient()
+        app._dynamodb_client = fake_dynamodb
         fake_cognito = FakeCognitoIdentityProviderClient()
         fake_cognito.users["student@example.com"] = {"attributes": [], "password": ""}
         app._cognito_identity_provider_client = fake_cognito
@@ -955,6 +1053,153 @@ class LearningBackendTest(unittest.TestCase):
         self.assertEqual(result["CodeDeliveryDetails"]["Destination"], "s***t@example.com")
         self.assertEqual(result["nextAllowedAt"], 130)
         self.assertEqual(sent_messages, [])
+        existing_item = fake_dynamodb.items[app.create_pending_signup_key("student@example.com")]
+        self.assertEqual(existing_item["status"]["S"], "existing-user")
+        self.assertNotIn("codeHash", existing_item)
+
+    def test_start_sign_up_uses_same_repeat_cooldown_for_existing_email(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        app._dynamodb_client = FakeDynamoDbClient()
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        fake_cognito.users["student@example.com"] = {"attributes": [], "password": ""}
+        app._cognito_identity_provider_client = fake_cognito
+        app.send_resend_email = lambda **kwargs: None
+
+        start_sign_up(
+            {
+                "email": "student@example.com",
+                "name": "Student_One",
+            },
+            now=100,
+        )
+
+        with self.assertRaises(AuthCooldownError) as context:
+            start_sign_up(
+                {
+                    "email": "student@example.com",
+                    "name": "Student_One",
+                },
+                now=110,
+            )
+
+        self.assertEqual(context.exception.retry_after_seconds, 20)
+        self.assertEqual(context.exception.next_allowed_at, 130)
+
+    def test_existing_email_decoy_uses_same_resend_cooldown(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        app._dynamodb_client = FakeDynamoDbClient()
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        fake_cognito.users["student@example.com"] = {"attributes": [], "password": ""}
+        app._cognito_identity_provider_client = fake_cognito
+        app.send_resend_email = lambda **kwargs: None
+
+        start_sign_up(
+            {
+                "email": "student@example.com",
+                "name": "Student_One",
+            },
+            now=100,
+        )
+
+        original_time = app.time.time
+        app.time.time = lambda: 110
+        try:
+            with self.assertRaises(AuthCooldownError) as context:
+                app.resend_confirmation_code({"email": "student@example.com"})
+        finally:
+            app.time.time = original_time
+
+        self.assertEqual(context.exception.retry_after_seconds, 20)
+        self.assertEqual(context.exception.next_allowed_at, 130)
+
+    def test_existing_email_decoy_confirmation_looks_like_wrong_code(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        fake_dynamodb = FakeDynamoDbClient()
+        app._dynamodb_client = fake_dynamodb
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        fake_cognito.users["student@example.com"] = {"attributes": [], "password": ""}
+        app._cognito_identity_provider_client = fake_cognito
+        app.send_resend_email = lambda **kwargs: None
+
+        start_sign_up(
+            {
+                "email": "student@example.com",
+                "name": "Student_One",
+            },
+            now=100,
+        )
+
+        with self.assertRaises(CognitoSignInError) as context:
+            confirm_sign_up(
+                {"code": "000000", "email": "student@example.com", "password": "StrongPass1!"},
+                now=120,
+            )
+
+        self.assertEqual(context.exception.code, "CodeMismatchException")
+        existing_item = fake_dynamodb.items[app.create_pending_signup_key("student@example.com")]
+        self.assertEqual(existing_item["attempts"]["N"], "1")
+
+    def test_confirmation_code_hash_requires_configured_pepper(self) -> None:
+        app.AUTH_CONFIRMATION_CODE_PEPPER = ""
+
+        with self.assertRaises(app.AuthConfigurationError):
+            app.hash_confirmation_code("student@example.com", "123456", "salt")
+
+    def test_confirmation_code_hash_uses_required_hmac_pepper(self) -> None:
+        app.AUTH_CONFIRMATION_CODE_PEPPER = "pepper-for-confirmation-code-hmac"
+
+        self.assertEqual(
+            app.hash_confirmation_code("student@example.com", "123456", "salt"),
+            hmac.new(
+                b"pepper-for-confirmation-code-hmac",
+                b"salt:student@example.com:123456",
+                hashlib.sha256,
+            ).hexdigest(),
+        )
+
+    def test_start_sign_up_pads_success_responses_to_the_same_timing_window(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        app.AUTH_SIGN_UP_MIN_DURATION_SECONDS = 1.0
+        app.AUTH_SIGN_UP_TIMING_JITTER_SECONDS = 0.4
+        fake_dynamodb = FakeDynamoDbClient()
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        fake_cognito.users["existing@example.com"] = {"attributes": [], "password": ""}
+        app._dynamodb_client = fake_dynamodb
+        app._cognito_identity_provider_client = fake_cognito
+        app.create_confirmation_code = lambda: "123456"
+        app.send_resend_email = lambda **kwargs: None
+        app.random.uniform = lambda _low, _high: 0.2
+        perf_counter_values = iter([10.0, 10.15, 20.0, 20.65])
+        sleep_calls: list[float] = []
+        app.time.perf_counter = lambda: next(perf_counter_values)
+        app.time.sleep = lambda seconds: sleep_calls.append(seconds)
+
+        start_sign_up(
+            {
+                "email": "existing@example.com",
+                "name": "Student_One",
+            },
+            now=100,
+        )
+        start_sign_up(
+            {
+                "email": "new@example.com",
+                "name": "Student_Two",
+            },
+            now=100,
+        )
+
+        self.assertEqual(len(sleep_calls), 2)
+        self.assertAlmostEqual(sleep_calls[0], 1.05)
+        self.assertAlmostEqual(sleep_calls[1], 0.55)
 
     def test_start_sign_up_maps_cognito_lookup_throttle_to_auth_rate_limit(self) -> None:
         app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"

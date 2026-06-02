@@ -23,6 +23,11 @@ Parameters:
     Type: String
     Default: ""
     Description: Optional reply-to email address for Cognito auth emails.
+  AuthConfirmationCodePepper:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    Description: HMAC pepper for confirmation code hashing. Set to a random secret of at least 32 characters.
   LearningBackendProxySecret:
     Type: String
     NoEcho: true
@@ -221,6 +226,9 @@ Resources:
           AUTH_PUBLIC_REQUEST_COOLDOWN_SECONDS: "3"
           AUTH_SIGN_IN_COOLDOWN_SECONDS: "2"
           AUTH_SIGN_UP_COOLDOWN_SECONDS: "5"
+          AUTH_SESSION_REVOKE_BURST_LIMIT: "30"
+          AUTH_SESSION_REVOKE_BURST_WINDOW_SECONDS: "60"
+          AUTH_CONFIRMATION_CODE_PEPPER: !Ref AuthConfirmationCodePepper
           MAX_ZIP_BYTES: "52428800"
           MAX_UNZIPPED_BYTES: "104857600"
           MAX_PROGRESS_JSON_BYTES: "300000"
@@ -252,6 +260,7 @@ Resources:
                 - cognito-idp:AdminSetUserPassword
                 - cognito-idp:ConfirmForgotPassword
                 - cognito-idp:ForgotPassword
+                - cognito-idp:RevokeToken
               Resource: !GetAtt SmileUserPool.Arn
             - Effect: Allow
               Action:
@@ -300,6 +309,7 @@ Resources:
           COGNITO_EMAIL_SENDER_KMS_KEY_ARN: !GetAtt CognitoEmailSenderKmsKey.Arn
           AUTH_COOLDOWN_TABLE: !Ref AuthCooldownTable
           AUTH_CONFIRMATION_CODE_TTL_SECONDS: "300"
+          AUTH_CONFIRMATION_CODE_PEPPER: !Ref AuthConfirmationCodePepper
           RESEND_API_KEY_SECRET_ID: !Ref ResendApiKeySecretName
           RESEND_FROM_EMAIL: !Ref ResendFromEmail
           RESEND_REPLY_TO_EMAIL: !Ref ResendReplyToEmail

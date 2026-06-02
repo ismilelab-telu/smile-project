@@ -11,6 +11,7 @@ import io
 import json
 import os
 from pathlib import Path
+import random
 import re
 import secrets
 import tempfile
@@ -70,6 +71,7 @@ RESEND_API_URL = os.environ.get("RESEND_API_URL", "https://api.resend.com/emails
 RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "Smile Lab <auth@smilelab.me>")
 RESEND_REPLY_TO_EMAIL = os.environ.get("RESEND_REPLY_TO_EMAIL", "")
 RESEND_REQUEST_TIMEOUT_SECONDS = 10
+AUTH_CONFIRMATION_CODE_PEPPER = os.environ.get("AUTH_CONFIRMATION_CODE_PEPPER", "")
 LEARNING_BACKEND_PROXY_SECRET = os.environ.get("LEARNING_BACKEND_PROXY_SECRET", "")
 LEARNING_BACKEND_PROXY_SECRET_HEADER = "x-smile-learning-backend-proxy-secret"
 LEARNING_BACKEND_REQUIRE_PROXY_SECRET = (
@@ -84,8 +86,19 @@ AUTH_PUBLIC_REQUEST_COOLDOWN_SECONDS = int(
 )
 AUTH_SIGN_IN_COOLDOWN_SECONDS = int(os.environ.get("AUTH_SIGN_IN_COOLDOWN_SECONDS", "2"))
 AUTH_SIGN_UP_COOLDOWN_SECONDS = int(os.environ.get("AUTH_SIGN_UP_COOLDOWN_SECONDS", "5"))
+AUTH_SIGN_UP_MIN_DURATION_SECONDS = float(
+    os.environ.get("AUTH_SIGN_UP_MIN_DURATION_SECONDS", "1.0")
+)
+AUTH_SIGN_UP_TIMING_JITTER_SECONDS = float(
+    os.environ.get("AUTH_SIGN_UP_TIMING_JITTER_SECONDS", "0.4")
+)
+AUTH_CONFIRMATION_CODE_PEPPER_MIN_LENGTH = 32
 AUTH_CONFIRMATION_CODE_DIGITS = 6
 AUTH_CONFIRMATION_MAX_ATTEMPTS = 5
+AUTH_SESSION_REVOKE_BURST_LIMIT = int(os.environ.get("AUTH_SESSION_REVOKE_BURST_LIMIT", "30"))
+AUTH_SESSION_REVOKE_BURST_WINDOW_SECONDS = int(
+    os.environ.get("AUTH_SESSION_REVOKE_BURST_WINDOW_SECONDS", "60")
+)
 COGNITO_THROTTLE_ERROR_CODES = {"LimitExceededException", "TooManyRequestsException"}
 MAX_ZIP_BYTES = int(os.environ.get("MAX_ZIP_BYTES", "52428800"))
 MAX_UNZIPPED_BYTES = int(os.environ.get("MAX_UNZIPPED_BYTES", "104857600"))
@@ -236,6 +249,16 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 cooldown_seconds=AUTH_SIGN_IN_COOLDOWN_SECONDS,
             )
             return response(200, refresh_cognito_session(body))
+
+        if method == "POST" and path == "/auth/session/revoke":
+            body = parse_json_body(event)
+            enforce_public_auth_burst_limit(
+                event,
+                "session-revoke",
+                max_requests=AUTH_SESSION_REVOKE_BURST_LIMIT,
+                window_seconds=AUTH_SESSION_REVOKE_BURST_WINDOW_SECONDS,
+            )
+            return response(200, revoke_cognito_session(body))
 
         if method == "POST" and path == "/auth/password-reset/request":
             body = parse_json_body(event)
@@ -941,19 +964,21 @@ def validate_uploaded_dataset_code(body: dict[str, Any], user: dict[str, Any]) -
 
 
 def start_sign_up(body: dict[str, Any], now: int | None = None) -> dict[str, Any]:
+    started_at = time.perf_counter()
     email = normalize_auth_email(get_required_string(body, "email"))
     requested_username = get_required_string(body, "name")
     request_time = int(time.time()) if now is None else now
 
     require_cognito_user_pool_id()
+    existing_item = get_pending_signup_item(email)
+    enforce_signup_start_cooldown(existing_item, request_time)
 
     if cognito_user_exists(email):
-        return build_sign_up_confirmation_response(
-            email,
-            request_time + AUTH_RESEND_COOLDOWN_SECONDS,
-        )
+        release_pending_username_reservation(existing_item, email)
+        next_allowed_at = put_existing_signup_cooldown_item(email, request_time)
+        sleep_for_signup_response_timing(started_at)
+        return build_sign_up_confirmation_response(email, next_allowed_at)
 
-    existing_item = get_pending_signup_item(email)
     reserved_username_key = ""
 
     if is_active_pending_signup(existing_item, request_time):
@@ -1004,6 +1029,7 @@ def start_sign_up(body: dict[str, Any], now: int | None = None) -> dict[str, Any
         raise
 
     send_pending_signup_confirmation_email(email, code)
+    sleep_for_signup_response_timing(started_at)
 
     return build_sign_up_confirmation_response(email, next_allowed_at)
 
@@ -1017,6 +1043,27 @@ def build_sign_up_confirmation_response(email: str, next_allowed_at: int) -> dic
         },
         "UserConfirmed": False,
     }
+
+
+def sleep_for_signup_response_timing(started_at: float) -> None:
+    minimum_duration_seconds = max(0.0, AUTH_SIGN_UP_MIN_DURATION_SECONDS)
+    jitter_seconds = max(0.0, AUTH_SIGN_UP_TIMING_JITTER_SECONDS)
+    target_duration = minimum_duration_seconds + random.uniform(0, jitter_seconds)
+    elapsed_seconds = max(0.0, time.perf_counter() - started_at)
+    remaining_seconds = target_duration - elapsed_seconds
+
+    if remaining_seconds > 0:
+        time.sleep(remaining_seconds)
+
+
+def enforce_signup_start_cooldown(item: dict[str, Any] | None, now: int) -> None:
+    if not item:
+        return
+
+    expires_at = get_number_attribute(item, "expiresAt")
+    next_allowed_at = get_number_attribute(item, "nextAllowedAt")
+    if expires_at and expires_at > now and next_allowed_at and next_allowed_at > now:
+        raise AuthCooldownError(next_allowed_at - now, next_allowed_at)
 
 
 def resolve_username_sign_in_email(body: dict[str, Any]) -> dict[str, Any]:
@@ -1113,6 +1160,34 @@ def refresh_cognito_session(body: dict[str, Any]) -> dict[str, Any]:
         raise
 
     return {"authenticationResult": result.get("AuthenticationResult", {})}
+
+
+def revoke_cognito_session(body: dict[str, Any]) -> dict[str, Any]:
+    refresh_token = get_required_string(body, "refreshToken")
+    client_id = require_cognito_client_id()
+    client_secret = require_cognito_client_secret()
+
+    try:
+        get_cognito_identity_provider_client().revoke_token(
+            Token=refresh_token,
+            ClientId=client_id,
+            ClientSecret=client_secret,
+        )
+    except ClientError as error:
+        code_name = get_client_error_code(error)
+        if code_name in {
+            "InvalidParameterException",
+            "UnauthorizedException",
+            "UnsupportedOperationException",
+            "UnsupportedTokenTypeException",
+        }:
+            pass
+        elif is_cognito_throttle_error_code(code_name):
+            raise create_auth_rate_limit_error(AUTH_SIGN_IN_COOLDOWN_SECONDS) from error
+        else:
+            raise
+
+    return {"ok": True}
 
 
 def request_password_reset(body: dict[str, Any]) -> dict[str, Any]:
@@ -1265,12 +1340,15 @@ def resend_confirmation_code(body: dict[str, Any]) -> dict[str, Any]:
     now = int(time.time())
     item = get_pending_signup_item(email)
 
-    if not is_active_pending_signup(item, now):
+    if not is_active_signup_record(item, now):
         return build_confirmation_resend_response(now + AUTH_RESEND_COOLDOWN_SECONDS)
 
     existing_next_allowed_at = get_number_attribute(item or {}, "nextAllowedAt")
     if existing_next_allowed_at and existing_next_allowed_at > now:
         raise AuthCooldownError(existing_next_allowed_at - now, existing_next_allowed_at)
+
+    if is_existing_signup_cooldown_item(item):
+        return build_confirmation_resend_response(put_existing_signup_cooldown_item(email, now))
 
     code = create_confirmation_code()
     code_salt = secrets.token_urlsafe(16)
@@ -1302,12 +1380,16 @@ def confirm_sign_up(body: dict[str, Any], now: int | None = None) -> dict[str, A
     validate_signup_password(password)
 
     item = get_pending_signup_item(email)
-    if not is_active_pending_signup(item, request_time):
+    if not is_active_signup_record(item, request_time):
         raise AuthCodeExpiredError("The verification code has expired. Send a new code.")
 
     attempts = get_number_attribute(item or {}, "attempts") or 0
     if attempts >= AUTH_CONFIRMATION_MAX_ATTEMPTS:
         raise create_too_many_failed_attempts_error()
+
+    if is_existing_signup_cooldown_item(item):
+        increment_pending_signup_attempts(email, request_time)
+        raise CognitoSignInError("CodeMismatchException", "The verification code is not correct.")
 
     code_salt = get_string_attribute(item or {}, "codeSalt")
     expected_code_hash = get_string_attribute(item or {}, "codeHash")
@@ -1397,18 +1479,59 @@ def put_pending_signup_item(
         ) from error
 
 
+def put_existing_signup_cooldown_item(email: str, now: int) -> int:
+    next_allowed_at = now + AUTH_RESEND_COOLDOWN_SECONDS
+
+    try:
+        get_dynamodb_client().put_item(
+            TableName=require_auth_cooldown_table(),
+            Item={
+                "attempts": {"N": "0"},
+                "cooldownKey": {"S": create_pending_signup_key(email)},
+                "createdAt": {"N": str(now)},
+                "email": {"S": email},
+                "expiresAt": {"N": str(now + AUTH_CONFIRMATION_CODE_TTL_SECONDS)},
+                "nextAllowedAt": {"N": str(next_allowed_at)},
+                "status": {"S": "existing-user"},
+                "updatedAt": {"N": str(now)},
+            },
+            ConditionExpression=(
+                "attribute_not_exists(cooldownKey) OR expiresAt <= :now OR nextAllowedAt <= :now"
+            ),
+            ExpressionAttributeValues={":now": {"N": str(now)}},
+        )
+    except ClientError as error:
+        if not is_conditional_check_failed(error):
+            raise
+
+        item = get_pending_signup_item(email)
+        next_allowed_at_value = get_number_attribute(item or {}, "nextAllowedAt")
+        retry_after_seconds = max(1, (next_allowed_at_value or now + 1) - now)
+        raise AuthCooldownError(
+            retry_after_seconds,
+            next_allowed_at_value or now + retry_after_seconds,
+        ) from error
+
+    return next_allowed_at
+
+
 def increment_pending_signup_attempts(email: str, now: int) -> None:
     try:
         get_dynamodb_client().update_item(
             TableName=require_auth_cooldown_table(),
             Key={"cooldownKey": {"S": create_pending_signup_key(email)}},
             UpdateExpression="SET updatedAt = :now ADD attempts :one",
-            ConditionExpression="#status = :pending AND expiresAt > :now AND attempts < :maxAttempts",
+            ConditionExpression=(
+                "(#status = :pending OR #status = :existing) "
+                "AND expiresAt > :now "
+                "AND (attribute_not_exists(attempts) OR attempts < :maxAttempts)"
+            ),
             ExpressionAttributeNames={"#status": "status"},
             ExpressionAttributeValues={
                 ":maxAttempts": {"N": str(AUTH_CONFIRMATION_MAX_ATTEMPTS)},
                 ":now": {"N": str(now)},
                 ":one": {"N": "1"},
+                ":existing": {"S": "existing-user"},
                 ":pending": {"S": "pending"},
             },
         )
@@ -1434,11 +1557,23 @@ def get_pending_signup_item(email: str) -> dict[str, Any] | None:
 
 
 def is_active_pending_signup(item: dict[str, Any] | None, now: int) -> bool:
-    if not item or item.get("status", {}).get("S") != "pending":
+    return is_active_signup_record(item, now) and not is_existing_signup_cooldown_item(item)
+
+
+def is_active_signup_record(item: dict[str, Any] | None, now: int) -> bool:
+    if not item:
+        return False
+
+    status = item.get("status", {}).get("S")
+    if status not in {"existing-user", "pending"}:
         return False
 
     expires_at = get_number_attribute(item, "expiresAt")
     return expires_at is not None and expires_at > now
+
+
+def is_existing_signup_cooldown_item(item: dict[str, Any] | None) -> bool:
+    return bool(item and item.get("status", {}).get("S") == "existing-user")
 
 
 def delete_pending_signup(email: str) -> None:
@@ -1601,7 +1736,21 @@ def create_confirmation_code() -> str:
 
 
 def hash_confirmation_code(email: str, code: str, salt: str) -> str:
-    return hashlib.sha256(f"{salt}:{email}:{code}".encode("utf-8")).hexdigest()
+    pepper = require_auth_confirmation_code_pepper()
+    message = f"{salt}:{email}:{code}".encode("utf-8")
+    return hmac.new(
+        pepper.encode("utf-8"),
+        message,
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def require_auth_confirmation_code_pepper() -> str:
+    pepper = AUTH_CONFIRMATION_CODE_PEPPER.strip()
+    if len(pepper) < AUTH_CONFIRMATION_CODE_PEPPER_MIN_LENGTH:
+        raise AuthConfigurationError("Confirmation code pepper is missing or too short.")
+
+    return pepper
 
 
 def create_pending_signup_key(email: str) -> str:
@@ -1780,6 +1929,91 @@ def reserve_auth_rate_limit(
         raise AuthRateLimitError(retry_after_seconds, existing_next_allowed_at) from error
 
     return next_allowed_at
+
+
+def enforce_public_auth_burst_limit(
+    event: dict[str, Any],
+    scope: str,
+    *,
+    max_requests: int,
+    window_seconds: int,
+    now: int | None = None,
+) -> None:
+    request_time = int(time.time()) if now is None else now
+    source = get_request_source(event)
+    reserve_auth_burst_limit(
+        f"{scope}:source",
+        source,
+        max_requests=max_requests,
+        now=request_time,
+        window_seconds=window_seconds,
+    )
+
+
+def reserve_auth_burst_limit(
+    scope: str,
+    value: str,
+    *,
+    max_requests: int,
+    now: int,
+    window_seconds: int,
+) -> None:
+    normalized_max_requests = max(1, max_requests)
+    normalized_window_seconds = max(1, window_seconds)
+    cooldown_key = create_auth_cooldown_key(f"rate-limit-burst:{scope}", value or "unknown")
+    existing_item = get_dynamodb_client().get_item(
+        TableName=require_auth_cooldown_table(),
+        Key={"cooldownKey": {"S": cooldown_key}},
+        ConsistentRead=True,
+    ).get("Item", {})
+    existing_window_expires_at = get_number_attribute(existing_item, "windowExpiresAt")
+    existing_request_count = get_number_attribute(existing_item, "requestCount") or 0
+
+    if existing_window_expires_at and existing_window_expires_at > now:
+        if existing_request_count >= normalized_max_requests:
+            raise AuthRateLimitError(
+                max(1, existing_window_expires_at - now),
+                existing_window_expires_at,
+            )
+
+        request_count = existing_request_count + 1
+        window_expires_at = existing_window_expires_at
+    else:
+        request_count = 1
+        window_expires_at = now + normalized_window_seconds
+
+    try:
+        get_dynamodb_client().put_item(
+            TableName=require_auth_cooldown_table(),
+            Item={
+                "cooldownKey": {"S": cooldown_key},
+                "expiresAt": {"N": str(window_expires_at + AUTH_COOLDOWN_TTL_SECONDS)},
+                "requestCount": {"N": str(request_count)},
+                "updatedAt": {"N": str(now)},
+                "windowExpiresAt": {"N": str(window_expires_at)},
+            },
+            ConditionExpression=(
+                "attribute_not_exists(cooldownKey) OR "
+                "windowExpiresAt <= :now OR requestCount < :maxRequests"
+            ),
+            ExpressionAttributeValues={
+                ":maxRequests": {"N": str(normalized_max_requests)},
+                ":now": {"N": str(now)},
+            },
+        )
+    except ClientError as error:
+        if not is_conditional_check_failed(error):
+            raise
+
+        item = get_dynamodb_client().get_item(
+            TableName=require_auth_cooldown_table(),
+            Key={"cooldownKey": {"S": cooldown_key}},
+            ConsistentRead=True,
+        ).get("Item", {})
+        window_expires_at = get_number_attribute(item, "windowExpiresAt") or (
+            now + normalized_window_seconds
+        )
+        raise AuthRateLimitError(max(1, window_expires_at - now), window_expires_at) from error
 
 
 def get_number_attribute(item: dict[str, Any], name: str) -> int | None:
