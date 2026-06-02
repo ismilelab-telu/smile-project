@@ -25,7 +25,7 @@ import {
 } from "./auth-session";
 
 type AuthContextValue = {
-  confirmSignUp: (input: { code: string; email: string }) => Promise<void>;
+  confirmSignUp: (input: { code: string; email: string; password: string }) => Promise<void>;
   isAuthenticated: boolean;
   isReady: boolean;
   resendConfirmationCode: (email: string) => Promise<{
@@ -136,9 +136,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const confirmSignUp = useCallback(async (input: { code: string; email: string }) => {
-    await confirmSignUpWithCognito(input);
-  }, []);
+  const confirmSignUp = useCallback(
+    async (input: { code: string; email: string; password: string }) => {
+      await confirmSignUpWithCognito(input);
+    },
+    [],
+  );
 
   const resendConfirmationCode = useCallback(async (email: string) => {
     return resendConfirmationCodeWithCognito(email);

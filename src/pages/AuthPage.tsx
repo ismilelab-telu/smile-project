@@ -676,6 +676,7 @@ function AuthFormPanel({
         await auth.confirmSignUp({
           code: confirmationCode.trim(),
           email: confirmationEmail,
+          password,
         });
         await auth.signIn({ identifier: confirmationEmail, method: "email", password });
         redirectAfterAuth(successHref, onAuthenticated);
@@ -1886,6 +1887,10 @@ function getAuthErrorMessage(error: unknown, locale: Locale) {
       PasswordResetRequiredException: {
         en: "This account needs a password reset before signing in.",
         id: "Akun ini perlu reset sandi sebelum bisa masuk.",
+      },
+      TooManyFailedAttemptsException: {
+        en: "Too many failed verification attempts. Send a new code.",
+        id: "Terlalu banyak percobaan kode yang gagal. Kirim kode baru.",
       },
       UsernameExistsException: {
         en: getRegisteredEmailErrorMessage("en"),

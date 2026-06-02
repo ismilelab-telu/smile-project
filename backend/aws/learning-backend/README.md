@@ -7,8 +7,9 @@ AWS SAM backend for dataset ZIP upload and Pandas loading validation.
 - `POST /uploads/presign`: creates a temporary S3 PUT URL for a signed-in Cognito user.
 - `POST /datasets/inspect`: reads the signed-in user's uploaded ZIP, finds the first CSV, and returns the `data/...` path.
 - `POST /pandas/validate`: runs restricted Pandas code against the signed-in user's extracted CSV.
-- `POST /auth/confirmation/confirm`: confirms Cognito sign-up codes after checking the app-level 5 minute expiry window.
-- `POST /auth/confirmation/resend`: resends Cognito confirmation codes with a backend-enforced cooldown.
+- `POST /auth/sign-up/start`: starts a backend-owned pending sign-up and sends the verification code through Resend.
+- `POST /auth/confirmation/confirm`: verifies the backend-owned sign-up code, creates the Cognito user with admin APIs, and confirms the username reservation.
+- `POST /auth/confirmation/resend`: resends the backend-owned sign-up code with a backend-enforced cooldown.
 - `POST /auth/username/sign-in`: resolves a confirmed username to Cognito email sign-in.
 - `GET /health`: basic health check.
 
@@ -16,11 +17,11 @@ The backend does not execute submitted learner code with `exec` or `eval`. It co
 
 Dataset upload, inspection, validation, and progress endpoints require `Authorization: Bearer <Cognito token>`.
 
-Usernames are reserved by a Cognito PreSignUp trigger with a short TTL, then marked confirmed only by the Cognito PostConfirmation trigger after email verification succeeds. Pending reservations are not accepted for username sign-in.
+Usernames are reserved while a backend-owned sign-up is pending, then marked confirmed only after the backend verifies the code and creates the Cognito user. Pending reservations are not accepted for username sign-in.
 
-Auth emails use a Cognito custom email sender trigger. Cognito encrypts verification and recovery codes with a stack-owned KMS key, the Lambda decrypts the code, then sends the email through Resend.
+Sign-up emails are sent directly by the backend through Resend. Other Cognito auth emails, such as password recovery, still use a Cognito custom email sender trigger. Cognito encrypts those codes with a stack-owned KMS key, the Lambda decrypts the code, then sends the email through Resend.
 
-Sign-up confirmation codes are tracked by the custom email sender and accepted by the app backend for 5 minutes. Cognito still has its own provider-level code validity, so keep the frontend on the backend confirm endpoint when enforcing the shorter app window.
+Cognito public self-signup is disabled. Sign-up confirmation codes are tracked by the app backend and accepted for 5 minutes, so the backend is the authoritative policy owner for sign-up expiry, resend cooldown, and failed-code attempts.
 
 Store the Resend API key in Secrets Manager before deploying:
 

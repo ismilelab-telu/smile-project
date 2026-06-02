@@ -28,6 +28,7 @@ from app import (
     run_pandas_loading_code,
     sanitize_file_name,
     sign_in_with_username,
+    start_sign_up,
     validate_pandas_loading_code,
 )
 
@@ -125,10 +126,55 @@ class FakeDynamoDbClient:
 
         return {"Item": item} if item else {}
 
+    def delete_item(self, **kwargs):
+        key = kwargs["Key"]
+        item_key = key.get("usernameKey", key.get("cooldownKey"))["S"]
+        self.items.pop(item_key, None)
+        return {}
+
 
 class FakeCognitoIdentityProviderClient:
     def __init__(self) -> None:
         self.calls: list[dict[str, object]] = []
+        self.users: dict[str, dict[str, object]] = {}
+
+    def admin_create_user(self, **kwargs):
+        self.calls.append(kwargs)
+        username = str(kwargs["Username"])
+
+        if username in self.users:
+            raise create_client_error("UsernameExistsException")
+
+        self.users[username] = {
+            "attributes": kwargs.get("UserAttributes", []),
+            "password": "",
+        }
+        return {}
+
+    def admin_delete_user(self, **kwargs):
+        self.calls.append(kwargs)
+        self.users.pop(str(kwargs["Username"]), None)
+        return {}
+
+    def admin_get_user(self, **kwargs):
+        self.calls.append(kwargs)
+        username = str(kwargs["Username"])
+
+        if username not in self.users:
+            raise create_client_error("UserNotFoundException")
+
+        return {"Username": username}
+
+    def admin_set_user_password(self, **kwargs):
+        self.calls.append(kwargs)
+        username = str(kwargs["Username"])
+
+        if username not in self.users:
+            raise create_client_error("UserNotFoundException")
+
+        self.users[username]["password"] = kwargs["Password"]
+        self.users[username]["permanent"] = kwargs["Permanent"]
+        return {}
 
     def initiate_auth(self, **kwargs):
         self.calls.append(kwargs)
@@ -156,7 +202,9 @@ class FakeCognitoIdentityProviderClient:
 class LearningBackendTest(unittest.TestCase):
     def setUp(self) -> None:
         self.original_cognito_client_id = app.COGNITO_CLIENT_ID
+        self.original_cognito_user_pool_id = app.COGNITO_USER_POOL_ID
         self.original_cognito_identity_provider_client = app._cognito_identity_provider_client
+        self.original_create_confirmation_code = app.create_confirmation_code
         self.original_dynamodb_client = app._dynamodb_client
         self.original_learning_progress_table = app.LEARNING_PROGRESS_TABLE
         self.original_auth_cooldown_table = app.AUTH_COOLDOWN_TABLE
@@ -167,7 +215,9 @@ class LearningBackendTest(unittest.TestCase):
 
     def tearDown(self) -> None:
         app.COGNITO_CLIENT_ID = self.original_cognito_client_id
+        app.COGNITO_USER_POOL_ID = self.original_cognito_user_pool_id
         app._cognito_identity_provider_client = self.original_cognito_identity_provider_client
+        app.create_confirmation_code = self.original_create_confirmation_code
         app._dynamodb_client = self.original_dynamodb_client
         app.LEARNING_PROGRESS_TABLE = self.original_learning_progress_table
         app.AUTH_COOLDOWN_TABLE = self.original_auth_cooldown_table
@@ -478,53 +528,157 @@ class LearningBackendTest(unittest.TestCase):
         self.assertEqual(context.exception.next_allowed_at, 130)
         self.assertEqual(reserve_confirmation_resend("student@example.com", now=130), 160)
 
+    def test_start_sign_up_stores_pending_code_and_sends_email(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        fake_dynamodb = FakeDynamoDbClient()
+        app._dynamodb_client = fake_dynamodb
+        app._cognito_identity_provider_client = FakeCognitoIdentityProviderClient()
+        app.create_confirmation_code = lambda: "123456"
+        sent_messages: list[dict[str, str]] = []
+        app.send_resend_email = lambda **kwargs: sent_messages.append(kwargs)
+
+        result = start_sign_up(
+            {
+                "email": "Student@Example.com",
+                "name": "Student_One",
+                "password": "Password1",
+            },
+            now=100,
+        )
+
+        pending_key = app.create_pending_signup_key("student@example.com")
+        pending_item = fake_dynamodb.items[pending_key]
+        self.assertEqual(pending_item["status"]["S"], "pending")
+        self.assertEqual(pending_item["email"]["S"], "student@example.com")
+        self.assertEqual(pending_item["usernameKey"]["S"], "student_one")
+        self.assertEqual(pending_item["expiresAt"]["N"], "400")
+        self.assertNotEqual(pending_item["codeHash"]["S"], "123456")
+        self.assertEqual(result["CodeDeliveryDetails"]["Destination"], "s***t@example.com")
+        self.assertFalse(result["UserConfirmed"])
+        self.assertIn("123456", sent_messages[0]["text_body"])
+
+    def test_resend_confirmation_uses_pending_signup_and_enforces_cooldown(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        app._dynamodb_client = FakeDynamoDbClient()
+        app._cognito_identity_provider_client = FakeCognitoIdentityProviderClient()
+        sent_messages: list[dict[str, str]] = []
+        app.send_resend_email = lambda **kwargs: sent_messages.append(kwargs)
+        app.create_confirmation_code = lambda: "111111"
+        start_sign_up(
+            {
+                "email": "student@example.com",
+                "name": "Student_One",
+                "password": "Password1",
+            },
+            now=100,
+        )
+
+        original_time = app.time.time
+        app.time.time = lambda: 110
+        try:
+            with self.assertRaises(AuthCooldownError) as context:
+                app.resend_confirmation_code({"email": "student@example.com"})
+        finally:
+            app.time.time = original_time
+
+        self.assertGreaterEqual(context.exception.retry_after_seconds, 1)
+
+        app.time.time = lambda: 130
+        app.create_confirmation_code = lambda: "222222"
+        try:
+            result = app.resend_confirmation_code({"email": "student@example.com"})
+        finally:
+            app.time.time = original_time
+
+        self.assertEqual(result["nextAllowedAt"], 160)
+        self.assertIn("222222", sent_messages[-1]["text_body"])
+
     def test_confirm_sign_up_rejects_code_after_custom_expiry(self) -> None:
         app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
         app.AUTH_CONFIRMATION_CODE_TTL_SECONDS = 300
-        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
         app._dynamodb_client = FakeDynamoDbClient()
         app._cognito_identity_provider_client = FakeCognitoIdentityProviderClient()
+        app.create_confirmation_code = lambda: "123456"
+        app.send_resend_email = lambda **kwargs: None
 
-        record_confirmation_code_expiry(
-            create_cognito_event(
-                "student@example.com",
-                "Student_One",
-                trigger_source="CustomEmailSender_SignUp",
-            ),
+        start_sign_up(
+            {
+                "email": "student@example.com",
+                "name": "Student_One",
+                "password": "Password1",
+            },
             now=100,
         )
 
         with self.assertRaises(AuthCodeExpiredError):
-            confirm_sign_up({"code": "123456", "email": "student@example.com"}, now=401)
+            confirm_sign_up(
+                {"code": "123456", "email": "student@example.com", "password": "Password1"},
+                now=401,
+            )
 
-    def test_confirm_sign_up_calls_cognito_before_custom_expiry(self) -> None:
+    def test_confirm_sign_up_rejects_wrong_code_and_counts_attempt(self) -> None:
         app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
-        app.AUTH_CONFIRMATION_CODE_TTL_SECONDS = 300
-        app.COGNITO_CLIENT_ID = "web-client"
-        app._dynamodb_client = FakeDynamoDbClient()
-        fake_cognito = FakeCognitoIdentityProviderClient()
-        app._cognito_identity_provider_client = fake_cognito
-
-        record_confirmation_code_expiry(
-            create_cognito_event(
-                "student@example.com",
-                "Student_One",
-                trigger_source="CustomEmailSender_SignUp",
-            ),
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        fake_dynamodb = FakeDynamoDbClient()
+        app._dynamodb_client = fake_dynamodb
+        app._cognito_identity_provider_client = FakeCognitoIdentityProviderClient()
+        app.create_confirmation_code = lambda: "123456"
+        app.send_resend_email = lambda **kwargs: None
+        start_sign_up(
+            {
+                "email": "student@example.com",
+                "name": "Student_One",
+                "password": "Password1",
+            },
             now=100,
         )
 
-        result = confirm_sign_up({"code": "123456", "email": "student@example.com"}, now=399)
+        with self.assertRaises(CognitoSignInError) as context:
+            confirm_sign_up(
+                {"code": "000000", "email": "student@example.com", "password": "Password1"},
+                now=120,
+            )
+
+        self.assertEqual(context.exception.code, "CodeMismatchException")
+        pending_item = fake_dynamodb.items[app.create_pending_signup_key("student@example.com")]
+        self.assertEqual(pending_item["attempts"]["N"], "1")
+
+    def test_confirm_sign_up_creates_confirmed_cognito_user(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        fake_dynamodb = FakeDynamoDbClient()
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        app._dynamodb_client = fake_dynamodb
+        app._cognito_identity_provider_client = fake_cognito
+        app.create_confirmation_code = lambda: "123456"
+        app.send_resend_email = lambda **kwargs: None
+        start_sign_up(
+            {
+                "email": "student@example.com",
+                "name": "Student_One",
+                "password": "Password1",
+            },
+            now=100,
+        )
+
+        result = confirm_sign_up(
+            {"code": "123456", "email": "student@example.com", "password": "Password1"},
+            now=120,
+        )
 
         self.assertTrue(result["ok"])
-        self.assertEqual(
-            fake_cognito.calls[0],
-            {
-                "ClientId": "web-client",
-                "ConfirmationCode": "123456",
-                "Username": "student@example.com",
-            },
-        )
+        self.assertIn("student@example.com", fake_cognito.users)
+        self.assertEqual(fake_cognito.users["student@example.com"]["password"], "Password1")
+        self.assertEqual(fake_dynamodb.items["student_one"]["status"]["S"], "confirmed")
+        self.assertNotIn(app.create_pending_signup_key("student@example.com"), fake_dynamodb.items)
 
     def test_custom_email_sender_sends_decrypted_verification_code_with_resend(self) -> None:
         sent_messages: list[dict[str, str]] = []

@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import re
+import secrets
 import tempfile
 import time
 import urllib.error
@@ -71,6 +72,8 @@ AUTH_RESEND_COOLDOWN_SECONDS = int(os.environ.get("AUTH_RESEND_COOLDOWN_SECONDS"
 AUTH_CONFIRMATION_CODE_TTL_SECONDS = int(
     os.environ.get("AUTH_CONFIRMATION_CODE_TTL_SECONDS", "300")
 )
+AUTH_CONFIRMATION_CODE_DIGITS = 6
+AUTH_CONFIRMATION_MAX_ATTEMPTS = 5
 MAX_ZIP_BYTES = int(os.environ.get("MAX_ZIP_BYTES", "52428800"))
 MAX_UNZIPPED_BYTES = int(os.environ.get("MAX_UNZIPPED_BYTES", "104857600"))
 MAX_PROGRESS_JSON_BYTES = int(os.environ.get("MAX_PROGRESS_JSON_BYTES", "300000"))
@@ -144,6 +147,9 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             user = require_authenticated_user(event)
             return response(200, save_learning_progress(parse_json_body(event), user))
 
+        if method == "POST" and path == "/auth/sign-up/start":
+            return response(200, start_sign_up(parse_json_body(event)))
+
         if method == "POST" and path == "/auth/confirmation/resend":
             return response(200, resend_confirmation_code(parse_json_body(event)))
 
@@ -211,14 +217,18 @@ def handle_cognito_trigger(event: dict[str, Any]) -> dict[str, Any]:
 
 
 def reserve_username_for_signup(event: dict[str, Any]) -> None:
-    username = get_cognito_user_attribute(event, "name")
-    email = get_cognito_user_attribute(event, "email").lower()
+    reserve_username_reservation(
+        get_cognito_user_attribute(event, "email").lower(),
+        get_cognito_user_attribute(event, "name"),
+        int(time.time()),
+    )
+
+
+def reserve_username_reservation(email: str, username: str, now: int) -> str:
     username_key = normalize_signup_username(username)
 
     if not email:
         raise UsernameReservationError("Email is required.")
-
-    now = int(time.time())
 
     try:
         get_dynamodb_client().put_item(
@@ -245,12 +255,19 @@ def reserve_username_for_signup(event: dict[str, Any]) -> None:
 
         raise
 
+    return username_key
+
 
 def confirm_username_reservation(event: dict[str, Any]) -> None:
-    username = get_cognito_user_attribute(event, "name")
-    email = get_cognito_user_attribute(event, "email").lower()
+    confirm_username_reservation_for_values(
+        get_cognito_user_attribute(event, "email").lower(),
+        get_cognito_user_attribute(event, "name"),
+        int(time.time()),
+    )
+
+
+def confirm_username_reservation_for_values(email: str, username: str, now: int) -> None:
     username_key = normalize_signup_username(username)
-    now = int(time.time())
 
     if not email:
         return
@@ -529,6 +546,13 @@ def require_auth_cooldown_table() -> str:
     return AUTH_COOLDOWN_TABLE
 
 
+def require_cognito_user_pool_id() -> str:
+    if not COGNITO_USER_POOL_ID:
+        raise AuthConfigurationError("Cognito user pool id is missing.")
+
+    return COGNITO_USER_POOL_ID
+
+
 def is_conditional_check_failed(error: ClientError) -> bool:
     return get_client_error_code(error) == "ConditionalCheckFailedException"
 
@@ -763,6 +787,53 @@ def validate_uploaded_dataset_code(body: dict[str, Any], user: dict[str, Any]) -
     }
 
 
+def start_sign_up(body: dict[str, Any], now: int | None = None) -> dict[str, Any]:
+    email = normalize_auth_email(get_required_string(body, "email"))
+    username = get_required_string(body, "name")
+    password = get_required_string(body, "password")
+    request_time = int(time.time()) if now is None else now
+
+    validate_signup_password(password)
+    require_cognito_user_pool_id()
+
+    if cognito_user_exists(email):
+        raise CognitoSignInError("UsernameExistsException", "An account already exists.")
+
+    username_key = reserve_username_reservation(email, username, request_time)
+    code = create_confirmation_code()
+    code_salt = secrets.token_urlsafe(16)
+    expires_at = request_time + AUTH_CONFIRMATION_CODE_TTL_SECONDS
+    next_allowed_at = request_time + AUTH_RESEND_COOLDOWN_SECONDS
+
+    get_dynamodb_client().put_item(
+        TableName=require_auth_cooldown_table(),
+        Item={
+            "attempts": {"N": "0"},
+            "codeHash": {"S": hash_confirmation_code(email, code, code_salt)},
+            "codeSalt": {"S": code_salt},
+            "cooldownKey": {"S": create_pending_signup_key(email)},
+            "createdAt": {"N": str(request_time)},
+            "email": {"S": email},
+            "expiresAt": {"N": str(expires_at)},
+            "nextAllowedAt": {"N": str(next_allowed_at)},
+            "status": {"S": "pending"},
+            "updatedAt": {"N": str(request_time)},
+            "username": {"S": username.strip()},
+            "usernameKey": {"S": username_key},
+        },
+    )
+    send_pending_signup_confirmation_email(email, code)
+
+    return build_confirmation_resend_response(next_allowed_at) | {
+        "CodeDeliveryDetails": {
+            "AttributeName": "email",
+            "DeliveryMedium": "EMAIL",
+            "Destination": mask_email_destination(email),
+        },
+        "UserConfirmed": False,
+    }
+
+
 def sign_in_with_username(body: dict[str, Any]) -> dict[str, Any]:
     username = get_required_string(body, "username")
     password = get_required_string(body, "password")
@@ -817,25 +888,32 @@ def get_confirmed_email_for_username(username_key: str) -> str:
 
 def resend_confirmation_code(body: dict[str, Any]) -> dict[str, Any]:
     email = normalize_auth_email(get_required_string(body, "email"))
-    if not COGNITO_CLIENT_ID:
-        raise AuthConfigurationError("Cognito client id is missing.")
-
     now = int(time.time())
-    next_allowed_at = reserve_confirmation_resend(email, now)
+    item = get_pending_signup_item(email)
 
-    try:
-        get_cognito_identity_provider_client().resend_confirmation_code(
-            ClientId=COGNITO_CLIENT_ID,
-            Username=email,
-        )
-    except ClientError as error:
-        code = get_client_error_code(error)
-        if code in {"InvalidParameterException", "UserNotFoundException"}:
-            return build_confirmation_resend_response(next_allowed_at)
-        if code in {"LimitExceededException", "TooManyRequestsException"}:
-            raise AuthCooldownError(AUTH_RESEND_COOLDOWN_SECONDS, next_allowed_at) from error
+    if not is_active_pending_signup(item, now):
+        return build_confirmation_resend_response(now + AUTH_RESEND_COOLDOWN_SECONDS)
 
-        raise
+    existing_next_allowed_at = get_number_attribute(item or {}, "nextAllowedAt")
+    if existing_next_allowed_at and existing_next_allowed_at > now:
+        raise AuthCooldownError(existing_next_allowed_at - now, existing_next_allowed_at)
+
+    code = create_confirmation_code()
+    code_salt = secrets.token_urlsafe(16)
+    next_allowed_at = now + AUTH_RESEND_COOLDOWN_SECONDS
+    put_pending_signup_item(
+        email=email,
+        username=get_string_attribute(item or {}, "username"),
+        username_key=get_string_attribute(item or {}, "usernameKey"),
+        code=code,
+        code_salt=code_salt,
+        created_at=get_number_attribute(item or {}, "createdAt") or now,
+        expires_at=now + AUTH_CONFIRMATION_CODE_TTL_SECONDS,
+        next_allowed_at=next_allowed_at,
+        attempts=0,
+        updated_at=now,
+    )
+    send_pending_signup_confirmation_email(email, code)
 
     return build_confirmation_resend_response(next_allowed_at)
 
@@ -843,33 +921,224 @@ def resend_confirmation_code(body: dict[str, Any]) -> dict[str, Any]:
 def confirm_sign_up(body: dict[str, Any], now: int | None = None) -> dict[str, Any]:
     email = normalize_auth_email(get_required_string(body, "email"))
     code = get_required_string(body, "code")
+    password = get_required_string(body, "password")
+    request_time = int(time.time()) if now is None else now
 
-    if not COGNITO_CLIENT_ID:
-        raise AuthConfigurationError("Cognito client id is missing.")
+    validate_signup_password(password)
 
-    assert_confirmation_code_is_active(email, int(time.time()) if now is None else now)
+    item = get_pending_signup_item(email)
+    if not is_active_pending_signup(item, request_time):
+        raise AuthCodeExpiredError("The verification code has expired. Send a new code.")
+
+    attempts = get_number_attribute(item or {}, "attempts") or 0
+    if attempts >= AUTH_CONFIRMATION_MAX_ATTEMPTS:
+        raise CognitoSignInError(
+            "TooManyFailedAttemptsException",
+            "Too many failed verification attempts. Send a new code.",
+        )
+
+    code_salt = get_string_attribute(item or {}, "codeSalt")
+    expected_code_hash = get_string_attribute(item or {}, "codeHash")
+    if hash_confirmation_code(email, code, code_salt) != expected_code_hash:
+        update_pending_signup_attempts(email, item or {}, attempts + 1, request_time)
+        raise CognitoSignInError("CodeMismatchException", "The verification code is not correct.")
+
+    username = get_string_attribute(item or {}, "username")
+    username_key = get_string_attribute(item or {}, "usernameKey")
+    if not username or not username_key:
+        raise AuthConfigurationError("Pending sign-up is missing username data.")
 
     try:
-        get_cognito_identity_provider_client().confirm_sign_up(
-            ClientId=COGNITO_CLIENT_ID,
-            ConfirmationCode=code,
-            Username=email,
-        )
+        create_confirmed_cognito_user(email=email, password=password, username=username)
     except ClientError as error:
         code_name = get_client_error_code(error)
         if code_name in {
-            "CodeMismatchException",
-            "ExpiredCodeException",
             "InvalidParameterException",
-            "NotAuthorizedException",
-            "TooManyFailedAttemptsException",
-            "UserNotFoundException",
+            "InvalidPasswordException",
+            "UsernameExistsException",
         }:
             raise CognitoSignInError(code_name, get_client_error_message(error)) from error
 
         raise
 
+    confirm_username_reservation_for_values(email, username, request_time)
+    delete_pending_signup(email)
+
     return {"ok": True}
+
+
+def put_pending_signup_item(
+    *,
+    attempts: int,
+    code: str,
+    code_salt: str,
+    created_at: int,
+    email: str,
+    expires_at: int,
+    next_allowed_at: int,
+    updated_at: int,
+    username: str,
+    username_key: str,
+) -> None:
+    get_dynamodb_client().put_item(
+        TableName=require_auth_cooldown_table(),
+        Item={
+            "attempts": {"N": str(attempts)},
+            "codeHash": {"S": hash_confirmation_code(email, code, code_salt)},
+            "codeSalt": {"S": code_salt},
+            "cooldownKey": {"S": create_pending_signup_key(email)},
+            "createdAt": {"N": str(created_at)},
+            "email": {"S": email},
+            "expiresAt": {"N": str(expires_at)},
+            "nextAllowedAt": {"N": str(next_allowed_at)},
+            "status": {"S": "pending"},
+            "updatedAt": {"N": str(updated_at)},
+            "username": {"S": username.strip()},
+            "usernameKey": {"S": username_key},
+        },
+    )
+
+
+def update_pending_signup_attempts(
+    email: str,
+    item: dict[str, Any],
+    attempts: int,
+    now: int,
+) -> None:
+    get_dynamodb_client().put_item(
+        TableName=require_auth_cooldown_table(),
+        Item={
+            **item,
+            "attempts": {"N": str(attempts)},
+            "updatedAt": {"N": str(now)},
+        },
+    )
+
+
+def get_pending_signup_item(email: str) -> dict[str, Any] | None:
+    return get_dynamodb_client().get_item(
+        TableName=require_auth_cooldown_table(),
+        Key={"cooldownKey": {"S": create_pending_signup_key(email)}},
+        ConsistentRead=True,
+    ).get("Item")
+
+
+def is_active_pending_signup(item: dict[str, Any] | None, now: int) -> bool:
+    if not item or item.get("status", {}).get("S") != "pending":
+        return False
+
+    expires_at = get_number_attribute(item, "expiresAt")
+    return expires_at is not None and expires_at > now
+
+
+def delete_pending_signup(email: str) -> None:
+    get_dynamodb_client().delete_item(
+        TableName=require_auth_cooldown_table(),
+        Key={"cooldownKey": {"S": create_pending_signup_key(email)}},
+    )
+
+
+def send_pending_signup_confirmation_email(email: str, code: str) -> None:
+    message = build_cognito_email_message("CustomEmailSender_SignUp", code)
+    send_resend_email(
+        html_body=message["html"],
+        recipient=email,
+        subject=message["subject"],
+        text_body=message["text"],
+    )
+
+
+def create_confirmed_cognito_user(*, email: str, password: str, username: str) -> None:
+    require_cognito_user_pool_id()
+    client = get_cognito_identity_provider_client()
+    user_created = False
+
+    try:
+        client.admin_create_user(
+            MessageAction="SUPPRESS",
+            UserAttributes=[
+                {"Name": "email", "Value": email},
+                {"Name": "email_verified", "Value": "true"},
+                {"Name": "name", "Value": username.strip()},
+            ],
+            Username=email,
+            UserPoolId=COGNITO_USER_POOL_ID,
+        )
+        user_created = True
+        client.admin_set_user_password(
+            Password=password,
+            Permanent=True,
+            Username=email,
+            UserPoolId=COGNITO_USER_POOL_ID,
+        )
+    except ClientError:
+        if user_created:
+            try:
+                client.admin_delete_user(UserPoolId=COGNITO_USER_POOL_ID, Username=email)
+            except ClientError:
+                pass
+        raise
+
+
+def cognito_user_exists(email: str) -> bool:
+    require_cognito_user_pool_id()
+
+    try:
+        get_cognito_identity_provider_client().admin_get_user(
+            UserPoolId=COGNITO_USER_POOL_ID,
+            Username=email,
+        )
+    except ClientError as error:
+        if get_client_error_code(error) == "UserNotFoundException":
+            return False
+        raise
+
+    return True
+
+
+def validate_signup_password(password: str) -> None:
+    if len(password) < 8:
+        raise CognitoSignInError(
+            "InvalidPasswordException",
+            "Password must be at least 8 characters.",
+        )
+
+    if not re.search(r"[a-z]", password) or not re.search(r"[A-Z]", password):
+        raise CognitoSignInError(
+            "InvalidPasswordException",
+            "Password must include lowercase and uppercase letters.",
+        )
+
+    if not re.search(r"[0-9]", password):
+        raise CognitoSignInError(
+            "InvalidPasswordException",
+            "Password must include a number.",
+        )
+
+
+def create_confirmation_code() -> str:
+    return f"{secrets.randbelow(10**AUTH_CONFIRMATION_CODE_DIGITS):0{AUTH_CONFIRMATION_CODE_DIGITS}d}"
+
+
+def hash_confirmation_code(email: str, code: str, salt: str) -> str:
+    return hashlib.sha256(f"{salt}:{email}:{code}".encode("utf-8")).hexdigest()
+
+
+def create_pending_signup_key(email: str) -> str:
+    return create_auth_cooldown_key("pending-signup", email)
+
+
+def mask_email_destination(email: str) -> str:
+    local_part, _, domain = email.partition("@")
+    if not local_part or not domain:
+        return email
+
+    if len(local_part) <= 2:
+        masked_local = f"{local_part[0]}***"
+    else:
+        masked_local = f"{local_part[0]}***{local_part[-1]}"
+
+    return f"{masked_local}@{domain}"
 
 
 def reserve_confirmation_resend(email: str, now: int) -> int:
@@ -975,6 +1244,12 @@ def get_number_attribute(item: dict[str, Any], name: str) -> int | None:
         return int(value)
 
     return None
+
+
+def get_string_attribute(item: dict[str, Any], name: str) -> str:
+    value = item.get(name, {}).get("S") if isinstance(item, dict) else None
+
+    return value if isinstance(value, str) else ""
 
 
 def download_archive(object_key: str) -> bytes:

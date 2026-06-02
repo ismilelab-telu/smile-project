@@ -119,7 +119,7 @@ Resources:
           - Name: verified_email
             Priority: 1
       AdminCreateUserConfig:
-        AllowAdminCreateUserOnly: false
+        AllowAdminCreateUserOnly: true
       Policies:
         PasswordPolicy:
           MinimumLength: 8
@@ -216,6 +216,14 @@ Resources:
             TableName: !Ref UsernameReservationTable
         - DynamoDBCrudPolicy:
             TableName: !Ref AuthCooldownTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminDeleteUser
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminSetUserPassword
+              Resource: !GetAtt SmileUserPool.Arn
       FunctionUrlConfig:
         AuthType: NONE
         Cors:
