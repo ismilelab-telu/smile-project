@@ -687,6 +687,7 @@ function AuthFormPanel({
       return;
     }
 
+    setConfirmationCode("");
     setErrorMessage("");
     setStatusMessage(null);
     setIsSubmitting(true);
@@ -990,7 +991,7 @@ function AuthFormPanel({
 
               <div className="mt-5 flex flex-col items-center gap-3 text-sm sm:flex-row sm:justify-between">
                 <button
-                  className="inline-flex cursor-pointer items-center gap-2 font-semibold text-neutral-700 transition-colors hover:text-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+                  className="inline-flex cursor-pointer items-center gap-2 font-semibold text-foreground transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
                   disabled={isSubmitting}
                   onClick={handleBackToCredentials}
                   type="button"
