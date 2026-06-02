@@ -70,6 +70,7 @@ def create_client_error(code: str, message: str = ""):
 class FakeDynamoDbClient:
     def __init__(self) -> None:
         self.items: dict[str, dict[str, dict[str, str]]] = {}
+        self.update_calls: list[dict[str, object]] = []
 
     def put_item(self, **kwargs):
         item = kwargs["Item"]
@@ -83,8 +84,9 @@ class FakeDynamoDbClient:
             now = int(kwargs["ExpressionAttributeValues"].get(":now", {"N": "0"})["N"])
 
             if existing_item:
+                expires_at = int(existing_item.get("expiresAt", {"N": "0"})["N"])
                 next_allowed_at = int(existing_item.get("nextAllowedAt", {"N": "0"})["N"])
-                if next_allowed_at > now:
+                if expires_at > now and next_allowed_at > now:
                     raise create_client_error("ConditionalCheckFailedException")
 
             self.items[cooldown_key] = item
@@ -107,7 +109,32 @@ class FakeDynamoDbClient:
         return {}
 
     def update_item(self, **kwargs):
-        username_key = kwargs["Key"]["usernameKey"]["S"]
+        self.update_calls.append(kwargs)
+        key = kwargs["Key"]
+
+        if "cooldownKey" in key:
+            cooldown_key = key["cooldownKey"]["S"]
+            item = self.items.get(cooldown_key)
+            values = kwargs["ExpressionAttributeValues"]
+            now = int(values[":now"]["N"])
+            max_attempts = int(values[":maxAttempts"]["N"])
+
+            if (
+                not item
+                or item.get("status", {}).get("S") != values[":pending"]["S"]
+                or int(item.get("expiresAt", {"N": "0"})["N"]) <= now
+                or int(item.get("attempts", {"N": "0"})["N"]) >= max_attempts
+            ):
+                raise create_client_error("ConditionalCheckFailedException")
+
+            attempts = int(item.get("attempts", {"N": "0"})["N"])
+            item["attempts"] = {
+                "N": str(attempts + int(values[":one"]["N"])),
+            }
+            item["updatedAt"] = values[":now"]
+            return {}
+
+        username_key = key["usernameKey"]["S"]
         item = self.items.get(username_key)
         requested_email = kwargs["ExpressionAttributeValues"][":email"]["S"]
 
@@ -129,6 +156,20 @@ class FakeDynamoDbClient:
     def delete_item(self, **kwargs):
         key = kwargs["Key"]
         item_key = key.get("usernameKey", key.get("cooldownKey"))["S"]
+
+        if "ConditionExpression" in kwargs:
+            item = self.items.get(item_key)
+            values = kwargs.get("ExpressionAttributeValues", {})
+            requested_email = values.get(":email", {}).get("S")
+            requested_status = values.get(":status", {}).get("S")
+
+            if (
+                not item
+                or item.get("email", {}).get("S") != requested_email
+                or item.get("status", {}).get("S") != requested_status
+            ):
+                raise create_client_error("ConditionalCheckFailedException")
+
         self.items.pop(item_key, None)
         return {}
 
@@ -559,6 +600,79 @@ class LearningBackendTest(unittest.TestCase):
         self.assertFalse(result["UserConfirmed"])
         self.assertIn("123456", sent_messages[0]["text_body"])
 
+    def test_start_sign_up_enforces_pending_cooldown_before_reserving_username(
+        self,
+    ) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        fake_dynamodb = FakeDynamoDbClient()
+        app._dynamodb_client = fake_dynamodb
+        app._cognito_identity_provider_client = FakeCognitoIdentityProviderClient()
+        app.create_confirmation_code = lambda: "123456"
+        sent_messages: list[dict[str, str]] = []
+        app.send_resend_email = lambda **kwargs: sent_messages.append(kwargs)
+
+        start_sign_up(
+            {
+                "email": "student@example.com",
+                "name": "Student_One",
+                "password": "Password1",
+            },
+            now=100,
+        )
+
+        with self.assertRaises(AuthCooldownError) as context:
+            start_sign_up(
+                {
+                    "email": "student@example.com",
+                    "name": "Student_Two",
+                    "password": "Password1",
+                },
+                now=110,
+            )
+
+        self.assertEqual(context.exception.retry_after_seconds, 20)
+        self.assertEqual(len(sent_messages), 1)
+        self.assertIn("student_one", fake_dynamodb.items)
+        self.assertNotIn("student_two", fake_dynamodb.items)
+
+    def test_start_sign_up_after_cooldown_reuses_active_pending_username(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        fake_dynamodb = FakeDynamoDbClient()
+        app._dynamodb_client = fake_dynamodb
+        app._cognito_identity_provider_client = FakeCognitoIdentityProviderClient()
+        codes = iter(["111111", "222222"])
+        app.create_confirmation_code = lambda: next(codes)
+        sent_messages: list[dict[str, str]] = []
+        app.send_resend_email = lambda **kwargs: sent_messages.append(kwargs)
+
+        start_sign_up(
+            {
+                "email": "student@example.com",
+                "name": "Student_One",
+                "password": "Password1",
+            },
+            now=100,
+        )
+        result = start_sign_up(
+            {
+                "email": "student@example.com",
+                "name": "Student_Two",
+                "password": "Password1",
+            },
+            now=130,
+        )
+
+        pending_item = fake_dynamodb.items[app.create_pending_signup_key("student@example.com")]
+        self.assertEqual(result["nextAllowedAt"], 160)
+        self.assertEqual(pending_item["usernameKey"]["S"], "student_one")
+        self.assertEqual(pending_item["username"]["S"], "Student_One")
+        self.assertNotIn("student_two", fake_dynamodb.items)
+        self.assertIn("222222", sent_messages[-1]["text_body"])
+
     def test_resend_confirmation_uses_pending_signup_and_enforces_cooldown(self) -> None:
         app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
         app.COGNITO_USER_POOL_ID = "user-pool"
@@ -649,6 +763,36 @@ class LearningBackendTest(unittest.TestCase):
         self.assertEqual(context.exception.code, "CodeMismatchException")
         pending_item = fake_dynamodb.items[app.create_pending_signup_key("student@example.com")]
         self.assertEqual(pending_item["attempts"]["N"], "1")
+        self.assertEqual(
+            fake_dynamodb.update_calls[-1]["Key"],
+            {"cooldownKey": {"S": app.create_pending_signup_key("student@example.com")}},
+        )
+        self.assertIn("ADD attempts", str(fake_dynamodb.update_calls[-1]["UpdateExpression"]))
+
+    def test_pending_signup_attempts_increment_from_current_item(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        fake_dynamodb = FakeDynamoDbClient()
+        app._dynamodb_client = fake_dynamodb
+        app._cognito_identity_provider_client = FakeCognitoIdentityProviderClient()
+        app.create_confirmation_code = lambda: "123456"
+        app.send_resend_email = lambda **kwargs: None
+        start_sign_up(
+            {
+                "email": "student@example.com",
+                "name": "Student_One",
+                "password": "Password1",
+            },
+            now=100,
+        )
+
+        app.increment_pending_signup_attempts("student@example.com", now=120)
+        app.increment_pending_signup_attempts("student@example.com", now=121)
+
+        pending_item = fake_dynamodb.items[app.create_pending_signup_key("student@example.com")]
+        self.assertEqual(pending_item["attempts"]["N"], "2")
+        self.assertEqual(len(fake_dynamodb.update_calls), 2)
 
     def test_confirm_sign_up_creates_confirmed_cognito_user(self) -> None:
         app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"

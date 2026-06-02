@@ -789,7 +789,7 @@ def validate_uploaded_dataset_code(body: dict[str, Any], user: dict[str, Any]) -
 
 def start_sign_up(body: dict[str, Any], now: int | None = None) -> dict[str, Any]:
     email = normalize_auth_email(get_required_string(body, "email"))
-    username = get_required_string(body, "name")
+    requested_username = get_required_string(body, "name")
     password = get_required_string(body, "password")
     request_time = int(time.time()) if now is None else now
 
@@ -799,29 +799,56 @@ def start_sign_up(body: dict[str, Any], now: int | None = None) -> dict[str, Any
     if cognito_user_exists(email):
         raise CognitoSignInError("UsernameExistsException", "An account already exists.")
 
-    username_key = reserve_username_reservation(email, username, request_time)
+    existing_item = get_pending_signup_item(email)
+    reserved_username_key = ""
+
+    if is_active_pending_signup(existing_item, request_time):
+        existing_next_allowed_at = get_number_attribute(existing_item or {}, "nextAllowedAt")
+        if existing_next_allowed_at and existing_next_allowed_at > request_time:
+            raise AuthCooldownError(
+                existing_next_allowed_at - request_time,
+                existing_next_allowed_at,
+            )
+
+        username = get_string_attribute(existing_item or {}, "username")
+        username_key = get_string_attribute(existing_item or {}, "usernameKey")
+        created_at = get_number_attribute(existing_item or {}, "createdAt") or request_time
+        if not username or not username_key:
+            raise AuthConfigurationError("Pending sign-up is missing username data.")
+    else:
+        release_pending_username_reservation(existing_item, email)
+        username_key = reserve_username_reservation(email, requested_username, request_time)
+        reserved_username_key = username_key
+        username = requested_username.strip()
+        created_at = request_time
+
     code = create_confirmation_code()
     code_salt = secrets.token_urlsafe(16)
     expires_at = request_time + AUTH_CONFIRMATION_CODE_TTL_SECONDS
     next_allowed_at = request_time + AUTH_RESEND_COOLDOWN_SECONDS
 
-    get_dynamodb_client().put_item(
-        TableName=require_auth_cooldown_table(),
-        Item={
-            "attempts": {"N": "0"},
-            "codeHash": {"S": hash_confirmation_code(email, code, code_salt)},
-            "codeSalt": {"S": code_salt},
-            "cooldownKey": {"S": create_pending_signup_key(email)},
-            "createdAt": {"N": str(request_time)},
-            "email": {"S": email},
-            "expiresAt": {"N": str(expires_at)},
-            "nextAllowedAt": {"N": str(next_allowed_at)},
-            "status": {"S": "pending"},
-            "updatedAt": {"N": str(request_time)},
-            "username": {"S": username.strip()},
-            "usernameKey": {"S": username_key},
-        },
-    )
+    try:
+        put_pending_signup_item(
+            email=email,
+            username=username,
+            username_key=username_key,
+            code=code,
+            code_salt=code_salt,
+            created_at=created_at,
+            expires_at=expires_at,
+            next_allowed_at=next_allowed_at,
+            attempts=0,
+            updated_at=request_time,
+            condition_now=request_time,
+        )
+    except AuthCooldownError:
+        if reserved_username_key:
+            current_pending_item = get_pending_signup_item(email)
+            current_username_key = get_string_attribute(current_pending_item or {}, "usernameKey")
+            if current_username_key != reserved_username_key:
+                delete_pending_username_reservation(reserved_username_key, email)
+        raise
+
     send_pending_signup_confirmation_email(email, code)
 
     return build_confirmation_resend_response(next_allowed_at) | {
@@ -912,6 +939,7 @@ def resend_confirmation_code(body: dict[str, Any]) -> dict[str, Any]:
         next_allowed_at=next_allowed_at,
         attempts=0,
         updated_at=now,
+        condition_now=now,
     )
     send_pending_signup_confirmation_email(email, code)
 
@@ -932,15 +960,12 @@ def confirm_sign_up(body: dict[str, Any], now: int | None = None) -> dict[str, A
 
     attempts = get_number_attribute(item or {}, "attempts") or 0
     if attempts >= AUTH_CONFIRMATION_MAX_ATTEMPTS:
-        raise CognitoSignInError(
-            "TooManyFailedAttemptsException",
-            "Too many failed verification attempts. Send a new code.",
-        )
+        raise create_too_many_failed_attempts_error()
 
     code_salt = get_string_attribute(item or {}, "codeSalt")
     expected_code_hash = get_string_attribute(item or {}, "codeHash")
     if hash_confirmation_code(email, code, code_salt) != expected_code_hash:
-        update_pending_signup_attempts(email, item or {}, attempts + 1, request_time)
+        increment_pending_signup_attempts(email, request_time)
         raise CognitoSignInError("CodeMismatchException", "The verification code is not correct.")
 
     username = get_string_attribute(item or {}, "username")
@@ -979,10 +1004,11 @@ def put_pending_signup_item(
     updated_at: int,
     username: str,
     username_key: str,
+    condition_now: int | None = None,
 ) -> None:
-    get_dynamodb_client().put_item(
-        TableName=require_auth_cooldown_table(),
-        Item={
+    request: dict[str, Any] = {
+        "TableName": require_auth_cooldown_table(),
+        "Item": {
             "attempts": {"N": str(attempts)},
             "codeHash": {"S": hash_confirmation_code(email, code, code_salt)},
             "codeSalt": {"S": code_salt},
@@ -996,23 +1022,57 @@ def put_pending_signup_item(
             "username": {"S": username.strip()},
             "usernameKey": {"S": username_key},
         },
-    )
+    }
+
+    if condition_now is not None:
+        request["ConditionExpression"] = (
+            "attribute_not_exists(cooldownKey) OR expiresAt <= :now OR nextAllowedAt <= :now"
+        )
+        request["ExpressionAttributeValues"] = {
+            ":now": {"N": str(condition_now)},
+        }
+
+    try:
+        get_dynamodb_client().put_item(**request)
+    except ClientError as error:
+        if not is_conditional_check_failed(error) or condition_now is None:
+            raise
+
+        item = get_pending_signup_item(email)
+        next_allowed_at_value = get_number_attribute(item or {}, "nextAllowedAt")
+        retry_after_seconds = max(1, (next_allowed_at_value or condition_now + 1) - condition_now)
+        raise AuthCooldownError(
+            retry_after_seconds,
+            next_allowed_at_value or condition_now + retry_after_seconds,
+        ) from error
 
 
-def update_pending_signup_attempts(
-    email: str,
-    item: dict[str, Any],
-    attempts: int,
-    now: int,
-) -> None:
-    get_dynamodb_client().put_item(
-        TableName=require_auth_cooldown_table(),
-        Item={
-            **item,
-            "attempts": {"N": str(attempts)},
-            "updatedAt": {"N": str(now)},
-        },
-    )
+def increment_pending_signup_attempts(email: str, now: int) -> None:
+    try:
+        get_dynamodb_client().update_item(
+            TableName=require_auth_cooldown_table(),
+            Key={"cooldownKey": {"S": create_pending_signup_key(email)}},
+            UpdateExpression="SET updatedAt = :now ADD attempts :one",
+            ConditionExpression="#status = :pending AND expiresAt > :now AND attempts < :maxAttempts",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":maxAttempts": {"N": str(AUTH_CONFIRMATION_MAX_ATTEMPTS)},
+                ":now": {"N": str(now)},
+                ":one": {"N": "1"},
+                ":pending": {"S": "pending"},
+            },
+        )
+    except ClientError as error:
+        if not is_conditional_check_failed(error):
+            raise
+
+        item = get_pending_signup_item(email)
+        if is_active_pending_signup(item, now):
+            attempts = get_number_attribute(item or {}, "attempts") or 0
+            if attempts >= AUTH_CONFIRMATION_MAX_ATTEMPTS:
+                raise create_too_many_failed_attempts_error() from error
+
+        raise AuthCodeExpiredError("The verification code has expired. Send a new code.") from error
 
 
 def get_pending_signup_item(email: str) -> dict[str, Any] | None:
@@ -1036,6 +1096,32 @@ def delete_pending_signup(email: str) -> None:
         TableName=require_auth_cooldown_table(),
         Key={"cooldownKey": {"S": create_pending_signup_key(email)}},
     )
+
+
+def release_pending_username_reservation(item: dict[str, Any] | None, email: str) -> None:
+    if not item:
+        return
+
+    username_key = get_string_attribute(item, "usernameKey")
+    if username_key:
+        delete_pending_username_reservation(username_key, email)
+
+
+def delete_pending_username_reservation(username_key: str, email: str) -> None:
+    try:
+        get_dynamodb_client().delete_item(
+            TableName=require_username_reservation_table(),
+            Key={"usernameKey": {"S": username_key}},
+            ConditionExpression="email = :email AND #status = :status",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":email": {"S": email},
+                ":status": {"S": "pending"},
+            },
+        )
+    except ClientError as error:
+        if not is_conditional_check_failed(error):
+            raise
 
 
 def send_pending_signup_confirmation_email(email: str, code: str) -> None:
@@ -1114,6 +1200,13 @@ def validate_signup_password(password: str) -> None:
             "InvalidPasswordException",
             "Password must include a number.",
         )
+
+
+def create_too_many_failed_attempts_error() -> CognitoSignInError:
+    return CognitoSignInError(
+        "TooManyFailedAttemptsException",
+        "Too many failed verification attempts. Send a new code.",
+    )
 
 
 def create_confirmation_code() -> str:
