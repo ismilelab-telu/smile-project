@@ -121,7 +121,7 @@ export function isAuthSessionExpired(session: AuthSession, skewMs = 30_000) {
 export function getAuthAuthorizationHeader() {
   const session = getStoredAuthSession();
 
-  return session ? `Bearer ${session.idToken}` : "";
+  return session ? `Bearer ${session.accessToken}` : "";
 }
 
 function clearStoredAuthSessionData() {

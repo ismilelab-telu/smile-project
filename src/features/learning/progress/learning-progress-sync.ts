@@ -5,10 +5,10 @@ type RemoteLearningProgressResponse = {
   progress?: LearningProgress | null;
 };
 
-export async function fetchRemoteLearningProgress(idToken: string) {
+export async function fetchRemoteLearningProgress(accessToken: string) {
   const response = await fetch(`${getLearningBackendUrl()}/progress`, {
     headers: {
-      authorization: `Bearer ${idToken}`,
+      authorization: `Bearer ${accessToken}`,
     },
     method: "GET",
   });
@@ -18,12 +18,12 @@ export async function fetchRemoteLearningProgress(idToken: string) {
   return body.progress ?? null;
 }
 
-export async function saveRemoteLearningProgress(idToken: string, progress: LearningProgress) {
+export async function saveRemoteLearningProgress(accessToken: string, progress: LearningProgress) {
   await readLearningBackendJson(
     await fetch(`${getLearningBackendUrl()}/progress`, {
       body: JSON.stringify({ progress }),
       headers: {
-        authorization: `Bearer ${idToken}`,
+        authorization: `Bearer ${accessToken}`,
         "content-type": "application/json",
       },
       method: "PUT",

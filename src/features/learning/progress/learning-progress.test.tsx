@@ -105,9 +105,15 @@ describe("learning progress auth ownership", () => {
 
     expect(String(fetch.mock.calls[0]?.[0])).toContain("/progress");
     expect(fetch.mock.calls[0]?.[1]).toMatchObject({ method: "GET" });
+    expect(fetch.mock.calls[0]?.[1]?.headers).toMatchObject({
+      authorization: "Bearer access-token",
+    });
     const saveCall = fetch.mock.calls.find((call) => call[1]?.method === "PUT");
 
     expect(saveCall?.[1]).toMatchObject({ method: "PUT" });
+    expect(saveCall?.[1]?.headers).toMatchObject({
+      authorization: "Bearer access-token",
+    });
     expect(JSON.parse(String(saveCall?.[1]?.body))).toMatchObject({
       progress: {
         completedLessonIds: ["remote-lesson", "guest-lesson"],

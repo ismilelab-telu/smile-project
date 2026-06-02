@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthProvider, useAuth } from "./auth-context";
@@ -47,9 +47,14 @@ function AuthProbe() {
   const auth = useAuth();
 
   return (
-    <output data-ready={auth.isReady} data-token={auth.session?.idToken ?? ""} role="status">
-      {auth.isAuthenticated ? "authenticated" : "signed-out"}
-    </output>
+    <>
+      <output data-ready={auth.isReady} data-token={auth.session?.idToken ?? ""} role="status">
+        {auth.isAuthenticated ? "authenticated" : "signed-out"}
+      </output>
+      <button onClick={auth.signOut} type="button">
+        Sign out
+      </button>
+    </>
   );
 }
 
@@ -132,5 +137,80 @@ describe("AuthProvider token lifecycle", () => {
     expect(window.localStorage.getItem(authStorageKey)).toBeNull();
 
     expect(window.sessionStorage.getItem(authStorageKey)).toBeNull();
+  });
+
+  it("does not restore a session when logout wins an in-flight refresh", async () => {
+    let resolveRefresh: ((response: Response) => void) | null = null;
+    const refreshedExpiresAt = Date.now() + 70 * 60 * 1000;
+    const refreshedIdToken = createJwt({
+      email: "student@example.com",
+      exp: Math.floor(refreshedExpiresAt / 1000),
+      name: "Student",
+      sub: "student-1",
+    });
+
+    storeAuthSession(
+      createSession({
+        expiresAt: Date.now() - 1000,
+        idToken: createJwt({
+          email: "student@example.com",
+          exp: Math.floor((Date.now() - 1000) / 1000),
+          name: "Student",
+          sub: "student-1",
+        }),
+      }),
+    );
+
+    const fetch = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.endsWith("/auth/session/refresh")) {
+        return new Promise<Response>((resolve) => {
+          resolveRefresh = resolve;
+        });
+      }
+
+      return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/auth/session/refresh"),
+        expect.anything(),
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
+
+    resolveRefresh?.(
+      new Response(
+        JSON.stringify({
+          authenticationResult: {
+            AccessToken: "refreshed-access-token",
+            ExpiresIn: 3600,
+            IdToken: refreshedIdToken,
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveAttribute("data-ready", "true");
+    });
+
+    expect(screen.getByRole("status")).toHaveTextContent("signed-out");
+    expect(screen.getByRole("status")).toHaveAttribute("data-token", "");
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/auth/session/revoke"),
+      expect.anything(),
+    );
   });
 });

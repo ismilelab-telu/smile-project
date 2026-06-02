@@ -10,6 +10,9 @@ type PagesRouteParams = {
 const learningBackendProxySecretHeader = "x-smile-learning-backend-proxy-secret";
 const authRateLimitTtlMs = 60 * 60 * 1000;
 const authRateLimitState = new Map<string, number>();
+const authBurstLimitState = new Map<string, { count: number; resetAt: number }>();
+const authProxyRevokeBurstLimit = 20;
+const authProxyRevokeBurstWindowMs = 60 * 1000;
 const maxProxyRequestBodyBytes = 300_000;
 const trustedLearningBackendHostPattern = /^[a-z0-9-]+\.lambda-url\.[a-z0-9-]+\.on\.aws$/;
 
@@ -63,6 +66,7 @@ const allowedAuthProxyPaths = new Set([
   "/auth/email/sign-in",
   "/auth/username/sign-in",
   "/auth/session/refresh",
+  "/auth/session/revoke",
   "/auth/password-reset/request",
   "/auth/password-reset/confirm",
 ]);
@@ -152,6 +156,7 @@ export async function handleLearningBackendProxyRequest({
 
 export function clearLearningBackendProxyRateLimitsForTests() {
   authRateLimitState.clear();
+  authBurstLimitState.clear();
 }
 
 function getBackendPath(params?: PagesRouteParams) {
@@ -227,6 +232,17 @@ function getAuthProxyRateLimitResponse(
     return null;
   }
 
+  if (pathname === "/auth/session/revoke") {
+    const limit = reserveProxyBurstLimit(
+      `source:${pathname}:${getProxyRequestSource(request)}`,
+      authProxyRevokeBurstLimit,
+      authProxyRevokeBurstWindowMs,
+      Date.now(),
+    );
+
+    return limit ? createRateLimitResponse(limit) : null;
+  }
+
   const rule = authProxyCooldowns.find((candidate) => candidate.path === pathname);
   if (!rule) {
     return null;
@@ -296,6 +312,36 @@ function cleanupProxyRateLimits(now: number) {
       authRateLimitState.delete(key);
     }
   }
+
+  for (const [key, state] of authBurstLimitState.entries()) {
+    if (state.resetAt + authRateLimitTtlMs <= now) {
+      authBurstLimitState.delete(key);
+    }
+  }
+}
+
+function reserveProxyBurstLimit(key: string, maxRequests: number, windowMs: number, now: number) {
+  cleanupProxyRateLimits(now);
+
+  const normalizedWindowMs = Math.max(1, windowMs);
+  const currentState = authBurstLimitState.get(key);
+  if (!currentState || currentState.resetAt <= now) {
+    authBurstLimitState.set(key, {
+      count: 1,
+      resetAt: now + normalizedWindowMs,
+    });
+    return null;
+  }
+
+  if (currentState.count >= Math.max(1, maxRequests)) {
+    return {
+      nextAllowedAt: currentState.resetAt,
+      retryAfterSeconds: Math.max(1, Math.ceil((currentState.resetAt - now) / 1000)),
+    };
+  }
+
+  currentState.count += 1;
+  return null;
 }
 
 function createRateLimitResponse(limit: { nextAllowedAt: number; retryAfterSeconds: number }) {

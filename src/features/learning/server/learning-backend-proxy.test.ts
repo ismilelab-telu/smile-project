@@ -199,6 +199,86 @@ describe("learning backend proxy", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it("does not rate limit repeated revoke requests because revocation is idempotent", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    vi.stubGlobal("fetch", fetch);
+
+    const createRequest = () =>
+      new Request("https://smile.test/api/learning-backend/auth/session/revoke", {
+        body: JSON.stringify({
+          refreshToken: "refresh-token",
+        }),
+        headers: {
+          "cf-connecting-ip": "203.0.113.20",
+          "content-type": "application/json",
+        },
+        method: "POST",
+      });
+
+    const firstResponse = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      },
+      params: { path: ["auth", "session", "revoke"] },
+      request: createRequest(),
+    });
+    const secondResponse = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      },
+      params: { path: ["auth", "session", "revoke"] },
+      request: createRequest(),
+    });
+
+    expect(firstResponse.status).toBe(200);
+    expect(secondResponse.status).toBe(200);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("caps excessive revoke bursts at the edge", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    vi.stubGlobal("fetch", fetch);
+
+    const createRequest = () =>
+      new Request("https://smile.test/api/learning-backend/auth/session/revoke", {
+        body: JSON.stringify({
+          refreshToken: "refresh-token",
+        }),
+        headers: {
+          "cf-connecting-ip": "203.0.113.20",
+          "content-type": "application/json",
+        },
+        method: "POST",
+      });
+
+    const responses: Response[] = [];
+    for (let index = 0; index < 21; index += 1) {
+      responses.push(
+        await handleLearningBackendProxyRequest({
+          env: {
+            LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+            LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+          },
+          params: { path: ["auth", "session", "revoke"] },
+          request: createRequest(),
+        }),
+      );
+    }
+
+    expect(responses.slice(0, 20).every((response) => response.status === 200)).toBe(true);
+    expect(responses[20]?.status).toBe(429);
+    expect(fetch).toHaveBeenCalledTimes(20);
+    await expect(responses[20]?.json()).resolves.toMatchObject({
+      code: "AuthRateLimitExceededException",
+    });
+  });
+
   it("fails closed for non-health routes when the proxy secret env is missing", async () => {
     const fetch = vi.fn();
     vi.stubGlobal("fetch", fetch);
@@ -252,8 +332,8 @@ describe("learning backend proxy", () => {
         LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
         LEARNING_BACKEND_URL: trustedLearningBackendUrl,
       },
-      params: { path: ["auth", "session", "revoke"] },
-      request: new Request("https://smile.test/api/learning-backend/auth/session/revoke", {
+      params: { path: ["auth", "session", "destroy"] },
+      request: new Request("https://smile.test/api/learning-backend/auth/session/destroy", {
         body: JSON.stringify({ refreshToken: "refresh-token" }),
         method: "POST",
       }),

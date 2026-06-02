@@ -271,6 +271,20 @@ export async function refreshCognitoSession(session: AuthSession) {
   });
 }
 
+export async function revokeSession(refreshToken: string) {
+  try {
+    await fetch(`${requireLearningBackendAuthUrl()}/auth/session/revoke`, {
+      body: JSON.stringify({ refreshToken }),
+      headers: {
+        "content-type": "application/json",
+      },
+      method: "POST",
+    });
+  } catch {
+    // Best-effort revocation — local session is already cleared regardless.
+  }
+}
+
 function requireLearningBackendAuthUrl() {
   try {
     return getLearningBackendUrl();

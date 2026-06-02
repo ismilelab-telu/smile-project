@@ -13,6 +13,7 @@ import {
   confirmSignUpWithCognito,
   requestPasswordResetWithCognito,
   resendConfirmationCodeWithCognito,
+  revokeSession,
   signInWithCognito,
   signInWithUsername,
   signUpWithCognito,
@@ -25,7 +26,11 @@ import {
   storeAuthSession,
   type AuthSession,
 } from "./auth-session";
-import { authRefreshSkewMs, getFreshStoredAuthSession } from "./auth-session-refresh";
+import {
+  authRefreshSkewMs,
+  getFreshStoredAuthSession,
+  invalidateStoredAuthSessionRefresh,
+} from "./auth-session-refresh";
 
 type AuthContextValue = {
   confirmPasswordReset: (input: { code: string; email: string; password: string }) => Promise<void>;
@@ -139,6 +144,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [getFreshSession, isReady]);
 
   const signIn = useCallback(async (input: SignInInput) => {
+    invalidateStoredAuthSessionRefresh();
+
     const nextSession =
       input.method === "username"
         ? await signInWithUsername({
@@ -157,6 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = useCallback(async (input: { email: string; name: string }) => {
+    invalidateStoredAuthSessionRefresh();
     clearAuthSession();
     setSession(null);
 
@@ -197,8 +205,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(() => {
+    const refreshToken = getStoredAuthSession({ includeExpired: true })?.refreshToken;
+    invalidateStoredAuthSessionRefresh();
     clearAuthSession();
     setSession(null);
+    if (refreshToken) {
+      void revokeSession(refreshToken);
+    }
   }, []);
 
   const value = useMemo<AuthContextValue>(

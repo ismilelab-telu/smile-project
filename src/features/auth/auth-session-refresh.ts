@@ -10,6 +10,12 @@ import {
 export const authRefreshSkewMs = 5 * 60 * 1000;
 
 let pendingAuthSessionRefresh: Promise<AuthSession | null> | null = null;
+let authSessionRefreshGeneration = 0;
+
+export function invalidateStoredAuthSessionRefresh() {
+  authSessionRefreshGeneration += 1;
+  pendingAuthSessionRefresh = null;
+}
 
 export async function getFreshStoredAuthSession({ force = false } = {}) {
   const session = getStoredAuthSession({ includeExpired: true });
@@ -27,18 +33,48 @@ export async function getFreshStoredAuthSession({ force = false } = {}) {
     return null;
   }
 
-  pendingAuthSessionRefresh ??= refreshCognitoSession(session)
-    .then((nextSession) => {
-      storeAuthSession(nextSession);
-      return nextSession;
-    })
-    .catch(() => {
-      clearAuthSession();
-      return null;
-    })
-    .finally(() => {
-      pendingAuthSessionRefresh = null;
-    });
+  if (!pendingAuthSessionRefresh) {
+    const refreshGeneration = authSessionRefreshGeneration;
+    const refreshTarget = session;
+    let refreshPromise: Promise<AuthSession | null>;
+
+    refreshPromise = refreshCognitoSession(session)
+      .then((nextSession) => {
+        if (!isAuthSessionRefreshCurrent(refreshTarget, refreshGeneration)) {
+          return null;
+        }
+
+        storeAuthSession(nextSession);
+        return nextSession;
+      })
+      .catch(() => {
+        if (isAuthSessionRefreshCurrent(refreshTarget, refreshGeneration)) {
+          clearAuthSession();
+        }
+
+        return null;
+      })
+      .finally(() => {
+        if (pendingAuthSessionRefresh === refreshPromise) {
+          pendingAuthSessionRefresh = null;
+        }
+      });
+
+    pendingAuthSessionRefresh = refreshPromise;
+  }
 
   return pendingAuthSessionRefresh;
+}
+
+function isAuthSessionRefreshCurrent(session: AuthSession, generation: number) {
+  if (authSessionRefreshGeneration !== generation) {
+    return false;
+  }
+
+  const currentSession = getStoredAuthSession({ includeExpired: true });
+
+  return (
+    currentSession?.refreshToken === session.refreshToken &&
+    currentSession.user.sub === session.user.sub
+  );
 }

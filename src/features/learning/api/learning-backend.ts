@@ -89,7 +89,7 @@ async function getLearningBackendAuthorizationHeader(
     ? await options.getFreshSession(refreshOptions)
     : await getFreshStoredAuthSession(refreshOptions);
 
-  return session ? `Bearer ${session.idToken}` : "";
+  return session ? `Bearer ${session.accessToken}` : "";
 }
 
 export async function inspectGuidedDownloadArchiveWithBackend(

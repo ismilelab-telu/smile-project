@@ -76,9 +76,9 @@ describe("learning backend auth", () => {
     const presignRequest = fetch.mock.calls[0]?.[1] as RequestInit;
     const inspectRequest = fetch.mock.calls[2]?.[1] as RequestInit;
 
-    expect(presignRequest.headers).toMatchObject({ authorization: "Bearer id-token" });
+    expect(presignRequest.headers).toMatchObject({ authorization: "Bearer access-token" });
     expect(JSON.parse(String(presignRequest.body))).not.toHaveProperty("guestId");
-    expect(inspectRequest.headers).toMatchObject({ authorization: "Bearer id-token" });
+    expect(inspectRequest.headers).toMatchObject({ authorization: "Bearer access-token" });
     expect(JSON.parse(String(inspectRequest.body))).not.toHaveProperty("guestId");
   });
 
@@ -135,8 +135,8 @@ describe("learning backend auth", () => {
     const presignRequest = fetch.mock.calls[1]?.[1] as RequestInit;
     const inspectRequest = fetch.mock.calls[3]?.[1] as RequestInit;
 
-    expect(presignRequest.headers).toMatchObject({ authorization: "Bearer fresh-id-token" });
-    expect(inspectRequest.headers).toMatchObject({ authorization: "Bearer fresh-id-token" });
+    expect(presignRequest.headers).toMatchObject({ authorization: "Bearer fresh-access-token" });
+    expect(inspectRequest.headers).toMatchObject({ authorization: "Bearer fresh-access-token" });
     expect(window.localStorage.getItem(authStorageKey)).toBeNull();
 
     expect(window.sessionStorage.getItem(authStorageKey)).toBeNull();

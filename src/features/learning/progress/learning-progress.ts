@@ -236,7 +236,7 @@ export function useLearningProgress() {
         return;
       }
 
-      const remoteProgress = await fetchRemoteLearningProgress(freshSession.idToken);
+      const remoteProgress = await fetchRemoteLearningProgress(freshSession.accessToken);
 
       if (!isActive || syncRunRef.current !== syncRun) {
         return;
@@ -251,7 +251,7 @@ export function useLearningProgress() {
 
       if (mergedProgressJson !== remoteProgressJson) {
         try {
-          await saveRemoteLearningProgress(freshSession.idToken, mergedProgress);
+          await saveRemoteLearningProgress(freshSession.accessToken, mergedProgress);
           didSaveMergedProgress = true;
         } catch {
           // Keep account progress local and let the debounced save retry while the user remains signed in.
@@ -322,7 +322,7 @@ export function useLearningProgress() {
           return false;
         }
 
-        await saveRemoteLearningProgress(freshSession.idToken, progress);
+        await saveRemoteLearningProgress(freshSession.accessToken, progress);
         return true;
       })()
         .then((didSave) => {
