@@ -2,6 +2,10 @@
 
 AWS SAM backend for dataset ZIP upload and Pandas loading validation.
 
+## Authentication Documentation
+
+For the full frontend/backend authentication architecture, flows, API contracts, and production hardening checklist, see [`AUTHENTICATION.md`](./AUTHENTICATION.md).
+
 ## Endpoints
 
 - `POST /uploads/presign`: creates a temporary S3 PUT URL for a signed-in Cognito user.
