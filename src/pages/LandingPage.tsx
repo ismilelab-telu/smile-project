@@ -234,6 +234,18 @@ function LandingExperience({ skipIntroAnimation = false }: LandingExperienceProp
   }, []);
 
   useEffect(() => {
+    if (!canStartDescriptionAnimation || canRevealHeroAction) {
+      return;
+    }
+
+    const fallbackTimer = window.setTimeout(revealHeroAction, 900);
+
+    return () => {
+      window.clearTimeout(fallbackTimer);
+    };
+  }, [canRevealHeroAction, canStartDescriptionAnimation, revealHeroAction]);
+
+  useEffect(() => {
     if (typeof window === "undefined" || shouldReduceMotion()) {
       return;
     }
