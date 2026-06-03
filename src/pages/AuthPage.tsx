@@ -27,7 +27,7 @@ import { localeOptions, useLocalization, type Locale } from "@/features/localiza
 
 type AuthMode = "login" | "register";
 type AuthLoginMethod = "email" | "username";
-type AuthSecondaryStep = "confirmation" | "password-reset";
+type AuthSecondaryStep = "confirmation" | "password-reset" | "success";
 
 type AuthPageProps = {
   closeHref?: string;
@@ -169,7 +169,7 @@ export function AuthPage({
   const isPasswordResetStep = authSecondaryStep === "password-reset";
   const authStep = authSecondaryStep ?? "credentials";
   const dialogTitle = isConfirmingAuthStep
-    ? getSecondaryAuthStepTitle(locale)
+    ? getSecondaryAuthStepTitle(locale, authSecondaryStep)
     : (titleOverride ?? authCopy[locale][mode].title);
 
   const navigateToCloseHref = useCallback(() => {
@@ -542,6 +542,7 @@ function AuthFormPanel({
   const [resendAvailableAt, setResendAvailableAt] = useState(0);
   const [resendClock, setResendClock] = useState(() => Date.now());
   const [statusMessage, setStatusMessage] = useState<AuthStatusMessage | null>(null);
+  const [authSuccessHref, setAuthSuccessHref] = useState("");
   const name = registerName;
   const email = isRegister ? registerEmail : loginIdentifier;
   const password = isRegister ? registerPassword : loginPassword;
@@ -577,13 +578,16 @@ function AuthFormPanel({
     isRegister &&
     Boolean(confirmPasswordError) &&
     (confirmPassword.length > 0 || isConfirmPasswordTouched);
+  const isAuthSuccess = authSuccessHref.length > 0;
   const isConfirmingAccount = confirmationEmail.length > 0;
   const isResettingPassword = passwordResetEmail.length > 0;
-  const secondaryAuthStep: AuthSecondaryStep | null = isResettingPassword
-    ? "password-reset"
-    : isConfirmingAccount
-      ? "confirmation"
-      : null;
+  const secondaryAuthStep: AuthSecondaryStep | null = isAuthSuccess
+    ? "success"
+    : isResettingPassword
+      ? "password-reset"
+      : isConfirmingAccount
+        ? "confirmation"
+        : null;
   const canShowPasswordResetPassword =
     isResettingPassword && confirmationCode.length === OTP_CODE_LENGTH;
   const canShowPasswordResetConfirmPassword =
@@ -626,6 +630,7 @@ function AuthFormPanel({
     setResendAvailableAt(0);
     setResendClock(Date.now());
     setStatusMessage(null);
+    setAuthSuccessHref("");
   }, [mode]);
 
   useEffect(() => {
@@ -811,7 +816,9 @@ function AuthFormPanel({
           password,
         });
         await auth.signIn({ identifier: confirmationEmail, method: "email", password });
-        redirectAfterAuth(successHref, onAuthenticated);
+        setAuthSuccessHref(successHref);
+        setErrorMessage("");
+        setStatusMessage(null);
         return;
       }
 
@@ -928,6 +935,11 @@ function AuthFormPanel({
     setConfirmPasswordVisible(false);
     setErrorMessage("");
     setStatusMessage(null);
+    setAuthSuccessHref("");
+  };
+
+  const handleContinueAfterAuth = () => {
+    redirectAfterAuth(authSuccessHref || successHref, onAuthenticated);
   };
 
   const getFieldValue = (fieldId: string) => {
@@ -1156,6 +1168,62 @@ function AuthFormPanel({
       </AuthInput>
     );
   };
+
+  if (isAuthSuccess) {
+    return (
+      <motion.div
+        className={`relative flex h-full min-h-0 flex-col overflow-y-auto bg-white px-6 pt-20 pb-16 text-foreground md:px-8 ${className}`}
+        data-auth-panel={mode}
+        data-auth-step="success"
+        data-page-surface="auth-panel"
+        layout="position"
+        transition={authSharedLayoutTransition}
+      >
+        <div className="flex min-h-0 flex-1 items-center justify-center">
+          <motion.div
+            className="w-full max-w-[23rem] text-center text-foreground"
+            layout
+            transition={authSharedLayoutTransition}
+          >
+            <div className="mx-auto flex size-14 items-center justify-center border border-emerald-200 bg-emerald-50 text-emerald-700">
+              <HugeiconsIcon
+                aria-hidden="true"
+                className="size-7"
+                icon={CheckIcon}
+                strokeWidth={2}
+              />
+            </div>
+            <motion.h1
+              className="mt-6 text-[2rem] leading-tight font-semibold tracking-normal text-foreground"
+              layout="position"
+              transition={authSharedLayoutTransition}
+            >
+              {locale === "en" ? "Welcome to Smile Lab" : "Selamat datang di Smile Lab"}
+            </motion.h1>
+            <p
+              aria-live="polite"
+              className="mt-3 text-sm leading-6 text-muted-foreground"
+              role="status"
+            >
+              {locale === "en"
+                ? "Your account is ready and you are signed in."
+                : "Akun kamu sudah aktif dan kamu sudah masuk."}
+            </p>
+            <motion.button
+              className="mt-8 inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-none bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300"
+              layout="position"
+              layoutId="auth-submit-button"
+              onClick={handleContinueAfterAuth}
+              transition={authSharedLayoutTransition}
+              type="button"
+            >
+              {locale === "en" ? "Continue" : "Lanjut"}
+            </motion.button>
+          </motion.div>
+        </div>
+      </motion.div>
+    );
+  }
 
   if (isResettingPassword) {
     const resetTitle = locale === "en" ? "Reset your password" : "Reset sandi kamu";
@@ -2109,7 +2177,11 @@ function getConfirmationStepTitle(locale: Locale) {
   return locale === "en" ? "Confirm your email" : "Konfirmasi email kamu";
 }
 
-function getSecondaryAuthStepTitle(locale: Locale) {
+function getSecondaryAuthStepTitle(locale: Locale, step: AuthSecondaryStep | null) {
+  if (step === "success") {
+    return locale === "en" ? "Welcome to Smile Lab" : "Selamat datang di Smile Lab";
+  }
+
   return locale === "en" ? "Verify your account" : "Verifikasi akun kamu";
 }
 

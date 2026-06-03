@@ -54,6 +54,16 @@ function seedAuthSession() {
   });
 }
 
+function createJwt(payload: Record<string, unknown>) {
+  const encodedPayload = window
+    .btoa(JSON.stringify(payload))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
+
+  return `header.${encodedPayload}.signature`;
+}
+
 function getStoredCompletedLessonIds() {
   return getStoredLearningProgress().completedLessonIds;
 }
@@ -1055,6 +1065,108 @@ describe("App", () => {
 
     expect(dialog).toBeInTheDocument();
     expect(window.location.pathname).toBe("/login");
+  });
+
+  it("shows a welcome state in the auth modal after email confirmation", async () => {
+    window.localStorage.setItem(localizationStorageKey, "en");
+    window.history.pushState(null, "", "/register");
+    vi.stubEnv("VITE_LEARNING_BACKEND_URL", "https://backend.example.test");
+    const idToken = createJwt({
+      email: "student@example.com",
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      name: "Student One",
+      sub: "student-1",
+    });
+    const fetch = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.endsWith("/auth/session/bootstrap")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ message: "signed out" }), { status: 401 }),
+        );
+      }
+
+      if (url.endsWith("/auth/sign-up/start")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              CodeDeliveryDetails: {
+                Destination: "s***t@example.com",
+              },
+              UserConfirmed: false,
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+
+      if (url.endsWith("/auth/confirmation/confirm")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+      }
+
+      if (url.endsWith("/auth/email/sign-in")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              authenticationResult: {
+                AccessToken: "access-token",
+                ExpiresIn: 3600,
+                IdToken: idToken,
+              },
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+
+      return Promise.resolve(
+        new Response(JSON.stringify({ message: "unexpected" }), { status: 404 }),
+      );
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    render(<App />);
+
+    const dialog = await screen.findByRole(
+      "dialog",
+      { name: "Create your account" },
+      lazyRouteTimeout,
+    );
+
+    fireEvent.change(within(dialog).getByLabelText("Username"), {
+      target: { value: "student_one" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Email"), {
+      target: { value: "student@example.com" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Password"), {
+      target: { value: "StrongPass1!" },
+    });
+    fireEvent.change(await within(dialog).findByLabelText("Confirm Password"), {
+      target: { value: "StrongPass1!" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Create Account" }));
+
+    expect(
+      await within(dialog).findByRole("heading", { name: "Confirm your email" }),
+    ).toBeInTheDocument();
+
+    fireEvent.change(within(dialog).getByLabelText("Verification code digit 1"), {
+      target: { value: "123456" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm email" }));
+
+    expect(
+      await within(dialog).findByRole("heading", { name: "Welcome to Smile Lab" }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText("Your account is ready and you are signed in."),
+    ).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/register");
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Continue" }));
+
+    await waitFor(() => expect(window.location.pathname).toBe("/learn"));
   });
 
   it("uses non-enumerating password reset copy after requesting a reset code", async () => {
