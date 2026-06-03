@@ -158,6 +158,7 @@ export function AuthPage({
   titleOverride,
 }: AuthPageProps) {
   const rootRef = useRef<HTMLElement>(null);
+  const pendingAuthExitHrefRef = useRef<string | null>(null);
   const [isClosing, setIsClosing] = useState(false);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   const { locale } = useLocalization();
@@ -183,6 +184,8 @@ export function AuthPage({
       return;
     }
 
+    pendingAuthExitHrefRef.current = null;
+
     if (shouldReduceMotion()) {
       navigateToCloseHref();
       return;
@@ -191,11 +194,36 @@ export function AuthPage({
     setIsClosing(true);
   }, [isClosing, navigateToCloseHref]);
 
+  const exitAfterAuth = useCallback(
+    (href: string) => {
+      if (isClosing) {
+        return;
+      }
+
+      if (shouldReduceMotion()) {
+        redirectAfterAuth(href, onAuthenticated);
+        return;
+      }
+
+      pendingAuthExitHrefRef.current = href;
+      setIsClosing(true);
+    },
+    [isClosing, onAuthenticated],
+  );
+
   const handlePanelAnimationComplete = useCallback(() => {
     if (isClosing) {
+      const pendingAuthExitHref = pendingAuthExitHrefRef.current;
+      pendingAuthExitHrefRef.current = null;
+
+      if (pendingAuthExitHref) {
+        redirectAfterAuth(pendingAuthExitHref, onAuthenticated);
+        return;
+      }
+
       navigateToCloseHref();
     }
-  }, [isClosing, navigateToCloseHref]);
+  }, [isClosing, navigateToCloseHref, onAuthenticated]);
 
   useEffect(() => {
     setPortalTarget(document.body);
@@ -357,6 +385,7 @@ export function AuthPage({
                   isConfirmingAuthStep ? "" : isRegister ? "lg:col-start-1" : "lg:col-start-2"
                 }
                 mode={mode}
+                onAuthenticatedExit={exitAfterAuth}
                 onAuthenticated={onAuthenticated}
                 onConfirmingChange={setAuthSecondaryStep}
                 onModeChange={onModeChange}
@@ -499,6 +528,7 @@ function AuthLanguageSwitcher({
 function AuthFormPanel({
   className,
   mode,
+  onAuthenticatedExit,
   onAuthenticated,
   onConfirmingChange,
   onModeChange,
@@ -507,6 +537,7 @@ function AuthFormPanel({
 }: {
   className: string;
   mode: AuthMode;
+  onAuthenticatedExit: (href: string) => void;
   onAuthenticated?: () => void;
   onConfirmingChange?: (step: AuthSecondaryStep | null) => void;
   onModeChange?: (mode: AuthMode) => void;
@@ -939,7 +970,7 @@ function AuthFormPanel({
   };
 
   const handleContinueAfterAuth = () => {
-    redirectAfterAuth(authSuccessHref || successHref, onAuthenticated);
+    onAuthenticatedExit(authSuccessHref || successHref);
   };
 
   const getFieldValue = (fieldId: string) => {
