@@ -111,6 +111,7 @@ describe("App", () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     clearAuthSession();
     window.localStorage.clear();
@@ -1054,6 +1055,85 @@ describe("App", () => {
 
     expect(dialog).toBeInTheDocument();
     expect(window.location.pathname).toBe("/login");
+  });
+
+  it("uses non-enumerating password reset copy after requesting a reset code", async () => {
+    window.localStorage.setItem(localizationStorageKey, "en");
+    window.history.pushState(null, "", "/login");
+    vi.stubEnv("VITE_LEARNING_BACKEND_URL", "https://backend.example.test");
+    const fetch = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.endsWith("/auth/session/bootstrap")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ message: "signed out" }), { status: 401 }),
+        );
+      }
+
+      if (url.endsWith("/auth/password-reset/request")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              CodeDeliveryDetails: {
+                Destination: "m***g@example.com",
+              },
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+
+      return Promise.resolve(
+        new Response(JSON.stringify({ message: "unexpected" }), { status: 404 }),
+      );
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    render(<App />);
+
+    const dialog = await screen.findByRole(
+      "dialog",
+      { name: "Sign in to your account" },
+      lazyRouteTimeout,
+    );
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Use email instead" }));
+    fireEvent.change(within(dialog).getByLabelText("Email"), {
+      target: { value: "missing@example.com" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Forgot password?" }));
+
+    expect(
+      await within(dialog).findByRole("heading", { name: "Reset your password" }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(
+        "If that account can be reset, check the code at m***g@example.com. Reset codes expire in 5 minutes; check spam or junk too.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByText(/sent to missing@example\.com/i)).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByText("Reset codes expire in 5 minutes. Check spam or junk too."),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByLabelText("New Password", { selector: "input:not([disabled])" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole("button", { name: "Reset password" }),
+    ).not.toBeInTheDocument();
+
+    for (let index = 1; index <= 6; index += 1) {
+      fireEvent.change(within(dialog).getByLabelText(`Verification code digit ${index}`), {
+        target: { value: String(index) },
+      });
+    }
+
+    await waitFor(() => {
+      expect(
+        within(dialog).getByLabelText("New Password", { selector: "input:not([disabled])" }),
+      ).toBeInTheDocument();
+    });
+    expect(within(dialog).getByRole("button", { name: "Reset password" })).toBeInTheDocument();
   });
 
   it("opens lesson 1.3 after data collecting is complete for signed-in users", async () => {

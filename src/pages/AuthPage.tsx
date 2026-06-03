@@ -584,15 +584,21 @@ function AuthFormPanel({
     : isConfirmingAccount
       ? "confirmation"
       : null;
+  const canShowPasswordResetPassword =
+    isResettingPassword && confirmationCode.length === OTP_CODE_LENGTH;
   const canShowPasswordResetConfirmPassword =
-    isResettingPassword && passwordResetPassword.length > 0 && passwordError === "";
-  const showPasswordResetError = isResettingPassword && isPasswordTouched && passwordError !== "";
+    canShowPasswordResetPassword && passwordResetPassword.length > 0 && passwordError === "";
+  const showPasswordResetError =
+    canShowPasswordResetPassword && isPasswordTouched && passwordError !== "";
   const showPasswordResetConfirmPasswordError =
     canShowPasswordResetConfirmPassword &&
     Boolean(passwordResetConfirmPasswordError) &&
     (passwordResetConfirmPassword.length > 0 || isConfirmPasswordTouched);
   const visibleErrorMessage = errorMessage;
-  const renderedStatusMessage = statusMessage ? getAuthStatusMessage(statusMessage, locale) : "";
+  const isPasswordResetSentMessage =
+    isResettingPassword && statusMessage?.kind === "password-reset-sent";
+  const renderedStatusMessage =
+    statusMessage && !isPasswordResetSentMessage ? getAuthStatusMessage(statusMessage, locale) : "";
   const confirmationTitle = getConfirmationStepTitle(locale);
   const resendCooldownSeconds = Math.max(0, Math.ceil((resendAvailableAt - resendClock) / 1000));
   const canResendCode = resendCooldownSeconds <= 0 && !isSubmitting;
@@ -648,18 +654,20 @@ function AuthFormPanel({
     const isSubmittingUsername = !isRegister && loginMethod === "username";
 
     setErrorMessage("");
-    setStatusMessage(null);
+    if (!isResettingPassword || statusMessage?.kind !== "password-reset-sent") {
+      setStatusMessage(null);
+    }
 
     if (isResettingPassword) {
-      setPasswordTouched(true);
-      setConfirmPasswordTouched(true);
-
       if (confirmationCode.trim().length < OTP_CODE_LENGTH) {
         setErrorMessage(
           locale === "en" ? "Enter the 6-digit reset code." : "Masukkan 6 digit kode reset.",
         );
         return;
       }
+
+      setPasswordTouched(true);
+      setConfirmPasswordTouched(true);
 
       if (passwordError || !passwordResetConfirmPassword) {
         setErrorMessage(
@@ -1175,9 +1183,10 @@ function AuthFormPanel({
                 {resetTitle}
               </motion.h1>
               <p className="text-sm leading-6 text-muted-foreground">
-                {locale === "en"
-                  ? `Enter the 6-digit code sent to ${passwordResetEmail}.`
-                  : `Masukkan 6 digit kode yang dikirim ke ${passwordResetEmail}.`}
+                {getPasswordResetStepDescription(
+                  locale,
+                  statusMessage?.kind === "password-reset-sent" ? statusMessage.destination : "",
+                )}
               </p>
             </motion.div>
 
@@ -1194,66 +1203,71 @@ function AuthFormPanel({
                 value={confirmationCode}
               />
 
-              <AuthInput
-                ariaDescribedBy="password-requirements"
-                className="mt-6"
-                field={{
-                  autoComplete: "new-password",
-                  id: "auth-reset-password",
-                  label: locale === "en" ? "New Password" : "Sandi Baru",
-                  placeholder: "",
-                  type: "password",
-                }}
-                inputType={isPasswordVisible ? "text" : undefined}
-                isInvalid={showPasswordResetError}
-                onBlur={() => setPasswordTouched(true)}
-                onChange={setPasswordResetPassword}
-                trailingControl={renderPasswordVisibilityControl({
-                  isVisible: isPasswordVisible,
-                  onToggle: () => setPasswordVisible((current) => !current),
-                  value: passwordResetPassword,
-                })}
-                value={passwordResetPassword}
-              >
-                <PasswordRequirements
-                  error={showPasswordResetError ? passwordError : ""}
-                  locale={locale}
-                  password={passwordResetPassword}
-                  ruleState={passwordRuleState}
-                />
-              </AuthInput>
-
-              <AuthRevealSlot isVisible={canShowPasswordResetConfirmPassword} spacing="before">
+              <AuthRevealSlot isVisible={canShowPasswordResetPassword} spacing="before">
                 <AuthInput
-                  ariaDescribedBy="confirm-password-status"
+                  ariaDescribedBy="password-requirements"
                   field={{
                     autoComplete: "new-password",
-                    id: "auth-reset-confirm-password",
-                    label: locale === "en" ? "Confirm New Password" : "Konfirmasi Sandi Baru",
+                    id: "auth-reset-password",
+                    label: locale === "en" ? "New Password" : "Sandi Baru",
                     placeholder: "",
                     type: "password",
                   }}
-                  inputType={isConfirmPasswordVisible ? "text" : undefined}
-                  isInvalid={showPasswordResetConfirmPasswordError}
-                  onBlur={() => setConfirmPasswordTouched(true)}
-                  onChange={setPasswordResetConfirmPassword}
+                  inputType={isPasswordVisible ? "text" : undefined}
+                  isDisabled={!canShowPasswordResetPassword}
+                  isInvalid={showPasswordResetError}
+                  onBlur={() => setPasswordTouched(true)}
+                  onChange={setPasswordResetPassword}
                   trailingControl={renderPasswordVisibilityControl({
-                    isVisible: isConfirmPasswordVisible,
-                    onToggle: () => setConfirmPasswordVisible((current) => !current),
-                    value: passwordResetConfirmPassword,
+                    isDisabled: !canShowPasswordResetPassword,
+                    isVisible: isPasswordVisible,
+                    onToggle: () => setPasswordVisible((current) => !current),
+                    value: passwordResetPassword,
                   })}
-                  value={passwordResetConfirmPassword}
+                  value={passwordResetPassword}
                 >
-                  <ConfirmPasswordStatus
-                    isMatch={
-                      passwordResetConfirmPassword.length > 0 &&
-                      passwordResetPassword === passwordResetConfirmPassword
-                    }
-                    isVisible={showPasswordResetConfirmPasswordError}
+                  <PasswordRequirements
+                    error={showPasswordResetError ? passwordError : ""}
                     locale={locale}
-                    message={passwordResetConfirmPasswordError}
+                    password={passwordResetPassword}
+                    ruleState={passwordRuleState}
                   />
                 </AuthInput>
+
+                <AuthRevealSlot isVisible={canShowPasswordResetConfirmPassword} spacing="before">
+                  <AuthInput
+                    ariaDescribedBy="confirm-password-status"
+                    field={{
+                      autoComplete: "new-password",
+                      id: "auth-reset-confirm-password",
+                      label: locale === "en" ? "Confirm New Password" : "Konfirmasi Sandi Baru",
+                      placeholder: "",
+                      type: "password",
+                    }}
+                    inputType={isConfirmPasswordVisible ? "text" : undefined}
+                    isDisabled={!canShowPasswordResetConfirmPassword}
+                    isInvalid={showPasswordResetConfirmPasswordError}
+                    onBlur={() => setConfirmPasswordTouched(true)}
+                    onChange={setPasswordResetConfirmPassword}
+                    trailingControl={renderPasswordVisibilityControl({
+                      isDisabled: !canShowPasswordResetConfirmPassword,
+                      isVisible: isConfirmPasswordVisible,
+                      onToggle: () => setConfirmPasswordVisible((current) => !current),
+                      value: passwordResetConfirmPassword,
+                    })}
+                    value={passwordResetConfirmPassword}
+                  >
+                    <ConfirmPasswordStatus
+                      isMatch={
+                        passwordResetConfirmPassword.length > 0 &&
+                        passwordResetPassword === passwordResetConfirmPassword
+                      }
+                      isVisible={showPasswordResetConfirmPasswordError}
+                      locale={locale}
+                      message={passwordResetConfirmPasswordError}
+                    />
+                  </AuthInput>
+                </AuthRevealSlot>
               </AuthRevealSlot>
 
               {errorMessage ? (
@@ -1267,22 +1281,24 @@ function AuthFormPanel({
                 </p>
               ) : null}
 
-              <motion.button
-                className="mt-6 inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-none bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:bg-zinc-400"
-                disabled={isSubmitting}
-                layout="position"
-                layoutId="auth-submit-button"
-                transition={authSharedLayoutTransition}
-                type="submit"
-              >
-                {getSubmitLabel({
-                  isConfirmingAccount,
-                  isResettingPassword,
-                  isSubmitting,
-                  locale,
-                  submit: copy.submit,
-                })}
-              </motion.button>
+              <AuthRevealSlot isVisible={canShowPasswordResetPassword} spacing="before">
+                <motion.button
+                  className="inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-none bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:bg-zinc-400"
+                  disabled={isSubmitting || !canShowPasswordResetPassword}
+                  layout="position"
+                  layoutId="auth-submit-button"
+                  transition={authSharedLayoutTransition}
+                  type="submit"
+                >
+                  {getSubmitLabel({
+                    isConfirmingAccount,
+                    isResettingPassword,
+                    isSubmitting,
+                    locale,
+                    submit: copy.submit,
+                  })}
+                </motion.button>
+              </AuthRevealSlot>
 
               <div className="mt-5 flex flex-col items-center gap-3 text-sm sm:flex-row sm:justify-between">
                 <button
@@ -2096,6 +2112,19 @@ function getSecondaryAuthStepTitle(locale: Locale) {
   return locale === "en" ? "Verify your account" : "Verifikasi akun kamu";
 }
 
+function getPasswordResetStepDescription(locale: Locale, destination?: string) {
+  const trimmedDestination = destination?.trim();
+  if (trimmedDestination) {
+    return locale === "en"
+      ? `If that account can be reset, check the code at ${trimmedDestination}. Reset codes expire in 5 minutes; check spam or junk too.`
+      : `Kalau akun itu bisa direset, cek kode di ${trimmedDestination}. Kode reset berlaku 5 menit; cek folder spam atau junk juga.`;
+  }
+
+  return locale === "en"
+    ? "If that account can be reset, check the code in your inbox. Reset codes expire in 5 minutes; check spam or junk too."
+    : "Kalau akun itu bisa direset, cek kode di inbox. Kode reset berlaku 5 menit; cek folder spam atau junk juga.";
+}
+
 function getConfirmationStepDescription(locale: Locale, email: string) {
   const trimmedEmail = email.trim();
 
@@ -2171,8 +2200,8 @@ function getAuthStatusMessage(message: AuthStatusMessage, locale: Locale) {
 
   if (message.kind === "password-reset-sent") {
     return locale === "en"
-      ? "If the account is eligible, the reset code is valid for a short time. Check your spam or junk folder if it does not show up."
-      : "Jika akun memenuhi syarat, kode reset berlaku singkat. Cek folder spam atau junk kalau belum muncul.";
+      ? "Reset codes expire in 5 minutes. Check spam or junk too."
+      : "Kode reset berlaku 5 menit. Cek folder spam atau junk juga.";
   }
 
   return getConfirmationSentMessage(locale);
