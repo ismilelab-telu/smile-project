@@ -31,6 +31,7 @@ import {
   getFreshStoredAuthSession,
   invalidateStoredAuthSessionRefresh,
 } from "./auth-session-refresh";
+import type { Locale } from "@/features/localization/localization";
 
 type AuthContextValue = {
   confirmPasswordReset: (input: { code: string; email: string; password: string }) => Promise<void>;
@@ -38,17 +39,17 @@ type AuthContextValue = {
   getFreshSession: (options?: { force?: boolean }) => Promise<AuthSession | null>;
   isAuthenticated: boolean;
   isReady: boolean;
-  resendConfirmationCode: (email: string) => Promise<{
+  resendConfirmationCode: (input: { email: string; locale?: Locale }) => Promise<{
     cooldownSeconds?: number;
     nextAllowedAt?: number;
   }>;
-  requestPasswordReset: (email: string) => Promise<{
+  requestPasswordReset: (input: { email: string; locale?: Locale }) => Promise<{
     destination?: string;
   }>;
   session: AuthSession | null;
   signIn: (input: SignInInput) => Promise<AuthSession>;
   signOut: () => Promise<void>;
-  signUp: (input: { email: string; name: string }) => Promise<{
+  signUp: (input: { email: string; locale?: Locale; name: string }) => Promise<{
     cooldownSeconds?: number;
     destination?: string;
     nextAllowedAt?: number;
@@ -163,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return nextSession;
   }, []);
 
-  const signUp = useCallback(async (input: { email: string; name: string }) => {
+  const signUp = useCallback(async (input: { email: string; locale?: Locale; name: string }) => {
     invalidateStoredAuthSessionRefresh();
     clearAuthSession();
     setSession(null);
@@ -185,8 +186,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const requestPasswordReset = useCallback(async (email: string) => {
-    const response = await requestPasswordResetWithCognito(email);
+  const requestPasswordReset = useCallback(async (input: { email: string; locale?: Locale }) => {
+    const response = await requestPasswordResetWithCognito(input);
 
     return {
       destination: response.CodeDeliveryDetails?.Destination,
@@ -200,8 +201,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const resendConfirmationCode = useCallback(async (email: string) => {
-    return resendConfirmationCodeWithCognito(email);
+  const resendConfirmationCode = useCallback(async (input: { email: string; locale?: Locale }) => {
+    return resendConfirmationCodeWithCognito(input);
   }, []);
 
   const signOut = useCallback(async () => {

@@ -6,6 +6,7 @@ import {
   confirmSignUpWithCognito,
   requestPasswordResetWithCognito,
   refreshCognitoSession,
+  resendConfirmationCodeWithCognito,
   revokeSession,
   signInWithCognito,
   signInWithUsername,
@@ -46,6 +47,7 @@ describe("backend-owned sign-up", () => {
 
     const result = await signUpWithCognito({
       email: "student@example.com",
+      locale: "en",
       name: "student_one",
     });
 
@@ -53,6 +55,7 @@ describe("backend-owned sign-up", () => {
     expect(String(fetch.mock.calls[0]?.[0])).toContain("/auth/sign-up/start");
     expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual({
       email: "student@example.com",
+      locale: "en",
       name: "student_one",
     });
     expect(result.CodeDeliveryDetails?.Destination).toBe("s***t@example.com");
@@ -77,6 +80,25 @@ describe("backend-owned sign-up", () => {
       code: "123456",
       email: "student@example.com",
       password: "StrongPass1!",
+    });
+  });
+
+  it("resends sign-up codes with the active locale", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    vi.stubGlobal("fetch", fetch);
+
+    await resendConfirmationCodeWithCognito({
+      email: "student@example.com",
+      locale: "en",
+    });
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(String(fetch.mock.calls[0]?.[0])).toContain("/auth/confirmation/resend");
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual({
+      email: "student@example.com",
+      locale: "en",
     });
   });
 });
@@ -195,7 +217,10 @@ describe("password reset", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 200 }));
     vi.stubGlobal("fetch", fetch);
 
-    const requestResult = await requestPasswordResetWithCognito("student@example.com");
+    const requestResult = await requestPasswordResetWithCognito({
+      email: "student@example.com",
+      locale: "en",
+    });
     await confirmPasswordResetWithCognito({
       code: "123456",
       email: "student@example.com",
@@ -207,9 +232,11 @@ describe("password reset", () => {
     expect(String(fetch.mock.calls[0]?.[0])).toContain("/auth/password-reset/request");
     const forgotPasswordBody = JSON.parse(String(fetch.mock.calls[0]?.[1]?.body)) as {
       email?: string;
+      locale?: string;
     };
     expect(forgotPasswordBody).toMatchObject({
       email: "student@example.com",
+      locale: "en",
     });
     expect(fetch.mock.calls[0]?.[1]?.headers).toMatchObject({ "content-type": "application/json" });
     expect(String(fetch.mock.calls[1]?.[0])).toContain("/auth/password-reset/confirm");

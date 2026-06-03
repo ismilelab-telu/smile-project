@@ -18,6 +18,7 @@ type CognitoAuthResult = {
 };
 
 type CognitoCodeDeliveryResponse = Pick<BackendSignUpResponse, "CodeDeliveryDetails">;
+type AuthRequestLocale = "id" | "en";
 
 type LearningBackendAuthResponse = {
   authenticationResult?: CognitoAuthResult;
@@ -46,9 +47,17 @@ export class CognitoAuthError extends Error {
   }
 }
 
-export async function signUpWithCognito({ email, name }: { email: string; name: string }) {
+export async function signUpWithCognito({
+  email,
+  locale,
+  name,
+}: {
+  email: string;
+  locale?: AuthRequestLocale;
+  name: string;
+}) {
   const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/sign-up/start`, {
-    body: JSON.stringify({ email, name }),
+    body: JSON.stringify({ email, locale, name }),
     credentials: "same-origin",
     headers: {
       "content-type": "application/json",
@@ -101,9 +110,15 @@ export async function confirmSignUpWithCognito({
   }
 }
 
-export async function resendConfirmationCodeWithCognito(email: string) {
+export async function resendConfirmationCodeWithCognito({
+  email,
+  locale,
+}: {
+  email: string;
+  locale?: AuthRequestLocale;
+}) {
   const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/confirmation/resend`, {
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, locale }),
     credentials: "same-origin",
     headers: {
       "content-type": "application/json",
@@ -126,9 +141,15 @@ export async function resendConfirmationCodeWithCognito(email: string) {
   };
 }
 
-export async function requestPasswordResetWithCognito(email: string) {
+export async function requestPasswordResetWithCognito({
+  email,
+  locale,
+}: {
+  email: string;
+  locale?: AuthRequestLocale;
+}) {
   const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/password-reset/request`, {
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, locale }),
     credentials: "same-origin",
     headers: {
       "content-type": "application/json",

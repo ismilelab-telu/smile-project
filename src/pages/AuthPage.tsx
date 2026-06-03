@@ -786,6 +786,7 @@ function AuthFormPanel({
       if (isRegister && !isConfirmingAccount) {
         const signUpResult = await auth.signUp({
           email: normalizedEmail,
+          locale,
           name: name.trim(),
         });
 
@@ -865,7 +866,7 @@ function AuthFormPanel({
     setIsSubmitting(true);
 
     try {
-      const result = await auth.requestPasswordReset(resetEmail);
+      const result = await auth.requestPasswordReset({ email: resetEmail, locale });
       setConfirmationCode("");
       setPasswordResetEmail(resetEmail);
       setPasswordResetPassword("");
@@ -896,11 +897,11 @@ function AuthFormPanel({
 
     try {
       if (passwordResetEmail) {
-        const result = await auth.requestPasswordReset(passwordResetEmail);
+        const result = await auth.requestPasswordReset({ email: passwordResetEmail, locale });
         setResendAvailableAt(Date.now() + 30_000);
         setStatusMessage({ destination: result.destination, kind: "password-reset-sent" });
       } else {
-        const result = await auth.resendConfirmationCode(resendEmail);
+        const result = await auth.resendConfirmationCode({ email: resendEmail, locale });
         setResendAvailableAt(getResendCooldownUntil(result));
         setStatusMessage({ destination: confirmationDestination, kind: "confirmation-sent" });
       }
