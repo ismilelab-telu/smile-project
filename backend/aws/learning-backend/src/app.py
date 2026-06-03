@@ -85,6 +85,10 @@ AUTH_PUBLIC_REQUEST_COOLDOWN_SECONDS = int(
     os.environ.get("AUTH_PUBLIC_REQUEST_COOLDOWN_SECONDS", "3")
 )
 AUTH_SIGN_IN_COOLDOWN_SECONDS = int(os.environ.get("AUTH_SIGN_IN_COOLDOWN_SECONDS", "2"))
+AUTH_SIGN_IN_BURST_LIMIT = int(os.environ.get("AUTH_SIGN_IN_BURST_LIMIT", "8"))
+AUTH_SIGN_IN_BURST_WINDOW_SECONDS = int(
+    os.environ.get("AUTH_SIGN_IN_BURST_WINDOW_SECONDS", "300")
+)
 AUTH_SIGN_UP_COOLDOWN_SECONDS = int(os.environ.get("AUTH_SIGN_UP_COOLDOWN_SECONDS", "5"))
 AUTH_SIGN_UP_MIN_DURATION_SECONDS = float(
     os.environ.get("AUTH_SIGN_UP_MIN_DURATION_SECONDS", "1.0")
@@ -98,6 +102,16 @@ AUTH_CONFIRMATION_MAX_ATTEMPTS = 5
 AUTH_SESSION_REVOKE_BURST_LIMIT = int(os.environ.get("AUTH_SESSION_REVOKE_BURST_LIMIT", "30"))
 AUTH_SESSION_REVOKE_BURST_WINDOW_SECONDS = int(
     os.environ.get("AUTH_SESSION_REVOKE_BURST_WINDOW_SECONDS", "60")
+)
+AUTH_REFRESH_SESSION_COOKIE_NAME = os.environ.get(
+    "AUTH_REFRESH_SESSION_COOKIE_NAME",
+    "__Host-smile-refresh-session",
+)
+AUTH_REFRESH_SESSION_COOKIE_MAX_AGE_SECONDS = int(
+    os.environ.get("AUTH_REFRESH_SESSION_COOKIE_MAX_AGE_SECONDS", str(7 * 24 * 60 * 60))
+)
+AUTH_REFRESH_SESSION_COOKIE_SECURE = (
+    os.environ.get("AUTH_REFRESH_SESSION_COOKIE_SECURE", "true").strip().lower() != "false"
 )
 COGNITO_THROTTLE_ERROR_CODES = {"LimitExceededException", "TooManyRequestsException"}
 MAX_ZIP_BYTES = int(os.environ.get("MAX_ZIP_BYTES", "52428800"))
@@ -224,7 +238,14 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 get_optional_string(body, "email"),
                 cooldown_seconds=AUTH_SIGN_IN_COOLDOWN_SECONDS,
             )
-            return response(200, sign_in_with_email(body))
+            enforce_public_auth_burst_limit(
+                event,
+                "email-sign-in",
+                get_optional_string(body, "email"),
+                max_requests=AUTH_SIGN_IN_BURST_LIMIT,
+                window_seconds=AUTH_SIGN_IN_BURST_WINDOW_SECONDS,
+            )
+            return auth_session_response(sign_in_with_email(body))
 
         if method == "POST" and path == "/auth/username/sign-in":
             body = parse_json_body(event)
@@ -234,7 +255,14 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 get_optional_string(body, "username"),
                 cooldown_seconds=AUTH_SIGN_IN_COOLDOWN_SECONDS,
             )
-            return response(200, sign_in_with_username(body))
+            enforce_public_auth_burst_limit(
+                event,
+                "username-sign-in",
+                get_optional_string(body, "username"),
+                max_requests=AUTH_SIGN_IN_BURST_LIMIT,
+                window_seconds=AUTH_SIGN_IN_BURST_WINDOW_SECONDS,
+            )
+            return auth_session_response(sign_in_with_username(body))
 
         if method == "POST" and path == "/auth/username/resolve":
             parse_json_body(event)
@@ -245,10 +273,32 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             enforce_public_auth_rate_limit(
                 event,
                 "session-refresh",
-                get_optional_string(body, "userSub"),
+                None,
                 cooldown_seconds=AUTH_SIGN_IN_COOLDOWN_SECONDS,
             )
-            return response(200, refresh_cognito_session(body))
+            refresh_session = get_refresh_session_from_request(body, event)
+            enforce_public_auth_identifier_rate_limit(
+                "session-refresh",
+                refresh_session.get("userSub"),
+                cooldown_seconds=AUTH_SIGN_IN_COOLDOWN_SECONDS,
+            )
+            return auth_session_response(refresh_cognito_session(body, event))
+
+        if method == "POST" and path == "/auth/session/bootstrap":
+            body = parse_json_body(event)
+            enforce_public_auth_rate_limit(
+                event,
+                "session-bootstrap",
+                None,
+                cooldown_seconds=AUTH_SIGN_IN_COOLDOWN_SECONDS,
+            )
+            refresh_session = get_refresh_session_from_request(body, event)
+            enforce_public_auth_identifier_rate_limit(
+                "session-bootstrap",
+                refresh_session.get("userSub"),
+                cooldown_seconds=AUTH_SIGN_IN_COOLDOWN_SECONDS,
+            )
+            return auth_session_response(refresh_cognito_session(body, event))
 
         if method == "POST" and path == "/auth/session/revoke":
             body = parse_json_body(event)
@@ -258,7 +308,11 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 max_requests=AUTH_SESSION_REVOKE_BURST_LIMIT,
                 window_seconds=AUTH_SESSION_REVOKE_BURST_WINDOW_SECONDS,
             )
-            return response(200, revoke_cognito_session(body))
+            return response(
+                200,
+                revoke_cognito_session(body, event),
+                cookies=[create_clear_refresh_session_cookie()],
+            )
 
         if method == "POST" and path == "/auth/password-reset/request":
             body = parse_json_body(event)
@@ -701,8 +755,13 @@ def is_conditional_check_failed(error: ClientError) -> bool:
     return get_client_error_code(error) == "ConditionalCheckFailedException"
 
 
-def response(status_code: int, body: dict[str, Any]) -> dict[str, Any]:
-    return {
+def response(
+    status_code: int,
+    body: dict[str, Any],
+    *,
+    cookies: list[str] | None = None,
+) -> dict[str, Any]:
+    result: dict[str, Any] = {
         "statusCode": status_code,
         "headers": {
             "cache-control": "no-store",
@@ -711,6 +770,184 @@ def response(status_code: int, body: dict[str, Any]) -> dict[str, Any]:
         },
         "body": json.dumps(body),
     }
+
+    if cookies:
+        result["cookies"] = cookies
+
+    return result
+
+
+def auth_session_response(body: dict[str, Any]) -> dict[str, Any]:
+    authentication_result = body.get("authenticationResult", {})
+    if not isinstance(authentication_result, dict):
+        return response(200, body)
+
+    session_cookie = create_refresh_session_cookie(authentication_result)
+    sanitized_result = {
+        key: value for key, value in authentication_result.items() if key != "RefreshToken"
+    }
+    sanitized_body = {**body, "authenticationResult": sanitized_result}
+
+    return response(200, sanitized_body, cookies=[session_cookie] if session_cookie else None)
+
+
+def create_refresh_session_cookie(authentication_result: dict[str, Any]) -> str:
+    refresh_token = authentication_result.get("RefreshToken")
+    user_sub = get_authentication_result_user_sub(authentication_result)
+
+    if not isinstance(refresh_token, str) or not refresh_token or not user_sub:
+        return ""
+
+    cookie_value = create_signed_refresh_session_value(
+        {
+            "refreshToken": refresh_token,
+            "userSub": user_sub,
+        }
+    )
+
+    return create_cookie_header(
+        AUTH_REFRESH_SESSION_COOKIE_NAME,
+        cookie_value,
+        max_age_seconds=AUTH_REFRESH_SESSION_COOKIE_MAX_AGE_SECONDS,
+    )
+
+
+def create_clear_refresh_session_cookie() -> str:
+    return create_cookie_header(AUTH_REFRESH_SESSION_COOKIE_NAME, "", max_age_seconds=0)
+
+
+def create_cookie_header(name: str, value: str, *, max_age_seconds: int) -> str:
+    attributes = [
+        f"{name}={value}",
+        f"Max-Age={max(0, max_age_seconds)}",
+        "Path=/",
+        "HttpOnly",
+        "SameSite=Lax",
+    ]
+
+    if AUTH_REFRESH_SESSION_COOKIE_SECURE:
+        attributes.append("Secure")
+
+    return "; ".join(attributes)
+
+
+def create_signed_refresh_session_value(payload: dict[str, str]) -> str:
+    serialized_payload = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    encoded_payload = base64.urlsafe_b64encode(serialized_payload).decode("ascii").rstrip("=")
+    signature = hmac.new(
+        require_cognito_client_secret().encode("utf-8"),
+        encoded_payload.encode("ascii"),
+        hashlib.sha256,
+    ).digest()
+    encoded_signature = base64.urlsafe_b64encode(signature).decode("ascii").rstrip("=")
+
+    return f"{encoded_payload}.{encoded_signature}"
+
+
+def parse_signed_refresh_session_value(cookie_value: str) -> dict[str, str]:
+    encoded_payload, separator, encoded_signature = cookie_value.partition(".")
+    if not encoded_payload or not separator or not encoded_signature:
+        return {}
+
+    expected_value = create_signed_refresh_session_value(
+        decode_refresh_session_payload(encoded_payload)
+    )
+    _, _, expected_signature = expected_value.partition(".")
+    if not hmac.compare_digest(encoded_signature, expected_signature):
+        return {}
+
+    payload = decode_refresh_session_payload(encoded_payload)
+    refresh_token = payload.get("refreshToken")
+    user_sub = payload.get("userSub")
+    if not isinstance(refresh_token, str) or not isinstance(user_sub, str):
+        return {}
+
+    if not refresh_token or not user_sub:
+        return {}
+
+    return {
+        "refreshToken": refresh_token,
+        "userSub": user_sub,
+    }
+
+
+def decode_refresh_session_payload(encoded_payload: str) -> dict[str, Any]:
+    try:
+        padded_payload = encoded_payload + "=" * (-len(encoded_payload) % 4)
+        raw_payload = base64.urlsafe_b64decode(padded_payload.encode("ascii"))
+        payload = json.loads(raw_payload.decode("utf-8"))
+    except (binascii.Error, json.JSONDecodeError, UnicodeDecodeError):
+        return {}
+
+    return payload if isinstance(payload, dict) else {}
+
+
+def get_refresh_session_from_request(
+    body: dict[str, Any],
+    event: dict[str, Any] | None = None,
+) -> dict[str, str]:
+    body_refresh_token = get_optional_string(body, "refreshToken") or ""
+    body_user_sub = get_optional_string(body, "userSub") or ""
+    if body_refresh_token and body_user_sub:
+        return {
+            "refreshToken": body_refresh_token,
+            "userSub": body_user_sub,
+        }
+
+    if event is None:
+        raise ClientInputError("Refresh session is missing.")
+
+    cookie_value = get_request_cookie(event, AUTH_REFRESH_SESSION_COOKIE_NAME)
+    refresh_session = parse_signed_refresh_session_value(cookie_value) if cookie_value else {}
+    if refresh_session:
+        return refresh_session
+
+    raise AuthenticationError("Sign in before refreshing this session.")
+
+
+def get_request_cookie(event: dict[str, Any], name: str) -> str:
+    raw_cookie_values = []
+    cookies = event.get("cookies")
+    if isinstance(cookies, list):
+        raw_cookie_values.extend(str(cookie) for cookie in cookies)
+
+    header_cookie = get_header(event, "cookie")
+    if header_cookie:
+        raw_cookie_values.append(header_cookie)
+
+    for raw_cookie_value in raw_cookie_values:
+        for part in raw_cookie_value.split(";"):
+            cookie_name, separator, cookie_value = part.strip().partition("=")
+            if separator and cookie_name == name:
+                return cookie_value
+
+    return ""
+
+
+def get_authentication_result_user_sub(authentication_result: dict[str, Any]) -> str:
+    id_token = authentication_result.get("IdToken")
+    if not isinstance(id_token, str):
+        return ""
+
+    payload = decode_unverified_jwt_payload(id_token)
+    user_sub = payload.get("sub") or payload.get("username")
+
+    return user_sub if isinstance(user_sub, str) else ""
+
+
+def decode_unverified_jwt_payload(token: str) -> dict[str, Any]:
+    payload = token.split(".")[1] if "." in token else ""
+    if not payload:
+        return {}
+
+    try:
+        padded_payload = payload + "=" * (-len(payload) % 4)
+        raw_payload = base64.urlsafe_b64decode(padded_payload.encode("ascii"))
+        decoded_payload = json.loads(raw_payload.decode("utf-8"))
+    except (binascii.Error, json.JSONDecodeError, UnicodeDecodeError):
+        return {}
+
+    return decoded_payload if isinstance(decoded_payload, dict) else {}
 
 
 def require_authenticated_user(event: dict[str, Any]) -> dict[str, Any]:
@@ -1085,9 +1322,26 @@ def sign_in_with_username(body: dict[str, Any]) -> dict[str, Any]:
     email = get_confirmed_email_for_username(username_key)
 
     if not email:
+        try:
+            initiate_cognito_password_auth(
+                email=create_dummy_username_sign_in_email(username_key),
+                password=password,
+            )
+        except CognitoSignInError as error:
+            raise CognitoSignInError(
+                "NotAuthorizedException",
+                "Username or password is not correct.",
+            ) from error
+
         raise CognitoSignInError("NotAuthorizedException", "Username or password is not correct.")
 
     return initiate_cognito_password_auth(email=email, password=password)
+
+
+def create_dummy_username_sign_in_email(username_key: str) -> str:
+    digest = hashlib.sha256(username_key.encode("utf-8")).hexdigest()[:24]
+
+    return f"missing-{digest}@invalid.smile-auth.local"
 
 
 def initiate_cognito_password_auth(*, email: str, password: str) -> dict[str, Any]:
@@ -1126,9 +1380,13 @@ def initiate_cognito_password_auth(*, email: str, password: str) -> dict[str, An
     return {"authenticationResult": result.get("AuthenticationResult", {})}
 
 
-def refresh_cognito_session(body: dict[str, Any]) -> dict[str, Any]:
-    refresh_token = get_required_string(body, "refreshToken")
-    user_sub = get_required_string(body, "userSub")
+def refresh_cognito_session(
+    body: dict[str, Any],
+    event: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    refresh_session = get_refresh_session_from_request(body, event)
+    refresh_token = refresh_session["refreshToken"]
+    user_sub = refresh_session["userSub"]
     client_id = require_cognito_client_id()
     user_pool_id = require_cognito_user_pool_id()
 
@@ -1162,8 +1420,16 @@ def refresh_cognito_session(body: dict[str, Any]) -> dict[str, Any]:
     return {"authenticationResult": result.get("AuthenticationResult", {})}
 
 
-def revoke_cognito_session(body: dict[str, Any]) -> dict[str, Any]:
-    refresh_token = get_required_string(body, "refreshToken")
+def revoke_cognito_session(
+    body: dict[str, Any],
+    event: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    refresh_token = get_optional_string(body, "refreshToken") or ""
+    if not refresh_token and event is not None:
+        refresh_token = get_refresh_session_from_request({}, event)["refreshToken"]
+    if not refresh_token:
+        raise ClientInputError("Refresh token is required.")
+
     client_id = require_cognito_client_id()
     client_secret = require_cognito_client_secret()
 
@@ -1893,6 +2159,26 @@ def enforce_public_auth_rate_limit(
         )
 
 
+def enforce_public_auth_identifier_rate_limit(
+    scope: str,
+    identifier: str | None = None,
+    *,
+    cooldown_seconds: int = AUTH_PUBLIC_REQUEST_COOLDOWN_SECONDS,
+    now: int | None = None,
+) -> None:
+    normalized_identifier = (identifier or "").strip().lower()
+    if not normalized_identifier:
+        return
+
+    request_time = int(time.time()) if now is None else now
+    reserve_auth_rate_limit(
+        f"{scope}:identifier",
+        normalized_identifier,
+        cooldown_seconds=cooldown_seconds,
+        now=request_time,
+    )
+
+
 def reserve_auth_rate_limit(
     scope: str,
     value: str,
@@ -1934,6 +2220,7 @@ def reserve_auth_rate_limit(
 def enforce_public_auth_burst_limit(
     event: dict[str, Any],
     scope: str,
+    identifier: str | None = None,
     *,
     max_requests: int,
     window_seconds: int,
@@ -1948,6 +2235,16 @@ def enforce_public_auth_burst_limit(
         now=request_time,
         window_seconds=window_seconds,
     )
+
+    normalized_identifier = (identifier or "").strip().lower()
+    if normalized_identifier:
+        reserve_auth_burst_limit(
+            f"{scope}:identifier",
+            normalized_identifier,
+            max_requests=max_requests,
+            now=request_time,
+            window_seconds=window_seconds,
+        )
 
 
 def reserve_auth_burst_limit(

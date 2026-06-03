@@ -17,7 +17,9 @@ For the full frontend/backend authentication architecture, flows, API contracts,
 - `POST /auth/email/sign-in`: signs in with email through backend-enforced public auth cooldowns.
 - `POST /auth/username/sign-in`: signs in with a confirmed display username without returning the resolved account email.
 - `POST /auth/username/resolve`: deprecated compatibility route that returns a generic sign-in failure if reached directly in local/dev; it is not exposed by the production Cloudflare Pages proxy.
-- `POST /auth/session/refresh`: refreshes a memory-held Cognito session through backend-owned Cognito auth.
+- `POST /auth/session/bootstrap`: restores an in-memory Cognito bearer session from the signed HttpOnly refresh-session cookie.
+- `POST /auth/session/refresh`: refreshes an in-memory Cognito bearer session through backend-owned Cognito auth.
+- `POST /auth/session/revoke`: best-effort Cognito refresh-token revocation and refresh cookie clearing.
 - `POST /auth/password-reset/request`: starts Cognito password reset through backend-enforced public auth cooldowns.
 - `POST /auth/password-reset/confirm`: confirms Cognito password reset through backend-enforced public auth cooldowns.
 - `GET /health`: basic health check.
@@ -26,17 +28,17 @@ The backend does not execute submitted learner code with `exec` or `eval`. It co
 
 Dataset upload, inspection, validation, and progress endpoints require `Authorization: Bearer <Cognito token>`.
 
-Usernames are reserved while a backend-owned sign-up is pending, then marked confirmed only after the backend verifies the code and creates the Cognito user. Pending reservations are not accepted for username sign-in. Username sign-in sends the username and password to the backend; the backend resolves the account email internally, calls Cognito, returns only Cognito tokens, and never returns the resolved email.
+Usernames are reserved while a backend-owned sign-up is pending, then marked confirmed only after the backend verifies the code and creates the Cognito user. Pending reservations are not accepted for username sign-in. Username sign-in sends the username and password to the backend; the backend resolves the account email internally, calls Cognito, returns only access/ID tokens, sets the refresh token in a signed HttpOnly cookie, and never returns the resolved email. Unknown usernames take a deterministic dummy Cognito auth path before returning the same generic sign-in failure.
 
 The Cognito app client is confidential (`GenerateSecret: true`). Browser code does not call Cognito directly for password sign-in, username sign-in, password reset, or refresh. The backend owns those calls, sends Cognito `SECRET_HASH`, and uses `AdminInitiateAuth` for password and refresh-token auth. Do not re-enable public `USER_PASSWORD_AUTH` or `USER_SRP_AUTH` on the app client.
 
-Session refresh requests send only the refresh token and Cognito `sub`; they do not send account email. Refresh cooldowns are keyed by request source and `userSub`.
+Session refresh requests send the Cognito `sub` and rely on the signed HttpOnly refresh-session cookie for the refresh token; they do not send account email. Refresh cooldowns are keyed by request source and `userSub`. A reload uses `/auth/session/bootstrap` to restore the in-memory access/ID token session from that cookie.
 
 Frontend, backend validation, and Cognito policy require passwords to be at least 12 characters and include lowercase, uppercase, number, and symbol.
 
 The Cognito user pool has deletion protection enabled. The app client has token revocation enabled and a 7 day refresh-token validity window, which matches the memory-only browser session posture.
 
-Public auth endpoints use DynamoDB-backed cooldowns by request source and identifier. Browser traffic should reach this backend through the Cloudflare Pages `/api/learning-backend` proxy, which applies an edge cooldown before AWS receives public auth requests, enforces exact route/method allowlists, validates that `LEARNING_BACKEND_URL` is a trusted HTTPS Lambda Function URL, rejects oversized request bodies, forwards no browser cookies, strips query strings, and forwards `Authorization` only to protected backend routes. The deprecated username resolution compatibility route is not exposed by the production proxy. The proxy and Lambda must share `LEARNING_BACKEND_PROXY_SECRET`; Lambda trusts only the proxy's `cf-connecting-ip` source header when that secret matches and otherwise falls back to the Function URL source IP. Production deploys keep `LEARNING_BACKEND_REQUIRE_PROXY_SECRET=true`, so direct Lambda Function URL app requests can only use `/health`; non-health app routes must arrive through the proxy.
+Public auth endpoints use DynamoDB-backed cooldowns by request source and identifier, and sign-in routes also use longer burst caps by source and identifier. Browser traffic should reach this backend through the Cloudflare Pages `/api/learning-backend` proxy, which applies edge cooldowns and sign-in burst caps before AWS receives public auth requests, enforces exact route/method allowlists, validates that `LEARNING_BACKEND_URL` is a trusted HTTPS Lambda Function URL, rejects oversized request bodies, forwards only the whitelisted refresh-session cookie to cookie-backed session routes, strips query strings, and forwards `Authorization` only to protected backend routes. The deprecated username resolution compatibility route is not exposed by the production proxy. The proxy and Lambda must share `LEARNING_BACKEND_PROXY_SECRET`; Lambda trusts only the proxy's `cf-connecting-ip` source header when that secret matches and otherwise falls back to the Function URL source IP. Production deploys keep `LEARNING_BACKEND_REQUIRE_PROXY_SECRET=true`, so direct Lambda Function URL app requests can only use `/health`; non-health app routes must arrive through the proxy.
 
 Sign-up emails are sent directly by the backend through Resend. Other Cognito auth emails, such as password recovery, still use a Cognito custom email sender trigger. Cognito encrypts those codes with a stack-owned KMS key, the Lambda decrypts the code, then sends the email through Resend.
 

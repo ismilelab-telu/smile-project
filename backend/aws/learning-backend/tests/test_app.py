@@ -4,6 +4,7 @@ import base64
 import hashlib
 import hmac
 import io
+import json
 import sys
 import unittest
 import zipfile
@@ -86,6 +87,16 @@ def create_expected_cognito_secret_hash(
     ).digest()
 
     return base64.b64encode(digest).decode("utf-8")
+
+
+def create_unverified_jwt(payload: dict[str, object]) -> str:
+    encoded_payload = (
+        base64.urlsafe_b64encode(json.dumps(payload).encode("utf-8"))
+        .decode("ascii")
+        .rstrip("=")
+    )
+
+    return f"header.{encoded_payload}.signature"
 
 
 class FakeDynamoDbClient:
@@ -339,9 +350,18 @@ class LearningBackendTest(unittest.TestCase):
         self.original_auth_cooldown_table = app.AUTH_COOLDOWN_TABLE
         self.original_auth_confirmation_code_ttl_seconds = app.AUTH_CONFIRMATION_CODE_TTL_SECONDS
         self.original_auth_confirmation_code_pepper = app.AUTH_CONFIRMATION_CODE_PEPPER
+        self.original_auth_sign_in_burst_limit = app.AUTH_SIGN_IN_BURST_LIMIT
+        self.original_auth_sign_in_burst_window_seconds = (
+            app.AUTH_SIGN_IN_BURST_WINDOW_SECONDS
+        )
         self.original_auth_session_revoke_burst_limit = app.AUTH_SESSION_REVOKE_BURST_LIMIT
         self.original_auth_session_revoke_burst_window_seconds = (
             app.AUTH_SESSION_REVOKE_BURST_WINDOW_SECONDS
+        )
+        self.original_auth_refresh_session_cookie_name = app.AUTH_REFRESH_SESSION_COOKIE_NAME
+        self.original_auth_refresh_session_cookie_secure = app.AUTH_REFRESH_SESSION_COOKIE_SECURE
+        self.original_auth_refresh_session_cookie_max_age_seconds = (
+            app.AUTH_REFRESH_SESSION_COOKIE_MAX_AGE_SECONDS
         )
         self.original_learning_backend_proxy_secret = app.LEARNING_BACKEND_PROXY_SECRET
         self.original_learning_backend_require_proxy_secret = (
@@ -358,8 +378,13 @@ class LearningBackendTest(unittest.TestCase):
         app.AUTH_SIGN_UP_MIN_DURATION_SECONDS = 0
         app.AUTH_SIGN_UP_TIMING_JITTER_SECONDS = 0
         app.AUTH_CONFIRMATION_CODE_PEPPER = "test-confirmation-code-pepper-32"
+        app.AUTH_SIGN_IN_BURST_LIMIT = 8
+        app.AUTH_SIGN_IN_BURST_WINDOW_SECONDS = 300
         app.AUTH_SESSION_REVOKE_BURST_LIMIT = 30
         app.AUTH_SESSION_REVOKE_BURST_WINDOW_SECONDS = 60
+        app.AUTH_REFRESH_SESSION_COOKIE_NAME = "__Host-smile-refresh-session"
+        app.AUTH_REFRESH_SESSION_COOKIE_SECURE = True
+        app.AUTH_REFRESH_SESSION_COOKIE_MAX_AGE_SECONDS = 604800
 
     def tearDown(self) -> None:
         app.COGNITO_CLIENT_ID = self.original_cognito_client_id
@@ -378,9 +403,18 @@ class LearningBackendTest(unittest.TestCase):
             self.original_auth_confirmation_code_ttl_seconds
         )
         app.AUTH_CONFIRMATION_CODE_PEPPER = self.original_auth_confirmation_code_pepper
+        app.AUTH_SIGN_IN_BURST_LIMIT = self.original_auth_sign_in_burst_limit
+        app.AUTH_SIGN_IN_BURST_WINDOW_SECONDS = (
+            self.original_auth_sign_in_burst_window_seconds
+        )
         app.AUTH_SESSION_REVOKE_BURST_LIMIT = self.original_auth_session_revoke_burst_limit
         app.AUTH_SESSION_REVOKE_BURST_WINDOW_SECONDS = (
             self.original_auth_session_revoke_burst_window_seconds
+        )
+        app.AUTH_REFRESH_SESSION_COOKIE_NAME = self.original_auth_refresh_session_cookie_name
+        app.AUTH_REFRESH_SESSION_COOKIE_SECURE = self.original_auth_refresh_session_cookie_secure
+        app.AUTH_REFRESH_SESSION_COOKIE_MAX_AGE_SECONDS = (
+            self.original_auth_refresh_session_cookie_max_age_seconds
         )
         app.LEARNING_BACKEND_PROXY_SECRET = self.original_learning_backend_proxy_secret
         app.LEARNING_BACKEND_REQUIRE_PROXY_SECRET = (
@@ -731,6 +765,29 @@ class LearningBackendTest(unittest.TestCase):
         self.assertEqual(fake_cognito.calls[0]["ClientId"], "web-client")
         self.assertEqual(fake_cognito.calls[0]["UserPoolId"], "user-pool")
 
+    def test_unknown_username_sign_in_uses_dummy_cognito_path(self) -> None:
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        fake_dynamodb = FakeDynamoDbClient()
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        app._dynamodb_client = fake_dynamodb
+        app._cognito_identity_provider_client = fake_cognito
+
+        with self.assertRaises(CognitoSignInError) as context:
+            sign_in_with_username({"password": "StrongPass1!", "username": "Missing_Student"})
+
+        self.assertEqual(context.exception.code, "NotAuthorizedException")
+        self.assertEqual(len(fake_cognito.calls), 1)
+        dummy_email = fake_cognito.calls[0]["AuthParameters"]["USERNAME"]
+        self.assertTrue(str(dummy_email).startswith("missing-"))
+        self.assertTrue(str(dummy_email).endswith("@invalid.smile-auth.local"))
+        self.assertEqual(
+            fake_cognito.calls[0]["AuthParameters"]["SECRET_HASH"],
+            create_expected_cognito_secret_hash(str(dummy_email)),
+        )
+
     def test_email_sign_in_returns_tokens_without_cognito_direct_from_client(self) -> None:
         app.COGNITO_CLIENT_ID = "web-client"
         app.COGNITO_CLIENT_SECRET = "client-secret"
@@ -768,6 +825,50 @@ class LearningBackendTest(unittest.TestCase):
 
         self.assertEqual(context.exception.retry_after_seconds, 2)
 
+    def test_email_sign_in_route_sets_refresh_cookie_without_returning_refresh_token(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        id_token = create_unverified_jwt(
+            {
+                "email": "student@example.com",
+                "exp": 1_800_000_000,
+                "name": "Student One",
+                "sub": "student-sub",
+            }
+        )
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        fake_cognito.admin_initiate_auth = lambda **kwargs: {
+            "AuthenticationResult": {
+                "AccessToken": "access-token",
+                "ExpiresIn": 3600,
+                "IdToken": id_token,
+                "RefreshToken": "refresh-token",
+            }
+        }
+        app._cognito_identity_provider_client = fake_cognito
+        app._dynamodb_client = FakeDynamoDbClient()
+
+        result = app.lambda_handler(
+            {
+                "body": '{"email":"student@example.com","password":"StrongPass1!"}',
+                "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.10"}},
+                "rawPath": "/auth/email/sign-in",
+            },
+            None,
+        )
+
+        body = json.loads(result["body"])
+        self.assertEqual(result["statusCode"], 200)
+        self.assertNotIn("RefreshToken", body["authenticationResult"])
+        self.assertEqual(body["authenticationResult"]["AccessToken"], "access-token")
+        self.assertEqual(len(result["cookies"]), 1)
+        self.assertIn("__Host-smile-refresh-session=", result["cookies"][0])
+        self.assertIn("HttpOnly", result["cookies"][0])
+        self.assertIn("Secure", result["cookies"][0])
+        self.assertIn("SameSite=Lax", result["cookies"][0])
+
     def test_session_refresh_uses_backend_owned_admin_auth(self) -> None:
         app.COGNITO_CLIENT_ID = "web-client"
         app.COGNITO_CLIENT_SECRET = "client-secret"
@@ -791,6 +892,41 @@ class LearningBackendTest(unittest.TestCase):
         )
         self.assertEqual(fake_cognito.calls[0]["ClientId"], "web-client")
         self.assertEqual(fake_cognito.calls[0]["UserPoolId"], "user-pool")
+
+    def test_session_bootstrap_refreshes_from_http_only_cookie(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        app._cognito_identity_provider_client = fake_cognito
+        app._dynamodb_client = FakeDynamoDbClient()
+        cookie_value = app.create_signed_refresh_session_value(
+            {
+                "refreshToken": "refresh-token",
+                "userSub": "student-sub",
+            }
+        )
+
+        result = app.lambda_handler(
+            {
+                "body": "{}",
+                "headers": {
+                    "cookie": f"other=value; __Host-smile-refresh-session={cookie_value}",
+                },
+                "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.10"}},
+                "rawPath": "/auth/session/bootstrap",
+            },
+            None,
+        )
+
+        self.assertEqual(result["statusCode"], 200)
+        self.assertEqual(fake_cognito.calls[0]["AuthFlow"], "REFRESH_TOKEN_AUTH")
+        self.assertEqual(fake_cognito.calls[0]["AuthParameters"]["REFRESH_TOKEN"], "refresh-token")
+        self.assertEqual(
+            fake_cognito.calls[0]["AuthParameters"]["SECRET_HASH"],
+            create_expected_cognito_secret_hash("student-sub"),
+        )
 
     def test_session_refresh_rate_limit_uses_user_sub_identifier(self) -> None:
         app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
@@ -845,6 +981,35 @@ class LearningBackendTest(unittest.TestCase):
         self.assertEqual(len(fake_cognito.calls), 2)
         self.assertEqual(fake_cognito.calls[0]["Token"], "refresh-token")
         self.assertEqual(fake_cognito.calls[1]["Token"], "refresh-token")
+
+    def test_session_revoke_uses_cookie_and_clears_refresh_cookie(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        app._cognito_identity_provider_client = fake_cognito
+        app._dynamodb_client = FakeDynamoDbClient()
+        cookie_value = app.create_signed_refresh_session_value(
+            {
+                "refreshToken": "refresh-token",
+                "userSub": "student-sub",
+            }
+        )
+
+        result = app.lambda_handler(
+            {
+                "body": "{}",
+                "headers": {"cookie": f"__Host-smile-refresh-session={cookie_value}"},
+                "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.10"}},
+                "rawPath": "/auth/session/revoke",
+            },
+            None,
+        )
+
+        self.assertEqual(result["statusCode"], 200)
+        self.assertEqual(fake_cognito.calls[0]["Token"], "refresh-token")
+        self.assertIn("__Host-smile-refresh-session=", result["cookies"][0])
+        self.assertIn("Max-Age=0", result["cookies"][0])
 
     def test_session_revoke_caps_excessive_source_bursts(self) -> None:
         app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
@@ -1247,6 +1412,40 @@ class LearningBackendTest(unittest.TestCase):
 
         self.assertEqual(context.exception.retry_after_seconds, 4)
         self.assertEqual(context.exception.next_allowed_at, 105)
+
+    def test_public_auth_burst_limit_enforces_identifier_window(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app._dynamodb_client = FakeDynamoDbClient()
+
+        app.enforce_public_auth_burst_limit(
+            {"requestContext": {"http": {"sourceIp": "203.0.113.10"}}},
+            "email-sign-in",
+            "student@example.com",
+            max_requests=2,
+            window_seconds=60,
+            now=100,
+        )
+        app.enforce_public_auth_burst_limit(
+            {"requestContext": {"http": {"sourceIp": "203.0.113.11"}}},
+            "email-sign-in",
+            "student@example.com",
+            max_requests=2,
+            window_seconds=60,
+            now=101,
+        )
+
+        with self.assertRaises(AuthRateLimitError) as context:
+            app.enforce_public_auth_burst_limit(
+                {"requestContext": {"http": {"sourceIp": "203.0.113.12"}}},
+                "email-sign-in",
+                "student@example.com",
+                max_requests=2,
+                window_seconds=60,
+                now=102,
+            )
+
+        self.assertEqual(context.exception.retry_after_seconds, 58)
+        self.assertEqual(context.exception.next_allowed_at, 160)
 
     def test_request_source_prefers_forwarded_cloudflare_ip_with_proxy_secret(self) -> None:
         app.LEARNING_BACKEND_PROXY_SECRET = "proxy-secret"
