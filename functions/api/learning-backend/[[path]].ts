@@ -2,6 +2,7 @@ import { handleLearningBackendProxyRequest } from "../../../src/features/learnin
 
 type PagesFunctionContext = {
   env?: {
+    LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS?: string;
     LEARNING_BACKEND_URL?: string;
     LEARNING_BACKEND_PROXY_SECRET?: string;
   };

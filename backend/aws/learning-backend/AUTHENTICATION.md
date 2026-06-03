@@ -1,6 +1,6 @@
 # Authentication Developer Documentation
 
-Last audited: 2026-06-02
+Last audited: 2026-06-03
 
 This document describes the current authentication system in Smile Project from the code that exists today. The app does not use Cognito Hosted UI or Amplify. The browser keeps Cognito bearer tokens in memory, the backend stores the Cognito refresh token in a signed HttpOnly refresh-session cookie, Amazon Cognito issues tokens, and the AWS learning backend owns custom sign-up policy, username reservation, verification email delivery, learning-progress sync, and protected guided-download backend work.
 
@@ -424,13 +424,14 @@ Production proxy path:
 ```text
 Browser
   -> /api/learning-backend/<backend path>
-  -> Cloudflare Pages Function edge cooldown and header forwarding
+  -> Cloudflare zone rate limiting for coarse auth abuse
+  -> Cloudflare Pages Function route guard and header forwarding
   -> AWS Lambda Function URL
 ```
 
-The proxy forwards only `authorization`, `content-type`, the proxy-derived source IP, the private `x-smile-learning-backend-proxy-secret` header, and the whitelisted `__Host-smile-refresh-session` cookie for `/auth/session/bootstrap`, `/auth/session/refresh`, and `/auth/session/revoke`. Cookie-backed session routes also require same-origin `Origin`/`Referer` when those headers are present. The proxy enforces a backend-route and method allowlist, rejects request bodies larger than 300 KB before forwarding, strips query strings, and fails closed for non-health routes when `LEARNING_BACKEND_PROXY_SECRET` is missing. Public auth routes receive edge cooldowns and sign-in burst caps before reaching AWS; the Lambda keeps its DynamoDB-backed cooldowns and burst caps as the authoritative app-level control.
+The proxy forwards only `authorization`, `content-type`, the proxy-derived source IP, the private `x-smile-learning-backend-proxy-secret` header, and the whitelisted `__Host-smile-refresh-session` cookie for `/auth/session/bootstrap`, `/auth/session/refresh`, and `/auth/session/revoke`. Cookie-backed session routes also require same-origin `Origin`/`Referer` when those headers are present. The proxy enforces a backend-route and method allowlist, rejects request bodies larger than 300 KB before forwarding, strips query strings, and fails closed for non-health routes when `LEARNING_BACKEND_PROXY_SECRET` is missing. Public auth routes should receive Cloudflare zone rate limiting before Pages Functions and AWS run. The Pages proxy keeps a fallback source/IP limiter unless `LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS=false`; the Lambda keeps its DynamoDB-backed cooldowns and burst caps as the authoritative app-level control.
 
-The proxy reads only Cloudflare's `cf-connecting-ip` header as the browser source. Browser-supplied `x-real-ip` and `x-forwarded-for` values are ignored; the `x-forwarded-for` value sent to Lambda is generated from the trusted Cloudflare source, or `unknown` when Cloudflare did not provide one. The Lambda also trusts only `cf-connecting-ip`, and only when `LEARNING_BACKEND_PROXY_SECRET` is configured and the proxy secret header matches. If that trusted source is unavailable, Lambda falls back to the Function URL `requestContext.http.sourceIp`. In production, `LEARNING_BACKEND_REQUIRE_PROXY_SECRET=true` makes every non-health HTTP route return `403` unless that shared secret is present, so direct Lambda Function URL callers cannot bypass Cloudflare edge cooldowns or spoof the auth cooldown source.
+The proxy reads only Cloudflare's `cf-connecting-ip` header as the browser source. Browser-supplied `x-real-ip` and `x-forwarded-for` values are ignored; the `x-forwarded-for` value sent to Lambda is generated from the trusted Cloudflare source, or `unknown` when Cloudflare did not provide one. The Lambda also trusts only `cf-connecting-ip`, and only when `LEARNING_BACKEND_PROXY_SECRET` is configured and the proxy secret header matches. If that trusted source is unavailable, Lambda falls back to the Function URL `requestContext.http.sourceIp`. In production, `LEARNING_BACKEND_REQUIRE_PROXY_SECRET=true` makes every non-health HTTP route return `403` unless that shared secret is present, so direct Lambda Function URL callers cannot bypass Cloudflare rate limits or spoof the auth cooldown source.
 
 The backend verifier accepts both Cognito ID tokens and access tokens:
 
@@ -494,7 +495,7 @@ Public auth endpoints:
 | `POST` | `/auth/password-reset/request` | None | Start Cognito password reset through backend-enforced public auth cooldowns.    |
 | `POST` | `/auth/password-reset/confirm` | None | Confirm Cognito password reset through backend-enforced public auth cooldowns.  |
 
-Public auth endpoints apply DynamoDB-backed cooldowns by request source and identifier. Sign-in routes also apply a longer DynamoDB-backed burst window by source and identifier. This is an app-level guard and should be paired with edge-level rate limiting in deployment. The deprecated `/auth/username/resolve` compatibility route is intentionally excluded from the production Pages proxy allowlist.
+Public auth endpoints apply DynamoDB-backed cooldowns by request source and identifier. Sign-in routes also apply a longer DynamoDB-backed burst window by source and identifier. This is an app-level guard and must stay enabled even when Cloudflare rate limiting is active, because Cloudflare cannot reliably count by application email, username, user sub, or wrong verification-code attempts. The deprecated `/auth/username/resolve` compatibility route is intentionally excluded from the production Pages proxy allowlist.
 
 Protected endpoints:
 
@@ -697,7 +698,7 @@ Cloudflare Pages:
 - `wrangler.jsonc` builds from `dist`.
 - `public/_redirects` rewrites all routes to `/index.html`, so modal routes and deep learning routes work on refresh.
 - `public/_headers` sets CSP, HSTS, frame protection, and other security headers.
-- `functions/api/learning-backend/[[path]].ts` proxies backend calls through Cloudflare Pages before AWS with exact route/method allowlists, trusted Lambda Function URL validation, a 300 KB request-body limit, secret-header injection, refresh-session cookie forwarding only for cookie-backed session routes, no query-string forwarding, and `Authorization` forwarding only for protected backend routes. Unknown `/auth/...` paths are rejected at the edge instead of being forwarded to AWS.
+- `functions/api/learning-backend/[[path]].ts` proxies backend calls through Cloudflare Pages before AWS with exact route/method allowlists, trusted Lambda Function URL validation, a 300 KB request-body limit, secret-header injection, refresh-session cookie forwarding only for cookie-backed session routes, no query-string forwarding, and `Authorization` forwarding only for protected backend routes. Unknown `/auth/...` paths are rejected at the edge instead of being forwarded to AWS. The proxy source/IP auth limiter stays enabled with the Cloudflare Free-plan-compatible single auth rule and should be disabled with `LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS=false` only if Cloudflare has equivalent granular route-specific auth rate limits.
 - Current CSP `connect-src` allows `'self'`, `https://s3.ap-southeast-1.amazonaws.com`, and `https://*.s3.ap-southeast-1.amazonaws.com`. This supports the same-origin proxy and S3 presigned uploads without allowing browser calls to direct Cognito or Lambda Function URL origins.
 
 AWS:
@@ -715,9 +716,10 @@ Deployment must keep these aligned:
 2. Production `VITE_LEARNING_BACKEND_URL` must be `/api/learning-backend` so browser backend traffic uses the Cloudflare proxy.
 3. Cloudflare Pages Function `LEARNING_BACKEND_URL` must point at the SAM `LearningBackendFunctionUrl`; the proxy rejects non-HTTPS, credentialed, path-scoped, or non-`*.lambda-url.<region>.on.aws` backend URLs before forwarding bearer tokens or proxy secrets.
 4. SAM `LearningBackendProxySecret` must match Cloudflare Pages Function `LEARNING_BACKEND_PROXY_SECRET`.
-5. Backend `COGNITO_REGION`, `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`, and `COGNITO_CLIENT_SECRET` must come from the same SAM stack.
-6. `FunctionUrlAllowedOrigins` should remain local/dev only unless a separate review approves direct browser access to the Function URL.
-7. CSP must continue allowing the same-origin proxy plus S3 upload origins; do not add direct Cognito or Lambda Function URL origins without a separate review.
+5. The Cloudflare auth rate limiting rule from `docs/cloudflare-auth-rate-limiting.md` must be active on the production custom domain, and the Pages proxy fallback limiter must stay enabled unless Cloudflare has equivalent granular route-specific auth rate limits.
+6. Backend `COGNITO_REGION`, `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`, and `COGNITO_CLIENT_SECRET` must come from the same SAM stack.
+7. `FunctionUrlAllowedOrigins` should remain local/dev only unless a separate review approves direct browser access to the Function URL.
+8. CSP must continue allowing the same-origin proxy plus S3 upload origins; do not add direct Cognito or Lambda Function URL origins without a separate review.
 
 Current `backend/aws/learning-backend/samconfig.toml` deploy defaults use stack `smile-learning-backend`, region `ap-southeast-1`, profile `smile-dev`, `LearningBackendRequireProxySecret=true`, `AllowedOrigins` for local dev plus `https://smile-project.pages.dev`, and `FunctionUrlAllowedOrigins` for local dev only. It intentionally does not store `LearningBackendProxySecret`, `ResendFromEmail`, or `ResendReplyToEmail`; production deploys must pass the current shared secret or preserve the existing CloudFormation `NoEcho` value, and sender overrides must be verified after deploy if they are customized.
 
@@ -859,7 +861,7 @@ Use direct `vp` commands for frontend checks. The Python/SAM commands apply to t
 - `name` in Cognito is the display username, not a full name.
 - Confirmed username reservations never expire because `expiresAt` is removed.
 - Pending sign-up responses avoid user enumeration in start/resend by returning confirmation-shaped `ok` responses even when no email is sent.
-- Public auth endpoint cooldowns are DynamoDB-backed application controls. Keep edge-level rate limiting enabled for the deployed origin as an additional production control.
+- Public auth endpoint cooldowns are DynamoDB-backed application controls. Keep Cloudflare zone rate limiting enabled for the deployed origin as an additional production control.
 - Protected backend authorization is app-level inside Lambda because Function URL `AuthType` is `NONE`.
 - Forwarded IP headers are trusted only when the Pages proxy shared secret matches.
 - CSP and SAM CORS must be updated together when origins change.
@@ -869,10 +871,11 @@ Use direct `vp` commands for frontend checks. The Python/SAM commands apply to t
 Current required controls before deploy:
 
 - Frontend env must define `VITE_LEARNING_BACKEND_URL`; the app no longer falls back to a committed backend URL.
-- Production `VITE_LEARNING_BACKEND_URL` must use `/api/learning-backend` so Cloudflare edge cooldowns run before AWS.
+- Production `VITE_LEARNING_BACKEND_URL` must use `/api/learning-backend` so Cloudflare zone rate limiting and the Pages proxy run before AWS.
 - Cloudflare Pages Function env must define `LEARNING_BACKEND_URL`; the proxy fails closed without it.
 - Cloudflare Pages Function `LEARNING_BACKEND_URL` must be the trusted HTTPS Lambda Function URL from the SAM stack output, not an arbitrary custom origin.
 - Cloudflare Pages Function env must define `LEARNING_BACKEND_PROXY_SECRET`; the proxy fails closed for non-health routes without it.
+- Cloudflare Pages Function env may set `LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS=false` only if Cloudflare has equivalent granular route-specific auth rate limits; keep it unset with the Free-plan-compatible single auth rule.
 - Cloudflare Pages proxy must forward bearer tokens only to protected routes (`/progress`, `/uploads/presign`, `/datasets/inspect`, `/pandas/validate`) and must not forward browser query strings to the Lambda backend.
 - `LearningBackendProxySecret` in SAM must match Cloudflare Pages Function env `LEARNING_BACKEND_PROXY_SECRET`.
 - `LearningBackendRequireProxySecret` must remain `true` in production so direct Function URL app routes return `403`.
@@ -887,4 +890,4 @@ Current required controls before deploy:
 - Protected learning routes must require backend-verified Cognito bearer tokens.
 - Backend JSON responses must include `Cache-Control: no-store`.
 - Cloudflare CSP and S3 CORS origins must remain aligned with the deployed frontend origin; Lambda Function URL CORS should remain local/dev only, and CSP should not allow direct Cognito or Lambda Function URL calls in production.
-- Cloudflare Pages proxy edge cooldowns must remain enabled for public auth routes in addition to DynamoDB cooldowns.
+- Cloudflare auth rate limiting must remain enabled for public auth routes in addition to DynamoDB cooldowns. Keep the Pages proxy fallback limiter enabled with the Free-plan-compatible single rule and in any environment not protected by Cloudflare zone rate limiting.

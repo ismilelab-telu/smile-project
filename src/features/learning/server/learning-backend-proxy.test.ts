@@ -161,6 +161,46 @@ describe("learning backend proxy", () => {
     });
   });
 
+  it("can defer public auth request rate limiting to Cloudflare", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ message: "backend" }), { status: 400 }));
+    vi.stubGlobal("fetch", fetch);
+
+    const createRequest = () =>
+      new Request("https://smile.test/api/learning-backend/auth/username/sign-in", {
+        body: JSON.stringify({ password: "StrongPass1!", username: "student_one" }),
+        headers: {
+          "cf-connecting-ip": "203.0.113.20",
+          "content-type": "application/json",
+        },
+        method: "POST",
+      });
+
+    const firstResponse = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS: "false",
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      },
+      params: { path: ["auth", "username", "sign-in"] },
+      request: createRequest(),
+    });
+    const secondResponse = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS: "false",
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      },
+      params: { path: ["auth", "username", "sign-in"] },
+      request: createRequest(),
+    });
+
+    expect(firstResponse.status).toBe(400);
+    expect(secondResponse.status).toBe(400);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   it("caps slower sign-in bursts at the edge", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-03T00:00:00.000Z"));

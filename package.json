@@ -10,6 +10,7 @@
     "preview": "vp preview",
     "preview:host": "vp preview --host 0.0.0.0",
     "check": "vp check src tests index.html vite.config.ts playwright.config.ts package.json tsconfig.json",
+    "cloudflare:auth-rate-limits": "bun scripts/cloudflare/apply-auth-rate-limits.ts",
     "lint": "vp lint src tests vite.config.ts playwright.config.ts",
     "format": "vp fmt --write src tests index.html vite.config.ts playwright.config.ts package.json tsconfig.json",
     "prepare": "husky",

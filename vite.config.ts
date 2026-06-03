@@ -12,6 +12,7 @@ import { handleLearningBackendProxyRequest } from "./src/features/learning/serve
 const learningBackendProxyDevPath = "/api/learning-backend";
 
 type LearningBackendProxyDevEnv = {
+  LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS?: string;
   LEARNING_BACKEND_PROXY_SECRET?: string;
   LEARNING_BACKEND_URL?: string;
 };
@@ -137,6 +138,9 @@ const learningBackendProxyEnv = loadEnv("development", process.cwd(), "");
 export default defineConfig({
   plugins: [
     learningBackendProxyDevPlugin({
+      LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS:
+        process.env.LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS ??
+        learningBackendProxyEnv.LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS,
       LEARNING_BACKEND_PROXY_SECRET:
         process.env.LEARNING_BACKEND_PROXY_SECRET ??
         learningBackendProxyEnv.LEARNING_BACKEND_PROXY_SECRET,

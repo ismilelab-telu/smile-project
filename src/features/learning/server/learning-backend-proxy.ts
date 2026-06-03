@@ -1,4 +1,5 @@
 type LearningBackendProxyEnv = {
+  LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS?: string;
   LEARNING_BACKEND_URL?: string;
   LEARNING_BACKEND_PROXY_SECRET?: string;
 };
@@ -105,9 +106,11 @@ export async function handleLearningBackendProxyRequest({
     return requestBody;
   }
 
-  const rateLimitResponse = getAuthProxyRateLimitResponse(request, pathname, requestBody);
-  if (rateLimitResponse) {
-    return rateLimitResponse;
+  if (isProxyAuthRateLimitEnabled(env)) {
+    const rateLimitResponse = getAuthProxyRateLimitResponse(request, pathname, requestBody);
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
   }
 
   const cookieBackedAuthResponse = getCookieBackedAuthOriginResponse(request, pathname);
@@ -493,6 +496,12 @@ function shouldForwardRefreshSessionCookie(pathname: string) {
   return ["/auth/session/bootstrap", "/auth/session/refresh", "/auth/session/revoke"].includes(
     pathname,
   );
+}
+
+function isProxyAuthRateLimitEnabled(env: LearningBackendProxyEnv | undefined) {
+  const rawValue = env?.LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS?.trim().toLowerCase();
+
+  return !["0", "false", "off"].includes(rawValue ?? "");
 }
 
 function getCookieBackedAuthOriginResponse(request: Request, pathname: string) {

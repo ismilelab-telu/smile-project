@@ -54,3 +54,9 @@ Run unit tests:
 ```sh
 vp test run
 ```
+
+## Cloudflare Auth Rate Limiting
+
+Production auth traffic should use the same-origin Pages proxy at `/api/learning-backend`.
+Coarse source/IP auth abuse can be blocked at Cloudflare before Pages Functions or AWS run.
+See [`docs/cloudflare-auth-rate-limiting.md`](./docs/cloudflare-auth-rate-limiting.md) for the deploy command, required Cloudflare zone/API token values, and the Pages proxy fallback switch.
