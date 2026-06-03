@@ -70,6 +70,7 @@ RESEND_API_KEY_SECRET_ID = os.environ.get("RESEND_API_KEY_SECRET_ID", "")
 RESEND_API_URL = os.environ.get("RESEND_API_URL", "https://api.resend.com/emails")
 RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "Smile Lab <auth@smilelab.me>")
 RESEND_REPLY_TO_EMAIL = os.environ.get("RESEND_REPLY_TO_EMAIL", "")
+RESEND_AUTH_TEMPLATE_ID = os.environ.get("RESEND_AUTH_TEMPLATE_ID", "smile-auth-code")
 RESEND_REQUEST_TIMEOUT_SECONDS = 10
 AUTH_CONFIRMATION_CODE_PEPPER = os.environ.get("AUTH_CONFIRMATION_CODE_PEPPER", "")
 LEARNING_BACKEND_PROXY_SECRET = os.environ.get("LEARNING_BACKEND_PROXY_SECRET", "")
@@ -103,6 +104,7 @@ AUTH_SESSION_REVOKE_BURST_LIMIT = int(os.environ.get("AUTH_SESSION_REVOKE_BURST_
 AUTH_SESSION_REVOKE_BURST_WINDOW_SECONDS = int(
     os.environ.get("AUTH_SESSION_REVOKE_BURST_WINDOW_SECONDS", "60")
 )
+AUTH_EMAIL_DEFAULT_LOCALE = "id"
 AUTH_REFRESH_SESSION_COOKIE_NAME = os.environ.get(
     "AUTH_REFRESH_SESSION_COOKIE_NAME",
     "__Host-smile-refresh-session",
@@ -482,90 +484,168 @@ def send_cognito_email_with_resend(event: dict[str, Any]) -> None:
         raise AuthConfigurationError("Cognito custom email event is missing an email.")
 
     code = decrypt_cognito_sender_code(encrypted_code) if encrypted_code else ""
-    message = build_cognito_email_message(event.get("triggerSource", ""), code)
+    message = build_cognito_email_message(
+        event.get("triggerSource", ""),
+        code,
+        locale=get_cognito_email_locale(event),
+    )
     record_confirmation_code_expiry(event)
 
     send_resend_email(
-        html_body=message["html"],
         recipient=recipient,
         subject=message["subject"],
-        text_body=message["text"],
+        template_id=message["template_id"],
+        template_variables=message["variables"],
     )
 
 
-def build_cognito_email_message(trigger_source: Any, code: str) -> dict[str, str]:
+def build_cognito_email_message(
+    trigger_source: Any,
+    code: str,
+    *,
+    locale: str = AUTH_EMAIL_DEFAULT_LOCALE,
+) -> dict[str, Any]:
     trigger = trigger_source if isinstance(trigger_source, str) else ""
-    subject = "Kode verifikasi Smile Lab"
-    title = "Verifikasi akun"
-    intro = "Masukkan kode ini untuk menyelesaikan verifikasi akun Smile Lab."
-    label = "Kode verifikasi"
+    copy = get_auth_email_copy(trigger, locale)
+    title = copy["title"]
+
+    return {
+        "subject": copy["subject"],
+        "template_id": require_resend_auth_template_id(),
+        "variables": {
+            "TITLE": title,
+            "PREVIEW_TEXT": copy["intro"],
+            "HEADLINE": copy["headline"].upper(),
+            "INTRO": copy["intro"],
+            "CODE_LABEL": copy["label"],
+            "CODE": html.escape(code or copy["empty_code"]),
+            "SECURITY_NOTE": copy["security_note"],
+            "FOOTER_COPY": copy["footer_copy"],
+            "IGNORE_NOTE": copy["ignore_note"],
+        },
+    }
+
+
+def get_auth_email_copy(trigger: str, locale: str) -> dict[str, str]:
+    normalized_locale = normalize_auth_email_locale(locale)
+    if normalized_locale == "en":
+        return get_auth_email_copy_en(trigger)
+
+    return get_auth_email_copy_id(trigger)
+
+
+def get_auth_email_copy_id(trigger: str) -> dict[str, str]:
+    copy = {
+        "empty_code": "Buka aplikasi Smile Lab untuk melanjutkan.",
+        "footer_copy": (
+            "Smile Lab membantu kamu belajar machine learning dengan progres yang rapi, "
+            "latihan bertahap, dan feedback yang jelas."
+        ),
+        "headline": "Hampir selesai",
+        "ignore_note": (
+            "Email ini dikirim untuk keamanan akun. Abaikan email ini jika kamu tidak meminta "
+            "kode dari Smile Lab."
+        ),
+        "intro": "Masukkan kode ini untuk menyelesaikan verifikasi akun Smile Lab.",
+        "label": "Kode verifikasi",
+        "security_note": "Kode ini hanya untuk akun Smile Lab kamu. Jangan bagikan kepada siapa pun.",
+        "subject": "Kode verifikasi Smile Lab",
+        "title": "Verifikasi akun",
+    }
 
     if trigger == "CustomEmailSender_ForgotPassword":
-        subject = "Kode reset password Smile Lab"
-        title = "Reset password"
-        intro = "Masukkan kode ini untuk mengatur ulang password akun Smile Lab."
-        label = "Kode reset password"
+        copy |= {
+            "headline": "Reset password",
+            "intro": "Masukkan kode ini untuk mengatur ulang password akun Smile Lab.",
+            "label": "Kode reset password",
+            "subject": "Kode reset password Smile Lab",
+            "title": "Reset password",
+        }
     elif trigger in {
         "CustomEmailSender_UpdateUserAttribute",
         "CustomEmailSender_VerifyUserAttribute",
     }:
-        subject = "Kode verifikasi email Smile Lab"
-        title = "Verifikasi email"
-        intro = "Masukkan kode ini untuk memverifikasi email akun Smile Lab."
+        copy |= {
+            "headline": "Verifikasi email",
+            "intro": "Masukkan kode ini untuk memverifikasi email akun Smile Lab.",
+            "subject": "Kode verifikasi email Smile Lab",
+            "title": "Verifikasi email",
+        }
     elif trigger == "CustomEmailSender_Authentication":
-        subject = "Kode masuk Smile Lab"
-        title = "Kode masuk"
-        intro = "Masukkan kode ini untuk melanjutkan proses masuk ke Smile Lab."
-        label = "Kode masuk"
+        copy |= {
+            "headline": "Kode masuk",
+            "intro": "Masukkan kode ini untuk melanjutkan proses masuk ke Smile Lab.",
+            "label": "Kode masuk",
+            "subject": "Kode masuk Smile Lab",
+            "title": "Kode masuk",
+        }
     elif trigger == "CustomEmailSender_AdminCreateUser":
-        subject = "Undangan akun Smile Lab"
-        title = "Akun Smile Lab dibuat"
-        intro = "Gunakan nilai berikut untuk menyelesaikan akses akun Smile Lab."
-        label = "Kode atau password sementara"
+        copy |= {
+            "headline": "Akun siap",
+            "intro": "Gunakan nilai berikut untuk menyelesaikan akses akun Smile Lab.",
+            "label": "Kode atau password sementara",
+            "subject": "Undangan akun Smile Lab",
+            "title": "Akun Smile Lab dibuat",
+        }
 
-    code_line = f"{label}: {code}" if code else "Buka aplikasi Smile Lab untuk melanjutkan."
-    text_body = "\n".join(
-        [
-            title,
-            "",
-            intro,
-            "",
-            code_line,
-            "",
-            "Kalau email tidak muncul, cek folder spam atau junk.",
-            "Abaikan email ini jika kamu tidak meminta kode dari Smile Lab.",
-        ]
-    )
+    return copy
 
-    escaped_title = html.escape(title)
-    escaped_intro = html.escape(intro)
-    escaped_label = html.escape(label)
-    escaped_code = html.escape(code)
-    code_block = (
-        f"""
-        <p style="margin:24px 0 8px;color:#525252;font-size:13px;font-weight:700;">{escaped_label}</p>
-        <div style="border:1px solid #d4d4d4;background:#f8fafc;color:#171717;font-size:28px;font-weight:800;letter-spacing:4px;padding:18px 20px;text-align:center;">{escaped_code}</div>
-        """
-        if code
-        else '<p style="margin:24px 0;color:#171717;">Buka aplikasi Smile Lab untuk melanjutkan.</p>'
-    )
 
-    html_body = f"""
-    <!doctype html>
-    <html lang="id">
-      <body style="margin:0;background:#ffffff;color:#171717;font-family:Arial,Helvetica,sans-serif;">
-        <main style="max-width:520px;margin:0 auto;padding:32px 24px;">
-          <h1 style="margin:0 0 16px;font-size:28px;line-height:1.2;">{escaped_title}</h1>
-          <p style="margin:0;color:#404040;font-size:15px;line-height:1.7;">{escaped_intro}</p>
-          {code_block}
-          <p style="margin:24px 0 0;color:#525252;font-size:14px;line-height:1.7;">Kalau email tidak muncul, cek folder spam atau junk.</p>
-          <p style="margin:12px 0 0;color:#737373;font-size:13px;line-height:1.7;">Abaikan email ini jika kamu tidak meminta kode dari Smile Lab.</p>
-        </main>
-      </body>
-    </html>
-    """
+def get_auth_email_copy_en(trigger: str) -> dict[str, str]:
+    copy = {
+        "empty_code": "Open Smile Lab to continue.",
+        "footer_copy": (
+            "Smile Lab helps you learn machine learning with organized progress, guided practice, "
+            "and clear feedback."
+        ),
+        "headline": "Almost there",
+        "ignore_note": (
+            "This email was sent for account security. Ignore it if you did not request a code "
+            "from Smile Lab."
+        ),
+        "intro": "Enter this code to finish verifying your Smile Lab account.",
+        "label": "Verification code",
+        "security_note": "This code is only for your Smile Lab account. Do not share it with anyone.",
+        "subject": "Smile Lab verification code",
+        "title": "Verify your account",
+    }
 
-    return {"html": html_body, "subject": subject, "text": text_body}
+    if trigger == "CustomEmailSender_ForgotPassword":
+        copy |= {
+            "headline": "Reset password",
+            "intro": "Enter this code to reset your Smile Lab account password.",
+            "label": "Password reset code",
+            "subject": "Smile Lab password reset code",
+            "title": "Reset password",
+        }
+    elif trigger in {
+        "CustomEmailSender_UpdateUserAttribute",
+        "CustomEmailSender_VerifyUserAttribute",
+    }:
+        copy |= {
+            "headline": "Verify email",
+            "intro": "Enter this code to verify your Smile Lab account email.",
+            "subject": "Smile Lab email verification code",
+            "title": "Verify email",
+        }
+    elif trigger == "CustomEmailSender_Authentication":
+        copy |= {
+            "headline": "Sign-in code",
+            "intro": "Enter this code to continue signing in to Smile Lab.",
+            "label": "Sign-in code",
+            "subject": "Smile Lab sign-in code",
+            "title": "Sign-in code",
+        }
+    elif trigger == "CustomEmailSender_AdminCreateUser":
+        copy |= {
+            "headline": "Account ready",
+            "intro": "Use this value to finish accessing your Smile Lab account.",
+            "label": "Code or temporary password",
+            "subject": "Your Smile Lab account is ready",
+            "title": "Smile Lab account created",
+        }
+
+    return copy
 
 
 def decrypt_cognito_sender_code(encrypted_code: str) -> str:
@@ -596,18 +676,31 @@ def decrypt_cognito_sender_code(encrypted_code: str) -> str:
 
 def send_resend_email(
     *,
-    html_body: str,
     recipient: str,
     subject: str,
-    text_body: str,
+    html_body: str | None = None,
+    template_id: str | None = None,
+    template_variables: dict[str, Any] | None = None,
+    text_body: str | None = None,
 ) -> None:
     payload: dict[str, Any] = {
         "from": RESEND_FROM_EMAIL,
-        "html": html_body,
         "subject": subject,
-        "text": text_body,
         "to": [recipient],
     }
+
+    if template_id:
+        payload["template"] = {
+            "id": template_id,
+            "variables": template_variables or {},
+        }
+    elif html_body or text_body:
+        if html_body:
+            payload["html"] = html_body
+        if text_body:
+            payload["text"] = text_body
+    else:
+        raise AuthConfigurationError("Resend email content is not configured.")
 
     if RESEND_REPLY_TO_EMAIL:
         payload["reply_to"] = RESEND_REPLY_TO_EMAIL
@@ -635,6 +728,14 @@ def send_resend_email(
         raise RuntimeError(message) from error
     except urllib.error.URLError as error:
         raise RuntimeError("Resend email request failed.") from error
+
+
+def require_resend_auth_template_id() -> str:
+    template_id = RESEND_AUTH_TEMPLATE_ID.strip()
+    if not template_id:
+        raise AuthConfigurationError("Resend auth template ID is not configured.")
+
+    return template_id
 
 
 def get_resend_api_key() -> str:
@@ -1191,6 +1292,7 @@ def validate_uploaded_dataset_code(body: dict[str, Any], user: dict[str, Any]) -
 def start_sign_up(body: dict[str, Any], now: int | None = None) -> dict[str, Any]:
     started_at = time.perf_counter()
     email = normalize_auth_email(get_required_string(body, "email"))
+    locale = get_auth_email_locale_from_body(body)
     requested_username = get_required_string(body, "name")
     request_time = int(time.time()) if now is None else now
 
@@ -1234,6 +1336,7 @@ def start_sign_up(body: dict[str, Any], now: int | None = None) -> dict[str, Any
     try:
         put_pending_signup_item(
             email=email,
+            locale=locale,
             username=username,
             username_key=username_key,
             code=code,
@@ -1253,7 +1356,7 @@ def start_sign_up(body: dict[str, Any], now: int | None = None) -> dict[str, Any
                 delete_pending_username_reservation(reserved_username_key, email)
         raise
 
-    send_pending_signup_confirmation_email(email, code)
+    send_pending_signup_confirmation_email(email, code, locale=locale)
     sleep_for_signup_response_timing(started_at)
 
     return build_sign_up_confirmation_response(email, next_allowed_at)
@@ -1450,11 +1553,13 @@ def revoke_cognito_session(
 
 def request_password_reset(body: dict[str, Any]) -> dict[str, Any]:
     email = normalize_auth_email(get_required_string(body, "email"))
+    locale = get_auth_email_locale_from_body(body)
     client_id = require_cognito_client_id()
 
     try:
         result = get_cognito_identity_provider_client().forgot_password(
             ClientId=client_id,
+            ClientMetadata={"locale": locale},
             SecretHash=create_cognito_secret_hash(email),
             Username=email,
         )
@@ -1597,6 +1702,7 @@ def resend_confirmation_code(body: dict[str, Any]) -> dict[str, Any]:
     email = normalize_auth_email(get_required_string(body, "email"))
     now = int(time.time())
     item = get_pending_signup_item(email)
+    locale = get_auth_email_locale_from_body(body, fallback=get_pending_signup_locale(item))
 
     if not is_active_signup_record(item, now):
         return build_confirmation_resend_response(now + AUTH_RESEND_COOLDOWN_SECONDS)
@@ -1613,6 +1719,7 @@ def resend_confirmation_code(body: dict[str, Any]) -> dict[str, Any]:
     next_allowed_at = now + AUTH_RESEND_COOLDOWN_SECONDS
     put_pending_signup_item(
         email=email,
+        locale=locale,
         username=get_string_attribute(item or {}, "username"),
         username_key=get_string_attribute(item or {}, "usernameKey"),
         code=code,
@@ -1624,7 +1731,7 @@ def resend_confirmation_code(body: dict[str, Any]) -> dict[str, Any]:
         updated_at=now,
         condition_now=now,
     )
-    send_pending_signup_confirmation_email(email, code)
+    send_pending_signup_confirmation_email(email, code, locale=locale)
 
     return build_confirmation_resend_response(next_allowed_at)
 
@@ -1690,6 +1797,7 @@ def put_pending_signup_item(
     created_at: int,
     email: str,
     expires_at: int,
+    locale: str,
     next_allowed_at: int,
     updated_at: int,
     username: str,
@@ -1706,6 +1814,7 @@ def put_pending_signup_item(
             "createdAt": {"N": str(created_at)},
             "email": {"S": email},
             "expiresAt": {"N": str(expires_at)},
+            "locale": {"S": normalize_auth_email_locale(locale)},
             "nextAllowedAt": {"N": str(next_allowed_at)},
             "status": {"S": "pending"},
             "updatedAt": {"N": str(updated_at)},
@@ -1867,13 +1976,18 @@ def delete_pending_username_reservation(username_key: str, email: str) -> None:
             raise
 
 
-def send_pending_signup_confirmation_email(email: str, code: str) -> None:
-    message = build_cognito_email_message("CustomEmailSender_SignUp", code)
+def send_pending_signup_confirmation_email(
+    email: str,
+    code: str,
+    *,
+    locale: str = AUTH_EMAIL_DEFAULT_LOCALE,
+) -> None:
+    message = build_cognito_email_message("CustomEmailSender_SignUp", code, locale=locale)
     send_resend_email(
-        html_body=message["html"],
         recipient=email,
         subject=message["subject"],
-        text_body=message["text"],
+        template_id=message["template_id"],
+        template_variables=message["variables"],
     )
 
 
@@ -2116,6 +2230,37 @@ def normalize_auth_email(email: str) -> str:
         raise ClientInputError("Email is not valid.")
 
     return normalized_email
+
+
+def get_auth_email_locale_from_body(
+    body: dict[str, Any],
+    *,
+    fallback: str = AUTH_EMAIL_DEFAULT_LOCALE,
+) -> str:
+    return normalize_auth_email_locale(get_optional_string(body, "locale") or fallback)
+
+
+def get_cognito_email_locale(event: dict[str, Any]) -> str:
+    request = event.get("request", {})
+    client_metadata = request.get("clientMetadata", {}) if isinstance(request, dict) else {}
+    locale = client_metadata.get("locale") if isinstance(client_metadata, dict) else None
+
+    return normalize_auth_email_locale(locale if isinstance(locale, str) else None)
+
+
+def get_pending_signup_locale(item: dict[str, Any] | None) -> str:
+    return normalize_auth_email_locale(get_string_attribute(item or {}, "locale"))
+
+
+def normalize_auth_email_locale(value: str | None) -> str:
+    locale = (value or "").strip().lower().replace("_", "-")
+    if locale == "en" or locale.startswith("en-"):
+        return "en"
+
+    if locale == "id" or locale.startswith("id-"):
+        return "id"
+
+    return AUTH_EMAIL_DEFAULT_LOCALE
 
 
 def create_auth_cooldown_key(scope: str, value: str) -> str:

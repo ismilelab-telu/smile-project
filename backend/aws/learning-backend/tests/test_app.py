@@ -1142,10 +1142,11 @@ class LearningBackendTest(unittest.TestCase):
         fake_cognito = FakeCognitoIdentityProviderClient()
         app._cognito_identity_provider_client = fake_cognito
 
-        result = request_password_reset({"email": "Student@Example.com"})
+        result = request_password_reset({"email": "Student@Example.com", "locale": "en"})
 
         self.assertEqual(result["CodeDeliveryDetails"]["DeliveryMedium"], "EMAIL")
         self.assertEqual(fake_cognito.calls[0]["ClientId"], "web-client")
+        self.assertEqual(fake_cognito.calls[0]["ClientMetadata"], {"locale": "en"})
         self.assertEqual(
             fake_cognito.calls[0]["SecretHash"],
             create_expected_cognito_secret_hash("student@example.com"),
@@ -1264,6 +1265,7 @@ class LearningBackendTest(unittest.TestCase):
         result = start_sign_up(
             {
                 "email": "Student@Example.com",
+                "locale": "en",
                 "name": "Student_One",
             },
             now=100,
@@ -1273,12 +1275,25 @@ class LearningBackendTest(unittest.TestCase):
         pending_item = fake_dynamodb.items[pending_key]
         self.assertEqual(pending_item["status"]["S"], "pending")
         self.assertEqual(pending_item["email"]["S"], "student@example.com")
+        self.assertEqual(pending_item["locale"]["S"], "en")
         self.assertEqual(pending_item["usernameKey"]["S"], "student_one")
         self.assertEqual(pending_item["expiresAt"]["N"], "400")
         self.assertNotEqual(pending_item["codeHash"]["S"], "123456")
         self.assertEqual(result["CodeDeliveryDetails"]["Destination"], "s***t@example.com")
         self.assertFalse(result["UserConfirmed"])
-        self.assertIn("123456", sent_messages[0]["text_body"])
+        self.assertEqual(sent_messages[0]["subject"], "Smile Lab verification code")
+        self.assertEqual(sent_messages[0]["template_id"], "smile-auth-code")
+        self.assertEqual(sent_messages[0]["template_variables"]["HEADLINE"], "ALMOST THERE")
+        self.assertEqual(sent_messages[0]["template_variables"]["CODE"], "123456")
+        self.assertEqual(
+            sent_messages[0]["template_variables"]["SECURITY_NOTE"],
+            "This code is only for your Smile Lab account. Do not share it with anyone.",
+        )
+        self.assertEqual(
+            sent_messages[0]["template_variables"]["IGNORE_NOTE"],
+            "This email was sent for account security. Ignore it if you did not request a code "
+            "from Smile Lab.",
+        )
 
     def test_start_sign_up_returns_generic_response_for_existing_email(self) -> None:
         app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
@@ -1719,7 +1734,7 @@ class LearningBackendTest(unittest.TestCase):
         self.assertEqual(pending_item["usernameKey"]["S"], "student_one")
         self.assertEqual(pending_item["username"]["S"], "Student_One")
         self.assertNotIn("student_two", fake_dynamodb.items)
-        self.assertIn("222222", sent_messages[-1]["text_body"])
+        self.assertEqual(sent_messages[-1]["template_variables"]["CODE"], "222222")
 
     def test_resend_confirmation_uses_pending_signup_and_enforces_cooldown(self) -> None:
         app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
@@ -1733,6 +1748,7 @@ class LearningBackendTest(unittest.TestCase):
         start_sign_up(
             {
                 "email": "student@example.com",
+                "locale": "en",
                 "name": "Student_One",
             },
             now=100,
@@ -1756,7 +1772,9 @@ class LearningBackendTest(unittest.TestCase):
             app.time.time = original_time
 
         self.assertEqual(result["nextAllowedAt"], 160)
-        self.assertIn("222222", sent_messages[-1]["text_body"])
+        self.assertEqual(sent_messages[-1]["subject"], "Smile Lab verification code")
+        self.assertEqual(sent_messages[-1]["template_variables"]["HEADLINE"], "ALMOST THERE")
+        self.assertEqual(sent_messages[-1]["template_variables"]["CODE"], "222222")
 
     def test_confirm_sign_up_rejects_code_after_custom_expiry(self) -> None:
         app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
@@ -1912,6 +1930,7 @@ class LearningBackendTest(unittest.TestCase):
         event = {
             "request": {
                 "code": "encrypted",
+                "clientMetadata": {"locale": "en"},
                 "userAttributes": {"email": "student@example.com"},
             },
             "triggerSource": "CustomEmailSender_SignUp",
@@ -1921,13 +1940,73 @@ class LearningBackendTest(unittest.TestCase):
 
         self.assertIs(result, event)
         self.assertEqual(sent_messages[0]["recipient"], "student@example.com")
-        self.assertIn("Kode verifikasi", sent_messages[0]["subject"])
-        self.assertIn("code-encrypted", sent_messages[0]["text_body"])
-        self.assertIn("spam atau junk", sent_messages[0]["text_body"])
+        self.assertEqual(sent_messages[0]["subject"], "Smile Lab verification code")
+        self.assertEqual(sent_messages[0]["template_id"], "smile-auth-code")
+        self.assertEqual(sent_messages[0]["template_variables"]["CODE"], "code-encrypted")
+        self.assertEqual(
+            sent_messages[0]["template_variables"]["SECURITY_NOTE"],
+            "This code is only for your Smile Lab account. Do not share it with anyone.",
+        )
+        self.assertNotIn("spam", sent_messages[0]["template_variables"]["SECURITY_NOTE"])
         expiry_key = app.create_auth_cooldown_key(
             "confirmation-code-expiry", "student@example.com"
         )
         self.assertIn(expiry_key, fake_dynamodb.items)
+
+    def test_auth_email_template_variables_escape_dynamic_code(self) -> None:
+        message = app.build_cognito_email_message(
+            "CustomEmailSender_ForgotPassword",
+            '12<345&"',
+        )
+
+        self.assertEqual(message["subject"], "Kode reset password Smile Lab")
+        self.assertEqual(message["template_id"], "smile-auth-code")
+        self.assertEqual(message["variables"]["CODE_LABEL"], "Kode reset password")
+        self.assertEqual(message["variables"]["CODE"], "12&lt;345&amp;&quot;")
+        self.assertEqual(message["variables"]["HEADLINE"], "RESET PASSWORD")
+
+    def test_send_resend_email_uses_template_payload_without_html_or_text(self) -> None:
+        captured_payload: dict[str, object] = {}
+        original_api_key = app.RESEND_API_KEY
+        original_urlopen = app.urllib.request.urlopen
+
+        class FakeUrlopenResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return b"{}"
+
+        def fake_urlopen(request, timeout):
+            captured_payload.update(json.loads(request.data.decode("utf-8")))
+            self.assertEqual(timeout, app.RESEND_REQUEST_TIMEOUT_SECONDS)
+            return FakeUrlopenResponse()
+
+        app.RESEND_API_KEY = "re_test"
+        app.urllib.request.urlopen = fake_urlopen
+        try:
+            app.send_resend_email(
+                html_body="<p>ignored</p>",
+                recipient="student@example.com",
+                subject="Kode verifikasi Smile Lab",
+                template_id="smile-auth-code",
+                template_variables={"CODE": "123456"},
+                text_body="ignored",
+            )
+        finally:
+            app.RESEND_API_KEY = original_api_key
+            app.urllib.request.urlopen = original_urlopen
+
+        self.assertEqual(captured_payload["to"], ["student@example.com"])
+        self.assertEqual(captured_payload["template"], {
+            "id": "smile-auth-code",
+            "variables": {"CODE": "123456"},
+        })
+        self.assertNotIn("html", captured_payload)
+        self.assertNotIn("text", captured_payload)
 
     def test_extracts_resend_api_key_from_plain_or_json_secret(self) -> None:
         self.assertEqual(app.extract_resend_api_key_from_secret("re_plain"), "re_plain")

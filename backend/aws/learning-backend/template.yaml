@@ -23,6 +23,10 @@ Parameters:
     Type: String
     Default: ""
     Description: Optional reply-to email address for Cognito auth emails.
+  ResendAuthTemplateId:
+    Type: String
+    Default: "smile-auth-code"
+    Description: Published Resend template ID or alias used for Cognito auth emails.
   AuthConfirmationCodePepper:
     Type: String
     NoEcho: true
@@ -243,6 +247,7 @@ Resources:
           RESEND_API_KEY_SECRET_ID: !Ref ResendApiKeySecretName
           RESEND_FROM_EMAIL: !Ref ResendFromEmail
           RESEND_REPLY_TO_EMAIL: !Ref ResendReplyToEmail
+          RESEND_AUTH_TEMPLATE_ID: !Ref ResendAuthTemplateId
           LEARNING_BACKEND_PROXY_SECRET: !Ref LearningBackendProxySecret
           LEARNING_BACKEND_REQUIRE_PROXY_SECRET: !Ref LearningBackendRequireProxySecret
       Policies:
@@ -317,6 +322,7 @@ Resources:
           RESEND_API_KEY_SECRET_ID: !Ref ResendApiKeySecretName
           RESEND_FROM_EMAIL: !Ref ResendFromEmail
           RESEND_REPLY_TO_EMAIL: !Ref ResendReplyToEmail
+          RESEND_AUTH_TEMPLATE_ID: !Ref ResendAuthTemplateId
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref AuthCooldownTable
