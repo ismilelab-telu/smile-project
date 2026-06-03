@@ -167,7 +167,6 @@ export function AuthPage({
   const resolvedSuccessHref = successHref ?? safeCloseHref;
   const safeSuccessHref = isAuthHref(resolvedSuccessHref) ? "/learn" : resolvedSuccessHref;
   const isConfirmingAuthStep = authSecondaryStep !== null;
-  const isPasswordResetStep = authSecondaryStep === "password-reset";
   const authStep = authSecondaryStep ?? "credentials";
   const dialogTitle = isConfirmingAuthStep
     ? getSecondaryAuthStepTitle(locale, authSecondaryStep)
@@ -327,11 +326,9 @@ export function AuthPage({
           aria-labelledby="auth-dialog-title"
           aria-modal="true"
           className={`relative grid w-full transform-gpu overflow-hidden border-2 border-neutral-950 bg-white text-foreground shadow-2xl outline-none ${
-            isPasswordResetStep
+            isConfirmingAuthStep
               ? "max-h-[min(760px,calc(100vh_-_2.5rem))] max-w-[30rem] md:max-h-[min(760px,calc(100vh_-_4rem))]"
-              : isConfirmingAuthStep
-                ? "h-[min(760px,calc(100vh_-_2.5rem))] max-w-[30rem] md:h-[min(760px,calc(100vh_-_4rem))]"
-                : "h-[min(720px,calc(100vh_-_2.5rem))] max-w-5xl md:h-[min(760px,calc(100vh_-_4rem))]"
+              : "h-[min(720px,calc(100vh_-_2.5rem))] max-w-5xl md:h-[min(760px,calc(100vh_-_4rem))]"
           }`}
           data-auth-mode={mode}
           data-auth-step={authStep}
@@ -368,13 +365,7 @@ export function AuthPage({
           ) : null}
           <LayoutGroup id="auth-form-layout">
             <motion.section
-              className={`relative z-10 grid ${
-                isConfirmingAuthStep
-                  ? isPasswordResetStep
-                    ? ""
-                    : "h-full"
-                  : "h-full lg:grid-cols-2"
-              }`}
+              className={`relative z-10 grid ${isConfirmingAuthStep ? "" : "h-full lg:grid-cols-2"}`}
               data-auth-layout="split"
               layout
               layoutDependency={authStep}
@@ -386,7 +377,6 @@ export function AuthPage({
                 }
                 mode={mode}
                 onAuthenticatedExit={exitAfterAuth}
-                onAuthenticated={onAuthenticated}
                 onConfirmingChange={setAuthSecondaryStep}
                 onModeChange={onModeChange}
                 successHref={safeSuccessHref}
@@ -529,7 +519,6 @@ function AuthFormPanel({
   className,
   mode,
   onAuthenticatedExit,
-  onAuthenticated,
   onConfirmingChange,
   onModeChange,
   successHref,
@@ -538,7 +527,6 @@ function AuthFormPanel({
   className: string;
   mode: AuthMode;
   onAuthenticatedExit: (href: string) => void;
-  onAuthenticated?: () => void;
   onConfirmingChange?: (step: AuthSecondaryStep | null) => void;
   onModeChange?: (mode: AuthMode) => void;
   successHref: string;
@@ -828,7 +816,7 @@ function AuthFormPanel({
 
         if (signUpResult.userConfirmed) {
           await auth.signIn({ identifier: normalizedEmail, method: "email", password });
-          redirectAfterAuth(successHref, onAuthenticated);
+          onAuthenticatedExit(successHref);
           return;
         }
 
@@ -858,7 +846,7 @@ function AuthFormPanel({
         method: isSubmittingUsername ? "username" : "email",
         password,
       });
-      redirectAfterAuth(successHref, onAuthenticated);
+      onAuthenticatedExit(successHref);
     } catch (error) {
       if (error instanceof CognitoAuthError && error.code === "UserNotConfirmedException") {
         if (isSubmittingUsername) {
@@ -1261,7 +1249,7 @@ function AuthFormPanel({
 
     return (
       <motion.div
-        className={`relative flex max-h-[min(760px,calc(100vh_-_2.5rem))] scroll-pb-10 flex-col overflow-y-auto bg-white px-6 pt-16 pb-8 text-foreground md:max-h-[min(760px,calc(100vh_-_4rem))] md:px-8 md:pt-20 md:pb-10 ${className}`}
+        className={`auth-scroll-surface relative flex max-h-[min(760px,calc(100vh_-_2.5rem))] scroll-pb-10 flex-col overflow-y-auto bg-white px-6 pt-16 pb-8 text-foreground md:max-h-[min(760px,calc(100vh_-_4rem))] md:px-8 md:pt-20 md:pb-10 ${className}`}
         data-auth-panel={mode}
         data-auth-step="password-reset"
         data-page-surface="auth-panel"
@@ -1434,14 +1422,14 @@ function AuthFormPanel({
   if (isConfirmingAccount) {
     return (
       <motion.div
-        className={`relative flex h-full min-h-0 flex-col overflow-y-auto bg-white px-6 pt-20 pb-28 text-foreground md:px-8 ${className}`}
+        className={`auth-scroll-surface relative flex max-h-[min(760px,calc(100vh_-_2.5rem))] scroll-pb-10 flex-col overflow-y-auto bg-white px-6 pt-16 pb-8 text-foreground md:max-h-[min(760px,calc(100vh_-_4rem))] md:px-8 md:pt-20 md:pb-10 ${className}`}
         data-auth-panel={mode}
         data-auth-step="confirmation"
         data-page-surface="auth-panel"
         layout="position"
         transition={authSharedLayoutTransition}
       >
-        <div className="flex min-h-0 flex-1 items-center justify-center">
+        <div className="flex min-h-0 flex-1 items-start justify-center">
           <div className="w-full max-w-[23rem] text-foreground">
             <motion.div
               className="space-y-3 text-left"

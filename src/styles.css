@@ -188,6 +188,15 @@
 }
 
 @layer components {
+  .auth-scroll-surface {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .auth-scroll-surface::-webkit-scrollbar {
+    display: none;
+  }
+
   .hero-explore-shine {
     animation: hero-button-shine 4.8s linear infinite;
     background: linear-gradient(
