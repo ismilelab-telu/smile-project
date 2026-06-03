@@ -285,23 +285,15 @@ export function AuthPage({
       data-auth-portal
       ref={portalContainerRef}
     >
-      <motion.button
+      <motion.div
         animate={isClosing ? authPortalBackdropHidden : authPortalBackdropVisible}
-        aria-label={locale === "en" ? "Close authentication" : "Tutup autentikasi"}
+        aria-hidden="true"
         className="fixed inset-0 cursor-default bg-white/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/65"
+        data-auth-backdrop
         initial={authPortalBackdropHidden}
-        onClick={closePortal}
         transition={authPortalBackdropTransition}
-        type="button"
       />
-      <div
-        className="relative z-10 flex min-h-full items-center justify-center py-5 md:py-8"
-        onClick={(event) => {
-          if (event.target === event.currentTarget) {
-            closePortal();
-          }
-        }}
-      >
+      <div className="relative z-10 flex min-h-full items-center justify-center py-5 md:py-8">
         <motion.main
           animate={isClosing ? authPortalPanelHidden : authPortalPanelVisible}
           aria-labelledby="auth-dialog-title"

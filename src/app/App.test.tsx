@@ -1036,6 +1036,26 @@ describe("App", () => {
     expect(screen.queryByLabelText("Upload ZIP dataset")).not.toBeInTheDocument();
   });
 
+  it("keeps the auth modal open when the backdrop is clicked", async () => {
+    window.localStorage.setItem(localizationStorageKey, "en");
+    window.history.pushState(null, "", "/login");
+
+    render(<App />);
+
+    const dialog = await screen.findByRole(
+      "dialog",
+      { name: "Sign in to your account" },
+      lazyRouteTimeout,
+    );
+    const backdrop = document.querySelector<HTMLElement>("[data-auth-backdrop]");
+
+    expect(backdrop).not.toBeNull();
+    fireEvent.click(backdrop as HTMLElement);
+
+    expect(dialog).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/login");
+  });
+
   it("opens lesson 1.3 after data collecting is complete for signed-in users", async () => {
     const submittedUrl =
       "https://www.kaggle.com/datasets/denkuznetz/food-delivery-time-prediction/data";
