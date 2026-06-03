@@ -26,13 +26,13 @@ For the full frontend/backend authentication architecture, flows, API contracts,
 
 The backend does not execute submitted learner code with `exec` or `eval`. It compiles the submitted Python to get real syntax errors, extracts the allowed `pd.read_csv(...)` path from the AST, then runs Pandas from trusted backend code and returns the real dataframe output or Python/Pandas runtime error.
 
-Dataset upload, inspection, validation, and progress endpoints require `Authorization: Bearer <Cognito token>`.
+Dataset upload, inspection, validation, and progress endpoints require `Authorization: Bearer <Cognito access token>`.
 
 Usernames are reserved while a backend-owned sign-up is pending, then marked confirmed only after the backend verifies the code and creates the Cognito user. Pending reservations are not accepted for username sign-in. Username sign-in sends the username and password to the backend; the backend resolves the account email internally, calls Cognito, returns only access/ID tokens, sets the refresh token in a signed HttpOnly cookie, and never returns the resolved email. Unknown usernames take a deterministic dummy Cognito auth path before returning the same generic sign-in failure.
 
 The Cognito app client is confidential (`GenerateSecret: true`). Browser code does not call Cognito directly for password sign-in, username sign-in, password reset, or refresh. The backend owns those calls, sends Cognito `SECRET_HASH`, and uses `AdminInitiateAuth` for password and refresh-token auth. Do not re-enable public `USER_PASSWORD_AUTH` or `USER_SRP_AUTH` on the app client.
 
-Session refresh requests send the Cognito `sub` and rely on the signed HttpOnly refresh-session cookie for the refresh token; they do not send account email. Refresh cooldowns are keyed by request source and `userSub`. A reload uses `/auth/session/bootstrap` to restore the in-memory access/ID token session from that cookie.
+Session refresh and revoke requests rely on the signed HttpOnly refresh-session cookie as the only refresh-token source. Refresh requests may include the Cognito `sub` for proxy rate limiting, but the Lambda derives the authoritative refresh token and user `sub` from the signed cookie; requests do not send account email or JSON refresh tokens. A reload uses `/auth/session/bootstrap` to restore the in-memory access/ID token session from that cookie.
 
 Frontend, backend validation, and Cognito policy require passwords to be at least 12 characters and include lowercase, uppercase, number, and symbol.
 

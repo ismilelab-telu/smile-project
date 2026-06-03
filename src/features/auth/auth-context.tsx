@@ -47,7 +47,7 @@ type AuthContextValue = {
   }>;
   session: AuthSession | null;
   signIn: (input: SignInInput) => Promise<AuthSession>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
   signUp: (input: { email: string; name: string }) => Promise<{
     cooldownSeconds?: number;
     destination?: string;
@@ -204,14 +204,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return resendConfirmationCodeWithCognito(email);
   }, []);
 
-  const signOut = useCallback(() => {
+  const signOut = useCallback(async () => {
     const storedSession = getStoredAuthSession({ includeExpired: true });
     invalidateStoredAuthSessionRefresh();
+
+    if (storedSession) {
+      await revokeSession();
+    }
+
     clearAuthSession();
     setSession(null);
-    if (storedSession) {
-      void revokeSession(storedSession.refreshToken);
-    }
   }, []);
 
   const value = useMemo<AuthContextValue>(

@@ -883,19 +883,11 @@ def decode_refresh_session_payload(encoded_payload: str) -> dict[str, Any]:
 
 
 def get_refresh_session_from_request(
-    body: dict[str, Any],
+    _body: dict[str, Any],
     event: dict[str, Any] | None = None,
 ) -> dict[str, str]:
-    body_refresh_token = get_optional_string(body, "refreshToken") or ""
-    body_user_sub = get_optional_string(body, "userSub") or ""
-    if body_refresh_token and body_user_sub:
-        return {
-            "refreshToken": body_refresh_token,
-            "userSub": body_user_sub,
-        }
-
     if event is None:
-        raise ClientInputError("Refresh session is missing.")
+        raise AuthenticationError("Sign in before refreshing this session.")
 
     cookie_value = get_request_cookie(event, AUTH_REFRESH_SESSION_COOKIE_NAME)
     refresh_session = parse_signed_refresh_session_value(cookie_value) if cookie_value else {}
@@ -992,15 +984,11 @@ def verify_cognito_token(token: str) -> dict[str, Any]:
     except (InvalidTokenError, PyJWKClientError) as error:
         raise AuthenticationError("Auth token is invalid or expired.") from error
 
-    token_use = claims.get("token_use")
-    if token_use == "id":
-        if claims.get("aud") != COGNITO_CLIENT_ID:
-            raise AuthenticationError("Auth token is not for this app.")
-    elif token_use == "access":
-        if claims.get("client_id") != COGNITO_CLIENT_ID:
-            raise AuthenticationError("Auth token is not for this app.")
-    else:
+    if claims.get("token_use") != "access":
         raise AuthenticationError("Auth token type is not supported.")
+
+    if claims.get("client_id") != COGNITO_CLIENT_ID:
+        raise AuthenticationError("Auth token is not for this app.")
 
     subject = claims.get("sub")
     if not isinstance(subject, str) or not subject:
@@ -1424,11 +1412,15 @@ def revoke_cognito_session(
     body: dict[str, Any],
     event: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    refresh_token = get_optional_string(body, "refreshToken") or ""
-    if not refresh_token and event is not None:
-        refresh_token = get_refresh_session_from_request({}, event)["refreshToken"]
+    refresh_token = ""
+    if event is not None:
+        try:
+            refresh_token = get_refresh_session_from_request(body, event)["refreshToken"]
+        except AuthenticationError:
+            return {"ok": True}
+
     if not refresh_token:
-        raise ClientInputError("Refresh token is required.")
+        return {"ok": True}
 
     client_id = require_cognito_client_id()
     client_secret = require_cognito_client_secret()

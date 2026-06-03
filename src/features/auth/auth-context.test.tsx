@@ -1,10 +1,12 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthProvider, useAuth } from "./auth-context";
 import {
   authStorageKey,
   clearAuthSession,
+  getStoredAuthSession,
   storeAuthSession,
   type AuthSession,
 } from "./auth-session";
@@ -45,13 +47,19 @@ function createSession(partial: Partial<AuthSession> = {}): AuthSession {
 
 function AuthProbe() {
   const auth = useAuth();
+  const [signOutError, setSignOutError] = useState("");
+
+  const handleSignOut = () => {
+    void auth.signOut().catch(() => setSignOutError("sign-out failed"));
+  };
 
   return (
     <>
       <output data-ready={auth.isReady} data-token={auth.session?.idToken ?? ""} role="status">
         {auth.isAuthenticated ? "authenticated" : "signed-out"}
       </output>
-      <button onClick={auth.signOut} type="button">
+      {signOutError ? <p role="alert">{signOutError}</p> : null}
+      <button onClick={handleSignOut} type="button">
         Sign out
       </button>
     </>
@@ -251,5 +259,36 @@ describe("AuthProvider token lifecycle", () => {
       expect.stringContaining("/auth/session/revoke"),
       expect.anything(),
     );
+    const revokeCall = fetch.mock.calls.find((call) =>
+      String(call[0]).endsWith("/auth/session/revoke"),
+    );
+    expect(JSON.parse(String(revokeCall?.[1]?.body))).toEqual({});
+  });
+
+  it("keeps the visible session when refresh cookie revocation fails", async () => {
+    storeAuthSession(createSession());
+
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ message: "Session revoke failed." }), { status: 503 }),
+      );
+    vi.stubGlobal("fetch", fetch);
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveAttribute("data-ready", "true");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("sign-out failed");
+    expect(screen.getByRole("status")).toHaveTextContent("authenticated");
+    expect(getStoredAuthSession({ includeExpired: true })?.accessToken).toBe("access-token");
   });
 });

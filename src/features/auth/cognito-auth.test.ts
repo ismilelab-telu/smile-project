@@ -6,6 +6,7 @@ import {
   confirmSignUpWithCognito,
   requestPasswordResetWithCognito,
   refreshCognitoSession,
+  revokeSession,
   signInWithCognito,
   signInWithUsername,
   signUpWithCognito,
@@ -259,7 +260,7 @@ describe("session refresh", () => {
       accessToken: "access-token",
       expiresAt: Date.now() - 1000,
       idToken: "expired-id-token",
-      refreshToken: "",
+      refreshToken: "legacy-refresh-token",
       user: {
         email: "student@example.com",
         initials: "SO",
@@ -277,6 +278,38 @@ describe("session refresh", () => {
     expect(fetch.mock.calls[0]?.[1]?.credentials).toBe("same-origin");
     expect(session.idToken).toBe(refreshedIdToken);
     expect(session.refreshToken).toBe("");
+  });
+
+  it("revokes through the backend refresh cookie without sending refresh tokens in JSON", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    vi.stubGlobal("fetch", fetch);
+
+    await revokeSession();
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(String(fetch.mock.calls[0]?.[0])).toContain("/auth/session/revoke");
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual({});
+    expect(fetch.mock.calls[0]?.[1]?.credentials).toBe("same-origin");
+  });
+
+  it("surfaces failed refresh-cookie revocation to callers", async () => {
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: "SessionRevokeFailed",
+          message: "Session revoke failed.",
+        }),
+        { status: 503 },
+      ),
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(revokeSession()).rejects.toMatchObject({
+      code: "SessionRevokeFailed",
+      message: "Session revoke failed.",
+    });
   });
 
   it("bootstraps a session from the backend refresh cookie", async () => {

@@ -315,11 +315,11 @@ describe("learning backend proxy", () => {
     const createRequest = (source: string) =>
       new Request("https://smile.test/api/learning-backend/auth/session/refresh", {
         body: JSON.stringify({
-          refreshToken: "refresh-token",
           userSub: "student-sub",
         }),
         headers: {
           "cf-connecting-ip": source,
+          cookie: "__Host-smile-refresh-session=session-cookie",
           "content-type": "application/json",
         },
         method: "POST",
@@ -355,11 +355,10 @@ describe("learning backend proxy", () => {
 
     const createRequest = () =>
       new Request("https://smile.test/api/learning-backend/auth/session/revoke", {
-        body: JSON.stringify({
-          refreshToken: "refresh-token",
-        }),
+        body: JSON.stringify({}),
         headers: {
           "cf-connecting-ip": "203.0.113.20",
+          cookie: "__Host-smile-refresh-session=session-cookie",
           "content-type": "application/json",
         },
         method: "POST",
@@ -395,11 +394,10 @@ describe("learning backend proxy", () => {
 
     const createRequest = () =>
       new Request("https://smile.test/api/learning-backend/auth/session/revoke", {
-        body: JSON.stringify({
-          refreshToken: "refresh-token",
-        }),
+        body: JSON.stringify({}),
         headers: {
           "cf-connecting-ip": "203.0.113.20",
+          cookie: "__Host-smile-refresh-session=session-cookie",
           "content-type": "application/json",
         },
         method: "POST",
@@ -482,7 +480,7 @@ describe("learning backend proxy", () => {
       },
       params: { path: ["auth", "session", "destroy"] },
       request: new Request("https://smile.test/api/learning-backend/auth/session/destroy", {
-        body: JSON.stringify({ refreshToken: "refresh-token" }),
+        body: JSON.stringify({}),
         method: "POST",
       }),
     });

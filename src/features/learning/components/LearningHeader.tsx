@@ -63,7 +63,9 @@ function LearningMenu() {
   const enterEndTimeRef = useRef(0);
   const [isOpen, setIsOpen] = useState(false);
   const [isLanguageSelectorOpen, setIsLanguageSelectorOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [languageSelectorWidth, setLanguageSelectorWidth] = useState<number | null>(null);
+  const [signOutError, setSignOutError] = useState("");
 
   const { contextSafe } = useGSAP(
     () => {
@@ -294,9 +296,26 @@ function LearningMenu() {
     timeline.timeScale(1).play();
   });
 
-  const handleSignOut = () => {
-    signOut();
-    setMenuOpen(false);
+  const handleSignOut = async () => {
+    if (isSigningOut) {
+      return;
+    }
+
+    setSignOutError("");
+    setIsSigningOut(true);
+
+    try {
+      await signOut();
+      setMenuOpen(false);
+    } catch {
+      setSignOutError(
+        locale === "en"
+          ? "Could not sign out. Check your connection and try again."
+          : "Belum bisa keluar. Cek koneksi, lalu coba lagi.",
+      );
+    } finally {
+      setIsSigningOut(false);
+    }
   };
 
   useEffect(() => {
@@ -392,9 +411,19 @@ function LearningMenu() {
                 <p className="truncate font-mono text-xs font-semibold text-neutral-500">
                   {session.user.email}
                 </p>
+                {signOutError ? (
+                  <p
+                    className="mt-2 max-w-sm text-xs leading-5 font-semibold text-rose-700"
+                    role="alert"
+                  >
+                    {signOutError}
+                  </p>
+                ) : null}
               </div>
               <button
-                className="ml-auto inline-flex size-11 cursor-pointer items-center justify-center border border-neutral-300 bg-white text-neutral-950 transition-colors hover:border-rose-500 hover:text-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400"
+                aria-label={locale === "en" ? "Sign out" : "Keluar"}
+                className="ml-auto inline-flex size-11 cursor-pointer items-center justify-center border border-neutral-300 bg-white text-neutral-950 transition-colors hover:border-rose-500 hover:text-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 disabled:cursor-not-allowed disabled:border-neutral-200 disabled:text-neutral-400"
+                disabled={isSigningOut}
                 onClick={handleSignOut}
                 title={locale === "en" ? "Sign out" : "Keluar"}
                 type="button"

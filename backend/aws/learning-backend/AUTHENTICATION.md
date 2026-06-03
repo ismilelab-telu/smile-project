@@ -367,7 +367,7 @@ Storage behavior:
 - Storage key: `smile-auth-session` exists only for legacy cleanup.
 - `storeAuthSession()` keeps the full `AuthSession` in module memory and removes any `smile-auth-session` value from `window.sessionStorage` and `window.localStorage`.
 - No `idToken`, `accessToken`, or `refreshToken` is persisted to browser storage.
-- Normal sign-in responses set a signed `__Host-smile-refresh-session` HttpOnly cookie and omit `RefreshToken` from the JSON response; `AuthSession.refreshToken` is kept only for legacy body-based refresh compatibility and is normally an empty string.
+- Normal sign-in responses set a signed `__Host-smile-refresh-session` HttpOnly cookie and omit `RefreshToken` from the JSON response. `AuthSession.refreshToken` remains only as a legacy type field and is always empty for current browser sessions.
 - Legacy token-bearing storage, malformed storage, and tokenless session snapshots are cleared instead of hydrated.
 - `clearAuthSession()` removes current/legacy storage keys and clears the in-memory session.
 
@@ -400,7 +400,7 @@ Refresh request:
 }
 ```
 
-Frontend sends this to `{VITE_LEARNING_BACKEND_URL}/auth/session/refresh` with `credentials: "same-origin"` so the HttpOnly refresh-session cookie is included. The refresh request intentionally does not send email; the proxy and Lambda rate-limit refresh by request source and `userSub`, because `userSub` is the Cognito identity used for the refresh `SECRET_HASH`. The backend calls Cognito `AdminInitiateAuth` with `REFRESH_TOKEN_AUTH` and backend-generated `SECRET_HASH`. For refresh-token auth on this email-as-username user pool, Cognito verifies the secret hash against the user `sub`/internal username rather than the sign-in email. Cognito may omit a new refresh token during refresh, so the backend keeps the existing refresh-session cookie unless Cognito returns a new refresh token.
+Frontend sends this to `{VITE_LEARNING_BACKEND_URL}/auth/session/refresh` with `credentials: "same-origin"` so the HttpOnly refresh-session cookie is included. The request body never contains a refresh token. The frontend sends `userSub` only for proxy-side refresh rate limiting; the Lambda derives the authoritative refresh token and user `sub` from the signed cookie. The refresh request intentionally does not send email. The backend calls Cognito `AdminInitiateAuth` with `REFRESH_TOKEN_AUTH` and backend-generated `SECRET_HASH`. For refresh-token auth on this email-as-username user pool, Cognito verifies the secret hash against the user `sub`/internal username rather than the sign-in email. Cognito may omit a new refresh token during refresh, so the backend keeps the existing refresh-session cookie unless Cognito returns a new refresh token.
 
 ## Learning Backend Authorization
 
@@ -433,13 +433,12 @@ The proxy forwards only `authorization`, `content-type`, the proxy-derived sourc
 
 The proxy reads only Cloudflare's `cf-connecting-ip` header as the browser source. Browser-supplied `x-real-ip` and `x-forwarded-for` values are ignored; the `x-forwarded-for` value sent to Lambda is generated from the trusted Cloudflare source, or `unknown` when Cloudflare did not provide one. The Lambda also trusts only `cf-connecting-ip`, and only when `LEARNING_BACKEND_PROXY_SECRET` is configured and the proxy secret header matches. If that trusted source is unavailable, Lambda falls back to the Function URL `requestContext.http.sourceIp`. In production, `LEARNING_BACKEND_REQUIRE_PROXY_SECRET=true` makes every non-health HTTP route return `403` unless that shared secret is present, so direct Lambda Function URL callers cannot bypass Cloudflare rate limits or spoof the auth cooldown source.
 
-The backend verifier accepts both Cognito ID tokens and access tokens:
+The backend verifier accepts Cognito access tokens only:
 
 - JWT is verified with PyJWT and the Cognito JWKS URL for the configured issuer.
 - `iss` must match `https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}`.
-- For ID tokens, `aud` must equal `COGNITO_CLIENT_ID`.
-- For access tokens, `client_id` must equal `COGNITO_CLIENT_ID`.
-- `token_use` must be `id` or `access`.
+- `client_id` must equal `COGNITO_CLIENT_ID`.
+- `token_use` must be `access`.
 - `sub` must be present and non-empty.
 
 The backend returns the authenticated user as:
@@ -808,7 +807,7 @@ Frontend auth-related tests:
 Backend auth-related tests in `backend/aws/learning-backend/tests/test_app.py` cover:
 
 - Rejecting guest session/body for dataset tools.
-- Cognito JWT verifier accepting configured ID tokens and rejecting wrong audiences.
+- Cognito JWT verifier accepting configured access tokens while rejecting ID tokens and wrong client IDs.
 - Username reservation pending and confirmed states.
 - Duplicate username rejection.
 - Deprecated username resolution not returning email.
@@ -850,7 +849,7 @@ Use direct `vp` commands for frontend checks. The Python/SAM commands apply to t
 
 - `getAuthAuthorizationHeader()` in `auth-session.ts` returns a bearer access token but is currently unused. Current learning backend clients call `getFreshStoredAuthSession()` instead.
 - `reserve_confirmation_resend()` and `assert_confirmation_code_is_active()` in backend code are tested helpers but are not the main HTTP pending-sign-up flow. The HTTP flow uses the pending sign-up item's `nextAllowedAt`, `expiresAt`, and `attempts`.
-- Frontend sends `accessToken` to the learning backend. Backend still accepts both ID and access tokens, but downstream code should not assume access tokens include ID-token-only display claims.
+- Frontend sends `accessToken` to the learning backend, and backend authorization accepts Cognito access tokens only. Downstream code should not depend on ID-token-only display claims.
 - `AuthProvider` may hold an expired session during startup until refresh/check completes. Use `isReady` when route behavior depends on knowing auth state.
 - A session can be restored after reload only through the signed HttpOnly refresh-session cookie; Cognito bearer tokens remain memory-only.
 - Refresh tokens expire after 7 days. The browser JavaScript runtime does not receive the refresh token in normal sign-in or refresh responses.

@@ -39,16 +39,13 @@ export function createAuthSession({
   authResult,
   fallbackEmail,
   fallbackName,
-  previousRefreshToken = "",
 }: {
   authResult: CognitoAuthResult;
   fallbackEmail?: string;
   fallbackName?: string;
-  previousRefreshToken?: string;
 }): AuthSession {
   const idToken = authResult.IdToken ?? "";
   const accessToken = authResult.AccessToken ?? "";
-  const refreshToken = authResult.RefreshToken ?? previousRefreshToken;
 
   if (!idToken || !accessToken) {
     throw new Error("Cognito did not return a complete auth session.");
@@ -65,7 +62,7 @@ export function createAuthSession({
     accessToken,
     expiresAt,
     idToken,
-    refreshToken,
+    refreshToken: "",
     user: {
       email,
       initials: createInitials(name || email),

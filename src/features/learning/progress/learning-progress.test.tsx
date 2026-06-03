@@ -47,7 +47,7 @@ function ProgressProbe() {
   return (
     <>
       <output role="status">{progress.completedLessonIds.join(",")}</output>
-      <button onClick={auth.signOut} type="button">
+      <button onClick={() => void auth.signOut()} type="button">
         Sign out
       </button>
     </>

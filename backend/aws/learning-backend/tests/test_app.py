@@ -640,16 +640,16 @@ class LearningBackendTest(unittest.TestCase):
         with self.assertRaises(AuthenticationError):
             require_learning_backend_user({"headers": {}}, {"guestId": "guest_12345678"})
 
-    def test_verify_cognito_token_accepts_id_token_for_configured_client(self) -> None:
+    def test_verify_cognito_token_accepts_access_token_for_configured_client(self) -> None:
         app.COGNITO_CLIENT_ID = "web-client"
         app.COGNITO_REGION = "ap-southeast-1"
         app.COGNITO_USER_POOL_ID = "user-pool"
         fake_jwt = FakeJwtModule(
             {
-                "aud": "web-client",
+                "client_id": "web-client",
                 "email": "student@example.com",
                 "sub": "student-1",
-                "token_use": "id",
+                "token_use": "access",
             }
         )
         app.jwt = fake_jwt
@@ -662,16 +662,34 @@ class LearningBackendTest(unittest.TestCase):
         self.assertEqual(fake_jwt.calls[0]["issuer"], app.get_cognito_issuer())
         self.assertEqual(fake_jwt.calls[0]["options"], {"verify_aud": False})
 
-    def test_verify_cognito_token_rejects_wrong_audience(self) -> None:
+    def test_verify_cognito_token_rejects_id_token_for_backend_api(self) -> None:
         app.COGNITO_CLIENT_ID = "web-client"
         app.COGNITO_REGION = "ap-southeast-1"
         app.COGNITO_USER_POOL_ID = "user-pool"
         app.jwt = FakeJwtModule(
             {
-                "aud": "other-client",
+                "aud": "web-client",
                 "email": "student@example.com",
                 "sub": "student-1",
                 "token_use": "id",
+            }
+        )
+        app.PyJWKClient = object
+        app._jwks_client = FakeJwksClient()
+
+        with self.assertRaises(AuthenticationError):
+            app.verify_cognito_token("jwt-token")
+
+    def test_verify_cognito_token_rejects_wrong_client_id(self) -> None:
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_REGION = "ap-southeast-1"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        app.jwt = FakeJwtModule(
+            {
+                "client_id": "other-client",
+                "email": "student@example.com",
+                "sub": "student-1",
+                "token_use": "access",
             }
         )
         app.PyJWKClient = object
@@ -875,12 +893,19 @@ class LearningBackendTest(unittest.TestCase):
         app.COGNITO_USER_POOL_ID = "user-pool"
         fake_cognito = FakeCognitoIdentityProviderClient()
         app._cognito_identity_provider_client = fake_cognito
-
-        result = refresh_cognito_session(
+        cookie_value = app.create_signed_refresh_session_value(
             {
                 "refreshToken": "refresh-token",
                 "userSub": "student-sub",
             }
+        )
+
+        result = refresh_cognito_session(
+            {
+                "refreshToken": "body-refresh-token",
+                "userSub": "body-student-sub",
+            },
+            {"headers": {"cookie": f"__Host-smile-refresh-session={cookie_value}"}},
         )
 
         self.assertEqual(result["authenticationResult"]["IdToken"], "id-token")
@@ -892,6 +917,27 @@ class LearningBackendTest(unittest.TestCase):
         )
         self.assertEqual(fake_cognito.calls[0]["ClientId"], "web-client")
         self.assertEqual(fake_cognito.calls[0]["UserPoolId"], "user-pool")
+
+    def test_session_refresh_rejects_json_refresh_token_without_cookie(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        app._cognito_identity_provider_client = fake_cognito
+        app._dynamodb_client = FakeDynamoDbClient()
+
+        result = app.lambda_handler(
+            {
+                "body": '{"refreshToken":"body-refresh-token","userSub":"student-sub"}',
+                "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.10"}},
+                "rawPath": "/auth/session/refresh",
+            },
+            None,
+        )
+
+        self.assertEqual(result["statusCode"], 401)
+        self.assertEqual(fake_cognito.calls, [])
 
     def test_session_bootstrap_refreshes_from_http_only_cookie(self) -> None:
         app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
@@ -936,18 +982,22 @@ class LearningBackendTest(unittest.TestCase):
         fake_cognito = FakeCognitoIdentityProviderClient()
         app._cognito_identity_provider_client = fake_cognito
         app._dynamodb_client = FakeDynamoDbClient()
+        cookie_value = app.create_signed_refresh_session_value(
+            {
+                "refreshToken": "refresh-token",
+                "userSub": "student-sub",
+            }
+        )
 
         first_event = {
-            "body": (
-                '{"refreshToken":"refresh-token","userSub":"student-sub"}'
-            ),
+            "body": "{}",
+            "headers": {"cookie": f"__Host-smile-refresh-session={cookie_value}"},
             "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.10"}},
             "rawPath": "/auth/session/refresh",
         }
         second_event = {
-            "body": (
-                '{"refreshToken":"refresh-token","userSub":"student-sub"}'
-            ),
+            "body": "{}",
+            "headers": {"cookie": f"__Host-smile-refresh-session={cookie_value}"},
             "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.11"}},
             "rawPath": "/auth/session/refresh",
         }
@@ -966,9 +1016,16 @@ class LearningBackendTest(unittest.TestCase):
         fake_cognito = FakeCognitoIdentityProviderClient()
         app._cognito_identity_provider_client = fake_cognito
         app._dynamodb_client = FakeDynamoDbClient()
+        cookie_value = app.create_signed_refresh_session_value(
+            {
+                "refreshToken": "refresh-token",
+                "userSub": "student-sub",
+            }
+        )
 
         event = {
-            "body": '{"refreshToken":"refresh-token"}',
+            "body": "{}",
+            "headers": {"cookie": f"__Host-smile-refresh-session={cookie_value}"},
             "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.10"}},
             "rawPath": "/auth/session/revoke",
         }
@@ -981,6 +1038,28 @@ class LearningBackendTest(unittest.TestCase):
         self.assertEqual(len(fake_cognito.calls), 2)
         self.assertEqual(fake_cognito.calls[0]["Token"], "refresh-token")
         self.assertEqual(fake_cognito.calls[1]["Token"], "refresh-token")
+
+    def test_session_revoke_without_cookie_is_idempotent_and_clears_cookie(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        app._cognito_identity_provider_client = fake_cognito
+        app._dynamodb_client = FakeDynamoDbClient()
+
+        result = app.lambda_handler(
+            {
+                "body": '{"refreshToken":"body-refresh-token"}',
+                "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.10"}},
+                "rawPath": "/auth/session/revoke",
+            },
+            None,
+        )
+
+        self.assertEqual(result["statusCode"], 200)
+        self.assertEqual(fake_cognito.calls, [])
+        self.assertIn("__Host-smile-refresh-session=", result["cookies"][0])
+        self.assertIn("Max-Age=0", result["cookies"][0])
 
     def test_session_revoke_uses_cookie_and_clears_refresh_cookie(self) -> None:
         app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
@@ -1020,9 +1099,16 @@ class LearningBackendTest(unittest.TestCase):
         fake_cognito = FakeCognitoIdentityProviderClient()
         app._cognito_identity_provider_client = fake_cognito
         app._dynamodb_client = FakeDynamoDbClient()
+        cookie_value = app.create_signed_refresh_session_value(
+            {
+                "refreshToken": "refresh-token",
+                "userSub": "student-sub",
+            }
+        )
 
         event = {
-            "body": '{"refreshToken":"refresh-token"}',
+            "body": "{}",
+            "headers": {"cookie": f"__Host-smile-refresh-session={cookie_value}"},
             "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.10"}},
             "rawPath": "/auth/session/revoke",
         }

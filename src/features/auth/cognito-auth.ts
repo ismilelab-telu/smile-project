@@ -275,7 +275,6 @@ export async function bootstrapCognitoSession() {
 
 export async function refreshCognitoSession(session: AuthSession) {
   const body = {
-    ...(session.refreshToken ? { refreshToken: session.refreshToken } : {}),
     userSub: session.user.sub,
   };
   const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/session/refresh`, {
@@ -304,22 +303,26 @@ export async function refreshCognitoSession(session: AuthSession) {
     authResult: responseBody.authenticationResult,
     fallbackEmail: session.user.email,
     fallbackName: session.user.name,
-    previousRefreshToken: session.refreshToken,
   });
 }
 
-export async function revokeSession(refreshToken = "") {
-  try {
-    await fetch(`${requireLearningBackendAuthUrl()}/auth/session/revoke`, {
-      body: JSON.stringify(refreshToken ? { refreshToken } : {}),
-      credentials: "same-origin",
-      headers: {
-        "content-type": "application/json",
-      },
-      method: "POST",
+export async function revokeSession() {
+  const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/session/revoke`, {
+    body: JSON.stringify({}),
+    credentials: "same-origin",
+    headers: {
+      "content-type": "application/json",
+    },
+    method: "POST",
+  });
+  const responseBody = (await response.json().catch(() => ({}))) as LearningBackendAuthResponse;
+
+  if (!response.ok) {
+    const code = responseBody.code ?? "CognitoError";
+    throw new CognitoAuthError(code, responseBody.message ?? getFallbackCognitoErrorMessage(code), {
+      nextAllowedAt: responseBody.nextAllowedAt,
+      retryAfterSeconds: responseBody.retryAfterSeconds,
     });
-  } catch {
-    // Best-effort revocation — local session is already cleared regardless.
   }
 }
 
