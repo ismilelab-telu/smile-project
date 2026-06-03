@@ -49,6 +49,7 @@ export class CognitoAuthError extends Error {
 export async function signUpWithCognito({ email, name }: { email: string; name: string }) {
   const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/sign-up/start`, {
     body: JSON.stringify({ email, name }),
+    credentials: "same-origin",
     headers: {
       "content-type": "application/json",
     },
@@ -79,6 +80,7 @@ export async function confirmSignUpWithCognito({
 }) {
   const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/confirmation/confirm`, {
     body: JSON.stringify({ code, email, password }),
+    credentials: "same-origin",
     headers: {
       "content-type": "application/json",
     },
@@ -102,6 +104,7 @@ export async function confirmSignUpWithCognito({
 export async function resendConfirmationCodeWithCognito(email: string) {
   const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/confirmation/resend`, {
     body: JSON.stringify({ email }),
+    credentials: "same-origin",
     headers: {
       "content-type": "application/json",
     },
@@ -126,6 +129,7 @@ export async function resendConfirmationCodeWithCognito(email: string) {
 export async function requestPasswordResetWithCognito(email: string) {
   const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/password-reset/request`, {
     body: JSON.stringify({ email }),
+    credentials: "same-origin",
     headers: {
       "content-type": "application/json",
     },
@@ -156,6 +160,7 @@ export async function confirmPasswordResetWithCognito({
 }) {
   const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/password-reset/confirm`, {
     body: JSON.stringify({ code, email, password }),
+    credentials: "same-origin",
     headers: {
       "content-type": "application/json",
     },
@@ -179,6 +184,7 @@ export async function confirmPasswordResetWithCognito({
 export async function signInWithCognito({ email, password }: { email: string; password: string }) {
   const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/email/sign-in`, {
     body: JSON.stringify({ email, password }),
+    credentials: "same-origin",
     headers: {
       "content-type": "application/json",
     },
@@ -213,6 +219,7 @@ export async function signInWithUsername({
 }) {
   const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/username/sign-in`, {
     body: JSON.stringify({ password, username }),
+    credentials: "same-origin",
     headers: {
       "content-type": "application/json",
     },
@@ -238,12 +245,42 @@ export async function signInWithUsername({
   });
 }
 
+export async function bootstrapCognitoSession() {
+  const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/session/bootstrap`, {
+    body: JSON.stringify({}),
+    credentials: "same-origin",
+    headers: {
+      "content-type": "application/json",
+    },
+    method: "POST",
+  });
+  const responseBody = (await response.json().catch(() => ({}))) as LearningBackendAuthResponse;
+
+  if (!response.ok) {
+    const code = responseBody.code ?? "CognitoError";
+    throw new CognitoAuthError(code, responseBody.message ?? getFallbackCognitoErrorMessage(code), {
+      nextAllowedAt: responseBody.nextAllowedAt,
+      retryAfterSeconds: responseBody.retryAfterSeconds,
+    });
+  }
+
+  if (!responseBody.authenticationResult) {
+    throw new CognitoAuthError("CognitoError", "Backend did not return a complete auth session.");
+  }
+
+  return createAuthSession({
+    authResult: responseBody.authenticationResult,
+  });
+}
+
 export async function refreshCognitoSession(session: AuthSession) {
+  const body = {
+    ...(session.refreshToken ? { refreshToken: session.refreshToken } : {}),
+    userSub: session.user.sub,
+  };
   const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/session/refresh`, {
-    body: JSON.stringify({
-      refreshToken: session.refreshToken,
-      userSub: session.user.sub,
-    }),
+    body: JSON.stringify(body),
+    credentials: "same-origin",
     headers: {
       "content-type": "application/json",
     },
@@ -271,10 +308,11 @@ export async function refreshCognitoSession(session: AuthSession) {
   });
 }
 
-export async function revokeSession(refreshToken: string) {
+export async function revokeSession(refreshToken = "") {
   try {
     await fetch(`${requireLearningBackendAuthUrl()}/auth/session/revoke`, {
-      body: JSON.stringify({ refreshToken }),
+      body: JSON.stringify(refreshToken ? { refreshToken } : {}),
+      credentials: "same-origin",
       headers: {
         "content-type": "application/json",
       },

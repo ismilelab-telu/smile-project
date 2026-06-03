@@ -1,4 +1,4 @@
-import { refreshCognitoSession } from "./cognito-auth";
+import { bootstrapCognitoSession, refreshCognitoSession } from "./cognito-auth";
 import {
   clearAuthSession,
   getStoredAuthSession,
@@ -10,27 +10,24 @@ import {
 export const authRefreshSkewMs = 5 * 60 * 1000;
 
 let pendingAuthSessionRefresh: Promise<AuthSession | null> | null = null;
+let pendingAuthSessionBootstrap: Promise<AuthSession | null> | null = null;
 let authSessionRefreshGeneration = 0;
 
 export function invalidateStoredAuthSessionRefresh() {
   authSessionRefreshGeneration += 1;
   pendingAuthSessionRefresh = null;
+  pendingAuthSessionBootstrap = null;
 }
 
 export async function getFreshStoredAuthSession({ force = false } = {}) {
   const session = getStoredAuthSession({ includeExpired: true });
 
   if (!session) {
-    return null;
+    return getBootstrappedAuthSession();
   }
 
   if (!force && !isAuthSessionExpired(session, authRefreshSkewMs)) {
     return session;
-  }
-
-  if (!session.refreshToken) {
-    clearAuthSession();
-    return null;
   }
 
   if (!pendingAuthSessionRefresh) {
@@ -64,6 +61,33 @@ export async function getFreshStoredAuthSession({ force = false } = {}) {
   }
 
   return pendingAuthSessionRefresh;
+}
+
+function getBootstrappedAuthSession() {
+  if (!pendingAuthSessionBootstrap) {
+    const bootstrapGeneration = authSessionRefreshGeneration;
+    let bootstrapPromise: Promise<AuthSession | null>;
+
+    bootstrapPromise = bootstrapCognitoSession()
+      .then((nextSession) => {
+        if (authSessionRefreshGeneration !== bootstrapGeneration) {
+          return null;
+        }
+
+        storeAuthSession(nextSession);
+        return nextSession;
+      })
+      .catch(() => null)
+      .finally(() => {
+        if (pendingAuthSessionBootstrap === bootstrapPromise) {
+          pendingAuthSessionBootstrap = null;
+        }
+      });
+
+    pendingAuthSessionBootstrap = bootstrapPromise;
+  }
+
+  return pendingAuthSessionBootstrap;
 }
 
 function isAuthSessionRefreshCurrent(session: AuthSession, generation: number) {

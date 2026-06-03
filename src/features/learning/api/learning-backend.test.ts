@@ -13,7 +13,7 @@ function seedAuthSession(partial: Partial<AuthSession> = {}) {
     accessToken: "access-token",
     expiresAt: Date.now() + 60 * 60 * 1000,
     idToken: "id-token",
-    refreshToken: "refresh-token",
+    refreshToken: "",
     user: {
       email: "student@example.com",
       initials: "ST",
@@ -36,13 +36,16 @@ describe("learning backend auth", () => {
   });
 
   it("does not create a guest upload request without a signed-in session", async () => {
-    const fetch = vi.fn();
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ message: "signed out" }), { status: 401 }));
     vi.stubGlobal("fetch", fetch);
 
     await expect(
       inspectGuidedDownloadArchiveWithBackend(new File(["zip"], "dataset.zip")),
     ).rejects.toThrow("Sign in before using this lesson backend.");
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(String(fetch.mock.calls[0]?.[0])).toContain("/auth/session/bootstrap");
   });
 
   it("sends the Cognito authorization header without a guest id", async () => {
@@ -128,7 +131,6 @@ describe("learning backend auth", () => {
     expect(String(fetch.mock.calls[0]?.[0])).toContain("/auth/session/refresh");
     expect(String(fetch.mock.calls[0]?.[0])).not.toContain("cognito-idp.");
     expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual({
-      refreshToken: "refresh-token",
       userSub: "student-1",
     });
 

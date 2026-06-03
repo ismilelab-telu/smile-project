@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [syncSessionFromStorage]);
 
   useEffect(() => {
-    if (!isReady || !session?.refreshToken) {
+    if (!isReady || !session) {
       return;
     }
 
@@ -121,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       window.clearTimeout(refreshTimer);
     };
-  }, [getFreshSession, isReady, session?.expiresAt, session?.refreshToken]);
+  }, [getFreshSession, isReady, session]);
 
   useEffect(() => {
     if (!isReady) {
@@ -205,12 +205,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(() => {
-    const refreshToken = getStoredAuthSession({ includeExpired: true })?.refreshToken;
+    const storedSession = getStoredAuthSession({ includeExpired: true });
     invalidateStoredAuthSessionRefresh();
     clearAuthSession();
     setSession(null);
-    if (refreshToken) {
-      void revokeSession(refreshToken);
+    if (storedSession) {
+      void revokeSession(storedSession.refreshToken);
     }
   }, []);
 

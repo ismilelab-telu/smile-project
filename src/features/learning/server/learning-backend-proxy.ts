@@ -11,6 +11,9 @@ const learningBackendProxySecretHeader = "x-smile-learning-backend-proxy-secret"
 const authRateLimitTtlMs = 60 * 60 * 1000;
 const authRateLimitState = new Map<string, number>();
 const authBurstLimitState = new Map<string, { count: number; resetAt: number }>();
+const refreshSessionCookieName = "__Host-smile-refresh-session";
+const authProxySignInBurstLimit = 8;
+const authProxySignInBurstWindowMs = 5 * 60 * 1000;
 const authProxyRevokeBurstLimit = 20;
 const authProxyRevokeBurstWindowMs = 60 * 1000;
 const maxProxyRequestBodyBytes = 300_000;
@@ -48,6 +51,10 @@ const authProxyCooldowns = [
     seconds: 2,
   },
   {
+    path: "/auth/session/bootstrap",
+    seconds: 2,
+  },
+  {
     identifierKey: "email",
     path: "/auth/password-reset/request",
     seconds: 30,
@@ -66,12 +73,13 @@ const allowedAuthProxyPaths = new Set([
   "/auth/email/sign-in",
   "/auth/username/sign-in",
   "/auth/session/refresh",
+  "/auth/session/bootstrap",
   "/auth/session/revoke",
   "/auth/password-reset/request",
   "/auth/password-reset/confirm",
 ]);
 
-const proxiedResponseHeaders = ["content-type", "etag"] as const;
+const proxiedResponseHeaders = ["content-type", "etag", "set-cookie"] as const;
 
 export async function handleLearningBackendProxyRequest({
   env,
@@ -100,6 +108,11 @@ export async function handleLearningBackendProxyRequest({
   const rateLimitResponse = getAuthProxyRateLimitResponse(request, pathname, requestBody);
   if (rateLimitResponse) {
     return rateLimitResponse;
+  }
+
+  const cookieBackedAuthResponse = getCookieBackedAuthOriginResponse(request, pathname);
+  if (cookieBackedAuthResponse) {
+    return cookieBackedAuthResponse;
   }
 
   const backendUrl = env?.LEARNING_BACKEND_URL?.trim();
@@ -257,12 +270,18 @@ function getAuthProxyRateLimitResponse(
   }
 
   const body = parseProxyJsonObject(requestBody);
+  const identifierKey = "identifierKey" in rule ? rule.identifierKey : undefined;
   const identifier =
-    body && typeof body === "object" && rule.identifierKey in body
-      ? String((body as Record<string, unknown>)[rule.identifierKey] ?? "")
+    body && typeof body === "object" && identifierKey && identifierKey in body
+      ? String((body as Record<string, unknown>)[identifierKey] ?? "")
           .trim()
           .toLowerCase()
       : "";
+
+  const burstLimit = getAuthProxySignInBurstLimit(pathname, source, identifier, now);
+  if (burstLimit) {
+    return createRateLimitResponse(burstLimit);
+  }
 
   if (!identifier) {
     return null;
@@ -275,6 +294,38 @@ function getAuthProxyRateLimitResponse(
   );
 
   return identifierLimit ? createRateLimitResponse(identifierLimit) : null;
+}
+
+function getAuthProxySignInBurstLimit(
+  pathname: string,
+  source: string,
+  identifier: string,
+  now: number,
+) {
+  if (!["/auth/email/sign-in", "/auth/username/sign-in"].includes(pathname)) {
+    return null;
+  }
+
+  const sourceLimit = reserveProxyBurstLimit(
+    `burst:source:${pathname}:${source}`,
+    authProxySignInBurstLimit,
+    authProxySignInBurstWindowMs,
+    now,
+  );
+  if (sourceLimit) {
+    return sourceLimit;
+  }
+
+  if (!identifier) {
+    return null;
+  }
+
+  return reserveProxyBurstLimit(
+    `burst:identifier:${pathname}:${identifier}`,
+    authProxySignInBurstLimit,
+    authProxySignInBurstWindowMs,
+    now,
+  );
 }
 
 function parseProxyJsonObject(requestBody: ArrayBuffer | null) {
@@ -405,6 +456,11 @@ function createForwardHeaders(
     headers.set("authorization", authorization);
   }
 
+  const cookieHeader = createForwardCookieHeader(request, pathname);
+  if (cookieHeader) {
+    headers.set("cookie", cookieHeader);
+  }
+
   headers.set("cf-connecting-ip", source);
   headers.set("x-forwarded-for", source);
 
@@ -413,6 +469,59 @@ function createForwardHeaders(
   }
 
   return headers;
+}
+
+function createForwardCookieHeader(request: Request, pathname: string) {
+  if (!shouldForwardRefreshSessionCookie(pathname)) {
+    return "";
+  }
+
+  const cookie = request.headers.get("cookie");
+  if (!cookie) {
+    return "";
+  }
+
+  const refreshSessionCookie = cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${refreshSessionCookieName}=`));
+
+  return refreshSessionCookie ?? "";
+}
+
+function shouldForwardRefreshSessionCookie(pathname: string) {
+  return ["/auth/session/bootstrap", "/auth/session/refresh", "/auth/session/revoke"].includes(
+    pathname,
+  );
+}
+
+function getCookieBackedAuthOriginResponse(request: Request, pathname: string) {
+  if (!shouldForwardRefreshSessionCookie(pathname)) {
+    return null;
+  }
+
+  const requestOrigin = new URL(request.url).origin;
+  const origin = request.headers.get("origin")?.trim();
+  if (origin && origin !== requestOrigin) {
+    return createProxyJsonResponse(403, { message: "Auth session request origin is not allowed." });
+  }
+
+  const referer = request.headers.get("referer")?.trim();
+  if (referer) {
+    try {
+      if (new URL(referer).origin !== requestOrigin) {
+        return createProxyJsonResponse(403, {
+          message: "Auth session request origin is not allowed.",
+        });
+      }
+    } catch {
+      return createProxyJsonResponse(403, {
+        message: "Auth session request origin is not allowed.",
+      });
+    }
+  }
+
+  return null;
 }
 
 function isProtectedLearningBackendProxyPath(pathname: string) {

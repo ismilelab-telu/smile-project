@@ -32,7 +32,7 @@ function createSession(partial: Partial<AuthSession> = {}): AuthSession {
       name: "Student",
       sub: "student-1",
     }),
-    refreshToken: "refresh-token",
+    refreshToken: "",
     user: {
       email: "student@example.com",
       initials: "ST",
@@ -130,12 +130,51 @@ describe("AuthProvider token lifecycle", () => {
     expect(String(fetch.mock.calls[0]?.[0])).toContain("/auth/session/refresh");
     expect(String(fetch.mock.calls[0]?.[0])).not.toContain("cognito-idp.");
     expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toMatchObject({
-      refreshToken: "refresh-token",
       userSub: "student-1",
     });
     expect(screen.getByRole("status")).toHaveAttribute("data-token", refreshedIdToken);
     expect(window.localStorage.getItem(authStorageKey)).toBeNull();
 
+    expect(window.sessionStorage.getItem(authStorageKey)).toBeNull();
+  });
+
+  it("bootstraps a session after reload from the backend refresh cookie", async () => {
+    const bootstrappedExpiresAt = Date.now() + 70 * 60 * 1000;
+    const bootstrappedIdToken = createJwt({
+      email: "student@example.com",
+      exp: Math.floor(bootstrappedExpiresAt / 1000),
+      name: "Student",
+      sub: "student-1",
+    });
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          authenticationResult: {
+            AccessToken: "bootstrapped-access-token",
+            ExpiresIn: 3600,
+            IdToken: bootstrappedIdToken,
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveAttribute("data-ready", "true");
+    });
+
+    expect(screen.getByRole("status")).toHaveTextContent("authenticated");
+    expect(screen.getByRole("status")).toHaveAttribute("data-token", bootstrappedIdToken);
+    expect(String(fetch.mock.calls[0]?.[0])).toContain("/auth/session/bootstrap");
+    expect(fetch.mock.calls[0]?.[1]?.credentials).toBe("same-origin");
+    expect(window.localStorage.getItem(authStorageKey)).toBeNull();
     expect(window.sessionStorage.getItem(authStorageKey)).toBeNull();
   });
 

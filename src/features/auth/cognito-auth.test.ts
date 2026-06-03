@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  bootstrapCognitoSession,
   confirmPasswordResetWithCognito,
   confirmSignUpWithCognito,
   requestPasswordResetWithCognito,
@@ -101,7 +102,6 @@ describe("username sign-in", () => {
             AccessToken: "access-token",
             ExpiresIn: 3600,
             IdToken: idToken,
-            RefreshToken: "refresh-token",
           },
         }),
         { status: 200 },
@@ -121,6 +121,7 @@ describe("username sign-in", () => {
       username: "student_one",
     });
     expect(session.user.email).toBe("student@example.com");
+    expect(session.refreshToken).toBe("");
   });
 });
 
@@ -146,7 +147,6 @@ describe("email sign-in", () => {
             AccessToken: "access-token",
             ExpiresIn: 3600,
             IdToken: idToken,
-            RefreshToken: "refresh-token",
           },
         }),
         { status: 200 },
@@ -166,6 +166,7 @@ describe("email sign-in", () => {
       password: "StrongPass1!",
     });
     expect(session.user.sub).toBe("student-1");
+    expect(session.refreshToken).toBe("");
   });
 });
 
@@ -258,7 +259,7 @@ describe("session refresh", () => {
       accessToken: "access-token",
       expiresAt: Date.now() - 1000,
       idToken: "expired-id-token",
-      refreshToken: "refresh-token",
+      refreshToken: "",
       user: {
         email: "student@example.com",
         initials: "SO",
@@ -271,10 +272,41 @@ describe("session refresh", () => {
     expect(String(fetch.mock.calls[0]?.[0])).toContain("/auth/session/refresh");
     expect(String(fetch.mock.calls[0]?.[0])).not.toContain("cognito-idp.");
     expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual({
-      refreshToken: "refresh-token",
       userSub: "student-1",
     });
+    expect(fetch.mock.calls[0]?.[1]?.credentials).toBe("same-origin");
     expect(session.idToken).toBe(refreshedIdToken);
-    expect(session.refreshToken).toBe("refresh-token");
+    expect(session.refreshToken).toBe("");
+  });
+
+  it("bootstraps a session from the backend refresh cookie", async () => {
+    const idToken = createJwt({
+      email: "student@example.com",
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      name: "Student One",
+      sub: "student-1",
+    });
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          authenticationResult: {
+            AccessToken: "fresh-access-token",
+            ExpiresIn: 3600,
+            IdToken: idToken,
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    const session = await bootstrapCognitoSession();
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(String(fetch.mock.calls[0]?.[0])).toContain("/auth/session/bootstrap");
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual({});
+    expect(fetch.mock.calls[0]?.[1]?.credentials).toBe("same-origin");
+    expect(session.accessToken).toBe("fresh-access-token");
+    expect(session.refreshToken).toBe("");
   });
 });

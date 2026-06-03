@@ -11,6 +11,7 @@ describe("learning backend proxy", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
     clearLearningBackendProxyRateLimitsForTests();
   });
 
@@ -101,6 +102,7 @@ describe("learning backend proxy", () => {
         body: JSON.stringify({ email: "student@example.com", password: "StrongPass1!" }),
         headers: {
           authorization: "Bearer stale-token",
+          cookie: "__Host-smile-refresh-session=session-cookie; analytics=keep-me-local",
           "content-type": "application/json",
         },
         method: "POST",
@@ -113,6 +115,7 @@ describe("learning backend proxy", () => {
     const headers = init.headers as Headers;
 
     expect(headers.get("authorization")).toBeNull();
+    expect(headers.get("cookie")).toBeNull();
     expect(headers.get("content-type")).toBe("application/json");
     expect(headers.get("x-smile-learning-backend-proxy-secret")).toBe("proxy-secret");
   });
@@ -156,6 +159,111 @@ describe("learning backend proxy", () => {
     await expect(secondResponse.json()).resolves.toMatchObject({
       code: "AuthRateLimitExceededException",
     });
+  });
+
+  it("caps slower sign-in bursts at the edge", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-03T00:00:00.000Z"));
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ message: "backend" }), { status: 400 }));
+    vi.stubGlobal("fetch", fetch);
+
+    const createRequest = () =>
+      new Request("https://smile.test/api/learning-backend/auth/email/sign-in", {
+        body: JSON.stringify({ email: "student@example.com", password: "StrongPass1!" }),
+        headers: {
+          "cf-connecting-ip": "203.0.113.20",
+          "content-type": "application/json",
+        },
+        method: "POST",
+      });
+
+    const responses: Response[] = [];
+    for (let attempt = 0; attempt < 9; attempt += 1) {
+      responses.push(
+        await handleLearningBackendProxyRequest({
+          env: {
+            LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+            LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+          },
+          params: { path: ["auth", "email", "sign-in"] },
+          request: createRequest(),
+        }),
+      );
+
+      await vi.advanceTimersByTimeAsync(2_500);
+    }
+
+    expect(responses.slice(0, 8).map((response) => response.status)).toEqual(
+      Array.from({ length: 8 }, () => 400),
+    );
+    expect(responses[8]?.status).toBe(429);
+    expect(fetch).toHaveBeenCalledTimes(8);
+  });
+
+  it("forwards only the refresh session cookie for cookie-backed session routes", async () => {
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "set-cookie": "__Host-smile-refresh-session=next; HttpOnly; Secure; SameSite=Lax",
+        },
+        status: 200,
+      }),
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    const response = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      },
+      params: { path: ["auth", "session", "bootstrap"] },
+      request: new Request("https://smile.test/api/learning-backend/auth/session/bootstrap", {
+        body: JSON.stringify({}),
+        headers: {
+          cookie: "analytics=local; __Host-smile-refresh-session=session-cookie; theme=light",
+          "content-type": "application/json",
+        },
+        method: "POST",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("set-cookie")).toBe(
+      "__Host-smile-refresh-session=next; HttpOnly; Secure; SameSite=Lax",
+    );
+
+    const init = fetch.mock.calls[0]?.[1] as RequestInit;
+    const headers = init.headers as Headers;
+
+    expect(headers.get("cookie")).toBe("__Host-smile-refresh-session=session-cookie");
+  });
+
+  it("rejects cross-origin cookie-backed session requests", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+
+    const response = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      },
+      params: { path: ["auth", "session", "revoke"] },
+      request: new Request("https://smile.test/api/learning-backend/auth/session/revoke", {
+        body: JSON.stringify({}),
+        headers: {
+          cookie: "__Host-smile-refresh-session=session-cookie",
+          "content-type": "application/json",
+          origin: "https://evil.example",
+        },
+        method: "POST",
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("rate limits refresh requests by user sub without requiring email", async () => {
