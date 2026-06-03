@@ -18,33 +18,21 @@ import { getLessonLockReason, isLessonUnlocked, isModuleUnlocked } from "../prog
 import type { LearningProgress, LearningTrack } from "../types";
 import { LearningGridCanvas, LearningSheetExtensions } from "./LearningGridCanvas";
 import { LearningHeader } from "./LearningHeader";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogPopup,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { LiquidButton, LiquidLink } from "@/components/ui/liquid-button";
+import { LiquidLink } from "@/components/ui/liquid-button";
 import { useLocalization } from "@/features/localization/localization";
 
 const liquidButtonClassName =
   "inline-flex items-center justify-center gap-3 rounded-none px-5 py-3 text-base font-semibold text-neutral-950 backdrop-blur-xl hover:text-neutral-50 [--liquid-button-background-color:var(--color-neutral-200)]";
 
 const disabledButtonClassName =
-  "inline-flex min-h-12 w-fit cursor-not-allowed items-center justify-center gap-3 bg-neutral-200 px-5 py-3 text-base font-semibold text-muted-foreground disabled:opacity-100";
+  "inline-flex min-h-12 w-full cursor-not-allowed items-center justify-center gap-3 bg-neutral-200 px-5 py-3 text-base font-semibold whitespace-nowrap text-muted-foreground disabled:opacity-100";
 
 type LearningHomeProps = {
   track: LearningTrack;
   progress: LearningProgress;
-  onResetProgress: () => void;
 };
 
-export function LearningHome({ onResetProgress, progress, track }: LearningHomeProps) {
+export function LearningHome({ progress, track }: LearningHomeProps) {
   const { locale, t } = useLocalization();
   const localizedTrack = localizeTrack(track, locale);
   const trackModules = track.moduleIds
@@ -72,65 +60,49 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
 
       <section
         aria-labelledby="module-list"
-        className="learning-sheet route-content-transition-target mx-auto grid w-[min(1080px,calc(100%_-_48px))] grid-cols-[4rem_5rem_minmax(0,1fr)] sm:grid-cols-[5rem_6rem_minmax(0,1fr)_14rem] lg:grid-cols-[5rem_6rem_minmax(0,1fr)_12rem_16rem]"
+        className="learning-sheet route-content-transition-target mx-auto grid w-[min(1080px,calc(100%_-_48px))] grid-cols-[4rem_5rem_minmax(0,1fr)] sm:grid-cols-[5rem_6rem_minmax(0,1fr)_14rem] lg:grid-cols-[5rem_6rem_minmax(0,1fr)_14rem]"
       >
         <LearningSheetExtensions />
 
-        <div className="learning-sheet-cell learning-extend-left learning-extend-top col-span-3 p-6 sm:col-span-4 lg:col-span-4">
+        <div className="learning-sheet-cell learning-extend-left learning-extend-right learning-extend-top col-span-3 p-6 sm:col-span-4">
           <h1 className="text-5xl leading-tight font-semibold tracking-normal text-foreground">
             {localizedTrack.title}
           </h1>
         </div>
 
-        <aside className="learning-sheet-cell learning-extend-right learning-sheet-cell-fill col-span-3 grid gap-5 p-6 sm:col-span-4 lg:col-span-1 lg:col-start-5 lg:row-span-2 lg:row-start-1">
-          <h2 className="text-xl font-semibold text-foreground">{t("learning.home.progress")}</h2>
-          <div className="flex items-center justify-between text-base">
-            <span className="text-muted-foreground">{t("learning.home.activeLessons")}</span>
-            <span className="font-semibold text-foreground">
-              {completedLessons}/{totalActiveLessons}
+        <div
+          aria-hidden="true"
+          className="learning-sheet-cell learning-extend-left learning-extend-right col-span-3 h-12 sm:col-span-4"
+        />
+
+        <aside className="learning-sheet-cell learning-extend-left learning-extend-right col-span-3 grid gap-4 p-6 sm:col-span-4 sm:grid-cols-[max-content_minmax(0,1fr)] sm:items-center">
+          <span className="text-base font-semibold text-foreground">
+            {t("learning.home.progress")}
+          </span>
+          <div className="flex items-center gap-4">
+            <div
+              aria-label={t("learning.home.progressAria", { percent: progressPercent })}
+              className="learning-grid-panel-fill h-3 flex-1 overflow-hidden rounded-xl"
+              role="progressbar"
+              aria-valuemax={100}
+              aria-valuemin={0}
+              aria-valuenow={progressPercent}
+            >
+              <div className="h-full bg-emerald-500" style={{ width: `${progressPercent}%` }} />
+            </div>
+            <span className="w-12 text-right text-base font-semibold text-foreground">
+              {progressPercent}%
             </span>
           </div>
-          <div
-            aria-label={t("learning.home.progressAria", { percent: progressPercent })}
-            className="learning-grid-panel-fill h-3 overflow-hidden rounded-xl"
-            role="progressbar"
-            aria-valuemax={100}
-            aria-valuemin={0}
-            aria-valuenow={progressPercent}
-          >
-            <div className="h-full bg-emerald-500" style={{ width: `${progressPercent}%` }} />
-          </div>
-          <AlertDialog>
-            <AlertDialogTrigger
-              render={(triggerProps) => (
-                <LiquidButton
-                  {...triggerProps}
-                  className={`${liquidButtonClassName} w-full cursor-pointer [--liquid-button-color:var(--color-rose-600)]`}
-                  type="button"
-                >
-                  {t("learning.home.reset")}
-                </LiquidButton>
-              )}
-            />
-            <AlertDialogPopup>
-              <AlertDialogHeader>
-                <AlertDialogTitle>{t("learning.home.resetTitle")}</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {t("learning.home.resetDescription")}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>{t("learning.home.resetCancel")}</AlertDialogCancel>
-                <AlertDialogAction onClick={onResetProgress}>
-                  {t("learning.home.reset")}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogPopup>
-          </AlertDialog>
         </aside>
 
+        <div
+          aria-hidden="true"
+          className="learning-sheet-cell learning-extend-left learning-extend-right col-span-3 h-12 sm:col-span-4"
+        />
+
         <h2
-          className="learning-sheet-cell learning-extend-left col-span-3 p-6 text-3xl font-semibold tracking-normal text-foreground sm:col-span-4 lg:col-span-4 lg:col-start-1 lg:row-start-2"
+          className="learning-sheet-cell learning-extend-left learning-extend-right col-span-3 p-6 text-3xl font-semibold tracking-normal text-foreground sm:col-span-4"
           id="module-list"
         >
           {t("learning.home.module")}
@@ -184,10 +156,6 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
                   </div>
                 )}
               </div>
-              <div
-                aria-hidden="true"
-                className="learning-sheet-cell learning-extend-right hidden lg:block"
-              />
 
               {isAvailable && moduleLessons.length > 0
                 ? moduleLessons.map((lesson) => {
@@ -223,7 +191,7 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
                             </button>
                           ) : isUnlocked ? (
                             <LiquidLink
-                              className={`${liquidButtonClassName} min-h-12 [--liquid-button-color:var(--color-emerald-500)]`}
+                              className={`${liquidButtonClassName} min-h-12 w-full [--liquid-button-color:var(--color-emerald-500)]`}
                               data-app-link
                               href={`/learn/${track.id}/${lesson.id}`}
                             >
@@ -252,10 +220,6 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
                             </button>
                           )}
                         </div>
-                        <div
-                          aria-hidden="true"
-                          className="learning-sheet-cell learning-extend-right hidden lg:block"
-                        />
                       </Fragment>
                     );
                   })
@@ -272,11 +236,7 @@ export function LearningHome({ onResetProgress, progress, track }: LearningHomeP
         <div aria-hidden="true" className="learning-sheet-cell learning-sheet-footer-cell" />
         <div
           aria-hidden="true"
-          className="learning-sheet-cell learning-sheet-footer-cell hidden sm:block"
-        />
-        <div
-          aria-hidden="true"
-          className="learning-sheet-cell learning-extend-right learning-sheet-footer-cell hidden lg:block"
+          className="learning-sheet-cell learning-extend-right learning-sheet-footer-cell hidden sm:block"
         />
       </section>
     </LearningGridCanvas>

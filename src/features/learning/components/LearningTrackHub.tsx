@@ -1,10 +1,4 @@
-import {
-  ArrowRight02Icon,
-  ChartBarLineIcon,
-  LockIcon,
-  OnlineLearning01Icon,
-  TestTubeIcon,
-} from "@hugeicons/core-free-icons";
+import { ArrowRight02Icon, LockIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import {
@@ -23,21 +17,20 @@ import { useLocalization } from "@/features/localization/localization";
 const liquidButtonClassName =
   "inline-flex items-center justify-center gap-3 rounded-none px-5 py-3 text-base font-semibold text-neutral-950 backdrop-blur-xl hover:text-neutral-50 [--liquid-button-background-color:var(--color-neutral-200)] [--liquid-button-color:var(--color-emerald-500)]";
 
+const trackImageSources: Partial<Record<LearningTrack["id"], string>> = {
+  "track-classification": "/learning/removedbg-classification.webp",
+  "track-clustering": "/learning/removedbg-clustering.webp",
+  "track-machine-learning-foundations": "/learning/removedbg-ml.webp",
+  "track-regression": "/learning/removedbg-linear.webp",
+};
+
+const trackImageClassNames: Partial<Record<LearningTrack["id"], string>> = {
+  "track-machine-learning-foundations": "object-cover object-center",
+};
+
 type LearningTrackHubProps = {
   progress: LearningProgress;
 };
-
-function getTrackIcon(track: LearningTrack) {
-  if (track.id === "track-regression") {
-    return ChartBarLineIcon;
-  }
-
-  if (track.id === "track-classification") {
-    return TestTubeIcon;
-  }
-
-  return OnlineLearning01Icon;
-}
 
 function getCompletedTrackLessonCount(track: LearningTrack, progress: LearningProgress) {
   const lessonIds = new Set(
@@ -58,6 +51,8 @@ function getCompletedTrackLessonCount(track: LearningTrack, progress: LearningPr
 
 export function LearningTrackHub({ progress }: LearningTrackHubProps) {
   const { locale, t } = useLocalization();
+  const trackImageCount = learningTracks.filter((track) => trackImageSources[track.id]).length;
+  const trackImageRowCount = trackImageCount * 2;
 
   return (
     <LearningGridCanvas>
@@ -65,7 +60,10 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
 
       <section
         aria-labelledby="learning-track-list"
-        className="learning-sheet route-content-transition-target mx-auto grid w-[min(1080px,calc(100%_-_48px))] grid-cols-[5rem_minmax(0,1fr)_15rem]"
+        className="learning-sheet learning-track-hub-sheet route-content-transition-target mx-auto grid w-[min(1080px,calc(100%_-_48px))] grid-cols-[5rem_minmax(0,1fr)_15rem]"
+        style={{
+          "--learning-track-hub-content-row-count": learningTracks.length + trackImageRowCount,
+        }}
       >
         <LearningSheetExtensions />
 
@@ -77,30 +75,41 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
             {t("learning.trackHub.title")}
           </h1>
         </div>
-        <div
-          aria-hidden="true"
-          className="learning-sheet-cell learning-extend-left learning-extend-right col-span-full h-12"
-        />
 
         {learningTracks.map((track, index) => {
           const localizedTrack = localizeTrack(track, locale);
-          const Icon = getTrackIcon(track);
           const completedLessonCount = getCompletedTrackLessonCount(track, progress);
           const isAvailable = track.status === "available";
+          const trackImageSrc = trackImageSources[track.id];
+          const trackImageClassName =
+            trackImageClassNames[track.id] ?? "object-contain object-center";
 
           return (
             <div className="contents" key={track.id}>
+              {trackImageSrc ? (
+                <>
+                  <div
+                    aria-hidden="true"
+                    className="learning-sheet-cell learning-extend-left learning-extend-right col-span-full h-12"
+                  />
+                  <div
+                    aria-hidden="true"
+                    className="learning-sheet-cell learning-extend-left learning-extend-right col-span-full"
+                  >
+                    <img
+                      alt=""
+                      className={`aspect-[21/9] h-auto w-full ${trackImageClassName}`}
+                      decoding="async"
+                      loading="lazy"
+                      src={trackImageSrc}
+                    />
+                  </div>
+                </>
+              ) : null}
               <div className="learning-sheet-cell learning-extend-left learning-sheet-cell-fill flex items-center justify-center p-3 text-base font-semibold text-foreground">
                 {index}
               </div>
-              <div className="learning-sheet-cell flex min-h-20 items-center gap-5 p-5">
-                <HugeiconsIcon
-                  aria-hidden="true"
-                  className={`size-7 shrink-0 ${
-                    isAvailable ? "text-emerald-500" : "text-muted-foreground"
-                  }`}
-                  icon={Icon}
-                />
+              <div className="learning-sheet-cell flex min-h-20 items-center p-5">
                 <div className="min-w-0">
                   <h2 className="text-2xl leading-tight font-semibold text-foreground">
                     {localizedTrack.title}

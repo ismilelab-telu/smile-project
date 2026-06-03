@@ -250,6 +250,13 @@
     display: none;
   }
 
+  .learning-track-hub-sheet {
+    grid-template-rows:
+      auto repeat(var(--learning-track-hub-content-row-count), auto)
+      minmax(4.5rem, 1fr);
+    min-height: calc(100vh - 5rem);
+  }
+
   .learning-sheet-cell {
     background: oklch(98.5% 0 0);
     border-bottom: 1px solid var(--learning-grid-line);

@@ -142,7 +142,7 @@ function LearningAuthRequiredAuthPortal({
 
 export function LearningPage({ path = "/learn" }: LearningPageProps) {
   const { isAuthenticated, isReady: isAuthReady } = useAuth();
-  const { completeLesson, progress, resetProgress, saveExerciseSubmission, saveLessonAnswer } =
+  const { completeLesson, progress, saveExerciseSubmission, saveLessonAnswer } =
     useLearningProgress();
   const route = getLearningRoute(path);
 
@@ -204,7 +204,7 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
   }
 
   if (route.kind === "track") {
-    return <LearningHome onResetProgress={resetProgress} progress={progress} track={track} />;
+    return <LearningHome progress={progress} track={track} />;
   }
 
   if (route.kind === "lesson") {

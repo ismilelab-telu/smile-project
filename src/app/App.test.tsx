@@ -397,52 +397,6 @@ describe("App", () => {
     }
   });
 
-  it("requires confirmation before resetting learning progress", async () => {
-    seedCompletedLessons(module0LessonIds.slice(0, 2));
-    window.history.pushState(null, "", foundationsTrackPath);
-    render(<App />);
-
-    expect(
-      await screen.findByRole(
-        "heading",
-        { name: "Dasar-Dasar Machine Learning" },
-        lazyRouteTimeout,
-      ),
-    ).toBeInTheDocument();
-    expect(screen.getByText("2/9")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Reset progres" }));
-
-    const firstDialog = await screen.findByRole("alertdialog", {
-      name: "Reset progres belajar?",
-    });
-    expect(
-      within(firstDialog).getByText(
-        "Tindakan ini tidak bisa dibatalkan. Semua progres belajarmu akan dihapus.",
-      ),
-    ).toBeInTheDocument();
-    expect(getStoredCompletedLessonIds()).toEqual(module0LessonIds.slice(0, 2));
-
-    fireEvent.click(within(firstDialog).getByRole("button", { name: "Batal" }));
-
-    await waitFor(() => {
-      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-    });
-    expect(screen.getByText("2/9")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Reset progres" }));
-
-    const secondDialog = await screen.findByRole("alertdialog", {
-      name: "Reset progres belajar?",
-    });
-    fireEvent.click(within(secondDialog).getByRole("button", { name: "Reset progres" }));
-
-    await waitFor(() => {
-      expect(screen.getByText("0/9")).toBeInTheDocument();
-    });
-    expect(getStoredCompletedLessonIds()).toEqual([]);
-  });
-
   it("completes the first lesson, persists progress, and unlocks the next lesson", async () => {
     window.history.pushState(null, "", lesson01Path);
     render(<App />);
