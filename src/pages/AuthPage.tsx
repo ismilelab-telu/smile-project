@@ -343,6 +343,9 @@ export function AuthPage({
           </motion.button>
           <AuthLanguageSwitcher isCompact={isConfirmingAuthStep} isRegister={isRegister} />
           <AuthIllustration isRegister={isRegister} />
+          {isConfirmingAuthStep ? (
+            <div aria-hidden="true" className="absolute inset-0 z-[1] bg-white" />
+          ) : null}
           <LayoutGroup id="auth-form-layout">
             <motion.section
               className={`relative z-10 grid ${
