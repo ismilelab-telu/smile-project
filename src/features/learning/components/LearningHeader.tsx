@@ -571,14 +571,14 @@ function LearningMenu() {
 
         <section
           aria-label={t("menu.learningModeHighlight")}
-          className="relative z-10 flex min-h-36 w-[min(700px,calc(100vw_-_2rem))] transform-gpu flex-col justify-center rounded-none border-2 border-emerald-700 bg-gradient-to-br from-emerald-500 via-emerald-300 to-sky-300 p-7 text-neutral-950 shadow-2xl will-change-transform"
+          className="relative z-10 flex min-h-36 w-[min(700px,calc(100vw_-_2rem))] transform-gpu flex-col justify-center rounded-none border-2 border-emerald-800 bg-gradient-to-br from-emerald-700 via-emerald-600 to-sky-700 p-7 text-white shadow-2xl will-change-transform"
           data-learning-menu-panel
         >
-          <p className="font-mono text-xs font-semibold tracking-[0.12em] text-neutral-700 uppercase">
+          <p className="font-mono text-xs font-semibold tracking-[0.12em] text-white/80 uppercase">
             {t("menu.whatsNew")}
           </p>
           <div className="mt-4 flex items-center gap-4">
-            <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-none bg-neutral-950/10 text-neutral-950">
+            <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-none bg-white/15 text-white">
               <HugeiconsIcon
                 aria-hidden="true"
                 className="size-6"
@@ -590,13 +590,13 @@ function LearningMenu() {
               <h2 className="text-xl leading-tight font-semibold tracking-normal">
                 {t("menu.learningMode")}
               </h2>
-              <p className="mt-1 text-sm leading-6 text-neutral-700">
+              <p className="mt-1 text-sm leading-6 text-white/85">
                 {t("menu.whatsNewDescription")}
               </p>
             </div>
           </div>
           <a
-            className="mt-5 inline-flex w-fit items-center gap-2 rounded-none bg-neutral-950 px-4 py-2 font-mono text-xs font-semibold text-emerald-100 transition-colors hover:bg-neutral-800"
+            className="mt-5 inline-flex w-fit items-center gap-2 rounded-none border border-white/60 bg-white/10 px-4 py-2 font-mono text-xs font-semibold text-white transition-colors hover:bg-white/20"
             data-app-link
             href="/learn"
           >
@@ -611,10 +611,10 @@ function LearningMenu() {
         </section>
 
         <div
-          className="relative z-10 flex h-28 w-[min(700px,calc(100vw_-_2rem))] transform-gpu items-center rounded-none border-2 border-neutral-700 bg-neutral-950 px-7 text-neutral-400 shadow-2xl will-change-transform"
+          className="relative z-10 flex h-28 w-[min(700px,calc(100vw_-_2rem))] transform-gpu items-center rounded-none border-2 border-neutral-700 bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-800 px-7 text-neutral-300 shadow-2xl will-change-transform"
           data-learning-menu-panel
         >
-          <ul className="flex list-none flex-wrap gap-4 font-mono text-xs font-semibold">
+          <ul className="flex list-none flex-wrap gap-5 font-mono text-sm font-semibold">
             <li>
               <a className="transition-colors hover:text-white" data-app-link href="/404">
                 {t("menu.contact")}
@@ -631,12 +631,19 @@ function LearningMenu() {
               </a>
             </li>
           </ul>
-          <HugeiconsIcon
-            aria-hidden="true"
-            className="ml-auto size-10 text-emerald-300"
-            icon={Home01Icon}
-            strokeWidth={1.8}
-          />
+          <a
+            aria-label={t("menu.home")}
+            className="ml-auto inline-flex size-12 items-center justify-center text-emerald-300 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+            data-app-link
+            href="/"
+          >
+            <HugeiconsIcon
+              aria-hidden="true"
+              className="size-10"
+              icon={Home01Icon}
+              strokeWidth={1.8}
+            />
+          </a>
         </div>
       </div>
     </div>

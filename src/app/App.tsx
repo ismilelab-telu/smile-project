@@ -3,7 +3,6 @@ import { flushSync } from "react-dom";
 
 import { ExternalLinkGuard } from "@/components/ExternalLinkGuard";
 import { LinkPreviewProvider } from "@/components/ui/link-preview";
-import LiquidEther from "@/components/ui/liquid-ether";
 import { AuthProvider, useAuth } from "@/features/auth/auth-context";
 import {
   getLesson,
@@ -14,8 +13,6 @@ import {
 import { LocalizationProvider, useLocalization } from "@/features/localization/localization";
 import { AuthPage } from "@/pages/AuthPage";
 import { ExplorePage } from "@/pages/ExplorePage";
-
-const liquidEtherColors = ["#059669", "#10B981", "#38BDF8"];
 
 const FuzzyTextPage = lazy(() =>
   import("../pages/FuzzyTextPage").then((module) => ({ default: module.FuzzyTextPage })),
@@ -42,7 +39,12 @@ const routeScrollStorageKeyPrefix = "smile-route-scroll:";
 const maxRouteScrollRestoreAttempts = 90;
 
 function getRouteTheme(pathname: string): RouteTheme {
-  return pathname === "/" || isLearningRoute(pathname) || isAuthRoute(pathname) ? "light" : "dark";
+  return pathname === "/" ||
+    pathname === "/explore" ||
+    isLearningRoute(pathname) ||
+    isAuthRoute(pathname)
+    ? "light"
+    : "dark";
 }
 
 function getRouteOrder(pathname: string) {
@@ -101,10 +103,6 @@ function isLearningAuthRequiredRoute(pathname: string) {
 
 function isAuthRoute(pathname: string) {
   return pathname === "/login" || pathname === "/register";
-}
-
-function shouldShowSharedExploreBackground(pathname: string) {
-  return pathname === "/explore";
 }
 
 function getRouteDirection(
@@ -386,7 +384,6 @@ function AppRoutes() {
 
   return (
     <>
-      {shouldShowSharedExploreBackground(visiblePath) ? <SharedExploreBackground /> : null}
       <Suspense
         fallback={
           <main
@@ -434,29 +431,5 @@ function AppRoutes() {
         />
       ) : null}
     </>
-  );
-}
-
-function SharedExploreBackground() {
-  return (
-    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 bg-neutral-950">
-      <LiquidEther
-        autoDemo
-        autoIntensity={2.2}
-        autoRampDuration={0.6}
-        autoResumeDelay={3000}
-        autoSpeed={0.5}
-        colors={liquidEtherColors}
-        cursorSize={100}
-        isBounce={false}
-        isViscous={false}
-        iterationsPoisson={32}
-        iterationsViscous={32}
-        mouseForce={20}
-        resolution={0.5}
-        takeoverDuration={0.25}
-        viscous={30}
-      />
-    </div>
   );
 }

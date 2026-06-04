@@ -137,17 +137,10 @@ describe("App", () => {
     );
 
     expect(
-      await screen.findByRole("heading", { name: "Choose a mode." }, lazyRouteTimeout),
+      await screen.findByRole("heading", { name: "Choose a mode" }, lazyRouteTimeout),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Learning Mode/ })).toHaveAttribute("href", "/learn");
-    expect(screen.getByRole("link", { name: /ML Playground/ })).toHaveAttribute(
-      "href",
-      "/playground",
-    );
-    expect(screen.getByRole("link", { name: /Algorithm Lab/ })).toHaveAttribute(
-      "href",
-      "/algorithm-lab",
-    );
+    expect(screen.getByRole("link", { name: "Start path" })).toHaveAttribute("href", "/learn");
+    expect(screen.getAllByRole("button", { name: "Coming soon" })).toHaveLength(2);
     expect(window.location.pathname).toBe("/explore");
   });
 
@@ -161,7 +154,7 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Buka menu" }));
 
-    expect(screen.getByRole("link", { name: "Beranda" })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Beranda" })[0]).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Mode Belajar" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Pilih bahasa" }));
@@ -172,7 +165,7 @@ describe("App", () => {
     expect(
       screen.getByRole("heading", { name: "Machine Learning Foundations" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Home" })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Home" })[0]).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Learning Mode" })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Close menu" }).length).toBeGreaterThan(0);
   });
