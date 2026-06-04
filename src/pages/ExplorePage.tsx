@@ -92,80 +92,82 @@ export function ExplorePage() {
     <LearningGridCanvas>
       <LearningHeader backHref="/" backLabel="Kembali ke Beranda" />
 
-      <section
-        aria-labelledby="explore-mode-list"
-        className="explore-mode-sheet learning-sheet route-content-transition-target mx-auto grid w-[min(1080px,calc(100%_-_48px))] grid-cols-[4rem_minmax(0,1fr)] sm:grid-cols-[5rem_minmax(0,1fr)_14rem] [@media_(min-width:1024px)]:grid-cols-[2rem_5rem_minmax(0,1fr)_14rem_2rem]"
-      >
-        <LearningSheetExtensions />
-        <ExploreSheetPatternPlane />
+      <div className="route-content-transition-target">
+        <section
+          aria-labelledby="explore-mode-list"
+          className="explore-mode-sheet learning-sheet mx-auto grid w-[min(1080px,calc(100%_-_48px))] grid-cols-[4rem_minmax(0,1fr)] sm:grid-cols-[5rem_minmax(0,1fr)_14rem] [@media_(min-width:1024px)]:grid-cols-[2rem_5rem_minmax(0,1fr)_14rem_2rem]"
+        >
+          <LearningSheetExtensions />
+          <ExploreSheetPatternPlane />
 
-        <ExploreFullRow>
-          <div
-            className={`learning-sheet-cell learning-extend-left learning-extend-right learning-extend-top ${exploreFullCellGridClassName} p-6`}
-          >
-            <h1
-              className="text-5xl leading-tight font-semibold tracking-normal text-foreground"
-              id="explore-mode-list"
+          <ExploreFullRow>
+            <div
+              className={`learning-sheet-cell learning-extend-left learning-extend-right learning-extend-top ${exploreFullCellGridClassName} p-6`}
             >
-              Choose a mode
-            </h1>
-          </div>
-        </ExploreFullRow>
+              <h1
+                className="text-5xl leading-tight font-semibold tracking-normal text-foreground"
+                id="explore-mode-list"
+              >
+                Choose a mode
+              </h1>
+            </div>
+          </ExploreFullRow>
 
-        <ExploreFullRow>
+          <ExploreFullRow>
+            <div
+              aria-hidden="true"
+              className={`learning-sheet-cell learning-extend-left learning-extend-right ${exploreFullCellGridClassName} h-12`}
+            />
+          </ExploreFullRow>
+
+          {modes.map((mode, index) => (
+            <div className="contents" key={mode.title}>
+              <ExploreLeftGutter />
+              <div className="learning-sheet-cell learning-sheet-gutter-cell learning-extend-left flex items-center justify-center p-3 text-base font-semibold text-foreground">
+                {index}
+              </div>
+              <div className="learning-sheet-cell flex min-h-24 items-center gap-5 p-5">
+                <HugeiconsIcon
+                  aria-hidden="true"
+                  className={`size-7 shrink-0 ${
+                    mode.status === "available" ? "text-emerald-500" : "text-muted-foreground"
+                  }`}
+                  icon={mode.icon}
+                />
+                <h2 className="min-w-0 text-2xl leading-tight font-semibold text-foreground">
+                  {mode.title}
+                </h2>
+              </div>
+              <div className="learning-sheet-cell learning-extend-right col-span-2 flex items-center p-4 sm:col-span-1">
+                {mode.status === "available" ? (
+                  <LiquidLink className={liquidButtonClassName} data-app-link href={mode.href}>
+                    {mode.actionLabel}
+                    <HugeiconsIcon aria-hidden="true" className="size-5" icon={ArrowRight02Icon} />
+                  </LiquidLink>
+                ) : (
+                  <button className={disabledButtonClassName} disabled type="button">
+                    <HugeiconsIcon aria-hidden="true" className="size-5" icon={Clock01Icon} />
+                    {mode.actionLabel}
+                  </button>
+                )}
+              </div>
+              <ExploreRightGutter />
+            </div>
+          ))}
+
+          <ExploreLeftGutter />
           <div
             aria-hidden="true"
-            className={`learning-sheet-cell learning-extend-left learning-extend-right ${exploreFullCellGridClassName} h-12`}
+            className="learning-sheet-cell learning-extend-left learning-sheet-footer-cell"
           />
-        </ExploreFullRow>
-
-        {modes.map((mode, index) => (
-          <div className="contents" key={mode.title}>
-            <ExploreLeftGutter />
-            <div className="learning-sheet-cell learning-sheet-gutter-cell learning-extend-left flex items-center justify-center p-3 text-base font-semibold text-foreground">
-              {index}
-            </div>
-            <div className="learning-sheet-cell flex min-h-24 items-center gap-5 p-5">
-              <HugeiconsIcon
-                aria-hidden="true"
-                className={`size-7 shrink-0 ${
-                  mode.status === "available" ? "text-emerald-500" : "text-muted-foreground"
-                }`}
-                icon={mode.icon}
-              />
-              <h2 className="min-w-0 text-2xl leading-tight font-semibold text-foreground">
-                {mode.title}
-              </h2>
-            </div>
-            <div className="learning-sheet-cell learning-extend-right col-span-2 flex items-center p-4 sm:col-span-1">
-              {mode.status === "available" ? (
-                <LiquidLink className={liquidButtonClassName} data-app-link href={mode.href}>
-                  {mode.actionLabel}
-                  <HugeiconsIcon aria-hidden="true" className="size-5" icon={ArrowRight02Icon} />
-                </LiquidLink>
-              ) : (
-                <button className={disabledButtonClassName} disabled type="button">
-                  <HugeiconsIcon aria-hidden="true" className="size-5" icon={Clock01Icon} />
-                  {mode.actionLabel}
-                </button>
-              )}
-            </div>
-            <ExploreRightGutter />
-          </div>
-        ))}
-
-        <ExploreLeftGutter />
-        <div
-          aria-hidden="true"
-          className="learning-sheet-cell learning-extend-left learning-sheet-footer-cell"
-        />
-        <div aria-hidden="true" className="learning-sheet-cell learning-sheet-footer-cell" />
-        <div
-          aria-hidden="true"
-          className="learning-sheet-cell learning-extend-right learning-sheet-footer-cell hidden sm:block"
-        />
-        <ExploreRightGutter />
-      </section>
+          <div aria-hidden="true" className="learning-sheet-cell learning-sheet-footer-cell" />
+          <div
+            aria-hidden="true"
+            className="learning-sheet-cell learning-extend-right learning-sheet-footer-cell hidden sm:block"
+          />
+          <ExploreRightGutter />
+        </section>
+      </div>
     </LearningGridCanvas>
   );
 }

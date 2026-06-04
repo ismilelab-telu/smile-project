@@ -2397,23 +2397,29 @@ export function LessonPage({
     return (
       <LearningGridCanvas>
         <LearningHeader backHref={backHref} backLabel={backLabel} />
-        <section className="learning-sheet route-content-transition-target mx-auto mt-20 grid max-w-xl text-center">
-          <LearningSheetExtensions />
+        <div className="route-content-transition-target">
+          <section className="learning-sheet mx-auto mt-20 grid max-w-xl text-center">
+            <LearningSheetExtensions />
 
-          <div className="learning-sheet-cell p-6">
-            <h1 className="text-2xl font-semibold text-foreground">
-              {t("lesson.openError.title")}
-            </h1>
-          </div>
-          <div className="learning-sheet-cell p-6 text-base leading-7 text-muted-foreground">
-            {t("lesson.openError.body")}
-          </div>
-          <div className="learning-sheet-cell p-6">
-            <LiquidLink className={`${emeraldLiquidButtonClassName}`} data-app-link href={backHref}>
-              {backLabel}
-            </LiquidLink>
-          </div>
-        </section>
+            <div className="learning-sheet-cell p-6">
+              <h1 className="text-2xl font-semibold text-foreground">
+                {t("lesson.openError.title")}
+              </h1>
+            </div>
+            <div className="learning-sheet-cell p-6 text-base leading-7 text-muted-foreground">
+              {t("lesson.openError.body")}
+            </div>
+            <div className="learning-sheet-cell p-6">
+              <LiquidLink
+                className={`${emeraldLiquidButtonClassName}`}
+                data-app-link
+                href={backHref}
+              >
+                {backLabel}
+              </LiquidLink>
+            </div>
+          </section>
+        </div>
       </LearningGridCanvas>
     );
   }
@@ -3067,279 +3073,283 @@ export function LessonPage({
     <LearningGridCanvas>
       <LearningHeader backHref={backHref} backLabel={backLabel} />
 
-      <section
-        className={`learning-sheet route-content-transition-target mx-auto grid ${lessonSheetWidthClassName} grid-cols-1 [@media_(min-width:1024px)]:grid-cols-[2rem_repeat(12,minmax(0,1fr))_2rem]`}
-      >
-        <LearningSheetExtensions />
-        <LessonSheetPatternPlane />
+      <div className="route-content-transition-target">
+        <section
+          className={`learning-sheet mx-auto grid ${lessonSheetWidthClassName} grid-cols-1 [@media_(min-width:1024px)]:grid-cols-[2rem_repeat(12,minmax(0,1fr))_2rem]`}
+        >
+          <LearningSheetExtensions />
+          <LessonSheetPatternPlane />
 
-        <LessonFullRow>
-          <div
-            className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} px-6 py-5`}
-          >
-            <div className="flex flex-wrap items-center gap-3 text-base text-muted-foreground">
-              <span>{localizedLesson.numberLabel}</span>
+          <LessonFullRow>
+            <div
+              className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} px-6 py-5`}
+            >
+              <div className="flex flex-wrap items-center gap-3 text-base text-muted-foreground">
+                <span>{localizedLesson.numberLabel}</span>
+              </div>
             </div>
-          </div>
-        </LessonFullRow>
-        <LessonFullRow>
-          <div
-            className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} p-6`}
-          >
-            <h1 className="max-w-none text-5xl leading-tight font-semibold tracking-normal text-foreground">
-              {localizedLesson.title}
-            </h1>
-          </div>
-        </LessonFullRow>
-
-        <LessonFullRow>
-          <section
-            className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} p-6`}
-          >
-            <div className={lessonMarkdownContentClassName}>
-              {LessonMdxContent ? (
-                <LessonMdxContent components={lessonMdxComponents} />
-              ) : (
-                localizedLesson.summary.map((paragraph) => <p key={paragraph}>{paragraph}</p>)
-              )}
+          </LessonFullRow>
+          <LessonFullRow>
+            <div
+              className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} p-6`}
+            >
+              <h1 className="max-w-none text-5xl leading-tight font-semibold tracking-normal text-foreground">
+                {localizedLesson.title}
+              </h1>
             </div>
-          </section>
-        </LessonFullRow>
-        <LessonFullRow>
-          <div
-            aria-hidden="true"
-            className={`learning-sheet-cell learning-sheet-break-stripes learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} h-8`}
-          />
-        </LessonFullRow>
+          </LessonFullRow>
 
-        {exerciseEntries.map((exercise, exerciseIndex) => {
-          const exerciseLabel =
-            exerciseEntries.length === 1
-              ? t("learning.exercise")
-              : t("learning.exercise.numbered", { number: exerciseIndex + 1 });
-          const exerciseResult = exerciseResultsById[exercise.id] ?? null;
-          const isExerciseCorrect = exerciseResult?.status === "correct";
-          const isExerciseEditing = editingExerciseIds.has(exercise.id);
-          const canEditExerciseSubmission =
-            exercise.type === "open-dataset-source" && isExerciseCorrect && !isExerciseEditing;
-          const isExerciseReadOnly = isReviewMode || (isExerciseCorrect && !isExerciseEditing);
-          const isExerciseSubmitting = validatingDatasetSourceExerciseId === exercise.id;
-          const guidedDownloadSourceAnswer =
-            exercise.type === "guided-download"
-              ? getGuidedDownloadSourceAnswer(exercise, initialSubmittedAnswersByExerciseId)
-              : undefined;
+          <LessonFullRow>
+            <section
+              className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} p-6`}
+            >
+              <div className={lessonMarkdownContentClassName}>
+                {LessonMdxContent ? (
+                  <LessonMdxContent components={lessonMdxComponents} />
+                ) : (
+                  localizedLesson.summary.map((paragraph) => <p key={paragraph}>{paragraph}</p>)
+                )}
+              </div>
+            </section>
+          </LessonFullRow>
+          <LessonFullRow>
+            <div
+              aria-hidden="true"
+              className={`learning-sheet-cell learning-sheet-break-stripes learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} h-8`}
+            />
+          </LessonFullRow>
 
-          return (
-            <Fragment key={exercise.id}>
-              {isMultiExerciseLesson && exerciseIndex > 0 ? (
-                <LessonFullRow>
-                  <div
-                    aria-hidden="true"
-                    className={`learning-sheet-cell learning-sheet-break-stripes learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} h-8`}
-                  />
-                </LessonFullRow>
-              ) : null}
-              <ExerciseSection
-                assignments={assignments}
-                datasetView={datasetView}
-                edgeCompensationClassName={rightEdgeCompensationClassName}
-                exercise={exercise}
-                exerciseLabel={exerciseLabel}
-                guidedDownloadArchive={guidedDownloadArchivesByExerciseId[exercise.id]}
-                guidedDownloadCode={guidedDownloadCodeByExerciseId[exercise.id] ?? ""}
-                guidedDownloadExtractedFilePath={
-                  guidedDownloadExtractedFilePathsByExerciseId[exercise.id] ?? ""
-                }
-                pandasCodeRunResult={pandasCodeRunResultsByExerciseId[exercise.id]}
-                guidedDownloadSourceAnswer={guidedDownloadSourceAnswer}
-                isPandasCodeRunning={runningPandasCodeExerciseId === exercise.id}
-                onMoveStep={(index, direction) => moveStep(exercise.id, index, direction)}
-                onRunPandasCode={
-                  exercise.type === "guided-download" ? () => runPandasCode(exercise) : undefined
-                }
-                onToggleOption={(optionId) => toggleOption(exercise.id, optionId)}
-                onUpdateAssignment={updateAssignment}
-                onUpdateDatasetSourceAnswer={(sourceInputId, field, value) =>
-                  updateDatasetSourceAnswer(exercise.id, sourceInputId, field, value)
-                }
-                onUpdateGuidedDownloadCode={(value) => updateGuidedDownloadCode(exercise.id, value)}
-                onUploadGuidedDownloadArchive={(file) =>
-                  uploadGuidedDownloadArchive(exercise.id, file)
-                }
-                orderedStepIds={orderedStepIdsByExerciseId[exercise.id] ?? []}
-                result={exerciseResult}
-                scrollTargetRef={(node) => {
-                  exerciseScrollTargetsByExerciseIdRef.current[exercise.id] = node;
-                }}
-                isReviewMode={isExerciseReadOnly}
-                submittedColumnRoleAssignments={
-                  submittedAnswerSnapshotsByExerciseId[exercise.id]
-                    ?.columnRoleAssignmentsByExerciseId?.[exercise.id] ?? {}
-                }
-                submittedDatasetSourceAnswers={
-                  submittedAnswerSnapshotsByExerciseId[exercise.id]
-                    ?.datasetSourceAnswersByExerciseId?.[exercise.id] ?? {}
-                }
-                sourceValidationResults={
-                  datasetSourceValidationResultsByExerciseId[exercise.id] ?? []
-                }
-                submittedGuidedDownloadCode={
-                  submittedAnswerSnapshotsByExerciseId[exercise.id]
-                    ?.guidedDownloadCodeByExerciseId?.[exercise.id] ?? ""
-                }
-                submittedGuidedDownloadExtractedFilePath={
-                  submittedAnswerSnapshotsByExerciseId[exercise.id]
-                    ?.guidedDownloadExtractedFilePathsByExerciseId?.[exercise.id] ?? ""
-                }
-                submittedSelectedOptionIds={
-                  submittedAnswerSnapshotsByExerciseId[exercise.id]
-                    ?.selectedOptionIdsByExerciseId?.[exercise.id] ?? []
-                }
-                datasetSourceAnswers={datasetSourceAnswersByExerciseId[exercise.id] ?? {}}
-                selectedOptionIds={selectedOptionIdsByExerciseId[exercise.id] ?? []}
-              />
-              {isMultiExerciseLesson ? (
-                <ExerciseSubmitAction
-                  disabled={
-                    !hasAnswerForExercise(exercise) ||
-                    (isExerciseCorrect && !isExerciseEditing) ||
-                    isExerciseSubmitting
-                  }
+          {exerciseEntries.map((exercise, exerciseIndex) => {
+            const exerciseLabel =
+              exerciseEntries.length === 1
+                ? t("learning.exercise")
+                : t("learning.exercise.numbered", { number: exerciseIndex + 1 });
+            const exerciseResult = exerciseResultsById[exercise.id] ?? null;
+            const isExerciseCorrect = exerciseResult?.status === "correct";
+            const isExerciseEditing = editingExerciseIds.has(exercise.id);
+            const canEditExerciseSubmission =
+              exercise.type === "open-dataset-source" && isExerciseCorrect && !isExerciseEditing;
+            const isExerciseReadOnly = isReviewMode || (isExerciseCorrect && !isExerciseEditing);
+            const isExerciseSubmitting = validatingDatasetSourceExerciseId === exercise.id;
+            const guidedDownloadSourceAnswer =
+              exercise.type === "guided-download"
+                ? getGuidedDownloadSourceAnswer(exercise, initialSubmittedAnswersByExerciseId)
+                : undefined;
+
+            return (
+              <Fragment key={exercise.id}>
+                {isMultiExerciseLesson && exerciseIndex > 0 ? (
+                  <LessonFullRow>
+                    <div
+                      aria-hidden="true"
+                      className={`learning-sheet-cell learning-sheet-break-stripes learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} h-8`}
+                    />
+                  </LessonFullRow>
+                ) : null}
+                <ExerciseSection
+                  assignments={assignments}
+                  datasetView={datasetView}
                   edgeCompensationClassName={rightEdgeCompensationClassName}
-                  finishedHref={
-                    isLessonFinished && exerciseIndex === exerciseEntries.length - 1
-                      ? finishedActionHref
+                  exercise={exercise}
+                  exerciseLabel={exerciseLabel}
+                  guidedDownloadArchive={guidedDownloadArchivesByExerciseId[exercise.id]}
+                  guidedDownloadCode={guidedDownloadCodeByExerciseId[exercise.id] ?? ""}
+                  guidedDownloadExtractedFilePath={
+                    guidedDownloadExtractedFilePathsByExerciseId[exercise.id] ?? ""
+                  }
+                  pandasCodeRunResult={pandasCodeRunResultsByExerciseId[exercise.id]}
+                  guidedDownloadSourceAnswer={guidedDownloadSourceAnswer}
+                  isPandasCodeRunning={runningPandasCodeExerciseId === exercise.id}
+                  onMoveStep={(index, direction) => moveStep(exercise.id, index, direction)}
+                  onRunPandasCode={
+                    exercise.type === "guided-download" ? () => runPandasCode(exercise) : undefined
+                  }
+                  onToggleOption={(optionId) => toggleOption(exercise.id, optionId)}
+                  onUpdateAssignment={updateAssignment}
+                  onUpdateDatasetSourceAnswer={(sourceInputId, field, value) =>
+                    updateDatasetSourceAnswer(exercise.id, sourceInputId, field, value)
+                  }
+                  onUpdateGuidedDownloadCode={(value) =>
+                    updateGuidedDownloadCode(exercise.id, value)
+                  }
+                  onUploadGuidedDownloadArchive={(file) =>
+                    uploadGuidedDownloadArchive(exercise.id, file)
+                  }
+                  orderedStepIds={orderedStepIdsByExerciseId[exercise.id] ?? []}
+                  result={exerciseResult}
+                  scrollTargetRef={(node) => {
+                    exerciseScrollTargetsByExerciseIdRef.current[exercise.id] = node;
+                  }}
+                  isReviewMode={isExerciseReadOnly}
+                  submittedColumnRoleAssignments={
+                    submittedAnswerSnapshotsByExerciseId[exercise.id]
+                      ?.columnRoleAssignmentsByExerciseId?.[exercise.id] ?? {}
+                  }
+                  submittedDatasetSourceAnswers={
+                    submittedAnswerSnapshotsByExerciseId[exercise.id]
+                      ?.datasetSourceAnswersByExerciseId?.[exercise.id] ?? {}
+                  }
+                  sourceValidationResults={
+                    datasetSourceValidationResultsByExerciseId[exercise.id] ?? []
+                  }
+                  submittedGuidedDownloadCode={
+                    submittedAnswerSnapshotsByExerciseId[exercise.id]
+                      ?.guidedDownloadCodeByExerciseId?.[exercise.id] ?? ""
+                  }
+                  submittedGuidedDownloadExtractedFilePath={
+                    submittedAnswerSnapshotsByExerciseId[exercise.id]
+                      ?.guidedDownloadExtractedFilePathsByExerciseId?.[exercise.id] ?? ""
+                  }
+                  submittedSelectedOptionIds={
+                    submittedAnswerSnapshotsByExerciseId[exercise.id]
+                      ?.selectedOptionIdsByExerciseId?.[exercise.id] ?? []
+                  }
+                  datasetSourceAnswers={datasetSourceAnswersByExerciseId[exercise.id] ?? {}}
+                  selectedOptionIds={selectedOptionIdsByExerciseId[exercise.id] ?? []}
+                />
+                {isMultiExerciseLesson ? (
+                  <ExerciseSubmitAction
+                    disabled={
+                      !hasAnswerForExercise(exercise) ||
+                      (isExerciseCorrect && !isExerciseEditing) ||
+                      isExerciseSubmitting
+                    }
+                    edgeCompensationClassName={rightEdgeCompensationClassName}
+                    finishedHref={
+                      isLessonFinished && exerciseIndex === exerciseEntries.length - 1
+                        ? finishedActionHref
+                        : undefined
+                    }
+                    finishedLabel={
+                      isLessonFinished && exerciseIndex === exerciseEntries.length - 1
+                        ? finishedActionLabel
+                        : undefined
+                    }
+                    isEditable={canEditExerciseSubmission}
+                    isEditing={isExerciseEditing}
+                    isSubmitting={isExerciseSubmitting}
+                    onCancelEdit={() => cancelEditingExercise(exercise)}
+                    onEdit={() => startEditingExercise(exercise.id)}
+                    onSubmit={() => submitExercise(exercise)}
+                    previousLessonHref={
+                      exerciseIndex === exerciseEntries.length - 1 ? previousLessonHref : undefined
+                    }
+                    submitted={isExerciseCorrect}
+                  />
+                ) : null}
+                {isMultiExerciseLesson && exerciseResult && exerciseResult.status !== "correct" ? (
+                  <>
+                    <LessonResult result={exerciseResult} />
+                    <LessonHintPanel
+                      hints={getExerciseHints(exercise, exerciseResult)}
+                      onToggleHints={() =>
+                        toggleHints(exercise.id, getExerciseHints(exercise, exerciseResult).length)
+                      }
+                      scrollPinTargetRef={hintFooterScrollTargetRef}
+                      visibleHintCount={visibleHintCountByExerciseId[exercise.id] ?? 0}
+                    />
+                  </>
+                ) : null}
+              </Fragment>
+            );
+          })}
+
+          {!isMultiExerciseLesson ? (
+            <LessonFullRow>
+              <div
+                className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} flex items-center gap-4 p-6`}
+              >
+                {previousLessonHref ? (
+                  <LiquidLink
+                    className={`${lessonNavigationLinkClassName} min-h-12`}
+                    data-app-link
+                    fillOnHover={false}
+                    href={previousLessonHref}
+                  >
+                    <HugeiconsIcon aria-hidden="true" className="size-5" icon={ArrowLeft02Icon} />
+                    {t("navigation.prev")}
+                  </LiquidLink>
+                ) : null}
+                {isLessonFinished ? (
+                  <LiquidLink
+                    className={`${lessonNavigationLinkClassName} ml-auto min-h-12`}
+                    data-app-link
+                    fillOnHover={false}
+                    href={finishedActionHref}
+                  >
+                    {finishedActionLabel}
+                    <HugeiconsIcon aria-hidden="true" className="size-5" icon={ArrowRight02Icon} />
+                  </LiquidLink>
+                ) : (
+                  <LiquidButton
+                    className={`${emeraldLiquidButtonClassName} ml-auto min-h-12 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-neutral-950 ${isSubmitDisabled ? "" : "cursor-pointer"}`}
+                    disabled={isSubmitDisabled}
+                    onClick={() => {
+                      const firstExercise = exerciseEntries[0];
+
+                      if (firstExercise) {
+                        submitExercise(firstExercise);
+                      }
+                    }}
+                    type="button"
+                  >
+                    {t("learning.submit")}
+                  </LiquidButton>
+                )}
+              </div>
+            </LessonFullRow>
+          ) : null}
+
+          {!isMultiExerciseLesson && lessonResult && lessonResult.status !== "correct" ? (
+            <>
+              <LessonResult result={lessonResult} />
+              {hasNotQuiteResult ? (
+                <LessonHintPanel
+                  hints={getExerciseHints(exerciseEntries[0], lessonResult)}
+                  onToggleHints={() =>
+                    exerciseEntries[0]
+                      ? toggleHints(
+                          exerciseEntries[0].id,
+                          getExerciseHints(exerciseEntries[0], lessonResult).length,
+                        )
                       : undefined
                   }
-                  finishedLabel={
-                    isLessonFinished && exerciseIndex === exerciseEntries.length - 1
-                      ? finishedActionLabel
-                      : undefined
+                  scrollPinTargetRef={hintFooterScrollTargetRef}
+                  visibleHintCount={
+                    exerciseEntries[0]
+                      ? (visibleHintCountByExerciseId[exerciseEntries[0].id] ?? 0)
+                      : 0
                   }
-                  isEditable={canEditExerciseSubmission}
-                  isEditing={isExerciseEditing}
-                  isSubmitting={isExerciseSubmitting}
-                  onCancelEdit={() => cancelEditingExercise(exercise)}
-                  onEdit={() => startEditingExercise(exercise.id)}
-                  onSubmit={() => submitExercise(exercise)}
-                  previousLessonHref={
-                    exerciseIndex === exerciseEntries.length - 1 ? previousLessonHref : undefined
-                  }
-                  submitted={isExerciseCorrect}
                 />
               ) : null}
-              {isMultiExerciseLesson && exerciseResult && exerciseResult.status !== "correct" ? (
-                <>
-                  <LessonResult result={exerciseResult} />
-                  <LessonHintPanel
-                    hints={getExerciseHints(exercise, exerciseResult)}
-                    onToggleHints={() =>
-                      toggleHints(exercise.id, getExerciseHints(exercise, exerciseResult).length)
-                    }
-                    scrollPinTargetRef={hintFooterScrollTargetRef}
-                    visibleHintCount={visibleHintCountByExerciseId[exercise.id] ?? 0}
-                  />
-                </>
-              ) : null}
-            </Fragment>
-          );
-        })}
+            </>
+          ) : null}
 
-        {!isMultiExerciseLesson ? (
-          <LessonFullRow>
-            <div
-              className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} flex items-center gap-4 p-6`}
-            >
-              {previousLessonHref ? (
-                <LiquidLink
-                  className={`${lessonNavigationLinkClassName} min-h-12`}
-                  data-app-link
-                  fillOnHover={false}
-                  href={previousLessonHref}
-                >
-                  <HugeiconsIcon aria-hidden="true" className="size-5" icon={ArrowLeft02Icon} />
-                  {t("navigation.prev")}
-                </LiquidLink>
-              ) : null}
-              {isLessonFinished ? (
-                <LiquidLink
-                  className={`${lessonNavigationLinkClassName} ml-auto min-h-12`}
-                  data-app-link
-                  fillOnHover={false}
-                  href={finishedActionHref}
-                >
-                  {finishedActionLabel}
-                  <HugeiconsIcon aria-hidden="true" className="size-5" icon={ArrowRight02Icon} />
-                </LiquidLink>
-              ) : (
-                <LiquidButton
-                  className={`${emeraldLiquidButtonClassName} ml-auto min-h-12 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-neutral-950 ${isSubmitDisabled ? "" : "cursor-pointer"}`}
-                  disabled={isSubmitDisabled}
-                  onClick={() => {
-                    const firstExercise = exerciseEntries[0];
-
-                    if (firstExercise) {
-                      submitExercise(firstExercise);
-                    }
-                  }}
-                  type="button"
-                >
-                  {t("learning.submit")}
-                </LiquidButton>
-              )}
-            </div>
-          </LessonFullRow>
-        ) : null}
-
-        {!isMultiExerciseLesson && lessonResult && lessonResult.status !== "correct" ? (
-          <>
-            <LessonResult result={lessonResult} />
-            {hasNotQuiteResult ? (
-              <LessonHintPanel
-                hints={getExerciseHints(exerciseEntries[0], lessonResult)}
-                onToggleHints={() =>
-                  exerciseEntries[0]
-                    ? toggleHints(
-                        exerciseEntries[0].id,
-                        getExerciseHints(exerciseEntries[0], lessonResult).length,
-                      )
-                    : undefined
-                }
-                scrollPinTargetRef={hintFooterScrollTargetRef}
-                visibleHintCount={
-                  exerciseEntries[0]
-                    ? (visibleHintCountByExerciseId[exerciseEntries[0].id] ?? 0)
-                    : 0
-                }
+          {shouldSplitFooterForHint ? (
+            <>
+              <LessonLeftGutter />
+              <div
+                aria-hidden="true"
+                className={`learning-sheet-cell learning-extend-left learning-sheet-footer-cell ${lessonSplitResultGridClassName}`}
               />
-            ) : null}
-          </>
-        ) : null}
-
-        {shouldSplitFooterForHint ? (
-          <>
-            <LessonLeftGutter />
-            <div
-              aria-hidden="true"
-              className={`learning-sheet-cell learning-extend-left learning-sheet-footer-cell ${lessonSplitResultGridClassName}`}
-            />
-            <div
-              aria-hidden="true"
-              className={`learning-sheet-cell learning-extend-right learning-sheet-footer-cell ${lessonSplitAsideGridClassName} -mr-px`}
-              ref={hintFooterScrollTargetRef}
-            />
-            <LessonRightGutter />
-          </>
-        ) : (
-          <LessonFullRow>
-            <div
-              aria-hidden="true"
-              className={`learning-sheet-cell learning-extend-left learning-extend-right learning-sheet-footer-cell ${lessonFullCellGridClassName}`}
-              ref={hintFooterScrollTargetRef}
-            />
-          </LessonFullRow>
-        )}
-      </section>
+              <div
+                aria-hidden="true"
+                className={`learning-sheet-cell learning-extend-right learning-sheet-footer-cell ${lessonSplitAsideGridClassName} -mr-px`}
+                ref={hintFooterScrollTargetRef}
+              />
+              <LessonRightGutter />
+            </>
+          ) : (
+            <LessonFullRow>
+              <div
+                aria-hidden="true"
+                className={`learning-sheet-cell learning-extend-left learning-extend-right learning-sheet-footer-cell ${lessonFullCellGridClassName}`}
+                ref={hintFooterScrollTargetRef}
+              />
+            </LessonFullRow>
+          )}
+        </section>
+      </div>
     </LearningGridCanvas>
   );
 }

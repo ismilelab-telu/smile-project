@@ -35,7 +35,7 @@ const menuLinks = [
 
 export function LearningHeader({ backHref, backLabel }: LearningHeaderProps) {
   return (
-    <header className="learning-header sticky top-0 z-30 flex items-center justify-between border-b learning-grid-border bg-background px-6 py-5">
+    <header className="learning-header route-header-transition-target sticky top-0 z-30 flex items-center justify-between border-b learning-grid-border bg-background px-6 py-5">
       <a
         aria-label={backLabel}
         className="inline-flex size-10 items-center justify-center rounded-none bg-transparent text-neutral-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"

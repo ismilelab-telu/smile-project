@@ -38,14 +38,16 @@ function LearningLessonFallback({ backHref }: { backHref: string }) {
   return (
     <LearningGridCanvas>
       <LearningHeader backHref={backHref} backLabel="Kembali ke Jalur Belajar" />
-      <section
-        aria-busy="true"
-        className={`route-content-transition-target relative isolate mx-auto min-h-48 overflow-hidden ${learningFallbackSurfaceClassName} ${learningFallbackWidthClassName}`}
-      >
-        <LearningSheetExtensions />
-        <div className="learning-sheet-cell h-24 animate-pulse bg-neutral-100" />
-        <div className="learning-sheet-cell h-24 animate-pulse bg-white" />
-      </section>
+      <div className="route-content-transition-target">
+        <section
+          aria-busy="true"
+          className={`relative isolate mx-auto min-h-48 overflow-hidden ${learningFallbackSurfaceClassName} ${learningFallbackWidthClassName}`}
+        >
+          <LearningSheetExtensions />
+          <div className="learning-sheet-cell h-24 animate-pulse bg-neutral-100" />
+          <div className="learning-sheet-cell h-24 animate-pulse bg-white" />
+        </section>
+      </div>
     </LearningGridCanvas>
   );
 }
@@ -157,23 +159,25 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
     return (
       <LearningGridCanvas>
         <LearningHeader backHref="/learn" backLabel="Kembali ke Jalur Belajar" />
-        <section
-          className={`route-content-transition-target relative isolate mx-auto mt-20 max-w-xl overflow-hidden text-center ${learningFallbackSurfaceClassName}`}
-        >
-          <LearningSheetExtensions />
+        <div className="route-content-transition-target">
+          <section
+            className={`relative isolate mx-auto mt-20 max-w-xl overflow-hidden text-center ${learningFallbackSurfaceClassName}`}
+          >
+            <LearningSheetExtensions />
 
-          <h1 className="learning-sheet-cell p-8 text-2xl font-semibold text-foreground">
-            Jalur belajar tidak ditemukan
-          </h1>
-          <p className="learning-sheet-cell p-8 text-base leading-7 text-muted-foreground">
-            Jalur ini belum tersedia di Learning Mode.
-          </p>
-          <div className="learning-sheet-cell p-8">
-            <LiquidLink className={liquidButtonClassName} data-app-link href="/learn">
-              Kembali ke Jalur Belajar
-            </LiquidLink>
-          </div>
-        </section>
+            <h1 className="learning-sheet-cell p-8 text-2xl font-semibold text-foreground">
+              Jalur belajar tidak ditemukan
+            </h1>
+            <p className="learning-sheet-cell p-8 text-base leading-7 text-muted-foreground">
+              Jalur ini belum tersedia di Learning Mode.
+            </p>
+            <div className="learning-sheet-cell p-8">
+              <LiquidLink className={liquidButtonClassName} data-app-link href="/learn">
+                Kembali ke Jalur Belajar
+              </LiquidLink>
+            </div>
+          </section>
+        </div>
       </LearningGridCanvas>
     );
   }
@@ -182,23 +186,25 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
     return (
       <LearningGridCanvas>
         <LearningHeader backHref="/learn" backLabel="Kembali ke Jalur Belajar" />
-        <section
-          className={`route-content-transition-target relative isolate mx-auto mt-20 max-w-xl overflow-hidden text-center ${learningFallbackSurfaceClassName}`}
-        >
-          <LearningSheetExtensions />
+        <div className="route-content-transition-target">
+          <section
+            className={`relative isolate mx-auto mt-20 max-w-xl overflow-hidden text-center ${learningFallbackSurfaceClassName}`}
+          >
+            <LearningSheetExtensions />
 
-          <h1 className="learning-sheet-cell p-8 text-2xl font-semibold text-foreground">
-            {track.title} segera hadir
-          </h1>
-          <p className="learning-sheet-cell p-8 text-base leading-7 text-muted-foreground">
-            Mulai dari Dasar-Dasar Machine Learning sambil menunggu jalur ini disiapkan.
-          </p>
-          <div className="learning-sheet-cell p-8">
-            <LiquidLink className={liquidButtonClassName} data-app-link href="/learn">
-              Kembali ke Jalur Belajar
-            </LiquidLink>
-          </div>
-        </section>
+            <h1 className="learning-sheet-cell p-8 text-2xl font-semibold text-foreground">
+              {track.title} segera hadir
+            </h1>
+            <p className="learning-sheet-cell p-8 text-base leading-7 text-muted-foreground">
+              Mulai dari Dasar-Dasar Machine Learning sambil menunggu jalur ini disiapkan.
+            </p>
+            <div className="learning-sheet-cell p-8">
+              <LiquidLink className={liquidButtonClassName} data-app-link href="/learn">
+                Kembali ke Jalur Belajar
+              </LiquidLink>
+            </div>
+          </section>
+        </div>
       </LearningGridCanvas>
     );
   }
@@ -220,23 +226,25 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
       return (
         <LearningGridCanvas>
           <LearningHeader backHref={trackHomeHref} backLabel="Kembali ke Jalur Belajar" />
-          <section
-            className={`route-content-transition-target relative isolate mx-auto mt-20 max-w-xl overflow-hidden text-center ${learningFallbackSurfaceClassName}`}
-          >
-            <LearningSheetExtensions />
+          <div className="route-content-transition-target">
+            <section
+              className={`relative isolate mx-auto mt-20 max-w-xl overflow-hidden text-center ${learningFallbackSurfaceClassName}`}
+            >
+              <LearningSheetExtensions />
 
-            <h1 className="learning-sheet-cell p-8 text-2xl font-semibold text-foreground">
-              Lesson tidak ditemukan
-            </h1>
-            <p className="learning-sheet-cell p-8 text-base leading-7 text-muted-foreground">
-              ID lesson ini belum tersedia di jalur belajar ini.
-            </p>
-            <div className="learning-sheet-cell p-8">
-              <LiquidLink className={liquidButtonClassName} data-app-link href={trackHomeHref}>
-                Kembali ke Jalur Belajar
-              </LiquidLink>
-            </div>
-          </section>
+              <h1 className="learning-sheet-cell p-8 text-2xl font-semibold text-foreground">
+                Lesson tidak ditemukan
+              </h1>
+              <p className="learning-sheet-cell p-8 text-base leading-7 text-muted-foreground">
+                ID lesson ini belum tersedia di jalur belajar ini.
+              </p>
+              <div className="learning-sheet-cell p-8">
+                <LiquidLink className={liquidButtonClassName} data-app-link href={trackHomeHref}>
+                  Kembali ke Jalur Belajar
+                </LiquidLink>
+              </div>
+            </section>
+          </div>
         </LearningGridCanvas>
       );
     }
@@ -245,23 +253,25 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
       return (
         <LearningGridCanvas>
           <LearningHeader backHref={trackHomeHref} backLabel="Kembali ke Jalur Belajar" />
-          <section
-            className={`route-content-transition-target relative isolate mx-auto mt-20 max-w-xl overflow-hidden text-center ${learningFallbackSurfaceClassName}`}
-          >
-            <LearningSheetExtensions />
+          <div className="route-content-transition-target">
+            <section
+              className={`relative isolate mx-auto mt-20 max-w-xl overflow-hidden text-center ${learningFallbackSurfaceClassName}`}
+            >
+              <LearningSheetExtensions />
 
-            <h1 className="learning-sheet-cell p-8 text-2xl font-semibold text-foreground">
-              {lesson.numberLabel} segera hadir
-            </h1>
-            <p className="learning-sheet-cell p-8 text-base leading-7 text-muted-foreground">
-              Materi ini sedang disiapkan dan belum bisa dibuka.
-            </p>
-            <div className="learning-sheet-cell p-8">
-              <LiquidLink className={liquidButtonClassName} data-app-link href={trackHomeHref}>
-                Kembali ke Jalur Belajar
-              </LiquidLink>
-            </div>
-          </section>
+              <h1 className="learning-sheet-cell p-8 text-2xl font-semibold text-foreground">
+                {lesson.numberLabel} segera hadir
+              </h1>
+              <p className="learning-sheet-cell p-8 text-base leading-7 text-muted-foreground">
+                Materi ini sedang disiapkan dan belum bisa dibuka.
+              </p>
+              <div className="learning-sheet-cell p-8">
+                <LiquidLink className={liquidButtonClassName} data-app-link href={trackHomeHref}>
+                  Kembali ke Jalur Belajar
+                </LiquidLink>
+              </div>
+            </section>
+          </div>
         </LearningGridCanvas>
       );
     }
@@ -270,23 +280,25 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
       return (
         <LearningGridCanvas>
           <LearningHeader backHref={trackHomeHref} backLabel="Kembali ke Jalur Belajar" />
-          <section
-            className={`route-content-transition-target relative isolate mx-auto mt-20 max-w-xl overflow-hidden text-center ${learningFallbackSurfaceClassName}`}
-          >
-            <LearningSheetExtensions />
+          <div className="route-content-transition-target">
+            <section
+              className={`relative isolate mx-auto mt-20 max-w-xl overflow-hidden text-center ${learningFallbackSurfaceClassName}`}
+            >
+              <LearningSheetExtensions />
 
-            <h1 className="learning-sheet-cell p-8 text-2xl font-semibold text-foreground">
-              Lesson terkunci
-            </h1>
-            <p className="learning-sheet-cell p-8 text-base leading-7 text-muted-foreground">
-              {getLessonLockReason(lesson, progress)}
-            </p>
-            <div className="learning-sheet-cell p-8">
-              <LiquidLink className={liquidButtonClassName} data-app-link href={trackHomeHref}>
-                Kembali ke Jalur Belajar
-              </LiquidLink>
-            </div>
-          </section>
+              <h1 className="learning-sheet-cell p-8 text-2xl font-semibold text-foreground">
+                Lesson terkunci
+              </h1>
+              <p className="learning-sheet-cell p-8 text-base leading-7 text-muted-foreground">
+                {getLessonLockReason(lesson, progress)}
+              </p>
+              <div className="learning-sheet-cell p-8">
+                <LiquidLink className={liquidButtonClassName} data-app-link href={trackHomeHref}>
+                  Kembali ke Jalur Belajar
+                </LiquidLink>
+              </div>
+            </section>
+          </div>
         </LearningGridCanvas>
       );
     }
