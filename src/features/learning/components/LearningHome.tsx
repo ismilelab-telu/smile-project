@@ -6,7 +6,7 @@ import {
   OnlineLearning01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 
 import { getModule, isLessonAvailable, lessons } from "../content/learning-content";
 import {
@@ -27,10 +27,53 @@ const liquidButtonClassName =
 const disabledButtonClassName =
   "inline-flex min-h-12 w-full cursor-not-allowed items-center justify-center gap-3 bg-neutral-200 px-5 py-3 text-base font-semibold whitespace-nowrap text-muted-foreground disabled:opacity-100";
 
+const learningHomeFullCellGridClassName =
+  "col-span-3 sm:col-span-4 [@media_(min-width:1024px)]:col-span-4";
+
 type LearningHomeProps = {
   track: LearningTrack;
   progress: LearningProgress;
 };
+
+function LearningHomeLeftGutter({ className = "" }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`learning-sheet-cell learning-sheet-gutter-cell learning-extend-left hidden [@media_(min-width:1024px)]:block ${className}`}
+    />
+  );
+}
+
+function LearningHomeRightGutter({ className = "" }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`learning-sheet-cell learning-sheet-gutter-cell learning-extend-right hidden [@media_(min-width:1024px)]:block ${className}`}
+    />
+  );
+}
+
+function LearningHomeSheetPatternPlane() {
+  return <span aria-hidden="true" className="learning-sheet-pattern-plane" />;
+}
+
+function LearningHomeFullRow({
+  children,
+  leftClassName = "",
+  rightClassName = "",
+}: {
+  children: ReactNode;
+  leftClassName?: string;
+  rightClassName?: string;
+}) {
+  return (
+    <>
+      <LearningHomeLeftGutter className={leftClassName} />
+      {children}
+      <LearningHomeRightGutter className={rightClassName} />
+    </>
+  );
+}
 
 export function LearningHome({ progress, track }: LearningHomeProps) {
   const { locale, t } = useLocalization();
@@ -61,53 +104,68 @@ export function LearningHome({ progress, track }: LearningHomeProps) {
       <div className="route-content-transition-target">
         <section
           aria-labelledby="module-list"
-          className="learning-sheet mx-auto grid w-[min(1080px,calc(100%_-_48px))] grid-cols-[4rem_5rem_minmax(0,1fr)] sm:grid-cols-[5rem_6rem_minmax(0,1fr)_14rem] lg:grid-cols-[5rem_6rem_minmax(0,1fr)_14rem]"
+          className="learning-sheet mx-auto grid w-[min(1080px,calc(100%_-_48px))] grid-cols-[4rem_5rem_minmax(0,1fr)] sm:grid-cols-[5rem_6rem_minmax(0,1fr)_14rem] [@media_(min-width:1024px)]:grid-cols-[2rem_5rem_6rem_minmax(0,1fr)_14rem_2rem]"
         >
           <LearningSheetExtensions />
+          <LearningHomeSheetPatternPlane />
 
-          <div className="learning-sheet-cell learning-extend-left learning-extend-right learning-extend-top col-span-3 p-6 sm:col-span-4">
-            <h1 className="text-5xl leading-tight font-semibold tracking-normal text-foreground">
-              {localizedTrack.title}
-            </h1>
-          </div>
-
-          <div
-            aria-hidden="true"
-            className="learning-sheet-cell learning-extend-left learning-extend-right col-span-3 h-12 sm:col-span-4"
-          />
-
-          <aside className="learning-sheet-cell learning-extend-left learning-extend-right col-span-3 grid gap-4 p-6 sm:col-span-4 sm:grid-cols-[max-content_minmax(0,1fr)] sm:items-center">
-            <span className="text-base font-semibold text-foreground">
-              {t("learning.home.progress")}
-            </span>
-            <div className="flex items-center gap-4">
-              <div
-                aria-label={t("learning.home.progressAria", { percent: progressPercent })}
-                className="learning-grid-panel-fill h-3 flex-1 overflow-hidden rounded-xl"
-                role="progressbar"
-                aria-valuemax={100}
-                aria-valuemin={0}
-                aria-valuenow={progressPercent}
-              >
-                <div className="h-full bg-emerald-500" style={{ width: `${progressPercent}%` }} />
-              </div>
-              <span className="w-12 text-right text-base font-semibold text-foreground">
-                {progressPercent}%
-              </span>
+          <LearningHomeFullRow>
+            <div
+              className={`learning-sheet-cell learning-extend-left learning-extend-right learning-extend-top ${learningHomeFullCellGridClassName} p-6`}
+            >
+              <h1 className="text-5xl leading-tight font-semibold tracking-normal text-foreground">
+                {localizedTrack.title}
+              </h1>
             </div>
-          </aside>
+          </LearningHomeFullRow>
 
-          <div
-            aria-hidden="true"
-            className="learning-sheet-cell learning-extend-left learning-extend-right col-span-3 h-12 sm:col-span-4"
-          />
+          <LearningHomeFullRow>
+            <div
+              aria-hidden="true"
+              className={`learning-sheet-cell learning-sheet-gutter-cell learning-extend-left learning-extend-right ${learningHomeFullCellGridClassName} h-8`}
+            />
+          </LearningHomeFullRow>
 
-          <h2
-            className="learning-sheet-cell learning-extend-left learning-extend-right col-span-3 p-6 text-3xl font-semibold tracking-normal text-foreground sm:col-span-4"
-            id="module-list"
-          >
-            {t("learning.home.module")}
-          </h2>
+          <LearningHomeFullRow>
+            <aside
+              className={`learning-sheet-cell learning-extend-left learning-extend-right ${learningHomeFullCellGridClassName} grid gap-4 p-6 sm:grid-cols-[max-content_minmax(0,1fr)] sm:items-center`}
+            >
+              <span className="text-base font-semibold text-foreground">
+                {t("learning.home.progress")}
+              </span>
+              <div className="flex items-center gap-4">
+                <div
+                  aria-label={t("learning.home.progressAria", { percent: progressPercent })}
+                  className="learning-grid-panel-fill h-3 flex-1 overflow-hidden rounded-xl"
+                  role="progressbar"
+                  aria-valuemax={100}
+                  aria-valuemin={0}
+                  aria-valuenow={progressPercent}
+                >
+                  <div className="h-full bg-emerald-500" style={{ width: `${progressPercent}%` }} />
+                </div>
+                <span className="w-12 text-right text-base font-semibold text-foreground">
+                  {progressPercent}%
+                </span>
+              </div>
+            </aside>
+          </LearningHomeFullRow>
+
+          <LearningHomeFullRow>
+            <div
+              aria-hidden="true"
+              className={`learning-sheet-cell learning-sheet-gutter-cell learning-extend-left learning-extend-right ${learningHomeFullCellGridClassName} h-8`}
+            />
+          </LearningHomeFullRow>
+
+          <LearningHomeFullRow>
+            <h2
+              className={`learning-sheet-cell learning-extend-left learning-extend-right ${learningHomeFullCellGridClassName} p-6 text-3xl font-semibold tracking-normal text-foreground`}
+              id="module-list"
+            >
+              {t("learning.home.module")}
+            </h2>
+          </LearningHomeFullRow>
 
           {trackModules.map((module, index) => {
             const localizedModule = localizeModule(module, locale);
@@ -125,6 +183,7 @@ export function LearningHome({ progress, track }: LearningHomeProps) {
 
             return (
               <Fragment key={module.id}>
+                <LearningHomeLeftGutter />
                 <div className="learning-sheet-cell learning-extend-left learning-sheet-cell-fill flex items-center justify-center p-4 text-base font-semibold text-foreground">
                   {index}
                 </div>
@@ -157,6 +216,7 @@ export function LearningHome({ progress, track }: LearningHomeProps) {
                     </div>
                   )}
                 </div>
+                <LearningHomeRightGutter />
 
                 {isAvailable && moduleLessons.length > 0
                   ? moduleLessons.map((lesson) => {
@@ -168,6 +228,7 @@ export function LearningHome({ progress, track }: LearningHomeProps) {
 
                       return (
                         <Fragment key={lesson.id}>
+                          <LearningHomeLeftGutter />
                           <div
                             aria-hidden="true"
                             className="learning-sheet-cell learning-extend-left learning-sheet-cell-fill"
@@ -221,6 +282,7 @@ export function LearningHome({ progress, track }: LearningHomeProps) {
                               </button>
                             )}
                           </div>
+                          <LearningHomeRightGutter />
                         </Fragment>
                       );
                     })
@@ -229,6 +291,7 @@ export function LearningHome({ progress, track }: LearningHomeProps) {
             );
           })}
 
+          <LearningHomeLeftGutter />
           <div
             aria-hidden="true"
             className="learning-sheet-cell learning-extend-left learning-sheet-footer-cell"
@@ -239,6 +302,7 @@ export function LearningHome({ progress, track }: LearningHomeProps) {
             aria-hidden="true"
             className="learning-sheet-cell learning-extend-right learning-sheet-footer-cell hidden sm:block"
           />
+          <LearningHomeRightGutter />
         </section>
       </div>
     </LearningGridCanvas>
