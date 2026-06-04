@@ -192,7 +192,7 @@ export function LearningHome({ progress, track }: LearningHomeProps) {
                               </button>
                             ) : isUnlocked ? (
                               <LiquidLink
-                                className={`${liquidButtonClassName} min-h-12 w-full [--liquid-button-color:var(--color-emerald-500)]`}
+                                className={`${liquidButtonClassName} min-h-12 w-full [--liquid-button-color:var(--color-neutral-950)]`}
                                 data-app-link
                                 href={`/learn/${track.id}/${lesson.id}`}
                               >

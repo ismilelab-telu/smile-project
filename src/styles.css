@@ -240,8 +240,40 @@
 
   @media (min-width: 640px) {
     .explore-mode-sheet {
-      grid-template-rows: auto auto repeat(3, auto) minmax(4.5rem, 1fr);
+      grid-template-rows: auto auto auto auto minmax(4.5rem, 1fr);
     }
+  }
+
+  .explore-mode-link {
+    isolation: isolate;
+    overflow: hidden;
+  }
+
+  .explore-mode-link::before {
+    aspect-ratio: 1;
+    border-radius: 9999px;
+    background: oklch(0% 0 0);
+    content: "";
+    left: 50%;
+    pointer-events: none;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    transition: transform 440ms cubic-bezier(0.65, 0, 0.35, 1);
+    width: max(18rem, 165%);
+    z-index: 0;
+  }
+
+  .explore-mode-link > span {
+    transition: color 220ms ease;
+  }
+
+  .explore-mode-link:is(:hover, :focus-visible) > span {
+    color: oklch(100% 0 0);
+  }
+
+  .explore-mode-link:is(:hover, :focus-visible)::before {
+    transform: translate(-50%, -50%) scale(1.6);
   }
 
   .learning-sheet-cell {

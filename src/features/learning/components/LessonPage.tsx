@@ -104,10 +104,10 @@ gsap.registerPlugin(useGSAP);
 
 const liquidButtonBaseClassName =
   "inline-flex items-center justify-center gap-3 rounded-none px-5 py-3 text-base font-semibold text-neutral-950 backdrop-blur-xl hover:text-neutral-50 [--liquid-button-background-color:var(--color-neutral-200)]";
-const emeraldLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-button-color:var(--color-emerald-500)]`;
+const emeraldLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-button-color:var(--color-neutral-950)]`;
 const amberLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-button-color:var(--color-amber-500)]`;
 const neutralLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-button-color:var(--color-neutral-500)]`;
-const lessonNavigationLinkClassName = `${emeraldLiquidButtonClassName} hover:!text-neutral-950`;
+const lessonNavigationLinkClassName = emeraldLiquidButtonClassName;
 const lessonSheetWidthClassName = "w-[min(1080px,calc(100%_-_48px))]";
 const lessonTaskSurfaceWidthClassName = "min-w-0 w-full";
 const lessonFullCellGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-12";

@@ -16,7 +16,7 @@ import { LiquidLink } from "@/components/ui/liquid-button";
 import { useLocalization } from "@/features/localization/localization";
 
 const liquidButtonClassName =
-  "inline-flex items-center justify-center gap-3 rounded-none px-5 py-3 text-base font-semibold text-neutral-950 backdrop-blur-xl hover:text-neutral-50 [--liquid-button-background-color:var(--color-neutral-200)] [--liquid-button-color:var(--color-emerald-500)]";
+  "inline-flex items-center justify-center gap-3 rounded-none px-5 py-3 text-base font-semibold text-neutral-950 backdrop-blur-xl hover:text-neutral-50 [--liquid-button-background-color:var(--color-neutral-200)] [--liquid-button-color:var(--color-neutral-950)]";
 
 const trackHubFullCellGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-3";
 

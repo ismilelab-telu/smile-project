@@ -1,11 +1,3 @@
-import {
-  AiLearningIcon,
-  AlgorithmIcon,
-  ArrowRight02Icon,
-  Clock01Icon,
-  TestTubeIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import type { ReactNode } from "react";
 
 import {
@@ -13,36 +5,20 @@ import {
   LearningSheetExtensions,
 } from "@/features/learning/components/LearningGridCanvas";
 import { LearningHeader } from "@/features/learning/components/LearningHeader";
-import { LiquidLink } from "@/components/ui/liquid-button";
-
-const liquidButtonClassName =
-  "inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-none px-5 py-3 text-base font-semibold text-neutral-950 backdrop-blur-xl hover:text-neutral-50 [--liquid-button-background-color:var(--color-neutral-200)] [--liquid-button-color:var(--color-emerald-500)]";
-
-const disabledButtonClassName =
-  "inline-flex min-h-12 w-full cursor-not-allowed items-center justify-center gap-3 bg-neutral-200 px-5 py-3 text-base font-semibold whitespace-nowrap text-muted-foreground disabled:opacity-100";
 
 const exploreFullCellGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-3";
 
 const modes = [
   {
-    actionLabel: "Start path",
     href: "/learn",
-    icon: AiLearningIcon,
-    status: "available",
     title: "Learning Mode",
   },
   {
-    actionLabel: "Coming soon",
     href: "/playground",
-    icon: TestTubeIcon,
-    status: "coming-soon",
     title: "ML Playground",
   },
   {
-    actionLabel: "Coming soon",
     href: "/algorithm-lab",
-    icon: AlgorithmIcon,
-    status: "coming-soon",
     title: "Algorithm Lab",
   },
 ] as const;
@@ -95,7 +71,7 @@ export function ExplorePage() {
       <div className="route-content-transition-target">
         <section
           aria-labelledby="explore-mode-list"
-          className="explore-mode-sheet learning-sheet mx-auto grid w-[min(1080px,calc(100%_-_48px))] grid-cols-[4rem_minmax(0,1fr)] sm:grid-cols-[5rem_minmax(0,1fr)_14rem] [@media_(min-width:1024px)]:grid-cols-[2rem_5rem_minmax(0,1fr)_14rem_2rem]"
+          className="explore-mode-sheet learning-sheet mx-auto grid w-[min(1280px,calc(100%_-_48px))] grid-cols-[minmax(0,1fr)] sm:grid-cols-3 [@media_(min-width:1024px)]:grid-cols-[2rem_repeat(3,minmax(0,1fr))_2rem]"
         >
           <LearningSheetExtensions />
           <ExploreSheetPatternPlane />
@@ -120,46 +96,61 @@ export function ExplorePage() {
             />
           </ExploreFullRow>
 
-          {modes.map((mode, index) => (
-            <div className="contents" key={mode.title}>
-              <ExploreLeftGutter />
-              <div className="learning-sheet-cell learning-sheet-gutter-cell learning-extend-left flex items-center justify-center p-3 text-base font-semibold text-foreground">
-                {index}
-              </div>
-              <div className="learning-sheet-cell flex min-h-24 items-center gap-5 p-5">
-                <HugeiconsIcon
-                  aria-hidden="true"
-                  className={`size-7 shrink-0 ${
-                    mode.status === "available" ? "text-emerald-500" : "text-muted-foreground"
-                  }`}
-                  icon={mode.icon}
-                />
-                <h2 className="min-w-0 text-2xl leading-tight font-semibold text-foreground">
-                  {mode.title}
-                </h2>
-              </div>
-              <div className="learning-sheet-cell learning-extend-right col-span-2 flex items-center p-4 sm:col-span-1">
-                {mode.status === "available" ? (
-                  <LiquidLink className={liquidButtonClassName} data-app-link href={mode.href}>
-                    {mode.actionLabel}
-                    <HugeiconsIcon aria-hidden="true" className="size-5" icon={ArrowRight02Icon} />
-                  </LiquidLink>
-                ) : (
-                  <button className={disabledButtonClassName} disabled type="button">
-                    <HugeiconsIcon aria-hidden="true" className="size-5" icon={Clock01Icon} />
-                    {mode.actionLabel}
-                  </button>
-                )}
-              </div>
-              <ExploreRightGutter />
-            </div>
+          <ExploreLeftGutter />
+          <div
+            aria-hidden="true"
+            className="learning-sheet-cell learning-extend-left aspect-square overflow-hidden"
+          >
+            <img
+              alt=""
+              className="h-full w-full object-cover object-left"
+              decoding="async"
+              loading="lazy"
+              src="/learning/explore-learning-mode.gif"
+            />
+          </div>
+          <div aria-hidden="true" className="learning-sheet-cell aspect-square overflow-hidden">
+            <img
+              alt=""
+              className="h-full w-full object-cover object-left"
+              decoding="async"
+              loading="lazy"
+              src="/learning/explore-ml-playground.gif"
+            />
+          </div>
+          <div
+            aria-hidden="true"
+            className="learning-sheet-cell learning-extend-right hidden aspect-square overflow-hidden sm:block"
+          >
+            <img
+              alt=""
+              className="h-full w-full object-cover object-[88%_center]"
+              decoding="async"
+              loading="lazy"
+              src="/learning/explore-algorithm-lab.gif"
+            />
+          </div>
+          <ExploreRightGutter />
+
+          <ExploreLeftGutter />
+          {modes.map((mode) => (
+            <a
+              className="explore-mode-link learning-sheet-cell flex min-h-16 items-center p-4 text-2xl leading-tight font-semibold text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-emerald-400"
+              data-app-link
+              href={mode.href}
+              key={mode.title}
+            >
+              <span className="relative z-10 min-w-0">{mode.title}</span>
+            </a>
           ))}
+          <ExploreRightGutter />
 
           <ExploreLeftGutter />
           <div
             aria-hidden="true"
             className="learning-sheet-cell learning-extend-left learning-sheet-footer-cell"
           />
+          <div aria-hidden="true" className="learning-sheet-cell learning-sheet-footer-cell" />
           <div aria-hidden="true" className="learning-sheet-cell learning-sheet-footer-cell" />
           <div
             aria-hidden="true"
