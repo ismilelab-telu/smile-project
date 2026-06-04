@@ -229,6 +229,16 @@
     min-height: calc(100vh - 5rem);
   }
 
+  .explore-mode-sheet {
+    min-height: calc(100vh - 5rem);
+  }
+
+  @media (min-width: 640px) {
+    .explore-mode-sheet {
+      grid-template-rows: auto auto repeat(3, auto) minmax(4.5rem, 1fr);
+    }
+  }
+
   .learning-sheet-cell {
     background: oklch(98.5% 0 0);
     border-bottom: 1px solid var(--learning-grid-line);

@@ -1,5 +1,6 @@
 import { ArrowRight02Icon, LockIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { ReactNode } from "react";
 
 import {
   getLesson,
@@ -16,6 +17,8 @@ import { useLocalization } from "@/features/localization/localization";
 
 const liquidButtonClassName =
   "inline-flex items-center justify-center gap-3 rounded-none px-5 py-3 text-base font-semibold text-neutral-950 backdrop-blur-xl hover:text-neutral-50 [--liquid-button-background-color:var(--color-neutral-200)] [--liquid-button-color:var(--color-emerald-500)]";
+
+const trackHubFullCellGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-3";
 
 const trackImageSources: Partial<Record<LearningTrack["id"], string>> = {
   "track-classification": "/learning/removedbg-classification.webp",
@@ -49,6 +52,46 @@ function getCompletedTrackLessonCount(track: LearningTrack, progress: LearningPr
   return progress.completedLessonIds.filter((lessonId) => lessonIds.has(lessonId)).length;
 }
 
+function TrackHubLeftGutter({ className = "" }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`learning-sheet-cell learning-sheet-gutter-cell learning-extend-left hidden [@media_(min-width:1024px)]:block ${className}`}
+    />
+  );
+}
+
+function TrackHubRightGutter({ className = "" }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`learning-sheet-cell learning-sheet-gutter-cell learning-extend-right hidden [@media_(min-width:1024px)]:block ${className}`}
+    />
+  );
+}
+
+function TrackHubSheetPatternPlane() {
+  return <span aria-hidden="true" className="learning-sheet-pattern-plane" />;
+}
+
+function TrackHubFullRow({
+  children,
+  leftClassName = "",
+  rightClassName = "",
+}: {
+  children: ReactNode;
+  leftClassName?: string;
+  rightClassName?: string;
+}) {
+  return (
+    <>
+      <TrackHubLeftGutter className={leftClassName} />
+      {children}
+      <TrackHubRightGutter className={rightClassName} />
+    </>
+  );
+}
+
 export function LearningTrackHub({ progress }: LearningTrackHubProps) {
   const { locale, t } = useLocalization();
   const trackImageCount = learningTracks.filter((track) => trackImageSources[track.id]).length;
@@ -60,21 +103,26 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
 
       <section
         aria-labelledby="learning-track-list"
-        className="learning-sheet learning-track-hub-sheet route-content-transition-target mx-auto grid w-[min(1080px,calc(100%_-_48px))] grid-cols-[5rem_minmax(0,1fr)_15rem]"
+        className="learning-sheet learning-track-hub-sheet route-content-transition-target mx-auto grid w-[min(1080px,calc(100%_-_48px))] grid-cols-[5rem_minmax(0,1fr)_15rem] [@media_(min-width:1024px)]:grid-cols-[2rem_5rem_minmax(0,1fr)_15rem_2rem]"
         style={{
           "--learning-track-hub-content-row-count": learningTracks.length + trackImageRowCount,
         }}
       >
         <LearningSheetExtensions />
+        <TrackHubSheetPatternPlane />
 
-        <div className="learning-sheet-cell learning-extend-left learning-extend-right learning-extend-top col-span-full p-6">
-          <h1
-            className="text-5xl leading-tight font-semibold tracking-normal text-foreground"
-            id="learning-track-list"
+        <TrackHubFullRow>
+          <div
+            className={`learning-sheet-cell learning-extend-left learning-extend-right learning-extend-top ${trackHubFullCellGridClassName} p-6`}
           >
-            {t("learning.trackHub.title")}
-          </h1>
-        </div>
+            <h1
+              className="text-5xl leading-tight font-semibold tracking-normal text-foreground"
+              id="learning-track-list"
+            >
+              {t("learning.trackHub.title")}
+            </h1>
+          </div>
+        </TrackHubFullRow>
 
         {learningTracks.map((track, index) => {
           const localizedTrack = localizeTrack(track, locale);
@@ -88,25 +136,30 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
             <div className="contents" key={track.id}>
               {trackImageSrc ? (
                 <>
-                  <div
-                    aria-hidden="true"
-                    className="learning-sheet-cell learning-extend-left learning-extend-right col-span-full h-12"
-                  />
-                  <div
-                    aria-hidden="true"
-                    className="learning-sheet-cell learning-extend-left learning-extend-right col-span-full"
-                  >
-                    <img
-                      alt=""
-                      className={`aspect-[21/9] h-auto w-full ${trackImageClassName}`}
-                      decoding="async"
-                      loading="lazy"
-                      src={trackImageSrc}
+                  <TrackHubFullRow>
+                    <div
+                      aria-hidden="true"
+                      className={`learning-sheet-cell learning-extend-left learning-extend-right ${trackHubFullCellGridClassName} h-12`}
                     />
-                  </div>
+                  </TrackHubFullRow>
+                  <TrackHubFullRow>
+                    <div
+                      aria-hidden="true"
+                      className={`learning-sheet-cell learning-extend-left learning-extend-right ${trackHubFullCellGridClassName}`}
+                    >
+                      <img
+                        alt=""
+                        className={`aspect-[21/9] h-auto w-full ${trackImageClassName}`}
+                        decoding="async"
+                        loading="lazy"
+                        src={trackImageSrc}
+                      />
+                    </div>
+                  </TrackHubFullRow>
                 </>
               ) : null}
-              <div className="learning-sheet-cell learning-extend-left learning-sheet-cell-fill flex items-center justify-center p-3 text-base font-semibold text-foreground">
+              <TrackHubLeftGutter />
+              <div className="learning-sheet-cell learning-sheet-gutter-cell learning-extend-left flex items-center justify-center p-3 text-base font-semibold text-foreground">
                 {index}
               </div>
               <div className="learning-sheet-cell flex min-h-20 items-center p-5">
@@ -139,10 +192,12 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
                   </button>
                 )}
               </div>
+              <TrackHubRightGutter />
             </div>
           );
         })}
 
+        <TrackHubLeftGutter />
         <div
           aria-hidden="true"
           className="learning-sheet-cell learning-extend-left learning-sheet-footer-cell"
@@ -152,6 +207,7 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
           aria-hidden="true"
           className="learning-sheet-cell learning-extend-right learning-sheet-footer-cell"
         />
+        <TrackHubRightGutter />
       </section>
     </LearningGridCanvas>
   );

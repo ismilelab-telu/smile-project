@@ -6,6 +6,7 @@ import {
   TestTubeIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { ReactNode } from "react";
 
 import {
   LearningGridCanvas,
@@ -19,6 +20,8 @@ const liquidButtonClassName =
 
 const disabledButtonClassName =
   "inline-flex min-h-12 w-full cursor-not-allowed items-center justify-center gap-3 bg-neutral-200 px-5 py-3 text-base font-semibold whitespace-nowrap text-muted-foreground disabled:opacity-100";
+
+const exploreFullCellGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-3";
 
 const modes = [
   {
@@ -44,6 +47,46 @@ const modes = [
   },
 ] as const;
 
+function ExploreLeftGutter({ className = "" }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`learning-sheet-cell learning-sheet-gutter-cell learning-extend-left hidden [@media_(min-width:1024px)]:block ${className}`}
+    />
+  );
+}
+
+function ExploreRightGutter({ className = "" }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`learning-sheet-cell learning-sheet-gutter-cell learning-extend-right hidden [@media_(min-width:1024px)]:block ${className}`}
+    />
+  );
+}
+
+function ExploreSheetPatternPlane() {
+  return <span aria-hidden="true" className="learning-sheet-pattern-plane" />;
+}
+
+function ExploreFullRow({
+  children,
+  leftClassName = "",
+  rightClassName = "",
+}: {
+  children: ReactNode;
+  leftClassName?: string;
+  rightClassName?: string;
+}) {
+  return (
+    <>
+      <ExploreLeftGutter className={leftClassName} />
+      {children}
+      <ExploreRightGutter className={rightClassName} />
+    </>
+  );
+}
+
 export function ExplorePage() {
   return (
     <LearningGridCanvas>
@@ -51,27 +94,35 @@ export function ExplorePage() {
 
       <section
         aria-labelledby="explore-mode-list"
-        className="learning-sheet route-content-transition-target mx-auto grid w-[min(1080px,calc(100%_-_48px))] grid-cols-[4rem_minmax(0,1fr)] sm:grid-cols-[5rem_minmax(0,1fr)_14rem]"
+        className="explore-mode-sheet learning-sheet route-content-transition-target mx-auto grid w-[min(1080px,calc(100%_-_48px))] grid-cols-[4rem_minmax(0,1fr)] sm:grid-cols-[5rem_minmax(0,1fr)_14rem] [@media_(min-width:1024px)]:grid-cols-[2rem_5rem_minmax(0,1fr)_14rem_2rem]"
       >
         <LearningSheetExtensions />
+        <ExploreSheetPatternPlane />
 
-        <div className="learning-sheet-cell learning-extend-left learning-extend-right learning-extend-top col-span-full p-6">
-          <h1
-            className="text-5xl leading-tight font-semibold tracking-normal text-foreground"
-            id="explore-mode-list"
+        <ExploreFullRow>
+          <div
+            className={`learning-sheet-cell learning-extend-left learning-extend-right learning-extend-top ${exploreFullCellGridClassName} p-6`}
           >
-            Choose a mode
-          </h1>
-        </div>
+            <h1
+              className="text-5xl leading-tight font-semibold tracking-normal text-foreground"
+              id="explore-mode-list"
+            >
+              Choose a mode
+            </h1>
+          </div>
+        </ExploreFullRow>
 
-        <div
-          aria-hidden="true"
-          className="learning-sheet-cell learning-extend-left learning-extend-right col-span-full h-12"
-        />
+        <ExploreFullRow>
+          <div
+            aria-hidden="true"
+            className={`learning-sheet-cell learning-extend-left learning-extend-right ${exploreFullCellGridClassName} h-12`}
+          />
+        </ExploreFullRow>
 
         {modes.map((mode, index) => (
           <div className="contents" key={mode.title}>
-            <div className="learning-sheet-cell learning-extend-left learning-sheet-cell-fill flex items-center justify-center p-3 text-base font-semibold text-foreground">
+            <ExploreLeftGutter />
+            <div className="learning-sheet-cell learning-sheet-gutter-cell learning-extend-left flex items-center justify-center p-3 text-base font-semibold text-foreground">
               {index}
             </div>
             <div className="learning-sheet-cell flex min-h-24 items-center gap-5 p-5">
@@ -99,9 +150,11 @@ export function ExplorePage() {
                 </button>
               )}
             </div>
+            <ExploreRightGutter />
           </div>
         ))}
 
+        <ExploreLeftGutter />
         <div
           aria-hidden="true"
           className="learning-sheet-cell learning-extend-left learning-sheet-footer-cell"
@@ -111,6 +164,7 @@ export function ExplorePage() {
           aria-hidden="true"
           className="learning-sheet-cell learning-extend-right learning-sheet-footer-cell hidden sm:block"
         />
+        <ExploreRightGutter />
       </section>
     </LearningGridCanvas>
   );
