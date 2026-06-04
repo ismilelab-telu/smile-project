@@ -124,6 +124,10 @@ describe("App", () => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     clearAuthSession();
+    Object.defineProperty(window, "scrollTo", {
+      configurable: true,
+      value: vi.fn(),
+    });
     window.localStorage.clear();
     window.sessionStorage.clear();
     window.history.pushState(null, "", "/");
@@ -139,8 +143,15 @@ describe("App", () => {
     expect(
       await screen.findByRole("heading", { name: "Choose a mode" }, lazyRouteTimeout),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Start path" })).toHaveAttribute("href", "/learn");
-    expect(screen.getAllByRole("button", { name: "Coming soon" })).toHaveLength(2);
+    expect(screen.getByRole("link", { name: "Learning Mode" })).toHaveAttribute("href", "/learn");
+    expect(screen.getByRole("link", { name: "ML Playground" })).toHaveAttribute(
+      "href",
+      "/playground",
+    );
+    expect(screen.getByRole("link", { name: "Algorithm Lab" })).toHaveAttribute(
+      "href",
+      "/algorithm-lab",
+    );
     expect(window.location.pathname).toBe("/explore");
   });
 
@@ -177,6 +188,7 @@ describe("App", () => {
     expect(
       await screen.findByRole("heading", { name: "Apa Itu Machine Learning" }, lazyRouteTimeout),
     ).toBeInTheDocument();
+    scrollTo.mockClear();
 
     fireEvent.click(
       screen.getByLabelText(
@@ -451,6 +463,7 @@ describe("App", () => {
     expect(
       await screen.findByRole("heading", { name: "Apa Itu Machine Learning" }, lazyRouteTimeout),
     ).toBeInTheDocument();
+    scrollTo.mockClear();
 
     fireEvent.click(
       screen.getByLabelText(
@@ -558,11 +571,11 @@ describe("App", () => {
   });
 
   it("scrolls feedback into view after an incorrect lesson submission", async () => {
-    const scrollIntoView = vi.fn();
+    const scrollTo = vi.fn();
 
-    Object.defineProperty(Element.prototype, "scrollIntoView", {
+    Object.defineProperty(window, "scrollTo", {
       configurable: true,
-      value: scrollIntoView,
+      value: scrollTo,
     });
     window.history.pushState(null, "", lesson01Path);
     render(<App />);
@@ -580,7 +593,11 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { name: "Belum tepat" })).toBeInTheDocument();
     await waitFor(() => {
-      expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: "start" }));
+      expect(scrollTo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          top: expect.any(Number),
+        }),
+      );
     });
   });
 
@@ -844,7 +861,10 @@ describe("App", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Kirim jawaban" }));
 
-    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(2);
+    });
+    fireEvent.click(screen.getAllByRole("button", { name: "Edit" })[1]);
 
     const editedUrl = "https://www.kaggle.com/datasets/nama-pembuat/dataset-lain";
     const editedNotes = "Catatan sementara yang harus dibatalkan.";
@@ -871,7 +891,7 @@ describe("App", () => {
     expect(screen.getByText(submittedNotes)).toBeInTheDocument();
     expect(screen.queryByDisplayValue(editedNotes)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Batal" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(2);
     await waitFor(() => {
       expect(
         getStoredLearningProgress().lessonAnswers?.["lesson-1-2-data-collecting"]

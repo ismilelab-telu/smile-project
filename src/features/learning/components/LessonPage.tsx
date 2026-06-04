@@ -111,6 +111,7 @@ const lessonNavigationLinkClassName = `${emeraldLiquidButtonClassName} hover:!te
 const lessonSheetWidthClassName = "w-[min(1080px,calc(100%_-_48px))]";
 const lessonTaskSurfaceWidthClassName = "min-w-0 w-full";
 const lessonFullCellGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-12";
+const submitScrollFeedbackDelayMs = 650;
 const lessonSplitResultGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-8";
 const lessonSplitAsideGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-4";
 const lessonInlineLinkClassName =
@@ -1419,6 +1420,84 @@ function getDatasetSourceAnswersFromAnswer(
   );
 }
 
+function getLessonAnswerWithRestoredExercise(
+  exercise: LessonExercise,
+  currentAnswer: LessonAnswer,
+  restoredAnswer: LessonAnswer,
+) {
+  if (exercise.type === "multiple-choice") {
+    return {
+      ...currentAnswer,
+      selectedOptionIdsByExerciseId: {
+        ...currentAnswer.selectedOptionIdsByExerciseId,
+        [exercise.id]: [...(restoredAnswer.selectedOptionIdsByExerciseId?.[exercise.id] ?? [])],
+      },
+    };
+  }
+
+  if (exercise.type === "ordered-steps") {
+    return {
+      ...currentAnswer,
+      orderedStepIdsByExerciseId: {
+        ...currentAnswer.orderedStepIdsByExerciseId,
+        [exercise.id]: [...(restoredAnswer.orderedStepIdsByExerciseId?.[exercise.id] ?? [])],
+      },
+    };
+  }
+
+  if (exercise.type === "open-dataset-source") {
+    return {
+      ...currentAnswer,
+      datasetSourceAnswersByExerciseId: {
+        ...currentAnswer.datasetSourceAnswersByExerciseId,
+        [exercise.id]: getDatasetSourceAnswersFromAnswer(exercise, restoredAnswer),
+      },
+    };
+  }
+
+  if (exercise.type === "guided-download") {
+    const restoredRunResult = restoredAnswer.guidedDownloadRunResultsByExerciseId?.[exercise.id];
+    const guidedDownloadRunResultsByExerciseId = {
+      ...currentAnswer.guidedDownloadRunResultsByExerciseId,
+    };
+
+    if (restoredRunResult) {
+      guidedDownloadRunResultsByExerciseId[exercise.id] =
+        clonePandasCodeRunResult(restoredRunResult);
+    } else {
+      delete guidedDownloadRunResultsByExerciseId[exercise.id];
+    }
+
+    return {
+      ...currentAnswer,
+      guidedDownloadCodeByExerciseId: {
+        ...currentAnswer.guidedDownloadCodeByExerciseId,
+        [exercise.id]: restoredAnswer.guidedDownloadCodeByExerciseId?.[exercise.id] ?? "",
+      },
+      guidedDownloadExtractedFilePathsByExerciseId: {
+        ...currentAnswer.guidedDownloadExtractedFilePathsByExerciseId,
+        [exercise.id]:
+          restoredAnswer.guidedDownloadExtractedFilePathsByExerciseId?.[exercise.id] ?? "",
+      },
+      guidedDownloadObjectKeysByExerciseId: {
+        ...currentAnswer.guidedDownloadObjectKeysByExerciseId,
+        [exercise.id]: restoredAnswer.guidedDownloadObjectKeysByExerciseId?.[exercise.id] ?? "",
+      },
+      guidedDownloadRunResultsByExerciseId,
+    };
+  }
+
+  return {
+    ...currentAnswer,
+    columnRoleAssignmentsByExerciseId: {
+      ...currentAnswer.columnRoleAssignmentsByExerciseId,
+      [exercise.id]: {
+        ...restoredAnswer.columnRoleAssignmentsByExerciseId?.[exercise.id],
+      },
+    },
+  };
+}
+
 function getGuidedDownloadSourceAnswer(
   exercise: GuidedDownloadExercise,
   submittedAnswersByExerciseId: Record<string, LessonAnswer>,
@@ -2157,8 +2236,27 @@ export function LessonPage({
   >({});
   const exerciseScrollTargetsByExerciseIdRef = useRef<Record<string, HTMLDivElement | null>>({});
   const hintFooterScrollTargetRef = useRef<HTMLDivElement | null>(null);
+  const submitScrollTimeoutRef = useRef<number | null>(null);
   const [pendingSubmitScrollExerciseId, setPendingSubmitScrollExerciseId] = useState<string | null>(
     null,
+  );
+  const clearSubmitScrollTimeout = useCallback(() => {
+    if (submitScrollTimeoutRef.current === null) {
+      return;
+    }
+
+    window.clearTimeout(submitScrollTimeoutRef.current);
+    submitScrollTimeoutRef.current = null;
+  }, []);
+  const scheduleSubmitScroll = useCallback(
+    (exerciseId: string) => {
+      clearSubmitScrollTimeout();
+      submitScrollTimeoutRef.current = window.setTimeout(() => {
+        setPendingSubmitScrollExerciseId(exerciseId);
+        submitScrollTimeoutRef.current = null;
+      }, submitScrollFeedbackDelayMs);
+    },
+    [clearSubmitScrollTimeout],
   );
   const answerSnapshot = useMemo(
     () =>
@@ -2222,7 +2320,6 @@ export function LessonPage({
     exercise: LessonExercise,
     submittedAnswer: LessonAnswer | undefined,
   ) => doesSubmittedAnswerMatchCurrentSnapshot(exercise, answerSnapshot, submittedAnswer);
-  const hasAnyAnswer = exerciseEntries.some(hasAnswerForExercise);
   const hasEditingExercise = editingExerciseIds.size > 0;
   const areAllExerciseResultsCorrect =
     exerciseEntries.length > 0 &&
@@ -2256,23 +2353,32 @@ export function LessonPage({
 
     return exerciseResult !== undefined && exerciseResult.status !== "correct";
   });
+  const firstExercise = exerciseEntries[0];
+  const firstExerciseResult = firstExercise ? exerciseResultsById[firstExercise.id] : undefined;
+  const isFirstExerciseCorrect = firstExerciseResult?.status === "correct";
+  const isFirstExerciseEditing = firstExercise ? editingExerciseIds.has(firstExercise.id) : false;
+  const isFirstExerciseSubmitting = firstExercise
+    ? validatingDatasetSourceExerciseId === firstExercise.id
+    : false;
   const lastExercise = exerciseEntries.at(-1);
   const lastExerciseResult = lastExercise ? exerciseResultsById[lastExercise.id] : undefined;
   const shouldSplitFooterForHint =
     lastExerciseResult !== undefined && lastExerciseResult.status !== "correct";
   const isReviewMode = isLessonFinished;
-  const isSubmitDisabled = !hasAnyAnswer;
   const rightEdgeCompensationClassName = hasNotQuiteResult ? "-mr-px" : "";
   const finishedActionHref = nextLessonHref ?? backHref;
   const finishedActionLabel = nextLessonHref
     ? t("navigation.continue")
     : t("navigation.back.track");
 
+  useEffect(() => clearSubmitScrollTimeout, [clearSubmitScrollTimeout]);
+
   useEffect(() => {
     if (mountedLessonIdRef.current === lesson.id) {
       return;
     }
 
+    clearSubmitScrollTimeout();
     mountedLessonIdRef.current = lesson.id;
     setAssignments(initialAssignments);
     setDatasetSourceAnswersByExerciseId(initialDatasetSourceAnswersByExerciseId);
@@ -2307,6 +2413,7 @@ export function LessonPage({
     initialOrderedStepIds,
     initialSelectedOptionIdsByExerciseId,
     initialSubmittedAnswerSnapshotsByExerciseId,
+    clearSubmitScrollTimeout,
     lesson.id,
   ]);
 
@@ -2659,6 +2766,8 @@ export function LessonPage({
   };
 
   const startEditingExercise = (exerciseId: string) => {
+    const submittedAnswerSnapshot = submittedAnswerSnapshotsByExerciseId[exerciseId];
+
     setEditingExerciseIds((current) => {
       const next = new Set(current);
       next.add(exerciseId);
@@ -2670,7 +2779,7 @@ export function LessonPage({
         ? current
         : {
             ...current,
-            [exerciseId]: answerSnapshot,
+            [exerciseId]: submittedAnswerSnapshot ?? answerSnapshot,
           },
     );
     setExerciseResultsById((current) => {
@@ -2699,6 +2808,8 @@ export function LessonPage({
     const editingAnswerSnapshot =
       editingAnswerSnapshotsByExerciseId[exercise.id] ??
       submittedAnswerSnapshotsByExerciseId[exercise.id];
+    const restoreAnswerSnapshot =
+      editingAnswerSnapshot ?? submittedAnswerSnapshotsByExerciseId[exercise.id];
 
     setEditingExerciseIds((current) => {
       if (!current.has(exercise.id)) {
@@ -2732,38 +2843,103 @@ export function LessonPage({
       return next;
     });
 
-    if (exercise.type !== "open-dataset-source") {
-      return;
+    if (restoreAnswerSnapshot) {
+      if (exercise.type === "multiple-choice") {
+        setSelectedOptionIdsByExerciseId((current) => ({
+          ...current,
+          [exercise.id]: [
+            ...(restoreAnswerSnapshot.selectedOptionIdsByExerciseId?.[exercise.id] ?? []),
+          ],
+        }));
+      } else if (exercise.type === "ordered-steps") {
+        setOrderedStepIdsByExerciseId((current) => ({
+          ...current,
+          [exercise.id]: [
+            ...(restoreAnswerSnapshot.orderedStepIdsByExerciseId?.[exercise.id] ??
+              initialOrderedStepIds[exercise.id] ??
+              []),
+          ],
+        }));
+      } else if (exercise.type === "open-dataset-source") {
+        setDatasetSourceAnswersByExerciseId((current) => ({
+          ...current,
+          [exercise.id]: getDatasetSourceAnswersFromAnswer(exercise, restoreAnswerSnapshot),
+        }));
+      } else if (exercise.type === "guided-download") {
+        const restoredRunResult =
+          restoreAnswerSnapshot.guidedDownloadRunResultsByExerciseId?.[exercise.id];
+
+        setGuidedDownloadCodeByExerciseId((current) => ({
+          ...current,
+          [exercise.id]: restoreAnswerSnapshot.guidedDownloadCodeByExerciseId?.[exercise.id] ?? "",
+        }));
+        setGuidedDownloadExtractedFilePathsByExerciseId((current) => ({
+          ...current,
+          [exercise.id]:
+            restoreAnswerSnapshot.guidedDownloadExtractedFilePathsByExerciseId?.[exercise.id] ?? "",
+        }));
+        setGuidedDownloadObjectKeysByExerciseId((current) => ({
+          ...current,
+          [exercise.id]:
+            restoreAnswerSnapshot.guidedDownloadObjectKeysByExerciseId?.[exercise.id] ?? "",
+        }));
+        setPandasCodeRunResultsByExerciseId((current) => {
+          if (!restoredRunResult) {
+            if (!current[exercise.id]) {
+              return current;
+            }
+
+            const next = { ...current };
+            delete next[exercise.id];
+
+            return next;
+          }
+
+          return {
+            ...current,
+            [exercise.id]: clonePandasCodeRunResult(restoredRunResult),
+          };
+        });
+      } else {
+        setAssignments({
+          ...initialAssignments,
+          ...restoreAnswerSnapshot.columnRoleAssignmentsByExerciseId?.[exercise.id],
+        });
+      }
     }
 
-    const nextDatasetSourceAnswersByExerciseId = {
-      ...datasetSourceAnswersByExerciseId,
-      [exercise.id]: getDatasetSourceAnswersFromAnswer(exercise, editingAnswerSnapshot),
-    };
-    const nextAnswerSnapshot = createLessonAnswerSnapshot({
-      assignments,
-      datasetSourceAnswersByExerciseId: nextDatasetSourceAnswersByExerciseId,
-      exercises: exerciseEntries,
-      guidedDownloadCodeByExerciseId,
-      guidedDownloadExtractedFilePathsByExerciseId,
-      guidedDownloadObjectKeysByExerciseId,
-      pandasCodeRunResultsByExerciseId,
-      orderedStepIdsByExerciseId,
-      selectedOptionIdsByExerciseId,
-    });
-    const restoredExerciseResult = editingAnswerSnapshot
-      ? evaluateExerciseAnswerSnapshot(exercise, editingAnswerSnapshot, locale)
+    const guidedDownloadSourceAnswer =
+      exercise.type === "guided-download"
+        ? getGuidedDownloadSourceAnswer(exercise, submittedAnswerSnapshotsByExerciseId)
+        : undefined;
+    const restoredGuidedDownloadExtractedFilePath =
+      exercise.type === "guided-download"
+        ? (restoreAnswerSnapshot?.guidedDownloadExtractedFilePathsByExerciseId?.[exercise.id] ?? "")
+        : undefined;
+    const restoredExerciseResult = restoreAnswerSnapshot
+      ? evaluateExerciseAnswerSnapshot(
+          exercise,
+          restoreAnswerSnapshot,
+          locale,
+          guidedDownloadSourceAnswer,
+          restoredGuidedDownloadExtractedFilePath,
+        )
       : createRestoredCorrectResult(locale);
 
-    setDatasetSourceAnswersByExerciseId(nextDatasetSourceAnswersByExerciseId);
     setExerciseResultsById((current) => ({
       ...current,
       [exercise.id]: restoredExerciseResult,
     }));
-    onAnswerChange?.({
-      answer: nextAnswerSnapshot,
-      lessonId: lesson.id,
-    });
+    if (restoreAnswerSnapshot) {
+      onAnswerChange?.({
+        answer: getLessonAnswerWithRestoredExercise(
+          exercise,
+          answerSnapshot,
+          restoreAnswerSnapshot,
+        ),
+        lessonId: lesson.id,
+      });
+    }
   };
 
   const evaluateExercise = async (
@@ -3012,9 +3188,12 @@ export function LessonPage({
     const submittedExerciseIndex = exerciseEntries.findIndex(
       (exerciseEntry) => exerciseEntry.id === exercise.id,
     );
-    const firstIncompleteExerciseBeforeSubmitted = exerciseEntries
-      .slice(0, submittedExerciseIndex + 1)
-      .find((exerciseEntry) => {
+    const submittedExerciseEntries =
+      submittedExerciseIndex >= 0
+        ? exerciseEntries.slice(0, submittedExerciseIndex + 1)
+        : [exercise];
+    const firstIncompleteExerciseBeforeSubmitted = submittedExerciseEntries.find(
+      (exerciseEntry) => {
         const exerciseResult = nextExerciseResultsById[exerciseEntry.id];
 
         return (
@@ -3025,9 +3204,17 @@ export function LessonPage({
             nextSubmittedAnswerSnapshotsByExerciseId[exerciseEntry.id],
           )
         );
-      });
+      },
+    );
+    const nextExerciseAfterSubmitted =
+      submittedExerciseIndex >= 0 ? exerciseEntries[submittedExerciseIndex + 1] : undefined;
+    const submitScrollExerciseId =
+      firstIncompleteExerciseBeforeSubmitted?.id ??
+      (evaluation.status === "correct" ? nextExerciseAfterSubmitted?.id : undefined);
 
-    setPendingSubmitScrollExerciseId(firstIncompleteExerciseBeforeSubmitted?.id ?? exercise.id);
+    if (submitScrollExerciseId) {
+      scheduleSubmitScroll(submitScrollExerciseId);
+    }
     if (evaluation.status === "correct") {
       setEditingExerciseIds((current) => {
         if (!current.has(exercise.id)) {
@@ -3148,8 +3335,7 @@ export function LessonPage({
             const exerciseResult = exerciseResultsById[exercise.id] ?? null;
             const isExerciseCorrect = exerciseResult?.status === "correct";
             const isExerciseEditing = editingExerciseIds.has(exercise.id);
-            const canEditExerciseSubmission =
-              exercise.type === "open-dataset-source" && isExerciseCorrect && !isExerciseEditing;
+            const canEditExerciseSubmission = isExerciseCorrect && !isExerciseEditing;
             const isExerciseReadOnly = isReviewMode || (isExerciseCorrect && !isExerciseEditing);
             const isExerciseSubmitting = validatingDatasetSourceExerciseId === exercise.id;
             const guidedDownloadSourceAnswer =
@@ -3275,50 +3461,25 @@ export function LessonPage({
             );
           })}
 
-          {!isMultiExerciseLesson ? (
-            <LessonFullRow>
-              <div
-                className={`learning-sheet-cell learning-extend-left learning-extend-right ${lessonFullCellGridClassName} ${rightEdgeCompensationClassName} flex items-center gap-4 p-6`}
-              >
-                {previousLessonHref ? (
-                  <LiquidLink
-                    className={`${lessonNavigationLinkClassName} min-h-12`}
-                    data-app-link
-                    fillOnHover={false}
-                    href={previousLessonHref}
-                  >
-                    <HugeiconsIcon aria-hidden="true" className="size-5" icon={ArrowLeft02Icon} />
-                    {t("navigation.prev")}
-                  </LiquidLink>
-                ) : null}
-                {isLessonFinished ? (
-                  <LiquidLink
-                    className={`${lessonNavigationLinkClassName} ml-auto min-h-12`}
-                    data-app-link
-                    fillOnHover={false}
-                    href={finishedActionHref}
-                  >
-                    {finishedActionLabel}
-                    <HugeiconsIcon aria-hidden="true" className="size-5" icon={ArrowRight02Icon} />
-                  </LiquidLink>
-                ) : (
-                  <LiquidButton
-                    className={`${emeraldLiquidButtonClassName} ml-auto min-h-12 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-neutral-950 ${isSubmitDisabled ? "" : "cursor-pointer"}`}
-                    disabled={isSubmitDisabled}
-                    onClick={() => {
-                      const firstExercise = exerciseEntries[0];
-
-                      if (firstExercise) {
-                        submitExercise(firstExercise);
-                      }
-                    }}
-                    type="button"
-                  >
-                    {t("learning.submit")}
-                  </LiquidButton>
-                )}
-              </div>
-            </LessonFullRow>
+          {!isMultiExerciseLesson && firstExercise ? (
+            <ExerciseSubmitAction
+              disabled={
+                !hasAnswerForExercise(firstExercise) ||
+                (isFirstExerciseCorrect && !isFirstExerciseEditing) ||
+                isFirstExerciseSubmitting
+              }
+              edgeCompensationClassName={rightEdgeCompensationClassName}
+              finishedHref={isLessonFinished ? finishedActionHref : undefined}
+              finishedLabel={isLessonFinished ? finishedActionLabel : undefined}
+              isEditable={isFirstExerciseCorrect && !isFirstExerciseEditing}
+              isEditing={isFirstExerciseEditing}
+              isSubmitting={isFirstExerciseSubmitting}
+              onCancelEdit={() => cancelEditingExercise(firstExercise)}
+              onEdit={() => startEditingExercise(firstExercise.id)}
+              onSubmit={() => submitExercise(firstExercise)}
+              previousLessonHref={previousLessonHref}
+              submitted={isFirstExerciseCorrect}
+            />
           ) : null}
 
           {!isMultiExerciseLesson && lessonResult && lessonResult.status !== "correct" ? (
