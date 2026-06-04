@@ -107,7 +107,7 @@ const liquidButtonBaseClassName =
 const emeraldLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-button-color:var(--color-neutral-950)]`;
 const amberLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-button-color:var(--color-amber-500)]`;
 const neutralLiquidButtonClassName = `${liquidButtonBaseClassName} [--liquid-button-color:var(--color-neutral-500)]`;
-const lessonNavigationLinkClassName = emeraldLiquidButtonClassName;
+const lessonNavigationLinkClassName = `${emeraldLiquidButtonClassName} hover:!text-neutral-950`;
 const lessonSheetWidthClassName = "w-[min(1080px,calc(100%_-_48px))]";
 const lessonTaskSurfaceWidthClassName = "min-w-0 w-full";
 const lessonFullCellGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-12";
@@ -2378,20 +2378,23 @@ export function LessonPage({
       return;
     }
 
-    const result = exerciseResultsById[pendingSubmitScrollExerciseId];
+    const target = exerciseScrollTargetsByExerciseIdRef.current[pendingSubmitScrollExerciseId];
 
-    if (!result) {
+    if (!target) {
+      setPendingSubmitScrollExerciseId(null);
       return;
     }
 
-    const target = exerciseScrollTargetsByExerciseIdRef.current[pendingSubmitScrollExerciseId];
+    const learningHeader = document.querySelector<HTMLElement>(".learning-header");
+    const headerHeight = learningHeader?.getBoundingClientRect().height ?? 0;
+    const targetTop = target.getBoundingClientRect().top + window.scrollY;
 
-    target?.scrollIntoView?.({
+    window.scrollTo({
       behavior: shouldReduceMotion() ? "auto" : "smooth",
-      block: "start",
+      top: Math.max(targetTop - headerHeight - 32, 0),
     });
     setPendingSubmitScrollExerciseId(null);
-  }, [exerciseResultsById, pendingSubmitScrollExerciseId]);
+  }, [pendingSubmitScrollExerciseId]);
 
   if (tableColumnRoleExercise && !datasetView) {
     return (
@@ -3006,7 +3009,25 @@ export function LessonPage({
     }
     setExerciseResultsById(nextExerciseResultsById);
     setSubmittedAnswerSnapshotsByExerciseId(nextSubmittedAnswerSnapshotsByExerciseId);
-    setPendingSubmitScrollExerciseId(exercise.id);
+    const submittedExerciseIndex = exerciseEntries.findIndex(
+      (exerciseEntry) => exerciseEntry.id === exercise.id,
+    );
+    const firstIncompleteExerciseBeforeSubmitted = exerciseEntries
+      .slice(0, submittedExerciseIndex + 1)
+      .find((exerciseEntry) => {
+        const exerciseResult = nextExerciseResultsById[exerciseEntry.id];
+
+        return (
+          exerciseResult?.status !== "correct" ||
+          !doesSubmittedAnswerMatchCurrentSnapshot(
+            exerciseEntry,
+            nextAnswerSnapshot,
+            nextSubmittedAnswerSnapshotsByExerciseId[exerciseEntry.id],
+          )
+        );
+      });
+
+    setPendingSubmitScrollExerciseId(firstIncompleteExerciseBeforeSubmitted?.id ?? exercise.id);
     if (evaluation.status === "correct") {
       setEditingExerciseIds((current) => {
         if (!current.has(exercise.id)) {
