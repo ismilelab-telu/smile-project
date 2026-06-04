@@ -25,7 +25,7 @@ const LearningPage = lazy(() =>
 );
 
 type RouteTheme = "dark" | "light";
-type RouteTransition = "back" | "content-fade" | "forward";
+type RouteTransition = "back" | "forward";
 type AuthMode = "login" | "register";
 type PendingLearningAuthGate = {
   backgroundPath: string;
@@ -54,6 +54,10 @@ function getRouteOrder(pathname: string) {
 
   if (pathname === "/explore") {
     return 1;
+  }
+
+  if (isLearningRoute(pathname)) {
+    return 2 + Math.min(pathname.split("/").filter(Boolean).length, 3);
   }
 
   if (isAuthRoute(pathname)) {
@@ -105,19 +109,8 @@ function isAuthRoute(pathname: string) {
   return pathname === "/login" || pathname === "/register";
 }
 
-function getRouteDirection(
-  fromPath: string,
-  toPath: string,
-): Exclude<RouteTransition, "content-fade"> {
+function getRouteDirection(fromPath: string, toPath: string): RouteTransition {
   return getRouteOrder(toPath) >= getRouteOrder(fromPath) ? "forward" : "back";
-}
-
-function getRouteTransition(fromPath: string, toPath: string): RouteTransition {
-  if (isLearningRoute(fromPath) && isLearningRoute(toPath)) {
-    return "content-fade";
-  }
-
-  return getRouteDirection(fromPath, toPath);
 }
 
 function getRouteScrollStorageKey(pathname: string) {
@@ -344,7 +337,7 @@ function AppRoutes() {
       const viewTransitionDocument = document as ViewTransitionDocument;
       const startViewTransition = viewTransitionDocument.startViewTransition?.bind(document);
       const involvesAuthRoute = isAuthRoute(currentPath) || isAuthRoute(url.pathname);
-      const routeTransition = getRouteTransition(currentPath, url.pathname);
+      const routeTransition = getRouteDirection(currentPath, url.pathname);
 
       if (!shouldReduceRouteTransition && startViewTransition && !involvesAuthRoute) {
         document.documentElement.dataset.routeTransition = routeTransition;

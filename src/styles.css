@@ -159,34 +159,6 @@
   }
 }
 
-@keyframes route-learning-old-fade {
-  from {
-    filter: blur(0);
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  to {
-    filter: blur(3px);
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-}
-
-@keyframes route-learning-new-fade {
-  from {
-    filter: blur(3px);
-    opacity: 0;
-    transform: translateY(8px);
-  }
-
-  to {
-    filter: blur(0);
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @layer components {
   .auth-scroll-surface {
     -ms-overflow-style: none;
@@ -409,15 +381,15 @@
   }
 
   html[data-route-transition]::view-transition-group(root) {
-    animation-duration: 620ms;
-    animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1);
+    animation-duration: 380ms;
+    animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
   }
 
   html[data-route-transition]::view-transition-old(root),
   html[data-route-transition]::view-transition-new(root) {
-    animation-duration: 620ms;
+    animation-duration: 380ms;
     animation-fill-mode: both;
-    animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1);
+    animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
     height: 100%;
     mix-blend-mode: normal;
     width: 100%;
@@ -441,19 +413,6 @@
 
   .route-content-transition-target {
     view-transition-name: none;
-  }
-
-  html[data-route-transition="content-fade"]::view-transition-group(root) {
-    animation-duration: 260ms;
-    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  html[data-route-transition="content-fade"]::view-transition-old(root) {
-    animation-name: route-learning-old-fade;
-  }
-
-  html[data-route-transition="content-fade"]::view-transition-new(root) {
-    animation-name: route-learning-new-fade;
   }
 
   .understand-title-word {

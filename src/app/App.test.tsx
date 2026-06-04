@@ -215,7 +215,7 @@ describe("App", () => {
     expect(screen.getAllByText("Terkunci").length).toBeGreaterThanOrEqual(2);
   });
 
-  it("keeps the learning fade transition when the track page is scrolled", async () => {
+  it("keeps the learning route transition when the track page is scrolled", async () => {
     const originalMatchMediaDescriptor = Object.getOwnPropertyDescriptor(window, "matchMedia");
     const originalStartViewTransition = (document as ViewTransitionTestDocument)
       .startViewTransition;
