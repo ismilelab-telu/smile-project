@@ -825,6 +825,53 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Kirim jawaban" })).toBeInTheDocument();
   });
 
+  it("continues from the final module 0 lesson to the first module 1 lesson after completion", async () => {
+    seedCompletedLessons(module0LessonIds.slice(0, -1));
+    window.history.pushState(null, "", lesson06Path);
+    render(<App />);
+
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: "Merumuskan Masalah dalam Machine Learning" },
+        lazyRouteTimeout,
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByLabelText("Target yang masuk akal adalah waktu pengiriman dalam menit."),
+    );
+    fireEvent.click(
+      screen.getByLabelText(
+        "Jenis masalah yang masuk akal adalah regresi karena output berupa angka.",
+      ),
+    );
+    fireEvent.click(
+      screen.getByLabelText(
+        "Fitur yang aman bisa mencakup jarak, cuaca, level trafik, waktu hari, jenis kendaraan, waktu persiapan, dan pengalaman kurir.",
+      ),
+    );
+    fireEvent.click(
+      screen.getByLabelText(
+        "Pernyataan masalah yang jelas: memprediksi durasi pengiriman makanan dari konteks order dan pengiriman.",
+      ),
+    );
+    fireEvent.click(screen.getAllByRole("button", { name: "Kirim jawaban" })[0]);
+
+    expect(await screen.findByRole("button", { name: "Terkirim" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Role untuk Order ID" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Metadata" }));
+    fireEvent.click(screen.getByRole("button", { name: "Role untuk Waktu Pengiriman" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Target" }));
+    fireEvent.click(screen.getByRole("button", { name: "Kirim jawaban" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: /^Lanjut$/ })).toHaveAttribute("href", lesson11Path);
+    });
+    expect(getStoredCompletedLessonIds()).toContain("lesson-0-6-formulating-ml-problems");
+  });
+
   it("cancels dataset source edits and restores the submitted answer", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline validation")));
     seedCompletedLessons([...module0LessonIds, "lesson-1-1-ml-tools-libraries"]);
