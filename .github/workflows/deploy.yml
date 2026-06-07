@@ -133,7 +133,7 @@ jobs:
         run: python -m unittest discover -s tests
 
       - name: Validate SAM template
-        run: sam validate --template-file template.yaml --region "$AWS_REGION"
+        run: sam validate --config-env ci --template-file template.yaml --region "$AWS_REGION"
 
       - name: Build backend
         run: sam build --config-env ci
