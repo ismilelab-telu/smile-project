@@ -20,6 +20,7 @@ import { getLessonLockReason, isLessonUnlocked, isModuleUnlocked } from "../prog
 import {
   createLearningSearchIndex,
   getLearningSearchHighlightParts,
+  type LearningSearchAccessState,
   type LearningSearchResult,
 } from "../search/learning-search";
 import type { LearningProgress, LearningTrack, Lesson } from "../types";
@@ -235,9 +236,39 @@ export function LearningHome({ progress, track }: LearningHomeProps) {
         .filter((module) => module !== undefined),
     [track],
   );
+  const lessonAccessById = useMemo(
+    () =>
+      Object.fromEntries(
+        trackModules.flatMap((module) =>
+          module.lessonIds.flatMap((lessonId) => {
+            const lesson = lessons.find((candidate) => candidate.id === lessonId);
+
+            if (!lesson) {
+              return [];
+            }
+
+            const accessState: LearningSearchAccessState = !isLessonAvailable(lesson)
+              ? "coming-soon"
+              : isLessonUnlocked(lesson, progress)
+                ? "unlocked"
+                : "locked";
+
+            return [[lesson.id, accessState]];
+          }),
+        ),
+      ),
+    [progress, trackModules],
+  );
   const learningSearch = useMemo(
-    () => createLearningSearchIndex({ lessons, locale, modules: trackModules, track }),
-    [locale, track, trackModules],
+    () =>
+      createLearningSearchIndex({
+        lessonAccessById,
+        lessons,
+        locale,
+        modules: trackModules,
+        track,
+      }),
+    [lessonAccessById, locale, track, trackModules],
   );
   const searchResults = useMemo(
     () => learningSearch.search(deferredSearchQuery),

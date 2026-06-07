@@ -53,4 +53,23 @@ describe("LearningHome search", () => {
       expect(screen.queryByText("Lesson 1.5 / Keyword")).not.toBeInTheDocument();
     });
   });
+
+  it("keeps coming-soon matches visible but ranks locked matches above them", async () => {
+    renderLearningHome();
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Cari lesson" }), {
+      target: { value: "missing values" },
+    });
+
+    const lockedResultLabel = await screen.findByText("Lesson 1.3 / Materi lesson");
+    const comingSoonResultLabel = await screen.findByText("Lesson 1.5 / Materi lesson");
+
+    expect(
+      lockedResultLabel.compareDocumentPosition(comingSoonResultLabel) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(document.body).toHaveTextContent(
+      "Pengecekan eksploratif biasanya mencakup: missing values per kolom;",
+    );
+  });
 });

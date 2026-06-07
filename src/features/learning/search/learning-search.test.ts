@@ -51,6 +51,51 @@ describe("learning search", () => {
     );
   });
 
+  it("adds nearby context to short MDX bullet snippets", () => {
+    const searchIndex = createFoundationsSearchIndex("id");
+    const results = searchIndex.search("missing values per kolom");
+    const lesson15Result = results.find(
+      (result) =>
+        result.lessonId === "lesson-1-5-exploratory-explanatory-analysis" &&
+        result.section === "content",
+    );
+
+    expect(lesson15Result?.snippet).toBe(
+      "Pengecekan eksploratif biasanya mencakup: missing values per kolom;",
+    );
+  });
+
+  it("ranks locked matching lessons above coming-soon matching lessons", () => {
+    const searchIndex = createLearningSearchIndex({
+      lessonAccessById: {
+        "lesson-1-3-data-loading": "locked",
+        "lesson-1-5-exploratory-explanatory-analysis": "coming-soon",
+      },
+      lessons,
+      locale: "id",
+      modules: learningModules,
+      track: machineLearningFoundationsTrack,
+    });
+    const resultLessonIds = searchIndex.search("missing values").map((result) => result.lessonId);
+    const lockedLessonIndex = resultLessonIds.indexOf("lesson-1-3-data-loading");
+    const comingSoonLessonIndex = resultLessonIds.indexOf(
+      "lesson-1-5-exploratory-explanatory-analysis",
+    );
+
+    expect(lockedLessonIndex).toBeGreaterThanOrEqual(0);
+    expect(comingSoonLessonIndex).toBeGreaterThanOrEqual(0);
+    expect(lockedLessonIndex).toBeLessThan(comingSoonLessonIndex);
+  });
+
+  it("prefers exact phrase matches over weaker singular matches", () => {
+    const searchIndex = createFoundationsSearchIndex("id");
+    const resultLessonIds = searchIndex.search("missing values").map((result) => result.lessonId);
+
+    expect(resultLessonIds.indexOf("lesson-1-3-data-loading")).toBeLessThan(
+      resultLessonIds.indexOf("lesson-1-1-ml-tools-libraries"),
+    );
+  });
+
   it("returns no results for blank queries", () => {
     const searchIndex = createFoundationsSearchIndex("id");
 

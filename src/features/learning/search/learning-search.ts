@@ -36,7 +36,10 @@ type LearningSearchDocumentSection =
   | "summary"
   | "title";
 
+export type LearningSearchAccessState = "coming-soon" | "locked" | "unlocked";
+
 export type LearningSearchDocument = {
+  accessState: LearningSearchAccessState;
   id: string;
   href: string;
   lessonId: string;
@@ -53,6 +56,7 @@ export type LearningSearchDocument = {
 };
 
 export type LearningSearchResult = {
+  accessState: LearningSearchAccessState;
   href: string;
   lessonId: string;
   lessonOrder: number;
@@ -75,6 +79,7 @@ export type LearningSearchIndex = {
 };
 
 type CreateLearningSearchDocumentsOptions = {
+  lessonAccessById?: Partial<Record<string, LearningSearchAccessState>>;
   lessons: Lesson[];
   locale: Locale;
   modules: LearningModule[];
@@ -92,9 +97,11 @@ type StoredLearningSearchResult = SearchResult &
     | "moduleOrder"
     | "moduleTitle"
     | "numberLabel"
+    | "accessState"
     | "section"
     | "sectionLabel"
     | "snippet"
+    | "searchText"
   >;
 
 export function normalizeLearningSearchText(value: string) {
@@ -217,6 +224,117 @@ function createTextFragments(value: string) {
     .filter((fragment) => fragment.length >= 16);
 }
 
+type MdxSearchFragment = {
+  searchText: string;
+  snippet: string;
+};
+
+function cleanMdxLine(line: string) {
+  return normalizeWhitespace(
+    line
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/!\[[^\]]*]\([^)]*\)/g, " ")
+      .replace(/\[([^\]]+)]\([^)]*\)/g, "$1")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/[>*_~|]/g, " "),
+  );
+}
+
+function createContextualMdxSnippet({
+  currentHeading,
+  currentLeadIn,
+  text,
+}: {
+  currentHeading: string;
+  currentLeadIn: string;
+  text: string;
+}) {
+  if (text.length >= 72) {
+    return text;
+  }
+
+  if (currentLeadIn) {
+    return `${currentLeadIn} ${text}`;
+  }
+
+  if (currentHeading) {
+    return `${currentHeading}: ${text}`;
+  }
+
+  return text;
+}
+
+export function mdxToSearchFragments(source: string): MdxSearchFragment[] {
+  const sourceWithoutCodeBlocks = source.replace(/```[\s\S]*?```/g, "\n");
+  const fragments: MdxSearchFragment[] = [];
+  let currentHeading = "";
+  let currentLeadIn = "";
+
+  for (const rawLine of sourceWithoutCodeBlocks.split("\n")) {
+    const line = rawLine.trim();
+
+    if (!line) {
+      continue;
+    }
+
+    const headingMatch = /^(#{1,6})\s+(.+)$/.exec(line);
+
+    if (headingMatch?.[2]) {
+      currentHeading = cleanMdxLine(headingMatch[2]);
+      currentLeadIn = "";
+
+      if (currentHeading) {
+        fragments.push({ searchText: currentHeading, snippet: currentHeading });
+      }
+
+      continue;
+    }
+
+    const listItemMatch = /^(?:[-*]|\d+\.)\s+(.+)$/.exec(line);
+
+    if (listItemMatch?.[1]) {
+      const listItem = cleanMdxLine(listItemMatch[1]);
+
+      if (!listItem) {
+        continue;
+      }
+
+      fragments.push({
+        searchText: `${currentHeading} ${currentLeadIn} ${listItem}`,
+        snippet: createContextualMdxSnippet({
+          currentHeading,
+          currentLeadIn,
+          text: listItem,
+        }),
+      });
+      continue;
+    }
+
+    for (const sentence of splitSentenceFragments(cleanMdxLine(line))) {
+      const contextualSnippet =
+        sentence.length < 72 && currentHeading ? `${currentHeading}: ${sentence}` : sentence;
+
+      fragments.push({
+        searchText: `${currentHeading} ${sentence}`,
+        snippet: contextualSnippet,
+      });
+    }
+
+    if (line.endsWith(":")) {
+      currentLeadIn = cleanMdxLine(line);
+    } else {
+      currentLeadIn = "";
+    }
+  }
+
+  return fragments.flatMap((fragment) =>
+    splitLongFragment(fragment.snippet).map((snippet) => ({
+      searchText: normalizeWhitespace(fragment.searchText),
+      snippet,
+    })),
+  );
+}
+
 function getLessonIdFromMdxPath(path: string) {
   const pathWithoutQuery = path.split("?")[0] ?? path;
   const fileName = pathWithoutQuery.split("/").pop() ?? "";
@@ -243,19 +361,22 @@ function getRawMdxText(value: unknown) {
   return "";
 }
 
-function createLessonMdxTextById(modules: Record<string, unknown>, locale: Locale) {
+function createLessonMdxFragmentsById(modules: Record<string, unknown>, locale: Locale) {
   return Object.fromEntries(
     Object.entries(modules)
       .filter(([path]) => (locale === "en" ? path.includes("/en/") : !path.includes("/en/")))
       .map(([path, rawMdx]) => [path, getRawMdxText(rawMdx)] as const)
       .filter(([, rawMdx]) => rawMdx.length > 0)
-      .map(([path, rawMdx]) => [getLessonIdFromMdxPath(path), mdxToSearchText(rawMdx)]),
-  ) as Partial<Record<string, string>>;
+      .map(([path, rawMdx]) => [getLessonIdFromMdxPath(path), mdxToSearchFragments(rawMdx)]),
+  ) as Partial<Record<string, MdxSearchFragment[]>>;
 }
 
-const lessonMdxTextByLocaleAndId: Record<Locale, Partial<Record<string, string>>> = {
-  en: createLessonMdxTextById(lessonMdxRawByPath, "en"),
-  id: createLessonMdxTextById(lessonMdxRawByPath, "id"),
+const lessonMdxFragmentsByLocaleAndId: Record<
+  Locale,
+  Partial<Record<string, MdxSearchFragment[]>>
+> = {
+  en: createLessonMdxFragmentsById(lessonMdxRawByPath, "en"),
+  id: createLessonMdxFragmentsById(lessonMdxRawByPath, "id"),
 };
 
 function collectExerciseTextFragments(exercise: LessonExercise) {
@@ -355,6 +476,7 @@ function getSectionLabel(section: LearningSearchDocumentSection, locale: Locale)
 }
 
 export function createLearningSearchDocuments({
+  lessonAccessById = {},
   lessons,
   locale,
   modules,
@@ -383,6 +505,7 @@ export function createLearningSearchDocuments({
       const localizedLesson = localizeLesson(lesson, locale);
       const lessonOrder = moduleOrder * 100 + lessonOrderInModule;
       const baseDocument = {
+        accessState: lessonAccessById[lesson.id] ?? "unlocked",
         href: `/learn/${track.id}/${lesson.id}`,
         lessonId: lesson.id,
         lessonOrder,
@@ -447,17 +570,18 @@ export function createLearningSearchDocuments({
         }
       }
 
-      const lessonMdxText = lessonMdxTextByLocaleAndId[locale][lesson.id];
+      const lessonMdxFragments = lessonMdxFragmentsByLocaleAndId[locale][lesson.id];
 
-      if (lessonMdxText) {
-        for (const contentFragment of createTextFragments(lessonMdxText)) {
+      if (lessonMdxFragments) {
+        for (const contentFragment of lessonMdxFragments) {
           documents.push(
             createLearningSearchDocument(
               baseDocument,
               "content",
               getSectionLabel("content", locale),
-              contentFragment,
+              contentFragment.snippet,
               sectionIndex,
+              contentFragment.searchText,
             ),
           );
           sectionIndex += 1;
@@ -499,8 +623,56 @@ function compareLearningSearchResultOrder(
   );
 }
 
+function getAccessStateMultiplier(accessState: LearningSearchAccessState) {
+  if (accessState === "unlocked") {
+    return 1.5;
+  }
+
+  if (accessState === "locked") {
+    return 0.75;
+  }
+
+  return 0.35;
+}
+
+function getQueryMatchMultiplier(result: LearningSearchResult, normalizedQuery: string) {
+  const queryTerms = tokenizeLearningSearchText(normalizedQuery);
+
+  if (queryTerms.length === 0) {
+    return 1;
+  }
+
+  const searchableText = normalizeLearningSearchText(
+    `${result.lessonTitle} ${result.moduleTitle} ${result.sectionLabel} ${result.snippet}`,
+  );
+
+  if (normalizedQuery.length > 0 && searchableText.includes(normalizedQuery)) {
+    return 2.25;
+  }
+
+  if (queryTerms.length > 1 && queryTerms.every((term) => searchableText.includes(term))) {
+    return 1.45;
+  }
+
+  return 1;
+}
+
+function adjustLearningSearchResultScore(
+  result: LearningSearchResult,
+  normalizedQuery: string,
+): LearningSearchResult {
+  return {
+    ...result,
+    score:
+      result.score *
+      getAccessStateMultiplier(result.accessState) *
+      getQueryMatchMultiplier(result, normalizedQuery),
+  };
+}
+
 function toLearningSearchResult(result: StoredLearningSearchResult): LearningSearchResult {
   return {
+    accessState: result.accessState,
     href: result.href,
     lessonId: result.lessonId,
     lessonOrder: result.lessonOrder,
@@ -551,6 +723,8 @@ export function createLearningSearchIndex(
       "moduleOrder",
       "moduleTitle",
       "numberLabel",
+      "accessState",
+      "searchText",
       "section",
       "sectionLabel",
       "snippet",
@@ -573,7 +747,10 @@ export function createLearningSearchIndex(
       const rawResults = miniSearch.search(normalizedQuery) as StoredLearningSearchResult[];
 
       for (const rawResult of rawResults) {
-        const result = toLearningSearchResult(rawResult);
+        const result = adjustLearningSearchResultScore(
+          toLearningSearchResult(rawResult),
+          normalizedQuery,
+        );
         const previousResult = bestResultByLessonId.get(result.lessonId);
 
         if (!previousResult || compareLearningSearchResultOrder(result, previousResult) < 0) {
