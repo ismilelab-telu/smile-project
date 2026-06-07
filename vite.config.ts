@@ -1,7 +1,9 @@
 import mdx from "@mdx-js/rollup";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import { readdir, readFile } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { join, relative, sep } from "node:path";
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig, loadEnv } from "vite-plus";
 import type { Plugin } from "vite-plus";
@@ -10,6 +12,8 @@ import { handleDatasetSourcePageValidationRequest } from "./src/features/learnin
 import { handleLearningBackendProxyRequest } from "./src/features/learning/server/learning-backend-proxy.ts";
 
 const learningBackendProxyDevPath = "/api/learning-backend";
+const learningMdxRawVirtualModuleId = "virtual:learning-mdx-raw";
+const resolvedLearningMdxRawVirtualModuleId = `\0${learningMdxRawVirtualModuleId}`;
 
 type LearningBackendProxyDevEnv = {
   LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS?: string;
@@ -135,6 +139,71 @@ function datasetSourceValidationDevPlugin(): Plugin {
   };
 }
 
+type LearningMdxRawEntry = {
+  absolutePath: string;
+  source: string;
+  virtualPath: string;
+};
+
+async function collectLearningMdxRawEntries(
+  rootDirectory: string,
+  currentDirectory = rootDirectory,
+): Promise<LearningMdxRawEntry[]> {
+  const directoryEntries = await readdir(currentDirectory, { withFileTypes: true });
+  const mdxRawEntries: LearningMdxRawEntry[] = [];
+
+  for (const directoryEntry of directoryEntries) {
+    const absolutePath = join(currentDirectory, directoryEntry.name);
+
+    if (directoryEntry.isDirectory()) {
+      mdxRawEntries.push(...(await collectLearningMdxRawEntries(rootDirectory, absolutePath)));
+      continue;
+    }
+
+    if (!directoryEntry.isFile() || !directoryEntry.name.endsWith(".mdx")) {
+      continue;
+    }
+
+    const relativePath = relative(rootDirectory, absolutePath).split(sep).join("/");
+
+    mdxRawEntries.push({
+      absolutePath,
+      source: await readFile(absolutePath, "utf8"),
+      virtualPath: `../content/mdx/${relativePath}`,
+    });
+  }
+
+  return mdxRawEntries;
+}
+
+function learningMdxRawManifestPlugin(): Plugin {
+  return {
+    name: "smile-learning-mdx-raw",
+    resolveId(id) {
+      return id === learningMdxRawVirtualModuleId ? resolvedLearningMdxRawVirtualModuleId : null;
+    },
+    async load(id) {
+      if (id !== resolvedLearningMdxRawVirtualModuleId) {
+        return null;
+      }
+
+      const rootDirectory = fileURLToPath(
+        new URL("./src/features/learning/content/mdx", import.meta.url),
+      );
+      const mdxRawEntries = await collectLearningMdxRawEntries(rootDirectory);
+      const mdxRawByVirtualPath = Object.fromEntries(
+        mdxRawEntries.map((entry) => {
+          this.addWatchFile(entry.absolutePath);
+
+          return [entry.virtualPath, entry.source];
+        }),
+      );
+
+      return `export default ${JSON.stringify(mdxRawByVirtualPath)};`;
+    },
+  };
+}
+
 const learningBackendProxyEnv = loadEnv("development", process.cwd(), "");
 
 export default defineConfig({
@@ -154,6 +223,7 @@ export default defineConfig({
         process.env.UPSTASH_REDIS_REST_URL ?? learningBackendProxyEnv.UPSTASH_REDIS_REST_URL,
     }),
     datasetSourceValidationDevPlugin(),
+    learningMdxRawManifestPlugin(),
     tailwindcss(),
     mdx(),
     react(),

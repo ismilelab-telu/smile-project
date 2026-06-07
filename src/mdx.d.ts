@@ -6,3 +6,13 @@ declare module "*.mdx" {
   }>;
   export default MDXComponent;
 }
+
+declare module "*.mdx?raw" {
+  const content: string;
+  export default content;
+}
+
+declare module "virtual:learning-mdx-raw" {
+  const lessonMdxRawByPath: Record<string, string>;
+  export default lessonMdxRawByPath;
+}

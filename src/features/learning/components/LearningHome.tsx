@@ -1,12 +1,14 @@
 import {
   ArrowRight02Icon,
+  Cancel01Icon,
   CheckmarkCircle02Icon,
   Clock01Icon,
   LockIcon,
   OnlineLearning01Icon,
+  Search01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useDeferredValue, useId, useMemo, useState, type ReactNode } from "react";
 
 import { getModule, isLessonAvailable, lessons } from "../content/learning-content";
 import {
@@ -15,7 +17,12 @@ import {
   localizeTrack,
 } from "../content/localized-learning-content";
 import { getLessonLockReason, isLessonUnlocked, isModuleUnlocked } from "../progress/lesson-access";
-import type { LearningProgress, LearningTrack } from "../types";
+import {
+  createLearningSearchIndex,
+  getLearningSearchHighlightParts,
+  type LearningSearchResult,
+} from "../search/learning-search";
+import type { LearningProgress, LearningTrack, Lesson } from "../types";
 import { LearningGridCanvas, LearningSheetExtensions } from "./LearningGridCanvas";
 import { LearningHeader } from "./LearningHeader";
 import { LiquidLink } from "@/components/ui/liquid-button";
@@ -29,6 +36,21 @@ const disabledButtonClassName =
 
 const learningHomeFullCellGridClassName =
   "col-span-3 sm:col-span-4 [@media_(min-width:1024px)]:col-span-4";
+
+const learningHomeSearchCopy = {
+  en: {
+    clear: "Clear search",
+    label: "Search lessons",
+    noResults: (query: string) => `No results for "${query}".`,
+    placeholder: "Search lessons, topics, or keywords",
+  },
+  id: {
+    clear: "Hapus pencarian",
+    label: "Cari lesson",
+    noResults: (query: string) => `Tidak ada hasil untuk "${query}".`,
+    placeholder: "Cari lesson, topik, atau keyword",
+  },
+};
 
 type LearningHomeProps = {
   track: LearningTrack;
@@ -75,12 +97,154 @@ function LearningHomeFullRow({
   );
 }
 
+function LearningHomeSearchResultAction({
+  lesson,
+  progress,
+  trackId,
+}: {
+  lesson: Lesson | undefined;
+  progress: LearningProgress;
+  trackId: LearningTrack["id"];
+}) {
+  const { t } = useLocalization();
+
+  if (!lesson || !isLessonAvailable(lesson)) {
+    return (
+      <button className={disabledButtonClassName} disabled type="button">
+        <HugeiconsIcon aria-hidden="true" className="size-5" icon={Clock01Icon} />
+        {t("learning.home.comingSoon")}
+      </button>
+    );
+  }
+
+  const isLessonCompleted = progress.completedLessonIds.includes(lesson.id);
+  const isUnlocked = isLessonUnlocked(lesson, progress);
+  const lockReason = getLessonLockReason(lesson, progress);
+
+  if (!isUnlocked) {
+    return (
+      <button aria-label={lockReason} className={disabledButtonClassName} disabled type="button">
+        <HugeiconsIcon aria-hidden="true" className="size-5" icon={LockIcon} />
+        {t("learning.home.locked")}
+      </button>
+    );
+  }
+
+  return (
+    <LiquidLink
+      className={`${liquidButtonClassName} min-h-12 w-full [--liquid-button-color:var(--color-neutral-950)]`}
+      data-app-link
+      href={`/learn/${trackId}/${lesson.id}`}
+    >
+      {isLessonCompleted ? t("learning.home.review") : t("learning.home.start")}
+      <HugeiconsIcon aria-hidden="true" className="size-5" icon={ArrowRight02Icon} />
+    </LiquidLink>
+  );
+}
+
+function LearningHomeSearchResultItem({
+  progress,
+  query,
+  result,
+  trackId,
+}: {
+  progress: LearningProgress;
+  query: string;
+  result: LearningSearchResult;
+  trackId: LearningTrack["id"];
+}) {
+  const lesson = lessons.find((lessonItem) => lessonItem.id === result.lessonId);
+  const highlightParts = getLearningSearchHighlightParts(result.snippet, query);
+
+  return (
+    <article className="grid gap-4 border-t border-neutral-200 p-4 first:border-t-0 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-center">
+      <div className="min-w-0">
+        <p className="text-sm leading-6 font-semibold text-sky-700">
+          {result.numberLabel} / {result.sectionLabel}
+        </p>
+        <h3 className="mt-1 text-lg leading-tight font-semibold text-foreground">
+          {result.lessonTitle}
+        </h3>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">{result.moduleTitle}</p>
+        <p className="mt-3 text-base leading-7 text-foreground">
+          {highlightParts.map((part, index) =>
+            part.isMatch ? (
+              <mark
+                className="bg-sky-100 px-1 py-0.5 font-semibold text-sky-900"
+                key={`${part.text}-${index}`}
+              >
+                {part.text}
+              </mark>
+            ) : (
+              <Fragment key={`${part.text}-${index}`}>{part.text}</Fragment>
+            ),
+          )}
+        </p>
+      </div>
+      <LearningHomeSearchResultAction lesson={lesson} progress={progress} trackId={trackId} />
+    </article>
+  );
+}
+
+function LearningHomeSearchResults({
+  progress,
+  query,
+  results,
+  trackId,
+}: {
+  progress: LearningProgress;
+  query: string;
+  results: LearningSearchResult[];
+  trackId: LearningTrack["id"];
+}) {
+  const { locale } = useLocalization();
+  const copy = learningHomeSearchCopy[locale];
+
+  return (
+    <div aria-live="polite" className="mt-5 border border-neutral-200 bg-white">
+      {results.length > 0 ? (
+        results.map((result) => (
+          <LearningHomeSearchResultItem
+            key={result.lessonId}
+            progress={progress}
+            query={query}
+            result={result}
+            trackId={trackId}
+          />
+        ))
+      ) : (
+        <p className="p-4 text-base leading-7 text-muted-foreground">
+          {copy.noResults(query.trim())}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function LearningHome({ progress, track }: LearningHomeProps) {
   const { locale, t } = useLocalization();
+  const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const searchInputId = useId();
+  const searchCopy = learningHomeSearchCopy[locale];
   const localizedTrack = localizeTrack(track, locale);
-  const trackModules = track.moduleIds
-    .map((moduleId) => getModule(moduleId))
-    .filter((module) => module !== undefined);
+  const trackModules = useMemo(
+    () =>
+      track.moduleIds
+        .map((moduleId) => getModule(moduleId))
+        .filter((module) => module !== undefined),
+    [track],
+  );
+  const learningSearch = useMemo(
+    () => createLearningSearchIndex({ lessons, locale, modules: trackModules, track }),
+    [locale, track, trackModules],
+  );
+  const searchResults = useMemo(
+    () => learningSearch.search(deferredSearchQuery),
+    [deferredSearchQuery, learningSearch],
+  );
+  const trimmedSearchQuery = searchQuery.trim();
+  const hasSearchQuery = trimmedSearchQuery.length > 0;
   const activeLessons = trackModules
     .filter((module) => module.status === "available")
     .flatMap((module) =>
@@ -149,6 +313,52 @@ export function LearningHome({ progress, track }: LearningHomeProps) {
                 </span>
               </div>
             </aside>
+          </LearningHomeFullRow>
+
+          <LearningHomeFullRow>
+            <div
+              className={`learning-sheet-cell learning-extend-left learning-extend-right ${learningHomeFullCellGridClassName} p-6`}
+            >
+              <div role="search">
+                <label className="sr-only" htmlFor={searchInputId}>
+                  {searchCopy.label}
+                </label>
+                <div className="relative">
+                  <HugeiconsIcon
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-neutral-500"
+                    icon={Search01Icon}
+                  />
+                  <input
+                    className="h-12 w-full border border-neutral-300 bg-white pr-12 pl-12 text-base font-semibold text-foreground outline-none transition-colors placeholder:text-neutral-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                    id={searchInputId}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder={searchCopy.placeholder}
+                    type="search"
+                    value={searchQuery}
+                  />
+                  {searchQuery ? (
+                    <button
+                      aria-label={searchCopy.clear}
+                      className="absolute top-1/2 right-2 inline-flex size-9 -translate-y-1/2 items-center justify-center text-neutral-500 transition-colors hover:text-foreground focus:text-foreground focus:outline-none focus:ring-2 focus:ring-sky-100"
+                      onClick={() => setSearchQuery("")}
+                      type="button"
+                    >
+                      <HugeiconsIcon aria-hidden="true" className="size-5" icon={Cancel01Icon} />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
+              {hasSearchQuery ? (
+                <LearningHomeSearchResults
+                  progress={progress}
+                  query={trimmedSearchQuery}
+                  results={searchResults}
+                  trackId={track.id}
+                />
+              ) : null}
+            </div>
           </LearningHomeFullRow>
 
           <LearningHomeFullRow>
