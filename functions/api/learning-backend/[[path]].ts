@@ -5,6 +5,8 @@ type PagesFunctionContext = {
     LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS?: string;
     LEARNING_BACKEND_URL?: string;
     LEARNING_BACKEND_PROXY_SECRET?: string;
+    UPSTASH_REDIS_REST_TOKEN?: string;
+    UPSTASH_REDIS_REST_URL?: string;
   };
   params?: {
     path?: string | string[];

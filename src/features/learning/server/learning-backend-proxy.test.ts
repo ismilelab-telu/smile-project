@@ -6,6 +6,100 @@ import {
 } from "./learning-backend-proxy";
 
 const trustedLearningBackendUrl = "https://backend.lambda-url.ap-southeast-1.on.aws";
+const upstashRedisUrl = "https://redis.example.upstash.io";
+
+type RedisCommandValue = number | string;
+
+function createUpstashRedisProxyFetch() {
+  const redisState = new Map<string, { expiresAt?: number; value: string }>();
+  const redisRequests: Array<{ authorization: string | null; command: RedisCommandValue[] }> = [];
+  const backendRequests: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
+
+  const cleanupRedisState = () => {
+    const now = Date.now();
+
+    for (const [key, entry] of redisState.entries()) {
+      if (entry.expiresAt !== undefined && entry.expiresAt <= now) {
+        redisState.delete(key);
+      }
+    }
+  };
+
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input) !== upstashRedisUrl) {
+      backendRequests.push({ input, init });
+      return new Response(JSON.stringify({ message: "backend" }), { status: 400 });
+    }
+
+    cleanupRedisState();
+
+    const headers = new Headers(init?.headers);
+    const command = JSON.parse(String(init?.body ?? "[]")) as RedisCommandValue[];
+    const commandName = String(command[0] ?? "").toUpperCase();
+    const key = String(command[1] ?? "");
+
+    redisRequests.push({
+      authorization: headers.get("authorization"),
+      command,
+    });
+
+    if (commandName === "SET") {
+      const hasNx = command.some((item) => String(item).toUpperCase() === "NX");
+      const pxIndex = command.findIndex((item) => String(item).toUpperCase() === "PX");
+      const ttlMs = pxIndex >= 0 ? Number(command[pxIndex + 1]) : 0;
+
+      if (hasNx && redisState.has(key)) {
+        return Response.json({ result: null });
+      }
+
+      redisState.set(key, {
+        expiresAt: ttlMs > 0 ? Date.now() + ttlMs : undefined,
+        value: String(command[2] ?? ""),
+      });
+      return Response.json({ result: "OK" });
+    }
+
+    if (commandName === "GET") {
+      return Response.json({ result: redisState.get(key)?.value ?? null });
+    }
+
+    if (commandName === "INCR") {
+      const entry = redisState.get(key);
+      const value = String(Number(entry?.value ?? "0") + 1);
+
+      redisState.set(key, { ...entry, value });
+      return Response.json({ result: Number(value) });
+    }
+
+    if (commandName === "PEXPIRE") {
+      const entry = redisState.get(key);
+      if (!entry) {
+        return Response.json({ result: 0 });
+      }
+
+      redisState.set(key, {
+        ...entry,
+        expiresAt: Date.now() + Number(command[2] ?? 0),
+      });
+      return Response.json({ result: 1 });
+    }
+
+    if (commandName === "PTTL") {
+      const entry = redisState.get(key);
+      if (!entry) {
+        return Response.json({ result: -2 });
+      }
+
+      return Response.json({
+        result: entry.expiresAt === undefined ? -1 : Math.max(0, entry.expiresAt - Date.now()),
+      });
+    }
+
+    return Response.json({ result: null });
+  });
+
+  return { backendRequests, fetch, redisRequests };
+}
 
 describe("learning backend proxy", () => {
   beforeEach(() => {
@@ -159,6 +253,97 @@ describe("learning backend proxy", () => {
     await expect(secondResponse.json()).resolves.toMatchObject({
       code: "AuthRateLimitExceededException",
     });
+  });
+
+  it("uses Upstash Redis for proxy auth rate limits when configured", async () => {
+    const { backendRequests, fetch, redisRequests } = createUpstashRedisProxyFetch();
+    vi.stubGlobal("fetch", fetch);
+
+    const env = {
+      LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+      LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      UPSTASH_REDIS_REST_TOKEN: "redis-token",
+      UPSTASH_REDIS_REST_URL: upstashRedisUrl,
+    };
+    const createRequest = () =>
+      new Request("https://smile.test/api/learning-backend/auth/username/sign-in", {
+        body: JSON.stringify({ password: "StrongPass1!", username: "student_one" }),
+        headers: {
+          "cf-connecting-ip": "203.0.113.20",
+          "content-type": "application/json",
+        },
+        method: "POST",
+      });
+
+    const firstResponse = await handleLearningBackendProxyRequest({
+      env,
+      params: { path: ["auth", "username", "sign-in"] },
+      request: createRequest(),
+    });
+    clearLearningBackendProxyRateLimitsForTests();
+    const secondResponse = await handleLearningBackendProxyRequest({
+      env,
+      params: { path: ["auth", "username", "sign-in"] },
+      request: createRequest(),
+    });
+
+    expect(firstResponse.status).toBe(400);
+    expect(secondResponse.status).toBe(429);
+    expect(backendRequests).toHaveLength(1);
+    expect(redisRequests.every((request) => request.authorization === "Bearer redis-token")).toBe(
+      true,
+    );
+    expect(
+      redisRequests.some(
+        ({ command }) =>
+          command[0] === "SET" &&
+          String(command[1]).includes("source:/auth/username/sign-in:203.0.113.20"),
+      ),
+    ).toBe(true);
+  });
+
+  it("falls back to the local proxy limiter when Upstash Redis is unavailable", async () => {
+    const backendRequests: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
+    const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === upstashRedisUrl) {
+        throw new Error("Redis unavailable.");
+      }
+
+      backendRequests.push({ input, init });
+      return new Response(JSON.stringify({ message: "backend" }), { status: 400 });
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    const env = {
+      LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+      LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      UPSTASH_REDIS_REST_TOKEN: "redis-token",
+      UPSTASH_REDIS_REST_URL: upstashRedisUrl,
+    };
+    const createRequest = () =>
+      new Request("https://smile.test/api/learning-backend/auth/username/sign-in", {
+        body: JSON.stringify({ password: "StrongPass1!", username: "student_one" }),
+        headers: {
+          "cf-connecting-ip": "203.0.113.20",
+          "content-type": "application/json",
+        },
+        method: "POST",
+      });
+
+    const firstResponse = await handleLearningBackendProxyRequest({
+      env,
+      params: { path: ["auth", "username", "sign-in"] },
+      request: createRequest(),
+    });
+    const secondResponse = await handleLearningBackendProxyRequest({
+      env,
+      params: { path: ["auth", "username", "sign-in"] },
+      request: createRequest(),
+    });
+
+    expect(firstResponse.status).toBe(400);
+    expect(secondResponse.status).toBe(429);
+    expect(backendRequests).toHaveLength(1);
   });
 
   it("can defer public auth request rate limiting to Cloudflare", async () => {
