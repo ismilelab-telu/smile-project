@@ -8,7 +8,16 @@ import {
   Search01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Fragment, useDeferredValue, useId, useMemo, useState, type ReactNode } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import {
+  Fragment,
+  forwardRef,
+  useDeferredValue,
+  useId,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { getModule, isLessonAvailable, lessons } from "../content/learning-content";
 import {
@@ -37,6 +46,16 @@ const disabledButtonClassName =
 
 const learningHomeFullCellGridClassName =
   "col-span-3 sm:col-span-4 [@media_(min-width:1024px)]:col-span-4";
+
+const searchResultsPanelTransition = {
+  duration: 0.22,
+  ease: [0.22, 1, 0.36, 1],
+} as const;
+
+const searchResultItemTransition = {
+  duration: 0.18,
+  ease: [0.22, 1, 0.36, 1],
+} as const;
 
 const learningHomeSearchCopy = {
   en: {
@@ -143,49 +162,56 @@ function LearningHomeSearchResultAction({
   );
 }
 
-function LearningHomeSearchResultItem({
-  progress,
-  query,
-  result,
-  trackId,
-}: {
+type LearningHomeSearchResultItemProps = {
   progress: LearningProgress;
   query: string;
   result: LearningSearchResult;
   trackId: LearningTrack["id"];
-}) {
-  const lesson = lessons.find((lessonItem) => lessonItem.id === result.lessonId);
-  const highlightParts = getLearningSearchHighlightParts(result.snippet, query);
+};
 
-  return (
-    <article className="grid gap-4 border-t border-neutral-200 p-4 first:border-t-0 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-center">
-      <div className="min-w-0">
-        <p className="text-sm leading-6 font-semibold text-sky-700">
-          {result.numberLabel} / {result.sectionLabel}
-        </p>
-        <h3 className="mt-1 text-lg leading-tight font-semibold text-foreground">
-          {result.lessonTitle}
-        </h3>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">{result.moduleTitle}</p>
-        <p className="mt-3 text-base leading-7 text-foreground">
-          {highlightParts.map((part, index) =>
-            part.isMatch ? (
-              <mark
-                className="bg-sky-100 px-1 py-0.5 font-semibold text-sky-900"
-                key={`${part.text}-${index}`}
-              >
-                {part.text}
-              </mark>
-            ) : (
-              <Fragment key={`${part.text}-${index}`}>{part.text}</Fragment>
-            ),
-          )}
-        </p>
-      </div>
-      <LearningHomeSearchResultAction lesson={lesson} progress={progress} trackId={trackId} />
-    </article>
-  );
-}
+const LearningHomeSearchResultItem = forwardRef<HTMLElement, LearningHomeSearchResultItemProps>(
+  function LearningHomeSearchResultItem({ progress, query, result, trackId }, ref) {
+    const lesson = lessons.find((lessonItem) => lessonItem.id === result.lessonId);
+    const highlightParts = getLearningSearchHighlightParts(result.snippet, query);
+
+    return (
+      <motion.article
+        animate={{ opacity: 1, y: 0 }}
+        className="grid gap-4 border-t border-neutral-200 p-4 first:border-t-0 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-center"
+        exit={{ opacity: 0, y: -8 }}
+        initial={{ opacity: 0, y: 8 }}
+        layout
+        ref={ref}
+        transition={searchResultItemTransition}
+      >
+        <div className="min-w-0">
+          <p className="text-sm leading-6 font-semibold text-sky-700">
+            {result.numberLabel} / {result.sectionLabel}
+          </p>
+          <h3 className="mt-1 text-lg leading-tight font-semibold text-foreground">
+            {result.lessonTitle}
+          </h3>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">{result.moduleTitle}</p>
+          <p className="mt-3 text-base leading-7 text-foreground">
+            {highlightParts.map((part, index) =>
+              part.isMatch ? (
+                <mark
+                  className="bg-sky-100 px-1 py-0.5 font-semibold text-sky-900"
+                  key={`${part.text}-${index}`}
+                >
+                  {part.text}
+                </mark>
+              ) : (
+                <Fragment key={`${part.text}-${index}`}>{part.text}</Fragment>
+              ),
+            )}
+          </p>
+        </div>
+        <LearningHomeSearchResultAction lesson={lesson} progress={progress} trackId={trackId} />
+      </motion.article>
+    );
+  },
+);
 
 function LearningHomeSearchResults({
   progress,
@@ -202,23 +228,42 @@ function LearningHomeSearchResults({
   const copy = learningHomeSearchCopy[locale];
 
   return (
-    <div aria-live="polite" className="mt-5 border border-neutral-200 bg-white">
-      {results.length > 0 ? (
-        results.map((result) => (
-          <LearningHomeSearchResultItem
-            key={result.lessonId}
-            progress={progress}
-            query={query}
-            result={result}
-            trackId={trackId}
-          />
-        ))
-      ) : (
-        <p className="p-4 text-base leading-7 text-muted-foreground">
-          {copy.noResults(query.trim())}
-        </p>
-      )}
-    </div>
+    <motion.div
+      animate={{ height: "auto", marginTop: 20, opacity: 1, y: 0 }}
+      aria-live="polite"
+      className="overflow-hidden"
+      exit={{ height: 0, marginTop: 0, opacity: 0, y: -8 }}
+      initial={{ height: 0, marginTop: 0, opacity: 0, y: -8 }}
+      layout
+      transition={searchResultsPanelTransition}
+    >
+      <div className="relative border border-neutral-200 bg-white">
+        <AnimatePresence initial={false} mode="popLayout">
+          {results.length > 0 ? (
+            results.map((result) => (
+              <LearningHomeSearchResultItem
+                key={result.lessonId}
+                progress={progress}
+                query={query}
+                result={result}
+                trackId={trackId}
+              />
+            ))
+          ) : (
+            <motion.p
+              animate={{ opacity: 1, y: 0 }}
+              className="p-4 text-base leading-7 text-muted-foreground"
+              initial={{ opacity: 0, y: 6 }}
+              key="empty"
+              layout
+              transition={searchResultItemTransition}
+            >
+              {copy.noResults(query.trim())}
+            </motion.p>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
   );
 }
 
@@ -362,10 +407,12 @@ export function LearningHome({ progress, track }: LearningHomeProps) {
                   />
                   <input
                     className="h-12 w-full border border-neutral-300 bg-white pr-12 pl-12 text-base font-semibold text-foreground outline-none transition-colors placeholder:text-neutral-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                    enterKeyHint="search"
                     id={searchInputId}
                     onChange={(event) => setSearchQuery(event.target.value)}
                     placeholder={searchCopy.placeholder}
-                    type="search"
+                    role="searchbox"
+                    type="text"
                     value={searchQuery}
                   />
                   {searchQuery ? (
@@ -381,14 +428,17 @@ export function LearningHome({ progress, track }: LearningHomeProps) {
                 </div>
               </div>
 
-              {hasSearchQuery ? (
-                <LearningHomeSearchResults
-                  progress={progress}
-                  query={trimmedSearchQuery}
-                  results={searchResults}
-                  trackId={track.id}
-                />
-              ) : null}
+              <AnimatePresence initial={false}>
+                {hasSearchQuery ? (
+                  <LearningHomeSearchResults
+                    key="learning-home-search-results"
+                    progress={progress}
+                    query={trimmedSearchQuery}
+                    results={searchResults}
+                    trackId={track.id}
+                  />
+                ) : null}
+              </AnimatePresence>
             </div>
           </LearningHomeFullRow>
 
