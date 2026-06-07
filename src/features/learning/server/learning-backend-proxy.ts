@@ -2,13 +2,28 @@ type LearningBackendProxyEnv = {
   LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS?: string;
   LEARNING_BACKEND_URL?: string;
   LEARNING_BACKEND_PROXY_SECRET?: string;
+  UPSTASH_REDIS_REST_TOKEN?: string;
+  UPSTASH_REDIS_REST_URL?: string;
 };
 
 type PagesRouteParams = {
   path?: string | string[];
 };
 
+type AuthProxyRateLimitResult = {
+  nextAllowedAt: number;
+  retryAfterSeconds: number;
+};
+
+type UpstashRedisConfig = {
+  token: string;
+  url: string;
+};
+
+type UpstashRedisCommandValue = number | string;
+
 const learningBackendProxySecretHeader = "x-smile-learning-backend-proxy-secret";
+const authProxyRedisKeyPrefix = "smile:learning-backend-proxy:auth:";
 const authRateLimitTtlMs = 60 * 60 * 1000;
 const authRateLimitState = new Map<string, number>();
 const authBurstLimitState = new Map<string, { count: number; resetAt: number }>();
@@ -107,7 +122,12 @@ export async function handleLearningBackendProxyRequest({
   }
 
   if (isProxyAuthRateLimitEnabled(env)) {
-    const rateLimitResponse = getAuthProxyRateLimitResponse(request, pathname, requestBody);
+    const rateLimitResponse = await getAuthProxyRateLimitResponse(
+      request,
+      pathname,
+      requestBody,
+      env,
+    );
     if (rateLimitResponse) {
       return rateLimitResponse;
     }
@@ -239,21 +259,23 @@ async function readProxyRequestBody(request: Request) {
   return body;
 }
 
-function getAuthProxyRateLimitResponse(
+async function getAuthProxyRateLimitResponse(
   request: Request,
   pathname: string,
   requestBody: ArrayBuffer | null,
+  env: LearningBackendProxyEnv | undefined,
 ) {
   if (request.method.toUpperCase() !== "POST") {
     return null;
   }
 
   if (pathname === "/auth/session/revoke") {
-    const limit = reserveProxyBurstLimit(
+    const limit = await reserveProxyBurstLimit(
       `source:${pathname}:${getProxyRequestSource(request)}`,
       authProxyRevokeBurstLimit,
       authProxyRevokeBurstWindowMs,
       Date.now(),
+      env,
     );
 
     return limit ? createRateLimitResponse(limit) : null;
@@ -266,7 +288,12 @@ function getAuthProxyRateLimitResponse(
 
   const now = Date.now();
   const source = getProxyRequestSource(request);
-  const sourceLimit = reserveProxyRateLimit(`source:${pathname}:${source}`, rule.seconds, now);
+  const sourceLimit = await reserveProxyRateLimit(
+    `source:${pathname}:${source}`,
+    rule.seconds,
+    now,
+    env,
+  );
 
   if (sourceLimit) {
     return createRateLimitResponse(sourceLimit);
@@ -281,7 +308,7 @@ function getAuthProxyRateLimitResponse(
           .toLowerCase()
       : "";
 
-  const burstLimit = getAuthProxySignInBurstLimit(pathname, source, identifier, now);
+  const burstLimit = await getAuthProxySignInBurstLimit(pathname, source, identifier, now, env);
   if (burstLimit) {
     return createRateLimitResponse(burstLimit);
   }
@@ -290,30 +317,33 @@ function getAuthProxyRateLimitResponse(
     return null;
   }
 
-  const identifierLimit = reserveProxyRateLimit(
+  const identifierLimit = await reserveProxyRateLimit(
     `identifier:${pathname}:${identifier}`,
     rule.seconds,
     now,
+    env,
   );
 
   return identifierLimit ? createRateLimitResponse(identifierLimit) : null;
 }
 
-function getAuthProxySignInBurstLimit(
+async function getAuthProxySignInBurstLimit(
   pathname: string,
   source: string,
   identifier: string,
   now: number,
+  env: LearningBackendProxyEnv | undefined,
 ) {
   if (!["/auth/email/sign-in", "/auth/username/sign-in"].includes(pathname)) {
     return null;
   }
 
-  const sourceLimit = reserveProxyBurstLimit(
+  const sourceLimit = await reserveProxyBurstLimit(
     `burst:source:${pathname}:${source}`,
     authProxySignInBurstLimit,
     authProxySignInBurstWindowMs,
     now,
+    env,
   );
   if (sourceLimit) {
     return sourceLimit;
@@ -328,6 +358,7 @@ function getAuthProxySignInBurstLimit(
     authProxySignInBurstLimit,
     authProxySignInBurstWindowMs,
     now,
+    env,
   );
 }
 
@@ -345,7 +376,25 @@ function parseProxyJsonObject(requestBody: ArrayBuffer | null) {
   }
 }
 
-function reserveProxyRateLimit(key: string, cooldownSeconds: number, now: number) {
+async function reserveProxyRateLimit(
+  key: string,
+  cooldownSeconds: number,
+  now: number,
+  env: LearningBackendProxyEnv | undefined,
+) {
+  const redisConfig = getUpstashRedisConfig(env);
+  if (redisConfig) {
+    try {
+      return await reserveRedisProxyRateLimit(key, cooldownSeconds, now, redisConfig);
+    } catch {
+      return reserveMemoryProxyRateLimit(key, cooldownSeconds, now);
+    }
+  }
+
+  return reserveMemoryProxyRateLimit(key, cooldownSeconds, now);
+}
+
+function reserveMemoryProxyRateLimit(key: string, cooldownSeconds: number, now: number) {
   cleanupProxyRateLimits(now);
 
   const nextAllowedAt = authRateLimitState.get(key) ?? 0;
@@ -374,7 +423,31 @@ function cleanupProxyRateLimits(now: number) {
   }
 }
 
-function reserveProxyBurstLimit(key: string, maxRequests: number, windowMs: number, now: number) {
+async function reserveProxyBurstLimit(
+  key: string,
+  maxRequests: number,
+  windowMs: number,
+  now: number,
+  env: LearningBackendProxyEnv | undefined,
+) {
+  const redisConfig = getUpstashRedisConfig(env);
+  if (redisConfig) {
+    try {
+      return await reserveRedisProxyBurstLimit(key, maxRequests, windowMs, now, redisConfig);
+    } catch {
+      return reserveMemoryProxyBurstLimit(key, maxRequests, windowMs, now);
+    }
+  }
+
+  return reserveMemoryProxyBurstLimit(key, maxRequests, windowMs, now);
+}
+
+function reserveMemoryProxyBurstLimit(
+  key: string,
+  maxRequests: number,
+  windowMs: number,
+  now: number,
+) {
   cleanupProxyRateLimits(now);
 
   const normalizedWindowMs = Math.max(1, windowMs);
@@ -398,7 +471,144 @@ function reserveProxyBurstLimit(key: string, maxRequests: number, windowMs: numb
   return null;
 }
 
-function createRateLimitResponse(limit: { nextAllowedAt: number; retryAfterSeconds: number }) {
+async function reserveRedisProxyRateLimit(
+  key: string,
+  cooldownSeconds: number,
+  now: number,
+  config: UpstashRedisConfig,
+): Promise<AuthProxyRateLimitResult | null> {
+  const cooldownMs = Math.max(1, cooldownSeconds) * 1000;
+  const nextAllowedAt = now + cooldownMs;
+  const result = await sendUpstashRedisCommand(config, [
+    "SET",
+    createUpstashRedisRateLimitKey(key),
+    String(nextAllowedAt),
+    "PX",
+    cooldownMs,
+    "NX",
+  ]);
+
+  if (result === "OK") {
+    return null;
+  }
+
+  const existingNextAllowedAt = getRedisNumber(
+    await sendUpstashRedisCommand(config, ["GET", createUpstashRedisRateLimitKey(key)]),
+  );
+  if (existingNextAllowedAt && existingNextAllowedAt > now) {
+    return createRateLimitResult(existingNextAllowedAt, now);
+  }
+
+  const ttlMs = getRedisNumber(
+    await sendUpstashRedisCommand(config, ["PTTL", createUpstashRedisRateLimitKey(key)]),
+  );
+  if (ttlMs && ttlMs > 0) {
+    return createRateLimitResult(now + ttlMs, now);
+  }
+
+  return null;
+}
+
+async function reserveRedisProxyBurstLimit(
+  key: string,
+  maxRequests: number,
+  windowMs: number,
+  now: number,
+  config: UpstashRedisConfig,
+): Promise<AuthProxyRateLimitResult | null> {
+  const redisKey = createUpstashRedisRateLimitKey(key);
+  const normalizedWindowMs = Math.max(1, windowMs);
+  const count = getRedisNumber(await sendUpstashRedisCommand(config, ["INCR", redisKey]));
+
+  if (!count) {
+    throw new Error("Upstash Redis returned an invalid burst counter.");
+  }
+
+  if (count === 1) {
+    await sendUpstashRedisCommand(config, ["PEXPIRE", redisKey, normalizedWindowMs]);
+  }
+
+  if (count <= Math.max(1, maxRequests)) {
+    return null;
+  }
+
+  let ttlMs = getRedisNumber(await sendUpstashRedisCommand(config, ["PTTL", redisKey]));
+  if (!ttlMs || ttlMs <= 0) {
+    await sendUpstashRedisCommand(config, ["PEXPIRE", redisKey, normalizedWindowMs]);
+    ttlMs = normalizedWindowMs;
+  }
+
+  return createRateLimitResult(now + ttlMs, now);
+}
+
+async function sendUpstashRedisCommand(
+  config: UpstashRedisConfig,
+  command: UpstashRedisCommandValue[],
+) {
+  const response = await fetch(config.url, {
+    body: JSON.stringify(command),
+    headers: {
+      authorization: `Bearer ${config.token}`,
+      "content-type": "application/json",
+    },
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error("Upstash Redis command failed.");
+  }
+
+  const payload = (await response.json()) as { error?: unknown; result?: unknown };
+  if (typeof payload.error === "string" && payload.error) {
+    throw new Error("Upstash Redis command failed.");
+  }
+
+  return "result" in payload ? payload.result : null;
+}
+
+function getUpstashRedisConfig(env: LearningBackendProxyEnv | undefined) {
+  const token = env?.UPSTASH_REDIS_REST_TOKEN?.trim();
+  const url = getTrustedUpstashRedisRestUrl(env?.UPSTASH_REDIS_REST_URL);
+
+  return token && url ? { token, url } : null;
+}
+
+function getTrustedUpstashRedisRestUrl(rawUrl: string | undefined) {
+  const value = rawUrl?.trim();
+  if (!value) {
+    return "";
+  }
+
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) {
+      return "";
+    }
+
+    return `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
+  } catch {
+    return "";
+  }
+}
+
+function createUpstashRedisRateLimitKey(key: string) {
+  return `${authProxyRedisKeyPrefix}${key}`;
+}
+
+function getRedisNumber(value: unknown) {
+  const numberValue = typeof value === "number" ? value : Number(value);
+
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+function createRateLimitResult(nextAllowedAt: number, now: number) {
+  return {
+    nextAllowedAt,
+    retryAfterSeconds: Math.max(1, Math.ceil((nextAllowedAt - now) / 1000)),
+  };
+}
+
+function createRateLimitResponse(limit: AuthProxyRateLimitResult) {
   return createProxyJsonResponse(429, {
     code: "AuthRateLimitExceededException",
     message: "Too many auth requests. Please wait before trying again.",

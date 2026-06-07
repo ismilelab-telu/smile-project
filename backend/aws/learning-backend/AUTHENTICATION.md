@@ -697,7 +697,7 @@ Cloudflare Pages:
 - `wrangler.jsonc` builds from `dist`.
 - `public/_redirects` rewrites all routes to `/index.html`, so modal routes and deep learning routes work on refresh.
 - `public/_headers` sets CSP, HSTS, frame protection, and other security headers.
-- `functions/api/learning-backend/[[path]].ts` proxies backend calls through Cloudflare Pages before AWS with exact route/method allowlists, trusted Lambda Function URL validation, a 300 KB request-body limit, secret-header injection, refresh-session cookie forwarding only for cookie-backed session routes, no query-string forwarding, and `Authorization` forwarding only for protected backend routes. Unknown `/auth/...` paths are rejected at the edge instead of being forwarded to AWS. The proxy source/IP auth limiter stays enabled with the Cloudflare Free-plan-compatible single auth rule and should be disabled with `LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS=false` only if Cloudflare has equivalent granular route-specific auth rate limits.
+- `functions/api/learning-backend/[[path]].ts` proxies backend calls through Cloudflare Pages before AWS with exact route/method allowlists, trusted Lambda Function URL validation, a 300 KB request-body limit, secret-header injection, refresh-session cookie forwarding only for cookie-backed session routes, no query-string forwarding, and `Authorization` forwarding only for protected backend routes. Unknown `/auth/...` paths are rejected at the edge instead of being forwarded to AWS. The proxy source/IP auth limiter uses Upstash Redis when `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are configured, falls back to local memory for development or Redis outages, stays enabled with the Cloudflare Free-plan-compatible single auth rule, and should be disabled with `LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS=false` only if Cloudflare has equivalent granular route-specific auth rate limits.
 - Current CSP `connect-src` allows `'self'`, `https://s3.ap-southeast-1.amazonaws.com`, and `https://*.s3.ap-southeast-1.amazonaws.com`. This supports the same-origin proxy and S3 presigned uploads without allowing browser calls to direct Cognito or Lambda Function URL origins.
 
 AWS:
@@ -715,7 +715,7 @@ Deployment must keep these aligned:
 2. Production `VITE_LEARNING_BACKEND_URL` must be `/api/learning-backend` so browser backend traffic uses the Cloudflare proxy.
 3. Cloudflare Pages Function `LEARNING_BACKEND_URL` must point at the SAM `LearningBackendFunctionUrl`; the proxy rejects non-HTTPS, credentialed, path-scoped, or non-`*.lambda-url.<region>.on.aws` backend URLs before forwarding bearer tokens or proxy secrets.
 4. SAM `LearningBackendProxySecret` must match Cloudflare Pages Function `LEARNING_BACKEND_PROXY_SECRET`.
-5. The Cloudflare auth rate limiting rule from `docs/cloudflare-auth-rate-limiting.md` must be active on the production custom domain, and the Pages proxy fallback limiter must stay enabled unless Cloudflare has equivalent granular route-specific auth rate limits.
+5. The Cloudflare auth rate limiting rule from `docs/cloudflare-auth-rate-limiting.md` must be active on the production custom domain, the Pages proxy limiter must stay enabled unless Cloudflare has equivalent granular route-specific auth rate limits, and production Pages must configure Upstash Redis secrets for shared proxy limiter state.
 6. Backend `COGNITO_REGION`, `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`, and `COGNITO_CLIENT_SECRET` must come from the same SAM stack.
 7. `FunctionUrlAllowedOrigins` should remain local/dev only unless a separate review approves direct browser access to the Function URL.
 8. CSP must continue allowing the same-origin proxy plus S3 upload origins; do not add direct Cognito or Lambda Function URL origins without a separate review.
@@ -731,6 +731,8 @@ SAM outputs map to frontend env like this:
 | `/api/learning-backend`      | Frontend `VITE_LEARNING_BACKEND_URL`                                                                         |
 | `LearningBackendFunctionUrl` | Required Cloudflare Pages Function `LEARNING_BACKEND_URL` env                                                |
 | `LearningBackendProxySecret` | SAM parameter `LearningBackendProxySecret` and Cloudflare Pages Function `LEARNING_BACKEND_PROXY_SECRET` env |
+| Upstash Redis REST URL       | Cloudflare Pages Function `UPSTASH_REDIS_REST_URL` secret                                                    |
+| Upstash Redis REST token     | Cloudflare Pages Function `UPSTASH_REDIS_REST_TOKEN` secret                                                  |
 | `CognitoRegion`              | Backend `COGNITO_REGION`                                                                                     |
 | `CognitoUserPoolId`          | Backend `COGNITO_USER_POOL_ID`                                                                               |
 | `CognitoUserPoolClientId`    | Backend `COGNITO_CLIENT_ID`                                                                                  |

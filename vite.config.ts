@@ -15,6 +15,8 @@ type LearningBackendProxyDevEnv = {
   LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS?: string;
   LEARNING_BACKEND_PROXY_SECRET?: string;
   LEARNING_BACKEND_URL?: string;
+  UPSTASH_REDIS_REST_TOKEN?: string;
+  UPSTASH_REDIS_REST_URL?: string;
 };
 
 function readIncomingRequestBody(request: IncomingMessage) {
@@ -146,6 +148,10 @@ export default defineConfig({
         learningBackendProxyEnv.LEARNING_BACKEND_PROXY_SECRET,
       LEARNING_BACKEND_URL:
         process.env.LEARNING_BACKEND_URL ?? learningBackendProxyEnv.LEARNING_BACKEND_URL,
+      UPSTASH_REDIS_REST_TOKEN:
+        process.env.UPSTASH_REDIS_REST_TOKEN ?? learningBackendProxyEnv.UPSTASH_REDIS_REST_TOKEN,
+      UPSTASH_REDIS_REST_URL:
+        process.env.UPSTASH_REDIS_REST_URL ?? learningBackendProxyEnv.UPSTASH_REDIS_REST_URL,
     }),
     datasetSourceValidationDevPlugin(),
     tailwindcss(),
