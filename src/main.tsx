@@ -11,7 +11,22 @@ if ("scrollRestoration" in window.history) {
   window.history.scrollRestoration = "manual";
 }
 
-document.documentElement.dataset.routeTheme = window.location.pathname === "/" ? "light" : "dark";
+const initialLightRoutePaths = new Set([
+  "/",
+  "/explore",
+  "/login",
+  "/register",
+  "/playground",
+  "/algorithm-lab",
+]);
+const initialPathname = window.location.pathname;
+
+document.documentElement.dataset.routeTheme =
+  initialLightRoutePaths.has(initialPathname) ||
+  initialPathname === "/learn" ||
+  initialPathname.startsWith("/learn/")
+    ? "light"
+    : "dark";
 window.scrollTo(0, 0);
 
 const rootElement = document.getElementById("root");

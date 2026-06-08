@@ -37,10 +37,12 @@ type ViewTransitionDocument = Document & {
 };
 const routeScrollStorageKeyPrefix = "smile-route-scroll:";
 const maxRouteScrollRestoreAttempts = 90;
+const lightPlaceholderRoutes = new Set(["/playground", "/algorithm-lab"]);
 
 function getRouteTheme(pathname: string): RouteTheme {
   return pathname === "/" ||
     pathname === "/explore" ||
+    lightPlaceholderRoutes.has(pathname) ||
     isLearningRoute(pathname) ||
     isAuthRoute(pathname)
     ? "light"
