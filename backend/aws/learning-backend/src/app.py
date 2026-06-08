@@ -468,6 +468,8 @@ def handle_cognito_trigger(event: dict[str, Any]) -> dict[str, Any]:
         send_cognito_email_with_resend(event)
     elif trigger_source == "PreSignUp_SignUp":
         reserve_username_for_signup(event)
+    elif trigger_source == "PreSignUp_ExternalProvider":
+        link_verified_federated_user_to_existing_profile(event)
     elif trigger_source == "PostConfirmation_ConfirmSignUp":
         confirm_username_reservation(event)
 
@@ -480,6 +482,107 @@ def reserve_username_for_signup(event: dict[str, Any]) -> None:
         get_cognito_user_attribute(event, "name"),
         int(time.time()),
     )
+
+
+def link_verified_federated_user_to_existing_profile(event: dict[str, Any]) -> None:
+    email = normalize_optional_auth_email(get_cognito_user_attribute(event, "email"))
+    if not email or not is_cognito_user_attribute_truthy(event, "email_verified"):
+        return
+
+    source_user = get_federated_link_source_user(event)
+    if not source_user:
+        return
+
+    destination_user = get_existing_verified_cognito_user_by_email(email)
+    if not destination_user:
+        return
+
+    get_cognito_identity_provider_client().admin_link_provider_for_user(
+        DestinationUser={
+            "ProviderAttributeValue": destination_user,
+            "ProviderName": "Cognito",
+        },
+        SourceUser=source_user,
+        UserPoolId=require_cognito_user_pool_id(),
+    )
+
+
+def get_federated_link_source_user(event: dict[str, Any]) -> dict[str, str] | None:
+    user_name = str(event.get("userName") or "").strip()
+    provider_name, separator, provider_subject = user_name.partition("_")
+    if not provider_name or not separator or not provider_subject:
+        return None
+
+    configured_provider_name = get_configured_oauth_provider_name(provider_name)
+    if not configured_provider_name:
+        return None
+
+    return {
+        "ProviderAttributeName": "Cognito_Subject",
+        "ProviderAttributeValue": provider_subject,
+        "ProviderName": configured_provider_name,
+    }
+
+
+def get_configured_oauth_provider_name(provider_name: str) -> str:
+    normalized_provider_name = provider_name.strip().lower()
+    for configured_provider_name in {
+        COGNITO_GOOGLE_IDP_NAME,
+        COGNITO_MICROSOFT_IDP_NAME,
+    }:
+        if configured_provider_name and configured_provider_name.lower() == normalized_provider_name:
+            return configured_provider_name
+
+    return ""
+
+
+def get_existing_verified_cognito_user_by_email(email: str) -> str:
+    try:
+        user = get_cognito_identity_provider_client().admin_get_user(
+            UserPoolId=require_cognito_user_pool_id(),
+            Username=email,
+        )
+    except ClientError as error:
+        if get_client_error_code(error) == "UserNotFoundException":
+            return ""
+
+        raise
+
+    if normalize_optional_auth_email(get_admin_user_attribute(user, "email")) != email:
+        return ""
+
+    if not is_admin_user_attribute_truthy(user, "email_verified"):
+        return ""
+
+    username = user.get("Username")
+    return username if isinstance(username, str) and username else email
+
+
+def get_admin_user_attribute(user: dict[str, Any], name: str) -> str:
+    attributes = user.get("UserAttributes", [])
+    if not isinstance(attributes, list):
+        return ""
+
+    for attribute in attributes:
+        if not isinstance(attribute, dict):
+            continue
+
+        if attribute.get("Name") == name and isinstance(attribute.get("Value"), str):
+            return str(attribute["Value"]).strip()
+
+    return ""
+
+
+def is_cognito_user_attribute_truthy(event: dict[str, Any], name: str) -> bool:
+    return is_truthy_auth_attribute(get_cognito_user_attribute(event, name))
+
+
+def is_admin_user_attribute_truthy(user: dict[str, Any], name: str) -> bool:
+    return is_truthy_auth_attribute(get_admin_user_attribute(user, name))
+
+
+def is_truthy_auth_attribute(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes"}
 
 
 def reserve_username_reservation(email: str, username: str, now: int) -> str:
@@ -2692,6 +2795,12 @@ def normalize_auth_email(email: str) -> str:
         raise ClientInputError("Email is not valid.")
 
     return normalized_email
+
+
+def normalize_optional_auth_email(email: str) -> str:
+    normalized_email = email.strip().lower()
+
+    return normalized_email if EMAIL_PATTERN.fullmatch(normalized_email) else ""
 
 
 def get_auth_email_locale_from_body(

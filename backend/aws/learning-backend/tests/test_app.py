@@ -269,7 +269,16 @@ class FakeCognitoIdentityProviderClient:
         if username not in self.users:
             raise create_client_error("UserNotFoundException")
 
-        return {"Username": username}
+        return {
+            "Username": username,
+            "UserAttributes": self.users[username].get("attributes", []),
+            "UserStatus": self.users[username].get("status", "CONFIRMED"),
+        }
+
+    def admin_link_provider_for_user(self, **kwargs):
+        self.calls.append(kwargs)
+
+        return {}
 
     def admin_set_user_password(self, **kwargs):
         self.calls.append(kwargs)
@@ -771,6 +780,124 @@ class LearningBackendTest(unittest.TestCase):
         )
 
         self.assertEqual(fake_dynamodb.items, {})
+
+    def test_external_provider_signup_links_verified_google_email_to_existing_user(self) -> None:
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        fake_cognito.users["student@example.com"] = {
+            "attributes": [
+                {"Name": "email", "Value": "student@example.com"},
+                {"Name": "email_verified", "Value": "true"},
+            ],
+            "password": "StrongPass1!",
+        }
+        app._cognito_identity_provider_client = fake_cognito
+        event = {
+            "request": {
+                "userAttributes": {
+                    "email": "Student@Example.com",
+                    "email_verified": "true",
+                    "name": "Student One",
+                }
+            },
+            "triggerSource": "PreSignUp_ExternalProvider",
+            "userName": "Google_google-sub-with_underscore",
+        }
+
+        result = app.handle_cognito_trigger(event)
+
+        self.assertIs(result, event)
+        self.assertEqual(
+            fake_cognito.calls[-1],
+            {
+                "DestinationUser": {
+                    "ProviderAttributeValue": "student@example.com",
+                    "ProviderName": "Cognito",
+                },
+                "SourceUser": {
+                    "ProviderAttributeName": "Cognito_Subject",
+                    "ProviderAttributeValue": "google-sub-with_underscore",
+                    "ProviderName": "Google",
+                },
+                "UserPoolId": "user-pool",
+            },
+        )
+
+    def test_external_provider_signup_does_not_link_unverified_email(self) -> None:
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        fake_cognito.users["student@example.com"] = {
+            "attributes": [
+                {"Name": "email", "Value": "student@example.com"},
+                {"Name": "email_verified", "Value": "true"},
+            ],
+            "password": "StrongPass1!",
+        }
+        app._cognito_identity_provider_client = fake_cognito
+        event = {
+            "request": {
+                "userAttributes": {
+                    "email": "student@example.com",
+                    "email_verified": "false",
+                    "name": "Student One",
+                }
+            },
+            "triggerSource": "PreSignUp_ExternalProvider",
+            "userName": "Google_google-sub",
+        }
+
+        app.handle_cognito_trigger(event)
+
+        self.assertEqual(fake_cognito.calls, [])
+
+    def test_external_provider_signup_does_not_link_unknown_email(self) -> None:
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        app._cognito_identity_provider_client = fake_cognito
+        event = {
+            "request": {
+                "userAttributes": {
+                    "email": "student@example.com",
+                    "email_verified": "true",
+                    "name": "Student One",
+                }
+            },
+            "triggerSource": "PreSignUp_ExternalProvider",
+            "userName": "Google_google-sub",
+        }
+
+        app.handle_cognito_trigger(event)
+
+        self.assertEqual(len(fake_cognito.calls), 1)
+        self.assertEqual(fake_cognito.calls[0]["Username"], "student@example.com")
+
+    def test_external_provider_signup_does_not_link_unverified_destination_user(self) -> None:
+        app.COGNITO_USER_POOL_ID = "user-pool"
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        fake_cognito.users["student@example.com"] = {
+            "attributes": [
+                {"Name": "email", "Value": "student@example.com"},
+                {"Name": "email_verified", "Value": "false"},
+            ],
+            "password": "StrongPass1!",
+        }
+        app._cognito_identity_provider_client = fake_cognito
+        event = {
+            "request": {
+                "userAttributes": {
+                    "email": "student@example.com",
+                    "email_verified": "true",
+                    "name": "Student One",
+                }
+            },
+            "triggerSource": "PreSignUp_ExternalProvider",
+            "userName": "Google_google-sub",
+        }
+
+        app.handle_cognito_trigger(event)
+
+        self.assertEqual(len(fake_cognito.calls), 1)
+        self.assertEqual(fake_cognito.calls[0]["Username"], "student@example.com")
 
     def test_rejects_duplicate_username_reservation(self) -> None:
         app.USERNAME_RESERVATION_TABLE = "username-reservations"

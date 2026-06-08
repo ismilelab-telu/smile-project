@@ -24,7 +24,9 @@ models/*
 # Local config
 .env
 .env.*
+backend/aws/learning-backend/migration-backups/
 
 # Python
+.venv/
 __pycache__/
 *.py[cod]

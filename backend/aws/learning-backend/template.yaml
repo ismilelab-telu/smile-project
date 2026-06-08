@@ -258,6 +258,7 @@ Resources:
         client_secret: !Ref GoogleOAuthClientSecret
       AttributeMapping:
         email: email
+        email_verified: email_verified
         name: name
 
   CognitoMicrosoftIdentityProvider:
@@ -436,10 +437,19 @@ Resources:
       Handler: app.lambda_handler
       Environment:
         Variables:
+          COGNITO_GOOGLE_IDP_NAME: "Google"
+          COGNITO_MICROSOFT_IDP_NAME: "Microsoft"
+          COGNITO_USER_POOL_ID: !Ref SmileUserPool
           USERNAME_RESERVATION_TABLE: !Ref UsernameReservationTable
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsernameReservationTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminLinkProviderForUser
+              Resource: !GetAtt SmileUserPool.Arn
 
   AuthUsernameFunctionCognitoInvokePermission:
     Type: AWS::Lambda::Permission
