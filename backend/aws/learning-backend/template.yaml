@@ -72,11 +72,11 @@ Parameters:
     Description: Cognito Hosted UI domain prefix for OAuth sign-in. Leave empty to disable federated OAuth sign-in.
   CognitoOAuthCallbackUrls:
     Type: CommaDelimitedList
-    Default: "https://learn.smile.me/auth/callback/google,https://learn.smile.me/auth/callback/microsoft"
+    Default: "https://learn.smilelab.me/auth/callback/google,https://learn.smilelab.me/auth/callback/microsoft"
     Description: Exact callback URLs allowed by Cognito and the backend OAuth callback validator.
   CognitoOAuthLogoutUrls:
     Type: CommaDelimitedList
-    Default: "https://learn.smile.me/learn"
+    Default: "https://learn.smilelab.me/learn"
     Description: Logout URLs allowed by Cognito Hosted UI when federated OAuth is enabled.
 
 Conditions:

@@ -89,7 +89,7 @@ sam deploy \
   --no-confirm-changeset \
   --no-fail-on-empty-changeset \
   --parameter-overrides \
-    AllowedOrigins="http://127.0.0.1:5317,http://localhost:5317,https://learn.smile.me,https://smile-project.pages.dev" \
+    AllowedOrigins="http://127.0.0.1:5317,http://localhost:5317,https://learn.smilelab.me,https://smile-project.pages.dev" \
     FunctionUrlAllowedOrigins="http://127.0.0.1:5317,http://localhost:5317" \
     ResendApiKeySecretName="smile/resend/api-key" \
     AuthConfirmationCodePepper="REPLACE_WITH_RANDOM_SECRET_AT_LEAST_32_CHARS" \
@@ -101,15 +101,15 @@ sam deploy \
     MicrosoftOAuthClientSecret="REPLACE_WITH_MICROSOFT_CLIENT_SECRET" \
     MicrosoftOAuthIssuer="https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0" \
     CognitoOAuthDomainPrefix="smile-learn-auth" \
-    CognitoOAuthCallbackUrls="https://learn.smile.me/auth/callback/google,https://learn.smile.me/auth/callback/microsoft,https://smile-project.pages.dev/auth/callback/google,https://smile-project.pages.dev/auth/callback/microsoft" \
-    CognitoOAuthLogoutUrls="https://learn.smile.me/learn,https://smile-project.pages.dev/learn"
+    CognitoOAuthCallbackUrls="https://learn.smilelab.me/auth/callback/google,https://learn.smilelab.me/auth/callback/microsoft,https://smile-project.pages.dev/auth/callback/google,https://smile-project.pages.dev/auth/callback/microsoft" \
+    CognitoOAuthLogoutUrls="https://learn.smilelab.me/learn,https://smile-project.pages.dev/learn"
 ```
 
 Keep `CognitoOAuthDomainPrefix` stable after federated sign-in is live; changing it creates a different Cognito Hosted UI domain and requires matching provider-console redirect URI updates. Do not include `http://localhost` or `http://127.0.0.1` in `CognitoOAuthCallbackUrls` or `CognitoOAuthLogoutUrls` for an OAuth-enabled Cognito app client.
 
 The template default sender is `Smile Lab <auth@smilelab.me>`. If you override `ResendFromEmail`, verify the Lambda environment after deploy because shell and SAM parameter quoting can split display names with spaces.
 
-Google sign-in is disabled unless all Google OAuth parameters are provided. For production, create a Google OAuth web client whose authorized redirect URI is Cognito's IdP response URL, for example `https://smile-learn-auth.auth.ap-southeast-1.amazoncognito.com/oauth2/idpresponse`. Then deploy with `GoogleOAuthClientId`, `GoogleOAuthClientSecret`, `CognitoOAuthDomainPrefix`, `CognitoOAuthCallbackUrls`, and `CognitoOAuthLogoutUrls`. `CognitoOAuthCallbackUrls` must contain app callback URLs such as `https://learn.smile.me/auth/callback/google`. Cognito OAuth callback/logout URLs must be HTTPS; use an HTTPS tunnel rather than `http://localhost` for local OAuth testing.
+Google sign-in is disabled unless all Google OAuth parameters are provided. For production, create a Google OAuth web client whose authorized redirect URI is Cognito's IdP response URL, for example `https://smile-learn-auth.auth.ap-southeast-1.amazoncognito.com/oauth2/idpresponse`. Then deploy with `GoogleOAuthClientId`, `GoogleOAuthClientSecret`, `CognitoOAuthDomainPrefix`, `CognitoOAuthCallbackUrls`, and `CognitoOAuthLogoutUrls`. `CognitoOAuthCallbackUrls` must contain app callback URLs such as `https://learn.smilelab.me/auth/callback/google`. Cognito OAuth callback/logout URLs must be HTTPS; use an HTTPS tunnel rather than `http://localhost` for local OAuth testing.
 
 Microsoft sign-in is disabled unless `MicrosoftOAuthClientId`, `MicrosoftOAuthClientSecret`, and `CognitoOAuthDomainPrefix` are provided. Create a Microsoft Entra app registration with a web redirect URI pointing to the same Cognito IdP response URL, for example `https://smile-learn-auth.auth.ap-southeast-1.amazoncognito.com/oauth2/idpresponse`. The default `MicrosoftOAuthIssuer` supports personal Microsoft accounts only; use `https://login.microsoftonline.com/<TENANT_ID>/v2.0` for one work/school tenant. Do not use `/common` with Cognito because Microsoft returns tenant-specific token issuers and Cognito requires an exact issuer match.
 
