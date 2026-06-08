@@ -1611,50 +1611,8 @@ function AuthFormPanel({
             ) : null}
           </motion.div>
 
-          <motion.div className="mt-7" layout="position" transition={authSharedLayoutTransition}>
-            <div className="grid gap-3">
-              <button
-                className="inline-flex h-10 w-full cursor-pointer items-center justify-center gap-3 rounded-none border border-zinc-300 bg-white px-4 text-sm font-semibold text-foreground transition-colors hover:border-zinc-500 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:text-neutral-400"
-                disabled={isSubmitting}
-                onClick={handleGoogleSignIn}
-                type="button"
-              >
-                <img
-                  alt=""
-                  aria-hidden="true"
-                  className="size-5 shrink-0"
-                  height="20"
-                  src={googleLogoImageUrl}
-                  width="20"
-                />
-                {locale === "en" ? "Continue with Google" : "Lanjut dengan Google"}
-              </button>
-              <button
-                className="inline-flex h-10 w-full cursor-pointer items-center justify-center gap-3 rounded-none border border-zinc-300 bg-white px-4 text-sm font-semibold text-foreground transition-colors hover:border-zinc-500 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:text-neutral-400"
-                disabled={isSubmitting}
-                onClick={handleMicrosoftSignIn}
-                type="button"
-              >
-                <img
-                  alt=""
-                  aria-hidden="true"
-                  className="size-5 shrink-0"
-                  height="20"
-                  src={microsoftLogoImageUrl}
-                  width="20"
-                />
-                {locale === "en" ? "Continue with Microsoft" : "Lanjut dengan Microsoft"}
-              </button>
-            </div>
-            <div className="my-5 flex items-center gap-3 text-xs font-semibold text-muted-foreground">
-              <span className="h-px flex-1 bg-zinc-200" />
-              <span>{locale === "en" ? "or" : "atau"}</span>
-              <span className="h-px flex-1 bg-zinc-200" />
-            </div>
-          </motion.div>
-
           <motion.form
-            className="mt-0"
+            className="mt-7"
             layout
             onSubmit={handleSubmit}
             transition={authSharedLayoutTransition}
@@ -1738,6 +1696,50 @@ function AuthFormPanel({
               })}
             </motion.button>
           </motion.form>
+
+          <motion.div className="mt-5" layout="position" transition={authSharedLayoutTransition}>
+            <div className="mb-3 flex items-center gap-3 text-xs font-semibold text-muted-foreground">
+              <span className="h-px flex-1 bg-zinc-200" />
+              <span>{locale === "en" ? "or continue with" : "atau lanjut dengan"}</span>
+              <span className="h-px flex-1 bg-zinc-200" />
+            </div>
+            <div className="grid grid-cols-2 items-center gap-2">
+              <button
+                aria-label={locale === "en" ? "Continue with Google" : "Lanjut dengan Google"}
+                className="inline-flex h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-none border border-zinc-300 bg-white px-2 text-xs font-semibold text-foreground transition-colors hover:border-zinc-500 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:text-neutral-400"
+                disabled={isSubmitting}
+                onClick={handleGoogleSignIn}
+                type="button"
+              >
+                <img
+                  alt=""
+                  aria-hidden="true"
+                  className="size-4 shrink-0"
+                  height="16"
+                  src={googleLogoImageUrl}
+                  width="16"
+                />
+                <span className="min-w-0 truncate">Google</span>
+              </button>
+              <button
+                aria-label={locale === "en" ? "Continue with Microsoft" : "Lanjut dengan Microsoft"}
+                className="inline-flex h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-none border border-zinc-300 bg-white px-2 text-xs font-semibold text-foreground transition-colors hover:border-zinc-500 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:text-neutral-400"
+                disabled={isSubmitting}
+                onClick={handleMicrosoftSignIn}
+                type="button"
+              >
+                <img
+                  alt=""
+                  aria-hidden="true"
+                  className="size-4 shrink-0"
+                  height="16"
+                  src={microsoftLogoImageUrl}
+                  width="16"
+                />
+                <span className="min-w-0 truncate">Microsoft</span>
+              </button>
+            </div>
+          </motion.div>
 
           <motion.p
             className="mt-4 min-h-5 text-center text-sm text-muted-foreground"
