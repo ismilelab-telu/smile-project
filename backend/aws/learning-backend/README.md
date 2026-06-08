@@ -69,16 +69,43 @@ sam validate --template-file backend/aws/learning-backend/template.yaml --region
 
 ## Deploy
 
-Deploy only after confirming the Cloudflare Pages origin to allow in S3 CORS. Keep `FunctionUrlAllowedOrigins` limited to local/dev origins because production browser traffic must use the Cloudflare Pages proxy:
+Deploy only after confirming the Cloudflare Pages origin to allow in S3 CORS. Keep `FunctionUrlAllowedOrigins` limited to local/dev origins because production browser traffic must use the Cloudflare Pages proxy.
+
+Manual deploys must pass the required and sensitive parameters explicitly. `AuthConfirmationCodePepper`, `LearningBackendProxySecret`, and Google client secrets are intentionally not stored in `samconfig.toml`.
 
 ```bash
 cd backend/aws/learning-backend
-sam build
-sam deploy --parameter-overrides 'AllowedOrigins="http://127.0.0.1:5317,http://localhost:5317,https://YOUR-CLOUDFLARE-PAGES-DOMAIN" FunctionUrlAllowedOrigins="http://127.0.0.1:5317,http://localhost:5317" ResendApiKeySecretName="smile/resend/api-key" LearningBackendProxySecret="REPLACE_WITH_RANDOM_64_HEX" LearningBackendRequireProxySecret="true"'
+rm -rf .aws-sam
+sam build --template-file template.yaml
+sam deploy \
+  --template-file .aws-sam/build/template.yaml \
+  --stack-name smile-learning-backend \
+  --region ap-southeast-1 \
+  --profile smile-dev \
+  --capabilities CAPABILITY_IAM \
+  --resolve-s3 \
+  --no-confirm-changeset \
+  --no-fail-on-empty-changeset \
+  --parameter-overrides \
+    AllowedOrigins="http://127.0.0.1:5317,http://localhost:5317,https://learn.smile.me,https://smile-project.pages.dev" \
+    FunctionUrlAllowedOrigins="http://127.0.0.1:5317,http://localhost:5317" \
+    ResendApiKeySecretName="smile/resend/api-key" \
+    AuthConfirmationCodePepper="REPLACE_WITH_RANDOM_SECRET_AT_LEAST_32_CHARS" \
+    LearningBackendProxySecret="REPLACE_WITH_SAME_SECRET_AS_CLOUDFLARE" \
+    LearningBackendRequireProxySecret="true" \
+    GoogleOAuthClientId="REPLACE_WITH_GOOGLE_CLIENT_ID.apps.googleusercontent.com" \
+    GoogleOAuthClientSecret="REPLACE_WITH_GOOGLE_CLIENT_SECRET" \
+    CognitoOAuthDomainPrefix="smile-learn-auth" \
+    CognitoOAuthCallbackUrls="https://learn.smile.me/auth/callback/google,https://smile-project.pages.dev/auth/callback/google" \
+    CognitoOAuthLogoutUrls="https://learn.smile.me/learn,https://smile-project.pages.dev/learn"
 ```
+
+Keep `CognitoOAuthDomainPrefix` stable after Google sign-in is live; changing it creates a different Cognito Hosted UI domain and requires a matching Google Cloud Console redirect URI update. Do not include `http://localhost` or `http://127.0.0.1` in `CognitoOAuthCallbackUrls` or `CognitoOAuthLogoutUrls` for a Google-enabled Cognito app client.
 
 The template default sender is `Smile Lab <auth@smilelab.me>`. If you override `ResendFromEmail`, verify the Lambda environment after deploy because shell and SAM parameter quoting can split display names with spaces.
 
-Google sign-in is disabled unless all Google OAuth parameters are provided. For production, create a Google OAuth web client whose authorized redirect URI includes `https://YOUR-DOMAIN/auth/callback/google`, then deploy with `GoogleOAuthClientId`, `GoogleOAuthClientSecret`, `CognitoOAuthDomainPrefix`, `CognitoOAuthCallbackUrls`, and `CognitoOAuthLogoutUrls`. Include local callback URLs only for development stacks.
+Google sign-in is disabled unless all Google OAuth parameters are provided. For production, create a Google OAuth web client whose authorized redirect URI is Cognito's IdP response URL, for example `https://smile-learn-auth.auth.ap-southeast-1.amazoncognito.com/oauth2/idpresponse`. Then deploy with `GoogleOAuthClientId`, `GoogleOAuthClientSecret`, `CognitoOAuthDomainPrefix`, `CognitoOAuthCallbackUrls`, and `CognitoOAuthLogoutUrls`. `CognitoOAuthCallbackUrls` must contain app callback URLs such as `https://learn.smile.me/auth/callback/google`. Cognito OAuth callback/logout URLs must be HTTPS; use an HTTPS tunnel rather than `http://localhost` for local OAuth testing.
+
+For Google OAuth deployment and troubleshooting notes, see the "Google OAuth Troubleshooting" section in [`AUTHENTICATION.md`](./AUTHENTICATION.md).
 
 Build the frontend for production with `VITE_LEARNING_BACKEND_URL=/api/learning-backend` so backend traffic uses the Cloudflare Pages proxy. Configure Cloudflare Pages Function env `LEARNING_BACKEND_URL` from the SAM `LearningBackendFunctionUrl` output; the proxy rejects non-HTTPS, credentialed, path-scoped, or non-Lambda Function URL origins before forwarding sensitive headers. Configure the same random value as SAM `LearningBackendProxySecret` plus Cloudflare Pages Function secret `LEARNING_BACKEND_PROXY_SECRET`. Leave `LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS` unset for the Cloudflare Free-plan-compatible single auth rule; set it to `false` only when Cloudflare has equivalent granular route-specific auth rate limits.

@@ -171,6 +171,79 @@ Google sign-in uses `sessionStorage` only for a non-sensitive local return path.
 
 The backend allows Google OAuth only when `COGNITO_OAUTH_DOMAIN`, `COGNITO_OAUTH_REDIRECT_URIS`, the Cognito client ID, and the Cognito client secret are configured. The SAM template enables the Google IdP only when `GoogleOAuthClientId`, `GoogleOAuthClientSecret`, and `CognitoOAuthDomainPrefix` are all provided.
 
+### Google OAuth Troubleshooting
+
+Use the browser DevTools Network tab first. The `POST /auth/oauth/google/start` request tells you which layer failed:
+
+| Symptom or error                                                                    | Likely cause                                                                                                                                                | Fix                                                                                                                                                                                                                                                                                         |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OAuth redirect URI is not allowed.`                                                | The frontend sent a `redirectUri` such as `https://learn.smile.me/auth/callback/google`, but backend env `COGNITO_OAUTH_REDIRECT_URIS` does not include it. | Deploy backend with `CognitoOAuthCallbackUrls` containing every app callback domain. Then confirm Lambda env includes `COGNITO_OAUTH_REDIRECT_URIS`.                                                                                                                                        |
+| `Learning backend proxy is required.`                                               | Browser request reached Lambda without the correct Cloudflare proxy secret, or frontend is calling the Lambda Function URL directly.                        | Production frontend must use `VITE_LEARNING_BACKEND_URL=/api/learning-backend`. `LearningBackendProxySecret` in SAM, Cloudflare Pages secret `LEARNING_BACKEND_PROXY_SECRET`, and GitHub secret `LEARNING_BACKEND_PROXY_SECRET` must match. Redeploy frontend after changing Pages secrets. |
+| `Route not found.` from `/auth/oauth/google/start`                                  | The active Lambda/proxy code is old and does not contain the Google OAuth routes.                                                                           | Remove stale SAM artifacts with `rm -rf .aws-sam`, run `sam build --template-file template.yaml`, verify `rg "auth/oauth/google                                                                                                                                                             | COGNITO_OAUTH_DOMAIN" .aws-sam/build/template.yaml .aws-sam/build/LearningBackendFunction/app.py`, then deploy `.aws-sam/build/template.yaml`. |
+| `Missing option '--stack-name'` from `sam deploy`                                   | Deploy was run outside `backend/aws/learning-backend` or without the saved SAM config.                                                                      | Run from `backend/aws/learning-backend`, or pass `--stack-name smile-learning-backend` explicitly.                                                                                                                                                                                          |
+| `Parameters: [AuthConfirmationCodePepper] must have values`                         | `AuthConfirmationCodePepper` is a required `NoEcho` parameter and is not stored in `samconfig.toml`.                                                        | Pass `AuthConfirmationCodePepper` on manual deploy, or use the GitHub Actions secret `AUTH_CONFIRMATION_CODE_PEPPER`. Rotating it can invalidate pending sign-up verification codes.                                                                                                        |
+| `http:// cannot use the HTTP protocol.` while creating `SmileGoogleUserPoolClient`  | Cognito app client OAuth callback/logout URLs contain `http://localhost` or `http://127.0.0.1`.                                                             | Cognito OAuth `CallbackURLs` and `LogoutURLs` must be HTTPS. Remove local HTTP URLs from `CognitoOAuthCallbackUrls` and `CognitoOAuthLogoutUrls`; use an HTTPS tunnel for local OAuth testing if needed.                                                                                    |
+| Google Console says `Invalid Origin: URIs must not contain a path or end with '/'`. | The Cognito `/oauth2/idpresponse` URL was pasted into **Authorized JavaScript origins**.                                                                    | Put only origins like `https://learn.smile.me` in JavaScript origins. Put the full Cognito URL in **Authorized redirect URIs**.                                                                                                                                                             |
+
+Known-good manual backend deploy shape for Google OAuth:
+
+```sh
+cd backend/aws/learning-backend
+rm -rf .aws-sam
+sam build --template-file template.yaml
+sam deploy \
+  --template-file .aws-sam/build/template.yaml \
+  --stack-name smile-learning-backend \
+  --region ap-southeast-1 \
+  --profile smile-dev \
+  --capabilities CAPABILITY_IAM \
+  --resolve-s3 \
+  --no-confirm-changeset \
+  --no-fail-on-empty-changeset \
+  --parameter-overrides \
+    AllowedOrigins="http://127.0.0.1:5317,http://localhost:5317,https://learn.smile.me,https://smile-project.pages.dev" \
+    FunctionUrlAllowedOrigins="http://127.0.0.1:5317,http://localhost:5317" \
+    ResendApiKeySecretName="smile/resend/api-key" \
+    AuthConfirmationCodePepper="REPLACE_WITH_RANDOM_SECRET_AT_LEAST_32_CHARS" \
+    LearningBackendProxySecret="REPLACE_WITH_SAME_SECRET_AS_CLOUDFLARE" \
+    LearningBackendRequireProxySecret="true" \
+    GoogleOAuthClientId="REPLACE_WITH_GOOGLE_CLIENT_ID.apps.googleusercontent.com" \
+    GoogleOAuthClientSecret="REPLACE_WITH_GOOGLE_CLIENT_SECRET" \
+    CognitoOAuthDomainPrefix="smile-learn-auth" \
+    CognitoOAuthCallbackUrls="https://learn.smile.me/auth/callback/google,https://smile-project.pages.dev/auth/callback/google" \
+    CognitoOAuthLogoutUrls="https://learn.smile.me/learn,https://smile-project.pages.dev/learn"
+```
+
+Use the same `LearningBackendProxySecret` value in SAM, Cloudflare Pages `LEARNING_BACKEND_PROXY_SECRET`, and GitHub Actions `LEARNING_BACKEND_PROXY_SECRET`. Keep `CognitoOAuthDomainPrefix` stable after Google sign-in is live; changing it changes the Cognito Hosted UI domain and requires a matching Google Cloud Console redirect URI update.
+
+Google Cloud Console and Cognito use different redirect URLs:
+
+- Google Cloud Console **Authorized redirect URI**: `https://<CognitoOAuthDomainPrefix>.auth.ap-southeast-1.amazoncognito.com/oauth2/idpresponse`
+- Cognito/SAM `CognitoOAuthCallbackUrls`: app callbacks such as `https://learn.smile.me/auth/callback/google`
+- Frontend `redirectUri` sent to backend: exactly the current app origin plus `/auth/callback/google`
+
+After a successful backend deploy, verify that Google OAuth is active:
+
+```sh
+aws cloudformation describe-stacks \
+  --stack-name smile-learning-backend \
+  --region ap-southeast-1 \
+  --profile smile-dev \
+  --query 'Stacks[0].Outputs[?OutputKey==`CognitoOAuthDomain` || OutputKey==`CognitoUserPoolClientId` || OutputKey==`LearningBackendFunctionUrl`]'
+
+aws lambda get-function-configuration \
+  --function-name "$(aws cloudformation describe-stack-resources \
+    --stack-name smile-learning-backend \
+    --region ap-southeast-1 \
+    --profile smile-dev \
+    --logical-resource-id LearningBackendFunction \
+    --query 'StackResources[0].PhysicalResourceId' \
+    --output text)" \
+  --region ap-southeast-1 \
+  --profile smile-dev \
+  --query 'Environment.Variables.{COGNITO_OAUTH_DOMAIN:COGNITO_OAUTH_DOMAIN,COGNITO_OAUTH_REDIRECT_URIS:COGNITO_OAUTH_REDIRECT_URIS}'
+```
+
 ## Password Reset Flow
 
 Password reset uses Cognito's forgot-password APIs and the existing Cognito custom email sender:
