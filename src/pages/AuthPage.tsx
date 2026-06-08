@@ -125,8 +125,10 @@ const authCopy = {
   }
 >;
 
-const authIllustrationImageUrl = new URL(
-  "../../assets/43096caa-9b82-474a-a51d-99d4721a99ca.png",
+const authIllustrationImageUrl = new URL("../../assets/auth-illustration.webp", import.meta.url)
+  .href;
+const authIllustrationSmallImageUrl = new URL(
+  "../../assets/auth-illustration-720.webp",
   import.meta.url,
 ).href;
 const googleLogoImageUrl = new URL("../../assets/brands/Google_Favicon_2025.svg", import.meta.url)
@@ -2176,9 +2178,14 @@ function AuthIllustration({
           isRegister ? "ml-auto object-right-top" : "object-left-top"
         }`}
         decoding="async"
+        fetchPriority="high"
+        height={896}
         layout="position"
         loading="eager"
         src={authIllustrationImageUrl}
+        srcSet={`${authIllustrationSmallImageUrl} 720w, ${authIllustrationImageUrl} 1200w`}
+        sizes="(min-width: 768px) min(64rem, calc(100vw - 4rem)), calc(100vw - 2rem)"
+        width={1200}
       />
     </motion.div>
   );
