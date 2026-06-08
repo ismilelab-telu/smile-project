@@ -823,6 +823,35 @@ class LearningBackendTest(unittest.TestCase):
             },
         )
 
+    def test_external_provider_signup_uses_trigger_user_pool_id_for_linking(self) -> None:
+        app.COGNITO_USER_POOL_ID = ""
+        fake_cognito = FakeCognitoIdentityProviderClient()
+        fake_cognito.users["student@example.com"] = {
+            "attributes": [
+                {"Name": "email", "Value": "student@example.com"},
+                {"Name": "email_verified", "Value": "true"},
+            ],
+            "password": "StrongPass1!",
+        }
+        app._cognito_identity_provider_client = fake_cognito
+        event = {
+            "request": {
+                "userAttributes": {
+                    "email": "student@example.com",
+                    "email_verified": "true",
+                    "name": "Student One",
+                }
+            },
+            "triggerSource": "PreSignUp_ExternalProvider",
+            "userName": "Google_google-sub",
+            "userPoolId": "trigger-user-pool",
+        }
+
+        app.handle_cognito_trigger(event)
+
+        self.assertEqual(fake_cognito.calls[0]["UserPoolId"], "trigger-user-pool")
+        self.assertEqual(fake_cognito.calls[-1]["UserPoolId"], "trigger-user-pool")
+
     def test_external_provider_signup_does_not_link_unverified_email(self) -> None:
         app.COGNITO_USER_POOL_ID = "user-pool"
         fake_cognito = FakeCognitoIdentityProviderClient()

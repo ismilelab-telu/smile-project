@@ -489,11 +489,15 @@ def link_verified_federated_user_to_existing_profile(event: dict[str, Any]) -> N
     if not email or not is_cognito_user_attribute_truthy(event, "email_verified"):
         return
 
+    user_pool_id = get_cognito_trigger_user_pool_id(event)
+    if not user_pool_id:
+        return
+
     source_user = get_federated_link_source_user(event)
     if not source_user:
         return
 
-    destination_user = get_existing_verified_cognito_user_by_email(email)
+    destination_user = get_existing_verified_cognito_user_by_email(email, user_pool_id)
     if not destination_user:
         return
 
@@ -503,8 +507,17 @@ def link_verified_federated_user_to_existing_profile(event: dict[str, Any]) -> N
             "ProviderName": "Cognito",
         },
         SourceUser=source_user,
-        UserPoolId=require_cognito_user_pool_id(),
+        UserPoolId=user_pool_id,
     )
+
+
+def get_cognito_trigger_user_pool_id(event: dict[str, Any]) -> str:
+    user_pool_id = event.get("userPoolId")
+
+    if isinstance(user_pool_id, str) and user_pool_id.strip():
+        return user_pool_id.strip()
+
+    return COGNITO_USER_POOL_ID
 
 
 def get_federated_link_source_user(event: dict[str, Any]) -> dict[str, str] | None:
@@ -536,10 +549,10 @@ def get_configured_oauth_provider_name(provider_name: str) -> str:
     return ""
 
 
-def get_existing_verified_cognito_user_by_email(email: str) -> str:
+def get_existing_verified_cognito_user_by_email(email: str, user_pool_id: str) -> str:
     try:
         user = get_cognito_identity_provider_client().admin_get_user(
-            UserPoolId=require_cognito_user_pool_id(),
+            UserPoolId=user_pool_id,
             Username=email,
         )
     except ClientError as error:

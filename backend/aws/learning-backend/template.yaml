@@ -439,7 +439,6 @@ Resources:
         Variables:
           COGNITO_GOOGLE_IDP_NAME: "Google"
           COGNITO_MICROSOFT_IDP_NAME: "Microsoft"
-          COGNITO_USER_POOL_ID: !Ref SmileUserPool
           USERNAME_RESERVATION_TABLE: !Ref UsernameReservationTable
       Policies:
         - DynamoDBCrudPolicy:
@@ -449,7 +448,7 @@ Resources:
               Action:
                 - cognito-idp:AdminGetUser
                 - cognito-idp:AdminLinkProviderForUser
-              Resource: !GetAtt SmileUserPool.Arn
+              Resource: !Sub "arn:${AWS::Partition}:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*"
 
   AuthUsernameFunctionCognitoInvokePermission:
     Type: AWS::Lambda::Permission
