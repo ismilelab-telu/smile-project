@@ -31,7 +31,7 @@ describe("LearningHome search", () => {
   it("shows matching lesson snippets while typing in the track search box", async () => {
     renderLearningHome();
 
-    fireEvent.change(screen.getByRole("searchbox", { name: "Cari lesson" }), {
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search lessons" }), {
       target: { value: "EDA" },
     });
 
@@ -42,12 +42,12 @@ describe("LearningHome search", () => {
   it("clears search results from the clear button", async () => {
     renderLearningHome();
 
-    fireEvent.change(screen.getByRole("searchbox", { name: "Cari lesson" }), {
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search lessons" }), {
       target: { value: "EDA" },
     });
     expect(await screen.findByText("Lesson 1.5 / Keyword")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Hapus pencarian" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
 
     await waitFor(() => {
       expect(screen.queryByText("Lesson 1.5 / Keyword")).not.toBeInTheDocument();
@@ -57,19 +57,19 @@ describe("LearningHome search", () => {
   it("keeps coming-soon matches visible but ranks locked matches above them", async () => {
     renderLearningHome();
 
-    fireEvent.change(screen.getByRole("searchbox", { name: "Cari lesson" }), {
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search lessons" }), {
       target: { value: "missing values" },
     });
 
-    const lockedResultLabel = await screen.findByText("Lesson 1.3 / Materi lesson");
-    const comingSoonResultLabel = await screen.findByText("Lesson 1.5 / Materi lesson");
+    const lockedResultLabel = await screen.findByText("Lesson 1.3 / Lesson content");
+    const comingSoonResultLabel = await screen.findByText("Lesson 1.5 / Lesson content");
 
     expect(
       lockedResultLabel.compareDocumentPosition(comingSoonResultLabel) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(document.body).toHaveTextContent(
-      "Pengecekan eksploratif biasanya mencakup: missing values per kolom;",
+      "Exploratory checks usually include: missing values per column;",
     );
   });
 });

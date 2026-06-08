@@ -130,6 +130,7 @@ describe("App", () => {
     });
     window.localStorage.clear();
     window.sessionStorage.clear();
+    window.localStorage.setItem(localizationStorageKey, "id");
     window.history.pushState(null, "", "/");
   });
 
@@ -153,6 +154,17 @@ describe("App", () => {
       "/algorithm-lab",
     );
     expect(window.location.pathname).toBe("/explore");
+  });
+
+  it("uses English as the default language when no preference is stored", async () => {
+    window.localStorage.removeItem(localizationStorageKey);
+    window.history.pushState(null, "", "/learn");
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Choose a learning path" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+    expect(window.localStorage.getItem(localizationStorageKey)).toBe("en");
   });
 
   it("switches the Learning menu language and persists the preference", async () => {

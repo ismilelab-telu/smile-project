@@ -12,7 +12,7 @@ export const localizationStorageKey = "smile-language";
 
 export type Locale = "id" | "en";
 
-const defaultLocale: Locale = "id";
+const defaultLocale: Locale = "en";
 
 const idMessages = {
   "language.current": "Bahasa aktif",
