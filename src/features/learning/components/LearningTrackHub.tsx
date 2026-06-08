@@ -20,15 +20,42 @@ const liquidButtonClassName =
 
 const trackHubFullCellGridClassName = "col-span-full [@media_(min-width:1024px)]:col-span-3";
 
-const trackImageSources: Partial<Record<LearningTrack["id"], string>> = {
-  "track-classification": "/learning/removedbg-classification.webp",
-  "track-clustering": "/learning/removedbg-clustering.webp",
-  "track-machine-learning-foundations": "/learning/removedbg-ml.webp",
-  "track-regression": "/learning/removedbg-linear.webp",
+type TrackImage = {
+  className?: string;
+  height: number;
+  src: string;
+  srcSet: string;
+  width: number;
 };
 
-const trackImageClassNames: Partial<Record<LearningTrack["id"], string>> = {
-  "track-machine-learning-foundations": "object-cover object-center",
+const trackImages: Partial<Record<LearningTrack["id"], TrackImage>> = {
+  "track-classification": {
+    height: 611,
+    src: "/learning/removedbg-classification.webp",
+    srcSet:
+      "/learning/removedbg-classification-720.webp 720w, /learning/removedbg-classification.webp 1440w",
+    width: 1440,
+  },
+  "track-clustering": {
+    height: 960,
+    src: "/learning/removedbg-clustering.webp",
+    srcSet:
+      "/learning/removedbg-clustering-720.webp 720w, /learning/removedbg-clustering.webp 1440w",
+    width: 1440,
+  },
+  "track-machine-learning-foundations": {
+    className: "object-cover object-center",
+    height: 960,
+    src: "/learning/removedbg-ml.webp",
+    srcSet: "/learning/removedbg-ml-720.webp 720w, /learning/removedbg-ml.webp 1440w",
+    width: 1440,
+  },
+  "track-regression": {
+    height: 611,
+    src: "/learning/removedbg-linear.webp",
+    srcSet: "/learning/removedbg-linear-720.webp 720w, /learning/removedbg-linear.webp 1440w",
+    width: 1440,
+  },
 };
 
 type LearningTrackHubProps = {
@@ -94,7 +121,7 @@ function TrackHubFullRow({
 
 export function LearningTrackHub({ progress }: LearningTrackHubProps) {
   const { locale, t } = useLocalization();
-  const trackImageCount = learningTracks.filter((track) => trackImageSources[track.id]).length;
+  const trackImageCount = learningTracks.filter((track) => trackImages[track.id]).length;
   const trackImageRowCount = trackImageCount * 2;
 
   return (
@@ -129,13 +156,13 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
             const localizedTrack = localizeTrack(track, locale);
             const completedLessonCount = getCompletedTrackLessonCount(track, progress);
             const isAvailable = track.status === "available";
-            const trackImageSrc = trackImageSources[track.id];
-            const trackImageClassName =
-              trackImageClassNames[track.id] ?? "object-contain object-center";
+            const trackImage = trackImages[track.id];
+            const trackImageClassName = trackImage?.className ?? "object-contain object-center";
+            const shouldPrioritizeImage = index === 0;
 
             return (
               <div className="contents" key={track.id}>
-                {trackImageSrc ? (
+                {trackImage ? (
                   <>
                     <TrackHubFullRow>
                       <div
@@ -152,8 +179,13 @@ export function LearningTrackHub({ progress }: LearningTrackHubProps) {
                           alt=""
                           className={`aspect-[21/9] h-auto w-full ${trackImageClassName}`}
                           decoding="async"
-                          loading="lazy"
-                          src={trackImageSrc}
+                          fetchPriority={shouldPrioritizeImage ? "high" : "auto"}
+                          height={trackImage.height}
+                          loading={shouldPrioritizeImage ? "eager" : "lazy"}
+                          sizes="(min-width: 1080px) 1080px, calc(100vw - 48px)"
+                          src={trackImage.src}
+                          srcSet={trackImage.srcSet}
+                          width={trackImage.width}
                         />
                       </div>
                     </TrackHubFullRow>
