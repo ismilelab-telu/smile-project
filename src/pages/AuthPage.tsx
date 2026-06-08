@@ -631,7 +631,7 @@ function AuthFormPanel({
   const confirmationTitle = getConfirmationStepTitle(locale);
   const resendCooldownSeconds = Math.max(0, Math.ceil((resendAvailableAt - resendClock) / 1000));
   const canResendCode = resendCooldownSeconds <= 0 && !isSubmitting;
-  const credentialsPanelPaddingClass = getCredentialsPanelPaddingClass({
+  const credentialsPanelLayoutClass = getCredentialsPanelLayoutClass({
     hasFeedback: Boolean(visibleErrorMessage || renderedStatusMessage),
     hasPassword: password.length > 0,
     hasRevealedConfirmPassword: canShowConfirmPassword,
@@ -1551,9 +1551,7 @@ function AuthFormPanel({
       layout="position"
       transition={authSharedLayoutTransition}
     >
-      <div
-        className={`flex min-h-0 flex-1 items-center justify-center ${credentialsPanelPaddingClass}`}
-      >
+      <div className={`flex min-h-0 flex-1 justify-center ${credentialsPanelLayoutClass}`}>
         <div className="w-full max-w-sm text-foreground">
           <motion.div
             className="space-y-1 text-left"
@@ -2213,7 +2211,7 @@ function findAuthField(fields: AuthField[], fieldId: string) {
   return field;
 }
 
-function getCredentialsPanelPaddingClass({
+function getCredentialsPanelLayoutClass({
   hasFeedback,
   hasPassword,
   hasRevealedConfirmPassword,
@@ -2225,18 +2223,18 @@ function getCredentialsPanelPaddingClass({
   isRegister: boolean;
 }) {
   if (!isRegister) {
-    return "py-20";
+    return "items-center py-20";
   }
 
   if (hasFeedback || hasRevealedConfirmPassword) {
-    return "pt-5 pb-8 md:pt-6 md:pb-9";
+    return "items-start pt-12 pb-10 md:pt-14 md:pb-12";
   }
 
   if (hasPassword) {
-    return "pt-8 pb-10 md:pt-9 md:pb-11";
+    return "items-start pt-10 pb-12 md:pt-12 md:pb-14";
   }
 
-  return "pt-12 pb-14 md:pt-14 md:pb-16";
+  return "items-center pt-12 pb-14 md:pt-14 md:pb-16";
 }
 
 function getConfirmationStepTitle(locale: Locale) {
