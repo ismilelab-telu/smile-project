@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import {
   LearningGridCanvas,
@@ -22,6 +22,129 @@ const modes = [
     title: "Algorithm Lab",
   },
 ] as const;
+
+type IdleWindow = Window & {
+  cancelIdleCallback?: (handle: number) => void;
+  requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+};
+
+type ExploreModePreviewProps = {
+  animatedSrc: string;
+  className?: string;
+  fallbackGifSrc: string;
+  height: number;
+  objectClassName?: string;
+  posterSrc: string;
+  visibleMediaQuery?: string;
+  width: number;
+};
+
+function getMediaQueryMatches(query?: string) {
+  if (!query || typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return true;
+  }
+
+  return window.matchMedia(query).matches;
+}
+
+function ExploreModePreview({
+  animatedSrc,
+  className = "",
+  fallbackGifSrc,
+  height,
+  objectClassName = "object-left",
+  posterSrc,
+  visibleMediaQuery,
+  width,
+}: ExploreModePreviewProps) {
+  const [isMediaVisible, setIsMediaVisible] = useState(() =>
+    getMediaQueryMatches(visibleMediaQuery),
+  );
+  const [shouldLoadAnimation, setShouldLoadAnimation] = useState(false);
+  const [isAnimationLoaded, setIsAnimationLoaded] = useState(false);
+  const imageClassName = `h-full w-full object-cover ${objectClassName}`;
+  const loadAnimation = useCallback(() => setShouldLoadAnimation(true), []);
+
+  useEffect(() => {
+    if (!visibleMediaQuery || typeof window.matchMedia !== "function") {
+      return;
+    }
+
+    const mediaQueryList = window.matchMedia(visibleMediaQuery);
+    const updateMediaVisibility = () => setIsMediaVisible(mediaQueryList.matches);
+
+    updateMediaVisibility();
+    mediaQueryList.addEventListener("change", updateMediaVisibility);
+
+    return () => mediaQueryList.removeEventListener("change", updateMediaVisibility);
+  }, [visibleMediaQuery]);
+
+  useEffect(() => {
+    if (!isMediaVisible) {
+      return;
+    }
+
+    const shouldReduceMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (shouldReduceMotion) {
+      return;
+    }
+
+    const idleWindow = window as IdleWindow;
+
+    if (idleWindow.requestIdleCallback) {
+      const idleId = idleWindow.requestIdleCallback(loadAnimation, { timeout: 1800 });
+
+      return () => idleWindow.cancelIdleCallback?.(idleId);
+    }
+
+    const fallbackTimerId = window.setTimeout(loadAnimation, 900);
+
+    return () => window.clearTimeout(fallbackTimerId);
+  }, [isMediaVisible, loadAnimation]);
+
+  return (
+    <div
+      aria-hidden="true"
+      className={`learning-sheet-cell aspect-square overflow-hidden ${className}`}
+      onPointerEnter={loadAnimation}
+    >
+      {isMediaVisible ? (
+        <>
+          <img
+            alt=""
+            className={imageClassName}
+            decoding="async"
+            height={height}
+            loading="eager"
+            src={posterSrc}
+            width={width}
+          />
+          {shouldLoadAnimation ? (
+            <picture
+              className={`absolute inset-0 block transition-opacity duration-300 ${
+                isAnimationLoaded ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              <source srcSet={animatedSrc} type="image/webp" />
+              <img
+                alt=""
+                className={imageClassName}
+                decoding="async"
+                height={height}
+                onLoad={() => setIsAnimationLoaded(true)}
+                src={fallbackGifSrc}
+                width={width}
+              />
+            </picture>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
 
 function ExploreLeftGutter({ className = "" }: { className?: string }) {
   return (
@@ -97,39 +220,31 @@ export function ExplorePage() {
           </ExploreFullRow>
 
           <ExploreLeftGutter />
-          <div
-            aria-hidden="true"
-            className="learning-sheet-cell learning-extend-left aspect-square overflow-hidden"
-          >
-            <img
-              alt=""
-              className="h-full w-full object-cover object-left"
-              decoding="async"
-              loading="lazy"
-              src="/learning/explore-learning-mode.gif"
-            />
-          </div>
-          <div aria-hidden="true" className="learning-sheet-cell aspect-square overflow-hidden">
-            <img
-              alt=""
-              className="h-full w-full object-cover object-left"
-              decoding="async"
-              loading="lazy"
-              src="/learning/explore-ml-playground.gif"
-            />
-          </div>
-          <div
-            aria-hidden="true"
-            className="learning-sheet-cell learning-extend-right hidden aspect-square overflow-hidden sm:block"
-          >
-            <img
-              alt=""
-              className="h-full w-full object-cover object-[88%_center]"
-              decoding="async"
-              loading="lazy"
-              src="/learning/explore-algorithm-lab.gif"
-            />
-          </div>
+          <ExploreModePreview
+            animatedSrc="/learning/explore-learning-mode-animated.webp"
+            className="learning-extend-left"
+            fallbackGifSrc="/learning/explore-learning-mode.gif"
+            height={640}
+            posterSrc="/learning/explore-learning-mode-poster.webp"
+            width={640}
+          />
+          <ExploreModePreview
+            animatedSrc="/learning/explore-ml-playground-animated.webp"
+            fallbackGifSrc="/learning/explore-ml-playground.gif"
+            height={640}
+            posterSrc="/learning/explore-ml-playground-poster.webp"
+            width={640}
+          />
+          <ExploreModePreview
+            animatedSrc="/learning/explore-algorithm-lab-animated.webp"
+            className="learning-extend-right hidden sm:block"
+            fallbackGifSrc="/learning/explore-algorithm-lab.gif"
+            height={474}
+            objectClassName="object-[88%_center]"
+            posterSrc="/learning/explore-algorithm-lab-poster.webp"
+            visibleMediaQuery="(min-width: 640px)"
+            width={640}
+          />
           <ExploreRightGutter />
 
           <ExploreLeftGutter />
