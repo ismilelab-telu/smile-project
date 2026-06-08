@@ -180,8 +180,7 @@ export function useLearningProgress() {
   const expectedProgressOwnerKey = sessionUserId
     ? getAccountProgressOwnerKey(sessionUserId)
     : guestProgressOwnerKey;
-  const isProgressReady =
-    isAuthReady && progressOwnerKey === expectedProgressOwnerKey && syncState !== "syncing";
+  const isProgressReady = isAuthReady && progressOwnerKey === expectedProgressOwnerKey;
 
   useEffect(() => {
     progressRef.current = progress;
@@ -217,8 +216,8 @@ export function useLearningProgress() {
       pendingGuestClaimProgressJsonRef.current = "";
       syncedUserIdRef.current = null;
       lastRemoteProgressJsonRef.current = "";
-      setProgressOwnerKey(guestProgressOwnerKey);
       setProgress(readLearningProgress());
+      setProgressOwnerKey(guestProgressOwnerKey);
       setSyncState("local");
       return;
     }
@@ -245,8 +244,8 @@ export function useLearningProgress() {
 
       if (!freshSession) {
         activeProgressOwnerRef.current = "";
-        setProgressOwnerKey(guestProgressOwnerKey);
         setProgress(readLearningProgress());
+        setProgressOwnerKey(guestProgressOwnerKey);
         setSyncState("local");
         return;
       }
@@ -291,8 +290,8 @@ export function useLearningProgress() {
       }
 
       progressRef.current = mergedProgress;
-      setProgressOwnerKey(getAccountProgressOwnerKey(userId));
       setProgress(mergedProgress);
+      setProgressOwnerKey(getAccountProgressOwnerKey(userId));
       setSyncState("synced");
     })().catch(() => {
       if (!isActive || syncRunRef.current !== syncRun) {
@@ -302,8 +301,8 @@ export function useLearningProgress() {
       activeProgressOwnerRef.current = userId;
       progressRef.current = localProgressForSync;
       writeLocalLearningProgressForUser(userId, localProgressForSync);
-      setProgressOwnerKey(getAccountProgressOwnerKey(userId));
       setProgress(localProgressForSync);
+      setProgressOwnerKey(getAccountProgressOwnerKey(userId));
       setSyncState("local");
     });
 
