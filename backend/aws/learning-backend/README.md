@@ -38,6 +38,8 @@ The Cognito app client is confidential (`GenerateSecret: true`). Browser code do
 
 Google and Microsoft sign-in use Cognito Hosted UI only for the federated redirect. `/auth/oauth/<provider>/start` creates state and PKCE verifier values in a signed short-lived HttpOnly cookie, then returns the Cognito authorization URL. `/auth/oauth/<provider>/callback` validates the state cookie and redirect URI, exchanges the authorization code from the backend, stores Cognito's refresh token in the same signed refresh-session cookie used by email/password login, and clears the OAuth state cookie.
 
+Before Cognito creates a new federated profile, the `PreSignUp_ExternalProvider` trigger links a verified provider email to an existing verified Cognito user with the same email. Linked email/password and Google sign-ins return the same Cognito `sub`, so learning progress stays unified; Microsoft/OIDC links only when the provider event supplies `email_verified=true`. Federated profiles that already existed before linking was enabled require one-time admin cleanup and progress migration.
+
 Session refresh and revoke requests rely on the signed HttpOnly refresh-session cookie as the only refresh-token source. Refresh requests may include the Cognito `sub` for proxy rate limiting, but the Lambda derives the authoritative refresh token and user `sub` from the signed cookie; requests do not send account email or JSON refresh tokens. A reload uses `/auth/session/bootstrap` to restore the in-memory access/ID token session from that cookie.
 
 Frontend, backend validation, and Cognito policy require passwords to be at least 12 characters and include lowercase, uppercase, number, and symbol.
@@ -68,6 +70,31 @@ If the secret already exists, update it with `aws secretsmanager put-secret-valu
 python3 -m unittest discover -s backend/aws/learning-backend/tests
 sam validate --template-file backend/aws/learning-backend/template.yaml --region ap-southeast-1 --profile smile-dev
 ```
+
+## Legacy Federated Progress Migration
+
+If a user already has separate progress under an old federated Cognito profile such as `Google_<provider-subject>`, migrate it with the admin script. It reads the stack outputs from `samconfig.toml` defaults, writes a local backup under `migration-backups/`, merges progress using the same conflict rules as the frontend, and performs no AWS writes unless `--apply` is present.
+
+Dry-run first:
+
+```bash
+cd backend/aws/learning-backend
+python3 scripts/migrate_federated_progress.py --email student@example.com
+```
+
+Apply the full cleanup after checking the dry-run output:
+
+```bash
+python3 scripts/migrate_federated_progress.py \
+  --email student@example.com \
+  --apply \
+  --relink-provider \
+  --delete-source-progress
+```
+
+Use `--source-username`, `--destination-username`, `--provider`, `--user-pool-id`, or `--progress-table` when the defaults cannot uniquely identify the users or stack resources. The script requires the destination email/password Cognito user to have `email_verified=true`; a present `email_verified=false` on the source federated user also fails the migration.
+
+For older Google duplicates created before `email_verified` was mapped into Cognito, the source federated profile can show `email_verified=false` even though the provider email is the same. After manually confirming the source username and email in the dry-run output, pass `--allow-unverified-source-email` to continue that legacy cleanup.
 
 ## Deploy
 

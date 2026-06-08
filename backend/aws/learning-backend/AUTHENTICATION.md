@@ -31,7 +31,7 @@ The system has four auth-related layers:
 
 1. The React app renders `/login` and `/register` as a shared modal over the current app route.
 2. The React auth context keeps the Cognito bearer session in browser module memory and exposes `signIn`, `signUp`, `confirmSignUp`, `resendConfirmationCode`, `getFreshSession`, and `signOut`.
-3. Cognito issues ID, access, and refresh tokens through the confidential backend-owned app client. Google and Microsoft sign-in use Cognito's OAuth authorization-code flow with backend-owned token exchange.
+3. Cognito issues ID, access, and refresh tokens through the confidential backend-owned app client. Google and Microsoft sign-in use Cognito's OAuth authorization-code flow with backend-owned token exchange. Verified federated emails are linked to an existing Cognito profile before Cognito creates a duplicate federated user.
 4. The learning backend is exposed by a Lambda Function URL, but production non-health routes require the Cloudflare Pages proxy secret before route handlers run. It verifies Cognito bearer tokens for protected routes and runs custom backend-owned sign-up endpoints for registration.
 
 Important non-goals in the current implementation:
@@ -160,6 +160,7 @@ AuthPage Google or Microsoft button
   -> POST /auth/oauth/<provider>/start
   -> backend creates signed state + PKCE verifier cookie
   -> frontend redirects to Cognito Hosted UI with identity_provider=<provider>
+  -> Cognito PreSignUp_ExternalProvider links a verified provider email to an existing Cognito user when one exists
   -> Cognito redirects to /auth/callback/<provider> with code + state
   -> auth.completeGoogleSignIn(...) or auth.completeMicrosoftSignIn(...)
   -> POST /auth/oauth/<provider>/callback
@@ -171,6 +172,25 @@ AuthPage Google or Microsoft button
 ```
 
 Federated OAuth sign-in uses `sessionStorage` only for a non-sensitive local return path. The helper rejects external URLs, `/login`, `/register`, and OAuth callback routes before navigating after success.
+
+Before the first federated sign-in creates a new Cognito user, the `PreSignUp_ExternalProvider` trigger checks for a verified provider email and an existing verified Cognito user with the same email. When both are true, it calls `AdminLinkProviderForUser` with `ProviderAttributeName=Cognito_Subject` so future provider sign-ins return the existing Cognito profile and the same `sub`. Because learning progress is keyed by Cognito `sub`, this keeps email/password and Google sign-in on the same saved progress. The trigger deliberately skips linking when the provider email or destination Cognito email is not verified. Google maps `email_verified` into Cognito; Microsoft/OIDC links only when the provider event supplies `email_verified=true`.
+
+If a federated user already signed in before this linking rule existed, Cognito may already have created a separate `Google_<id>` or `Microsoft_<id>` profile. AWS requires that existing duplicate profile to be deleted before linking that provider identity to the local profile, so those legacy duplicate accounts need a one-time admin cleanup and progress migration rather than silent automatic relinking during normal sign-in.
+
+Use `backend/aws/learning-backend/scripts/migrate_federated_progress.py` for that cleanup. It resolves `CognitoUserPoolId` and `LearningProgressTableName` from the SAM stack outputs when they are not passed explicitly, backs up the source and destination progress items locally, merges source federated progress into the email/password profile, and only writes AWS changes with `--apply`. The full cleanup command is:
+
+```bash
+cd backend/aws/learning-backend
+python3 scripts/migrate_federated_progress.py \
+  --email student@example.com \
+  --apply \
+  --relink-provider \
+  --delete-source-progress
+```
+
+Run the same command without `--apply`, `--relink-provider`, and `--delete-source-progress` first to review the selected users, Cognito `sub` values, provider subject, backup path, and merged progress counts.
+
+For legacy Google duplicates created before Cognito mapped `email_verified`, the source `Google_<id>` user can have `email_verified=false` in Cognito. The migration keeps that blocked by default; use `--allow-unverified-source-email` only after checking the dry-run output confirms the intended source username and matching email.
 
 The backend allows federated OAuth only when `COGNITO_OAUTH_DOMAIN`, `COGNITO_OAUTH_REDIRECT_URIS`, the Cognito client ID, and the Cognito client secret are configured. The SAM template enables Google when `GoogleOAuthClientId`, `GoogleOAuthClientSecret`, and `CognitoOAuthDomainPrefix` are provided. It enables Microsoft when `MicrosoftOAuthClientId`, `MicrosoftOAuthClientSecret`, and `CognitoOAuthDomainPrefix` are provided.
 
@@ -834,7 +854,7 @@ Deployment must keep these aligned:
 4. SAM `LearningBackendProxySecret` must match Cloudflare Pages Function `LEARNING_BACKEND_PROXY_SECRET`.
 5. The Cloudflare auth rate limiting rule from `docs/cloudflare-auth-rate-limiting.md` must be active on the production custom domain, the Pages proxy limiter must stay enabled unless Cloudflare has equivalent granular route-specific auth rate limits, and production Pages must configure Upstash Redis secrets for shared proxy limiter state.
 6. Backend `COGNITO_REGION`, `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`, and `COGNITO_CLIENT_SECRET` must come from the same SAM stack.
-7. Federated sign-in production stacks must set the provider client ID/secret values, `CognitoOAuthDomainPrefix`, and production `CognitoOAuthCallbackUrls` that include each enabled callback, such as `https://YOUR-DOMAIN/auth/callback/google` and `https://YOUR-DOMAIN/auth/callback/microsoft`.
+7. Federated sign-in production stacks must set the provider client ID/secret values, `CognitoOAuthDomainPrefix`, and production `CognitoOAuthCallbackUrls` that include each enabled callback, such as `https://YOUR-DOMAIN/auth/callback/google` and `https://YOUR-DOMAIN/auth/callback/microsoft`. The Cognito trigger function must retain `cognito-idp:AdminGetUser` and `cognito-idp:AdminLinkProviderForUser` so verified federated emails can link to existing profiles.
 8. `FunctionUrlAllowedOrigins` should remain local/dev only unless a separate review approves direct browser access to the Function URL.
 9. CSP must continue allowing the same-origin proxy plus S3 upload origins; do not add direct Lambda Function URL origins without a separate review. Federated OAuth uses top-level navigation to Cognito, not browser `connect-src` API calls.
 
