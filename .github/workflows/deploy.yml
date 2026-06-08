@@ -117,10 +117,18 @@ jobs:
       run:
         working-directory: backend/aws/learning-backend
     env:
-      ALLOWED_ORIGINS: ${{ vars.BACKEND_ALLOWED_ORIGINS || 'http://127.0.0.1:5317,http://localhost:5317,https://smile-project.pages.dev' }}
+      ALLOWED_ORIGINS: ${{ vars.BACKEND_ALLOWED_ORIGINS || 'http://127.0.0.1:5317,http://localhost:5317,https://learn.smilelab.me,https://smile-project.pages.dev' }}
       AUTH_CONFIRMATION_CODE_PEPPER: ${{ secrets.AUTH_CONFIRMATION_CODE_PEPPER }}
+      COGNITO_OAUTH_CALLBACK_URLS: ${{ vars.COGNITO_OAUTH_CALLBACK_URLS || 'https://learn.smilelab.me/auth/callback/google,https://learn.smilelab.me/auth/callback/microsoft,https://smile-project.pages.dev/auth/callback/google,https://smile-project.pages.dev/auth/callback/microsoft' }}
+      COGNITO_OAUTH_DOMAIN_PREFIX: ${{ vars.COGNITO_OAUTH_DOMAIN_PREFIX || 'smile-learn-auth' }}
+      COGNITO_OAUTH_LOGOUT_URLS: ${{ vars.COGNITO_OAUTH_LOGOUT_URLS || 'https://learn.smilelab.me/learn,https://smile-project.pages.dev/learn' }}
       FUNCTION_URL_ALLOWED_ORIGINS: ${{ vars.BACKEND_FUNCTION_URL_ALLOWED_ORIGINS || 'http://127.0.0.1:5317,http://localhost:5317' }}
+      GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID || vars.GOOGLE_OAUTH_CLIENT_ID }}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
       LEARNING_BACKEND_PROXY_SECRET: ${{ secrets.LEARNING_BACKEND_PROXY_SECRET }}
+      MICROSOFT_OAUTH_CLIENT_ID: ${{ secrets.MICROSOFT_OAUTH_CLIENT_ID || vars.MICROSOFT_OAUTH_CLIENT_ID }}
+      MICROSOFT_OAUTH_CLIENT_SECRET: ${{ secrets.MICROSOFT_OAUTH_CLIENT_SECRET }}
+      MICROSOFT_OAUTH_ISSUER: ${{ vars.MICROSOFT_OAUTH_ISSUER || 'https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0' }}
       RESEND_API_KEY_SECRET_NAME: ${{ vars.RESEND_API_KEY_SECRET_NAME || 'smile/resend/api-key' }}
     steps:
       - name: Checkout
@@ -164,6 +172,9 @@ jobs:
 
           parameter_overrides=(
             "AllowedOrigins=${ALLOWED_ORIGINS}"
+            "CognitoOAuthCallbackUrls=${COGNITO_OAUTH_CALLBACK_URLS}"
+            "CognitoOAuthDomainPrefix=${COGNITO_OAUTH_DOMAIN_PREFIX}"
+            "CognitoOAuthLogoutUrls=${COGNITO_OAUTH_LOGOUT_URLS}"
             "FunctionUrlAllowedOrigins=${FUNCTION_URL_ALLOWED_ORIGINS}"
             "ResendApiKeySecretName=${RESEND_API_KEY_SECRET_NAME}"
             "LearningBackendProxySecret=${LEARNING_BACKEND_PROXY_SECRET}"
@@ -172,6 +183,26 @@ jobs:
 
           if [[ -n "${AUTH_CONFIRMATION_CODE_PEPPER:-}" ]]; then
             parameter_overrides+=("AuthConfirmationCodePepper=${AUTH_CONFIRMATION_CODE_PEPPER}")
+          fi
+
+          if [[ -n "${GOOGLE_OAUTH_CLIENT_ID:-}" ]]; then
+            parameter_overrides+=("GoogleOAuthClientId=${GOOGLE_OAUTH_CLIENT_ID}")
+          fi
+
+          if [[ -n "${GOOGLE_OAUTH_CLIENT_SECRET:-}" ]]; then
+            parameter_overrides+=("GoogleOAuthClientSecret=${GOOGLE_OAUTH_CLIENT_SECRET}")
+          fi
+
+          if [[ -n "${MICROSOFT_OAUTH_CLIENT_ID:-}" ]]; then
+            parameter_overrides+=("MicrosoftOAuthClientId=${MICROSOFT_OAUTH_CLIENT_ID}")
+          fi
+
+          if [[ -n "${MICROSOFT_OAUTH_CLIENT_SECRET:-}" ]]; then
+            parameter_overrides+=("MicrosoftOAuthClientSecret=${MICROSOFT_OAUTH_CLIENT_SECRET}")
+          fi
+
+          if [[ -n "${MICROSOFT_OAUTH_ISSUER:-}" ]]; then
+            parameter_overrides+=("MicrosoftOAuthIssuer=${MICROSOFT_OAUTH_ISSUER}")
           fi
 
           sam deploy --config-env ci --parameter-overrides "${parameter_overrides[@]}"

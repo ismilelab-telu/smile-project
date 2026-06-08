@@ -174,6 +174,8 @@ Federated OAuth sign-in uses `sessionStorage` only for a non-sensitive local ret
 
 The backend allows federated OAuth only when `COGNITO_OAUTH_DOMAIN`, `COGNITO_OAUTH_REDIRECT_URIS`, the Cognito client ID, and the Cognito client secret are configured. The SAM template enables Google when `GoogleOAuthClientId`, `GoogleOAuthClientSecret`, and `CognitoOAuthDomainPrefix` are provided. It enables Microsoft when `MicrosoftOAuthClientId`, `MicrosoftOAuthClientSecret`, and `CognitoOAuthDomainPrefix` are provided.
 
+OAuth start URLs include `prompt=select_account` so Google and Microsoft show an account chooser even when the browser still has an active provider session. Smile sign-out revokes the Smile refresh session, but it does not sign the browser out of Google or Microsoft globally.
+
 Microsoft OIDC defaults to personal Microsoft accounts only with issuer `https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0`. For one work/school organization, set `MicrosoftOAuthIssuer` to `https://login.microsoftonline.com/<TENANT_ID>/v2.0`. Do not use `/common` with Cognito because Microsoft returns tenant-specific token issuers and Cognito requires an exact issuer match.
 
 ### Federated OAuth Troubleshooting

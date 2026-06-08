@@ -1624,6 +1624,7 @@ def start_cognito_oauth_sign_in(
             "code_challenge": code_challenge,
             "code_challenge_method": "S256",
             "identity_provider": provider_config["idp_name"],
+            "prompt": "select_account",
             "redirect_uri": redirect_uri,
             "response_type": "code",
             "scope": COGNITO_OAUTH_SCOPES,
