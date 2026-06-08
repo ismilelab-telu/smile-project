@@ -169,11 +169,15 @@ export function AuthPage({
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   const { locale } = useLocalization();
   const [authSecondaryStep, setAuthSecondaryStep] = useState<AuthSecondaryStep | null>(null);
+  const [isCredentialsPanelExpanded, setCredentialsPanelExpanded] = useState(false);
+  const isRegister = mode === "register";
   const safeCloseHref = isAuthHref(closeHref) ? "/learn" : closeHref;
   const resolvedSuccessHref = successHref ?? safeCloseHref;
   const safeSuccessHref = isAuthHref(resolvedSuccessHref) ? "/learn" : resolvedSuccessHref;
   const isConfirmingAuthStep = authSecondaryStep !== null;
   const authStep = authSecondaryStep ?? "credentials";
+  const shouldExpandCredentialsPortal =
+    !isConfirmingAuthStep && isRegister && isCredentialsPanelExpanded;
   const dialogTitle = isConfirmingAuthStep
     ? getSecondaryAuthStepTitle(locale, authSecondaryStep)
     : (titleOverride ?? authCopy[locale][mode].title);
@@ -306,8 +310,6 @@ export function AuthPage({
     };
   }, [portalTarget]);
 
-  const isRegister = mode === "register";
-
   if (!portalTarget) {
     return null;
   }
@@ -334,7 +336,9 @@ export function AuthPage({
           className={`relative grid w-full transform-gpu overflow-hidden border-2 border-neutral-950 bg-white text-foreground shadow-2xl outline-none ${
             isConfirmingAuthStep
               ? "max-h-[min(760px,calc(100vh_-_2.5rem))] max-w-[30rem] md:max-h-[min(760px,calc(100vh_-_4rem))]"
-              : "h-[min(720px,calc(100vh_-_2.5rem))] max-w-5xl md:h-[min(760px,calc(100vh_-_4rem))]"
+              : shouldExpandCredentialsPortal
+                ? "h-[min(780px,calc(100vh_-_2.5rem))] max-w-5xl md:h-[min(820px,calc(100vh_-_4rem))]"
+                : "h-[min(720px,calc(100vh_-_2.5rem))] max-w-5xl md:h-[min(760px,calc(100vh_-_4rem))]"
           }`}
           data-auth-mode={mode}
           data-auth-step={authStep}
@@ -365,7 +369,10 @@ export function AuthPage({
             />
           </motion.button>
           <AuthLanguageSwitcher isCompact={isConfirmingAuthStep} isRegister={isRegister} />
-          <AuthIllustration isRegister={isRegister} />
+          <AuthIllustration
+            isCredentialsPanelExpanded={shouldExpandCredentialsPortal}
+            isRegister={isRegister}
+          />
           {isConfirmingAuthStep ? (
             <div aria-hidden="true" className="absolute inset-0 z-[1] bg-white" />
           ) : null}
@@ -384,6 +391,7 @@ export function AuthPage({
                 mode={mode}
                 onAuthenticatedExit={exitAfterAuth}
                 onConfirmingChange={setAuthSecondaryStep}
+                onCredentialsExpandedChange={setCredentialsPanelExpanded}
                 onModeChange={onModeChange}
                 successHref={safeSuccessHref}
                 titleOverride={titleOverride}
@@ -526,6 +534,7 @@ function AuthFormPanel({
   mode,
   onAuthenticatedExit,
   onConfirmingChange,
+  onCredentialsExpandedChange,
   onModeChange,
   successHref,
   titleOverride,
@@ -534,6 +543,7 @@ function AuthFormPanel({
   mode: AuthMode;
   onAuthenticatedExit: (href: string) => void;
   onConfirmingChange?: (step: AuthSecondaryStep | null) => void;
+  onCredentialsExpandedChange?: (isExpanded: boolean) => void;
   onModeChange?: (mode: AuthMode) => void;
   successHref: string;
   titleOverride?: string;
@@ -661,6 +671,14 @@ function AuthFormPanel({
   useEffect(() => {
     onConfirmingChange?.(secondaryAuthStep);
   }, [secondaryAuthStep, onConfirmingChange]);
+
+  useEffect(() => {
+    onCredentialsExpandedChange?.(isRegister && canShowConfirmPassword);
+
+    return () => {
+      onCredentialsExpandedChange?.(false);
+    };
+  }, [canShowConfirmPassword, isRegister, onCredentialsExpandedChange]);
 
   useEffect(() => {
     if (resendAvailableAt <= Date.now()) {
@@ -2086,7 +2104,17 @@ function ConfirmPasswordStatus({
   );
 }
 
-function AuthIllustration({ isRegister }: { isRegister: boolean }) {
+function AuthIllustration({
+  isCredentialsPanelExpanded,
+  isRegister,
+}: {
+  isCredentialsPanelExpanded: boolean;
+  isRegister: boolean;
+}) {
+  const heightClassName = isCredentialsPanelExpanded
+    ? "h-[min(780px,calc(100vh_-_2.5rem))] md:h-[min(820px,calc(100vh_-_4rem))]"
+    : "h-[min(720px,calc(100vh_-_2.5rem))] md:h-[min(760px,calc(100vh_-_4rem))]";
+
   return (
     <motion.div
       animate={authIllustrationVisible}
@@ -2101,7 +2129,7 @@ function AuthIllustration({ isRegister }: { isRegister: boolean }) {
     >
       <motion.img
         alt=""
-        className={`block h-[min(720px,calc(100vh_-_2.5rem))] w-[min(64rem,calc(100vw_-_2rem))] max-w-none object-cover md:h-[min(760px,calc(100vh_-_4rem))] md:w-[min(64rem,calc(100vw_-_4rem))] ${
+        className={`block ${heightClassName} w-[min(64rem,calc(100vw_-_2rem))] max-w-none object-cover md:w-[min(64rem,calc(100vw_-_4rem))] ${
           isRegister ? "ml-auto object-right-top" : "object-left-top"
         }`}
         decoding="async"
@@ -2226,7 +2254,11 @@ function getCredentialsPanelLayoutClass({
     return "items-center py-20";
   }
 
-  if (hasFeedback || hasRevealedConfirmPassword) {
+  if (hasRevealedConfirmPassword) {
+    return "items-start pt-12 pb-14 md:pt-14 md:pb-16";
+  }
+
+  if (hasFeedback) {
     return "items-start pt-12 pb-10 md:pt-14 md:pb-12";
   }
 
