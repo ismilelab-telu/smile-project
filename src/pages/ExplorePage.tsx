@@ -31,7 +31,6 @@ type IdleWindow = Window & {
 type ExploreModePreviewProps = {
   animatedSrc: string;
   className?: string;
-  fallbackGifSrc: string;
   height: number;
   objectClassName?: string;
   posterSrc: string;
@@ -50,7 +49,6 @@ function getMediaQueryMatches(query?: string) {
 function ExploreModePreview({
   animatedSrc,
   className = "",
-  fallbackGifSrc,
   height,
   objectClassName = "object-left",
   posterSrc,
@@ -123,22 +121,17 @@ function ExploreModePreview({
             width={width}
           />
           {shouldLoadAnimation ? (
-            <picture
-              className={`absolute inset-0 block transition-opacity duration-300 ${
+            <img
+              alt=""
+              className={`absolute inset-0 block ${imageClassName} transition-opacity duration-300 ${
                 isAnimationLoaded ? "opacity-100" : "opacity-0"
               }`}
-            >
-              <source srcSet={animatedSrc} type="image/webp" />
-              <img
-                alt=""
-                className={imageClassName}
-                decoding="async"
-                height={height}
-                onLoad={() => setIsAnimationLoaded(true)}
-                src={fallbackGifSrc}
-                width={width}
-              />
-            </picture>
+              decoding="async"
+              height={height}
+              onLoad={() => setIsAnimationLoaded(true)}
+              src={animatedSrc}
+              width={width}
+            />
           ) : null}
         </>
       ) : null}
@@ -221,24 +214,21 @@ export function ExplorePage() {
 
           <ExploreLeftGutter />
           <ExploreModePreview
-            animatedSrc="/learning/explore-learning-mode-animated.webp"
+            animatedSrc="/learning/explore-learning-mode-optimized.gif"
             className="learning-extend-left"
-            fallbackGifSrc="/learning/explore-learning-mode.gif"
             height={640}
             posterSrc="/learning/explore-learning-mode-poster.webp"
             width={640}
           />
           <ExploreModePreview
-            animatedSrc="/learning/explore-ml-playground-animated.webp"
-            fallbackGifSrc="/learning/explore-ml-playground.gif"
+            animatedSrc="/learning/explore-ml-playground-optimized.gif"
             height={640}
             posterSrc="/learning/explore-ml-playground-poster.webp"
             width={640}
           />
           <ExploreModePreview
-            animatedSrc="/learning/explore-algorithm-lab-animated.webp"
+            animatedSrc="/learning/explore-algorithm-lab-optimized.gif"
             className="learning-extend-right hidden sm:block"
-            fallbackGifSrc="/learning/explore-algorithm-lab.gif"
             height={474}
             objectClassName="object-[88%_center]"
             posterSrc="/learning/explore-algorithm-lab-poster.webp"
