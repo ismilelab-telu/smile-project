@@ -5,6 +5,11 @@ import { ExternalLinkGuard } from "@/components/ExternalLinkGuard";
 import { LinkPreviewProvider } from "@/components/ui/link-preview";
 import { AuthProvider, useAuth } from "@/features/auth/auth-context";
 import {
+  consumeGoogleOAuthReturnTo,
+  getGoogleOAuthRedirectUri,
+  googleOAuthCallbackPath,
+} from "@/features/auth/google-oauth-return";
+import {
   getLesson,
   getModule,
   getTrack,
@@ -108,7 +113,7 @@ function isLearningAuthRequiredRoute(pathname: string) {
 }
 
 function isAuthRoute(pathname: string) {
-  return pathname === "/login" || pathname === "/register";
+  return pathname === "/login" || pathname === "/register" || pathname === googleOAuthCallbackPath;
 }
 
 function getRouteDirection(fromPath: string, toPath: string): RouteTransition {
@@ -405,6 +410,8 @@ function AppRoutes() {
         <AuthPage closeHref={backgroundPath} mode="login" />
       ) : path === "/register" ? (
         <AuthPage closeHref={backgroundPath} mode="register" />
+      ) : path === googleOAuthCallbackPath ? (
+        <GoogleOAuthCallbackPage />
       ) : null}
       {pendingLearningAuthGate ? (
         <AuthPage
@@ -427,4 +434,107 @@ function AppRoutes() {
       ) : null}
     </>
   );
+}
+
+function GoogleOAuthCallbackPage() {
+  const auth = useAuth();
+  const { locale } = useLocalization();
+  const hasStartedRef = useRef(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    if (hasStartedRef.current) {
+      return;
+    }
+
+    hasStartedRef.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code") ?? "";
+    const state = params.get("state") ?? "";
+    const oauthError = params.get("error") ?? "";
+    const oauthErrorDescription = params.get("error_description") ?? "";
+
+    if (oauthError) {
+      setErrorMessage(
+        oauthErrorDescription ||
+          (locale === "en"
+            ? "Google sign-in was canceled or rejected."
+            : "Login Google dibatalkan atau ditolak."),
+      );
+      return;
+    }
+
+    if (!code || !state) {
+      setErrorMessage(
+        locale === "en"
+          ? "Google did not return a complete sign-in response."
+          : "Google tidak mengirim respons login yang lengkap.",
+      );
+      return;
+    }
+
+    void auth
+      .completeGoogleSignIn({
+        code,
+        redirectUri: getGoogleOAuthRedirectUri(),
+        state,
+      })
+      .then(() => {
+        navigateInApp(consumeGoogleOAuthReturnTo("/learn"), { replace: true });
+      })
+      .catch((error) => {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : locale === "en"
+              ? "Google sign-in could not be completed."
+              : "Login Google belum berhasil diselesaikan.",
+        );
+      });
+  }, [auth, locale]);
+
+  const handleBackToLogin = () => {
+    navigateInApp("/login", { replace: true });
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-white/80 px-4 backdrop-blur-md supports-[backdrop-filter]:bg-white/65"
+      role="status"
+    >
+      <main className="w-full max-w-sm border-2 border-neutral-950 bg-white p-7 text-center text-foreground shadow-2xl">
+        <h1 className="text-2xl leading-tight font-semibold tracking-normal">
+          {errorMessage
+            ? locale === "en"
+              ? "Google sign-in failed"
+              : "Login Google gagal"
+            : locale === "en"
+              ? "Finishing Google sign-in"
+              : "Menyelesaikan login Google"}
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          {errorMessage || (locale === "en" ? "Please wait a moment." : "Tunggu sebentar.")}
+        </p>
+        {errorMessage ? (
+          <button
+            className="mt-7 inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-none bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300"
+            onClick={handleBackToLogin}
+            type="button"
+          >
+            {locale === "en" ? "Back to sign in" : "Kembali masuk"}
+          </button>
+        ) : null}
+      </main>
+    </div>
+  );
+}
+
+function navigateInApp(pathname: string, { replace = false }: { replace?: boolean } = {}) {
+  if (replace) {
+    window.history.replaceState(null, "", pathname);
+  } else {
+    window.history.pushState(null, "", pathname);
+  }
+
+  window.dispatchEvent(new PopStateEvent("popstate"));
 }

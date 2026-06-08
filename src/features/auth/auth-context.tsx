@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import {
+  completeGoogleOAuthSignIn,
   confirmPasswordResetWithCognito,
   confirmSignUpWithCognito,
   requestPasswordResetWithCognito,
@@ -16,6 +17,7 @@ import {
   revokeSession,
   signInWithCognito,
   signInWithUsername,
+  startGoogleOAuthSignIn,
   signUpWithCognito,
 } from "./cognito-auth";
 import {
@@ -34,6 +36,11 @@ import {
 import type { Locale } from "@/features/localization/localization";
 
 type AuthContextValue = {
+  completeGoogleSignIn: (input: {
+    code: string;
+    redirectUri: string;
+    state: string;
+  }) => Promise<AuthSession>;
   confirmPasswordReset: (input: { code: string; email: string; password: string }) => Promise<void>;
   confirmSignUp: (input: { code: string; email: string; password: string }) => Promise<void>;
   getFreshSession: (options?: { force?: boolean }) => Promise<AuthSession | null>;
@@ -49,6 +56,10 @@ type AuthContextValue = {
   session: AuthSession | null;
   signIn: (input: SignInInput) => Promise<AuthSession>;
   signOut: () => Promise<void>;
+  startGoogleSignIn: (input: { redirectUri: string }) => Promise<{
+    authorizationUrl: string;
+    expiresAt?: number;
+  }>;
   signUp: (input: { email: string; locale?: Locale; name: string }) => Promise<{
     cooldownSeconds?: number;
     destination?: string;
@@ -164,6 +175,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return nextSession;
   }, []);
 
+  const startGoogleSignIn = useCallback(async (input: { redirectUri: string }) => {
+    invalidateStoredAuthSessionRefresh();
+
+    return startGoogleOAuthSignIn(input);
+  }, []);
+
+  const completeGoogleSignIn = useCallback(
+    async (input: { code: string; redirectUri: string; state: string }) => {
+      invalidateStoredAuthSessionRefresh();
+
+      const nextSession = await completeGoogleOAuthSignIn(input);
+      storeAuthSession(nextSession);
+      setSession(nextSession);
+
+      return nextSession;
+    },
+    [],
+  );
+
   const signUp = useCallback(async (input: { email: string; locale?: Locale; name: string }) => {
     invalidateStoredAuthSessionRefresh();
     clearAuthSession();
@@ -227,11 +257,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       resendConfirmationCode,
       requestPasswordReset,
       session,
+      completeGoogleSignIn,
       signIn,
       signOut,
+      startGoogleSignIn,
       signUp,
     }),
     [
+      completeGoogleSignIn,
       confirmPasswordReset,
       confirmSignUp,
       getFreshSession,
@@ -241,6 +274,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       signIn,
       signOut,
+      startGoogleSignIn,
       signUp,
     ],
   );

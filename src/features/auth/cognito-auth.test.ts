@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   bootstrapCognitoSession,
+  completeGoogleOAuthSignIn,
   confirmPasswordResetWithCognito,
   confirmSignUpWithCognito,
   requestPasswordResetWithCognito,
@@ -10,6 +11,7 @@ import {
   revokeSession,
   signInWithCognito,
   signInWithUsername,
+  startGoogleOAuthSignIn,
   signUpWithCognito,
 } from "./cognito-auth";
 
@@ -188,6 +190,79 @@ describe("email sign-in", () => {
       email: "student@example.com",
       password: "StrongPass1!",
     });
+    expect(session.user.sub).toBe("student-1");
+    expect(session.refreshToken).toBe("");
+  });
+});
+
+describe("Google OAuth sign-in", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    vi.stubEnv("VITE_LEARNING_BACKEND_URL", "https://backend.example.test");
+  });
+
+  it("starts Google OAuth through the backend-owned flow", async () => {
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          authorizationUrl: "https://auth.example.test/oauth2/authorize?state=state",
+          expiresAt: 1_800_000_000,
+        }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    const result = await startGoogleOAuthSignIn({
+      redirectUri: "https://smile.test/auth/callback/google",
+    });
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(String(fetch.mock.calls[0]?.[0])).toContain("/auth/oauth/google/start");
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual({
+      redirectUri: "https://smile.test/auth/callback/google",
+    });
+    expect(fetch.mock.calls[0]?.[1]?.credentials).toBe("same-origin");
+    expect(result.authorizationUrl).toContain("/oauth2/authorize");
+  });
+
+  it("completes Google OAuth and strips refresh tokens from frontend session state", async () => {
+    const idToken = createJwt({
+      email: "student@example.com",
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      name: "Student One",
+      sub: "student-1",
+    });
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          authenticationResult: {
+            AccessToken: "access-token",
+            ExpiresIn: 3600,
+            IdToken: idToken,
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    const session = await completeGoogleOAuthSignIn({
+      code: "code",
+      redirectUri: "https://smile.test/auth/callback/google",
+      state: "state",
+    });
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(String(fetch.mock.calls[0]?.[0])).toContain("/auth/oauth/google/callback");
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toEqual({
+      code: "code",
+      redirectUri: "https://smile.test/auth/callback/google",
+      state: "state",
+    });
+    expect(fetch.mock.calls[0]?.[1]?.credentials).toBe("same-origin");
     expect(session.user.sub).toBe("student-1");
     expect(session.refreshToken).toBe("");
   });

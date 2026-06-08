@@ -17,6 +17,7 @@ import secrets
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 import zipfile
@@ -64,6 +65,9 @@ COGNITO_REGION = os.environ.get("COGNITO_REGION", AWS_REGION)
 COGNITO_USER_POOL_ID = os.environ.get("COGNITO_USER_POOL_ID", "")
 COGNITO_CLIENT_ID = os.environ.get("COGNITO_CLIENT_ID", "")
 COGNITO_CLIENT_SECRET = os.environ.get("COGNITO_CLIENT_SECRET", "")
+COGNITO_OAUTH_DOMAIN = os.environ.get("COGNITO_OAUTH_DOMAIN", "").strip().rstrip("/")
+COGNITO_OAUTH_REDIRECT_URIS = os.environ.get("COGNITO_OAUTH_REDIRECT_URIS", "")
+COGNITO_GOOGLE_IDP_NAME = os.environ.get("COGNITO_GOOGLE_IDP_NAME", "Google")
 COGNITO_EMAIL_SENDER_KMS_KEY_ARN = os.environ.get("COGNITO_EMAIL_SENDER_KMS_KEY_ARN", "")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 RESEND_API_KEY_SECRET_ID = os.environ.get("RESEND_API_KEY_SECRET_ID", "")
@@ -109,8 +113,15 @@ AUTH_REFRESH_SESSION_COOKIE_NAME = os.environ.get(
     "AUTH_REFRESH_SESSION_COOKIE_NAME",
     "__Host-smile-refresh-session",
 )
+AUTH_GOOGLE_OAUTH_COOKIE_NAME = os.environ.get(
+    "AUTH_GOOGLE_OAUTH_COOKIE_NAME",
+    "__Host-smile-oauth-google",
+)
 AUTH_REFRESH_SESSION_COOKIE_MAX_AGE_SECONDS = int(
     os.environ.get("AUTH_REFRESH_SESSION_COOKIE_MAX_AGE_SECONDS", str(7 * 24 * 60 * 60))
+)
+AUTH_GOOGLE_OAUTH_COOKIE_MAX_AGE_SECONDS = int(
+    os.environ.get("AUTH_GOOGLE_OAUTH_COOKIE_MAX_AGE_SECONDS", "600")
 )
 AUTH_REFRESH_SESSION_COOKIE_SECURE = (
     os.environ.get("AUTH_REFRESH_SESSION_COOKIE_SECURE", "true").strip().lower() != "false"
@@ -127,6 +138,8 @@ PASSWORD_MIN_LENGTH = 12
 PASSWORD_SYMBOLS = set("^$*.[]{}()?\"!@#%&/\\,><':;|_~`=+-")
 USERNAME_RESERVATION_TTL_SECONDS = 24 * 60 * 60
 AUTH_COOLDOWN_TTL_SECONDS = 60 * 60
+COGNITO_OAUTH_SCOPES = "openid email profile"
+COGNITO_OAUTH_REQUEST_TIMEOUT_SECONDS = 10
 
 _s3_client = None
 _dynamodb_client = None
@@ -265,6 +278,30 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 window_seconds=AUTH_SIGN_IN_BURST_WINDOW_SECONDS,
             )
             return auth_session_response(sign_in_with_username(body))
+
+        if method == "POST" and path == "/auth/oauth/google/start":
+            body = parse_json_body(event)
+            enforce_public_auth_rate_limit(
+                event,
+                "google-oauth-start",
+                None,
+                cooldown_seconds=AUTH_SIGN_IN_COOLDOWN_SECONDS,
+            )
+            oauth_start = start_google_oauth_sign_in(body)
+            return response(200, oauth_start["body"], cookies=[oauth_start["cookie"]])
+
+        if method == "POST" and path == "/auth/oauth/google/callback":
+            body = parse_json_body(event)
+            enforce_public_auth_rate_limit(
+                event,
+                "google-oauth-callback",
+                None,
+                cooldown_seconds=AUTH_SIGN_IN_COOLDOWN_SECONDS,
+            )
+            return auth_session_response(
+                complete_google_oauth_sign_in(body, event),
+                cookies=[create_clear_google_oauth_cookie()],
+            )
 
         if method == "POST" and path == "/auth/username/resolve":
             parse_json_body(event)
@@ -445,11 +482,23 @@ def reserve_username_reservation(email: str, username: str, now: int) -> str:
 
 
 def confirm_username_reservation(event: dict[str, Any]) -> None:
-    confirm_username_reservation_for_values(
-        get_cognito_user_attribute(event, "email").lower(),
-        get_cognito_user_attribute(event, "name"),
-        int(time.time()),
-    )
+    email = get_cognito_user_attribute(event, "email").lower()
+    username = get_cognito_user_attribute(event, "name")
+
+    try:
+        username_key = normalize_signup_username(username)
+    except UsernameReservationError:
+        return
+
+    item = get_dynamodb_client().get_item(
+        TableName=require_username_reservation_table(),
+        Key={"usernameKey": {"S": username_key}},
+        ConsistentRead=True,
+    ).get("Item")
+    if not item or item.get("email", {}).get("S") != email:
+        return
+
+    confirm_username_reservation_for_values(email, username, int(time.time()))
 
 
 def confirm_username_reservation_for_values(email: str, username: str, now: int) -> None:
@@ -878,18 +927,23 @@ def response(
     return result
 
 
-def auth_session_response(body: dict[str, Any]) -> dict[str, Any]:
+def auth_session_response(
+    body: dict[str, Any],
+    *,
+    cookies: list[str] | None = None,
+) -> dict[str, Any]:
     authentication_result = body.get("authenticationResult", {})
     if not isinstance(authentication_result, dict):
-        return response(200, body)
+        return response(200, body, cookies=cookies)
 
     session_cookie = create_refresh_session_cookie(authentication_result)
     sanitized_result = {
         key: value for key, value in authentication_result.items() if key != "RefreshToken"
     }
     sanitized_body = {**body, "authenticationResult": sanitized_result}
+    response_cookies = [cookie for cookie in [session_cookie, *(cookies or [])] if cookie]
 
-    return response(200, sanitized_body, cookies=[session_cookie] if session_cookie else None)
+    return response(200, sanitized_body, cookies=response_cookies or None)
 
 
 def create_refresh_session_cookie(authentication_result: dict[str, Any]) -> str:
@@ -917,6 +971,10 @@ def create_clear_refresh_session_cookie() -> str:
     return create_cookie_header(AUTH_REFRESH_SESSION_COOKIE_NAME, "", max_age_seconds=0)
 
 
+def create_clear_google_oauth_cookie() -> str:
+    return create_cookie_header(AUTH_GOOGLE_OAUTH_COOKIE_NAME, "", max_age_seconds=0)
+
+
 def create_cookie_header(name: str, value: str, *, max_age_seconds: int) -> str:
     attributes = [
         f"{name}={value}",
@@ -933,6 +991,19 @@ def create_cookie_header(name: str, value: str, *, max_age_seconds: int) -> str:
 
 
 def create_signed_refresh_session_value(payload: dict[str, str]) -> str:
+    serialized_payload = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    encoded_payload = base64.urlsafe_b64encode(serialized_payload).decode("ascii").rstrip("=")
+    signature = hmac.new(
+        require_cognito_client_secret().encode("utf-8"),
+        encoded_payload.encode("ascii"),
+        hashlib.sha256,
+    ).digest()
+    encoded_signature = base64.urlsafe_b64encode(signature).decode("ascii").rstrip("=")
+
+    return f"{encoded_payload}.{encoded_signature}"
+
+
+def create_signed_google_oauth_state_value(payload: dict[str, str | int]) -> str:
     serialized_payload = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
     encoded_payload = base64.urlsafe_b64encode(serialized_payload).decode("ascii").rstrip("=")
     signature = hmac.new(
@@ -983,6 +1054,25 @@ def decode_refresh_session_payload(encoded_payload: str) -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
+def parse_signed_google_oauth_state_value(cookie_value: str, now: int | None = None) -> dict[str, Any]:
+    encoded_payload, separator, encoded_signature = cookie_value.partition(".")
+    if not encoded_payload or not separator or not encoded_signature:
+        return {}
+
+    payload = decode_refresh_session_payload(encoded_payload)
+    expected_value = create_signed_google_oauth_state_value(payload)
+    _, _, expected_signature = expected_value.partition(".")
+    if not hmac.compare_digest(encoded_signature, expected_signature):
+        return {}
+
+    expires_at = payload.get("expiresAt")
+    request_time = int(time.time()) if now is None else now
+    if not isinstance(expires_at, int) or expires_at <= request_time:
+        return {}
+
+    return payload
+
+
 def get_refresh_session_from_request(
     _body: dict[str, Any],
     event: dict[str, Any] | None = None,
@@ -1015,6 +1105,27 @@ def get_request_cookie(event: dict[str, Any], name: str) -> str:
                 return cookie_value
 
     return ""
+
+
+def get_google_oauth_state_from_request(
+    event: dict[str, Any] | None,
+    now: int | None = None,
+) -> dict[str, Any]:
+    if event is None:
+        raise CognitoSignInError(
+            "InvalidOAuthStateException",
+            "Google sign-in session expired. Try again.",
+        )
+
+    cookie_value = get_request_cookie(event, AUTH_GOOGLE_OAUTH_COOKIE_NAME)
+    oauth_state = parse_signed_google_oauth_state_value(cookie_value, now=now) if cookie_value else {}
+    if oauth_state:
+        return oauth_state
+
+    raise CognitoSignInError(
+        "InvalidOAuthStateException",
+        "Google sign-in session expired. Try again.",
+    )
 
 
 def get_authentication_result_user_sub(authentication_result: dict[str, Any]) -> str:
@@ -1392,6 +1503,239 @@ def enforce_signup_start_cooldown(item: dict[str, Any] | None, now: int) -> None
     next_allowed_at = get_number_attribute(item, "nextAllowedAt")
     if expires_at and expires_at > now and next_allowed_at and next_allowed_at > now:
         raise AuthCooldownError(next_allowed_at - now, next_allowed_at)
+
+
+def start_google_oauth_sign_in(
+    body: dict[str, Any],
+    now: int | None = None,
+) -> dict[str, Any]:
+    request_time = int(time.time()) if now is None else now
+    redirect_uri = validate_cognito_oauth_redirect_uri(get_required_string(body, "redirectUri"))
+    state = secrets.token_urlsafe(32)
+    code_verifier = secrets.token_urlsafe(64)
+    code_challenge = create_oauth_code_challenge(code_verifier)
+    expires_at = request_time + max(1, AUTH_GOOGLE_OAUTH_COOKIE_MAX_AGE_SECONDS)
+    oauth_state_cookie = create_cookie_header(
+        AUTH_GOOGLE_OAUTH_COOKIE_NAME,
+        create_signed_google_oauth_state_value(
+            {
+                "codeVerifier": code_verifier,
+                "expiresAt": expires_at,
+                "provider": "google",
+                "redirectUri": redirect_uri,
+                "state": state,
+            }
+        ),
+        max_age_seconds=AUTH_GOOGLE_OAUTH_COOKIE_MAX_AGE_SECONDS,
+    )
+    query = urllib.parse.urlencode(
+        {
+            "client_id": require_cognito_client_id(),
+            "code_challenge": code_challenge,
+            "code_challenge_method": "S256",
+            "identity_provider": COGNITO_GOOGLE_IDP_NAME,
+            "redirect_uri": redirect_uri,
+            "response_type": "code",
+            "scope": COGNITO_OAUTH_SCOPES,
+            "state": state,
+        }
+    )
+
+    return {
+        "body": {
+            "authorizationUrl": f"{require_cognito_oauth_domain()}/oauth2/authorize?{query}",
+            "expiresAt": expires_at,
+        },
+        "cookie": oauth_state_cookie,
+    }
+
+
+def complete_google_oauth_sign_in(
+    body: dict[str, Any],
+    event: dict[str, Any] | None = None,
+    now: int | None = None,
+) -> dict[str, Any]:
+    code = get_required_string(body, "code")
+    state = get_required_string(body, "state")
+    redirect_uri = validate_cognito_oauth_redirect_uri(get_required_string(body, "redirectUri"))
+    oauth_state = get_google_oauth_state_from_request(event, now=now)
+
+    if oauth_state.get("provider") != "google":
+        raise CognitoSignInError(
+            "InvalidOAuthStateException",
+            "Google sign-in session expired. Try again.",
+        )
+
+    expected_state = str(oauth_state.get("state") or "")
+    if not expected_state or not hmac.compare_digest(state, expected_state):
+        raise CognitoSignInError(
+            "InvalidOAuthStateException",
+            "Google sign-in session expired. Try again.",
+        )
+
+    if oauth_state.get("redirectUri") != redirect_uri:
+        raise CognitoSignInError(
+            "InvalidOAuthStateException",
+            "Google sign-in session expired. Try again.",
+        )
+
+    code_verifier = str(oauth_state.get("codeVerifier") or "")
+    if not code_verifier:
+        raise CognitoSignInError(
+            "InvalidOAuthStateException",
+            "Google sign-in session expired. Try again.",
+        )
+
+    return {"authenticationResult": exchange_cognito_oauth_code(code, redirect_uri, code_verifier)}
+
+
+def create_oauth_code_challenge(code_verifier: str) -> str:
+    digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
+
+    return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
+
+
+def exchange_cognito_oauth_code(
+    code: str,
+    redirect_uri: str,
+    code_verifier: str,
+) -> dict[str, Any]:
+    encoded_body = urllib.parse.urlencode(
+        {
+            "code": code,
+            "code_verifier": code_verifier,
+            "grant_type": "authorization_code",
+            "redirect_uri": redirect_uri,
+        }
+    ).encode("utf-8")
+    client_credentials = f"{require_cognito_client_id()}:{require_cognito_client_secret()}".encode(
+        "utf-8"
+    )
+    request = urllib.request.Request(
+        f"{require_cognito_oauth_domain()}/oauth2/token",
+        data=encoded_body,
+        headers={
+            "accept": "application/json",
+            "authorization": f"Basic {base64.b64encode(client_credentials).decode('ascii')}",
+            "content-type": "application/x-www-form-urlencoded",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(
+            request,
+            timeout=COGNITO_OAUTH_REQUEST_TIMEOUT_SECONDS,
+        ) as token_response:
+            payload = json.loads(token_response.read().decode("utf-8"))
+    except (
+        TimeoutError,
+        urllib.error.HTTPError,
+        urllib.error.URLError,
+        json.JSONDecodeError,
+        UnicodeDecodeError,
+    ) as error:
+        raise CognitoSignInError(
+            "GoogleOAuthFailedException",
+            "Google sign-in could not be completed. Try again.",
+        ) from error
+
+    if not isinstance(payload, dict):
+        raise CognitoSignInError(
+            "GoogleOAuthFailedException",
+            "Google sign-in could not be completed. Try again.",
+        )
+
+    access_token = str(payload.get("access_token") or "")
+    id_token = str(payload.get("id_token") or "")
+    refresh_token = str(payload.get("refresh_token") or "")
+    expires_in = get_cognito_oauth_expires_in(payload.get("expires_in"))
+
+    if not access_token or not id_token or not refresh_token:
+        raise CognitoSignInError(
+            "GoogleOAuthFailedException",
+            "Google sign-in could not be completed. Try again.",
+        )
+
+    return {
+        "AccessToken": access_token,
+        "ExpiresIn": expires_in,
+        "IdToken": id_token,
+        "RefreshToken": refresh_token,
+    }
+
+
+def get_cognito_oauth_expires_in(value: Any) -> int:
+    try:
+        expires_in = int(value)
+    except (TypeError, ValueError):
+        expires_in = 3600
+
+    return max(1, expires_in)
+
+
+def require_cognito_oauth_domain() -> str:
+    if not COGNITO_OAUTH_DOMAIN:
+        raise AuthConfigurationError("Cognito OAuth domain is missing.")
+
+    try:
+        parsed_url = urllib.parse.urlparse(COGNITO_OAUTH_DOMAIN)
+    except ValueError as error:
+        raise AuthConfigurationError("Cognito OAuth domain is invalid.") from error
+
+    if (
+        parsed_url.scheme != "https"
+        or not parsed_url.netloc
+        or parsed_url.username
+        or parsed_url.password
+        or parsed_url.params
+        or parsed_url.query
+        or parsed_url.fragment
+    ):
+        raise AuthConfigurationError("Cognito OAuth domain is invalid.")
+
+    return COGNITO_OAUTH_DOMAIN.rstrip("/")
+
+
+def validate_cognito_oauth_redirect_uri(redirect_uri: str) -> str:
+    allowed_redirect_uris = get_allowed_cognito_oauth_redirect_uris()
+    if redirect_uri not in allowed_redirect_uris:
+        raise ClientInputError("OAuth redirect URI is not allowed.")
+
+    try:
+        parsed_url = urllib.parse.urlparse(redirect_uri)
+    except ValueError as error:
+        raise ClientInputError("OAuth redirect URI is not allowed.") from error
+
+    if (
+        not parsed_url.scheme
+        or not parsed_url.netloc
+        or parsed_url.username
+        or parsed_url.password
+        or parsed_url.fragment
+    ):
+        raise ClientInputError("OAuth redirect URI is not allowed.")
+
+    is_local_http = parsed_url.scheme == "http" and parsed_url.hostname in {
+        "127.0.0.1",
+        "localhost",
+    }
+    if parsed_url.scheme != "https" and not is_local_http:
+        raise ClientInputError("OAuth redirect URI is not allowed.")
+
+    return redirect_uri
+
+
+def get_allowed_cognito_oauth_redirect_uris() -> set[str]:
+    allowed_redirect_uris = {
+        redirect_uri.strip()
+        for redirect_uri in COGNITO_OAUTH_REDIRECT_URIS.split(",")
+        if redirect_uri.strip()
+    }
+    if not allowed_redirect_uris:
+        raise AuthConfigurationError("Cognito OAuth redirect URIs are missing.")
+
+    return allowed_redirect_uris
 
 
 def resolve_username_sign_in_email(body: dict[str, Any]) -> dict[str, Any]:

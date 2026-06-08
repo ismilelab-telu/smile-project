@@ -2,7 +2,7 @@
 
 Last audited: 2026-06-03
 
-This document describes the current authentication system in Smile Project from the code that exists today. The app does not use Cognito Hosted UI or Amplify. The browser keeps Cognito bearer tokens in memory, the backend stores the Cognito refresh token in a signed HttpOnly refresh-session cookie, Amazon Cognito issues tokens, and the AWS learning backend owns custom sign-up policy, username reservation, verification email delivery, learning-progress sync, and protected guided-download backend work.
+This document describes the current authentication system in Smile Project from the code that exists today. The app does not use Amplify. Email/password auth remains backend-owned, while Google sign-in uses Cognito Hosted UI only for the federated OAuth redirect. The browser keeps Cognito bearer tokens in memory, the backend stores the Cognito refresh token in a signed HttpOnly refresh-session cookie, Amazon Cognito issues tokens, and the AWS learning backend owns custom sign-up policy, username reservation, verification email delivery, learning-progress sync, and protected guided-download backend work.
 
 ## Source Map
 
@@ -12,6 +12,7 @@ This document describes the current authentication system in Smile Project from 
 | React auth state and context API                     | `src/features/auth/auth-context.tsx`                                                                              |
 | Cognito/backend auth requests                        | `src/features/auth/cognito-auth.ts`                                                                               |
 | Browser session shape, storage, JWT decoding         | `src/features/auth/auth-session.ts`                                                                               |
+| Google OAuth callback return path helper             | `src/features/auth/google-oauth-return.ts`                                                                        |
 | Token refresh orchestration                          | `src/features/auth/auth-session-refresh.ts`                                                                       |
 | App routing and auth modal routes                    | `src/app/App.tsx`                                                                                                 |
 | Learning route auth gate                             | `src/pages/LearningPage.tsx`                                                                                      |
@@ -30,12 +31,12 @@ The system has four auth-related layers:
 
 1. The React app renders `/login` and `/register` as a shared modal over the current app route.
 2. The React auth context keeps the Cognito bearer session in browser module memory and exposes `signIn`, `signUp`, `confirmSignUp`, `resendConfirmationCode`, `getFreshSession`, and `signOut`.
-3. Cognito issues ID, access, and refresh tokens through the confidential backend-owned app client.
+3. Cognito issues ID, access, and refresh tokens through the confidential backend-owned app client. Google sign-in uses Cognito's OAuth authorization-code flow with backend-owned token exchange.
 4. The learning backend is exposed by a Lambda Function URL, but production non-health routes require the Cloudflare Pages proxy secret before route handlers run. It verifies Cognito bearer tokens for protected routes and runs custom backend-owned sign-up endpoints for registration.
 
 Important non-goals in the current implementation:
 
-- No Cognito Hosted UI.
+- No Cognito Hosted UI for email/password auth.
 - No Amplify auth client.
 - No JavaScript-readable refresh-token storage; reload persistence uses a signed HttpOnly refresh-session cookie.
 - No Cognito bearer tokens persisted to browser storage.
@@ -63,6 +64,8 @@ The frontend no longer calls Cognito directly for password sign-in, username sig
 | `isReady`                       | `true` after the initial in-memory session refresh/check finishes. Learning routes use this before showing auth gates. |
 | `isAuthenticated`               | `true` only when a session exists and is not expired under the default 30 second expiry skew.                          |
 | `signIn(input)`                 | Signs in with email or username and keeps the session in memory.                                                       |
+| `startGoogleSignIn(input)`      | Starts Google OAuth through the backend and returns the Cognito authorization URL.                                     |
+| `completeGoogleSignIn(input)`   | Completes the Google OAuth callback through the backend and keeps the session in memory.                               |
 | `signUp(input)`                 | Clears any current session, starts backend-owned sign-up, and returns masked delivery details.                         |
 | `confirmSignUp(input)`          | Confirms backend-owned sign-up. It does not store a session by itself. The UI signs in after confirmation.             |
 | `resendConfirmationCode(email)` | Resends the backend-owned verification code and returns cooldown details.                                              |
@@ -79,9 +82,10 @@ Auth is exposed in three places:
 
 - `/login` opens `AuthPage` in login mode.
 - `/register` opens `AuthPage` in register mode.
+- `/auth/callback/google` completes the Cognito Google OAuth authorization-code flow.
 - `LearningHeader` shows `Login / Register` links for guests and profile plus logout for authenticated users.
 
-Auth routes are modal routes. When a user opens `/login` or `/register`, `AppRoutes` keeps the previous non-auth route as `backgroundPath`, renders that route underneath, and overlays `AuthPage`.
+Auth routes are modal routes. When a user opens `/login`, `/register`, or `/auth/callback/google`, `AppRoutes` keeps the previous non-auth route as `backgroundPath`, renders that route underneath, and overlays the auth UI or callback status.
 
 `AuthPage` guards against using `/login` or `/register` as a close or success target. If that happens, it falls back to `/learn`.
 
@@ -142,6 +146,30 @@ Username sign-in intentionally sends the password to the backend so the backend 
 The deprecated backend `/auth/username/resolve` route no longer returns emails. It parses the request for compatibility and returns a generic sign-in failure if it is reached directly in local/dev or with the backend proxy secret. The production Cloudflare Pages proxy does not forward this route.
 
 The UI defaults to username login. Users can toggle to email login with the field label action.
+
+### Google Sign-In
+
+Flow:
+
+```text
+AuthPage Google button
+  -> auth.startGoogleSignIn({ redirectUri })
+  -> POST /auth/oauth/google/start
+  -> backend creates signed state + PKCE verifier cookie
+  -> frontend redirects to Cognito Hosted UI with identity_provider=Google
+  -> Cognito redirects to /auth/callback/google with code + state
+  -> auth.completeGoogleSignIn({ code, state, redirectUri })
+  -> POST /auth/oauth/google/callback
+  -> backend validates state cookie and redirect URI
+  -> backend exchanges the code at Cognito /oauth2/token with confidential client auth
+  -> backend returns access/ID tokens, sets refresh token in HttpOnly cookie, and clears OAuth state cookie
+  -> createAuthSession()
+  -> storeAuthSession()
+```
+
+Google sign-in uses `sessionStorage` only for a non-sensitive local return path. The helper rejects external URLs, `/login`, `/register`, and the callback route before navigating after success.
+
+The backend allows Google OAuth only when `COGNITO_OAUTH_DOMAIN`, `COGNITO_OAUTH_REDIRECT_URIS`, the Cognito client ID, and the Cognito client secret are configured. The SAM template enables the Google IdP only when `GoogleOAuthClientId`, `GoogleOAuthClientSecret`, and `CognitoOAuthDomainPrefix` are all provided.
 
 ## Password Reset Flow
 
@@ -429,7 +457,7 @@ Browser
   -> AWS Lambda Function URL
 ```
 
-The proxy forwards only `authorization`, `content-type`, the proxy-derived source IP, the private `x-smile-learning-backend-proxy-secret` header, and the whitelisted `__Host-smile-refresh-session` cookie for `/auth/session/bootstrap`, `/auth/session/refresh`, and `/auth/session/revoke`. Cookie-backed session routes also require same-origin `Origin`/`Referer` when those headers are present. The proxy enforces a backend-route and method allowlist, rejects request bodies larger than 300 KB before forwarding, strips query strings, and fails closed for non-health routes when `LEARNING_BACKEND_PROXY_SECRET` is missing. Public auth routes should receive Cloudflare zone rate limiting before Pages Functions and AWS run. The Pages proxy keeps a fallback source/IP limiter unless `LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS=false`; the Lambda keeps its DynamoDB-backed cooldowns and burst caps as the authoritative app-level control.
+The proxy forwards only `authorization`, `content-type`, the proxy-derived source IP, the private `x-smile-learning-backend-proxy-secret` header, and auth cookies explicitly needed by each route. It forwards `__Host-smile-refresh-session` only for `/auth/session/bootstrap`, `/auth/session/refresh`, and `/auth/session/revoke`; it forwards `__Host-smile-oauth-google` only for `/auth/oauth/google/callback`. Cookie-backed auth routes also require same-origin `Origin`/`Referer` when those headers are present. The proxy enforces a backend-route and method allowlist, rejects request bodies larger than 300 KB before forwarding, strips query strings, and fails closed for non-health routes when `LEARNING_BACKEND_PROXY_SECRET` is missing. Public auth routes should receive Cloudflare zone rate limiting before Pages Functions and AWS run. The Pages proxy keeps a fallback source/IP limiter unless `LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS=false`; the Lambda keeps its DynamoDB-backed cooldowns and burst caps as the authoritative app-level control.
 
 The proxy reads only Cloudflare's `cf-connecting-ip` header as the browser source. Browser-supplied `x-real-ip` and `x-forwarded-for` values are ignored; the `x-forwarded-for` value sent to Lambda is generated from the trusted Cloudflare source, or `unknown` when Cloudflare did not provide one. The Lambda also trusts only `cf-connecting-ip`, and only when `LEARNING_BACKEND_PROXY_SECRET` is configured and the proxy secret header matches. If that trusted source is unavailable, Lambda falls back to the Function URL `requestContext.http.sourceIp`. In production, `LEARNING_BACKEND_REQUIRE_PROXY_SECRET=true` makes every non-health HTTP route return `403` unless that shared secret is present, so direct Lambda Function URL callers cannot bypass Cloudflare rate limits or spoof the auth cooldown source.
 
@@ -488,6 +516,8 @@ Public auth endpoints:
 | `POST` | `/auth/confirmation/resend`    | None | Send a new pending sign-up code if cooldown allows.                             |
 | `POST` | `/auth/email/sign-in`          | None | Sign in with email through backend-enforced public auth cooldowns.              |
 | `POST` | `/auth/username/sign-in`       | None | Sign in with display username without returning the resolved account email.     |
+| `POST` | `/auth/oauth/google/start`     | None | Start Google OAuth with signed state and PKCE in an HttpOnly cookie.            |
+| `POST` | `/auth/oauth/google/callback`  | None | Exchange Google OAuth code and create the backend-owned refresh session.        |
 | `POST` | `/auth/session/bootstrap`      | None | Restore an in-memory Cognito bearer session from the signed HttpOnly cookie.    |
 | `POST` | `/auth/session/refresh`        | None | Refresh an in-memory Cognito bearer session through backend-owned Cognito auth. |
 | `POST` | `/auth/session/revoke`         | None | Best-effort Cognito refresh-token revocation and refresh cookie clearing.       |
@@ -697,7 +727,7 @@ Cloudflare Pages:
 - `wrangler.jsonc` builds from `dist`.
 - `public/_redirects` rewrites all routes to `/index.html`, so modal routes and deep learning routes work on refresh.
 - `public/_headers` sets CSP, HSTS, frame protection, and other security headers.
-- `functions/api/learning-backend/[[path]].ts` proxies backend calls through Cloudflare Pages before AWS with exact route/method allowlists, trusted Lambda Function URL validation, a 300 KB request-body limit, secret-header injection, refresh-session cookie forwarding only for cookie-backed session routes, no query-string forwarding, and `Authorization` forwarding only for protected backend routes. Unknown `/auth/...` paths are rejected at the edge instead of being forwarded to AWS. The proxy source/IP auth limiter uses Upstash Redis when `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are configured, falls back to local memory for development or Redis outages, stays enabled with the Cloudflare Free-plan-compatible single auth rule, and should be disabled with `LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS=false` only if Cloudflare has equivalent granular route-specific auth rate limits.
+- `functions/api/learning-backend/[[path]].ts` proxies backend calls through Cloudflare Pages before AWS with exact route/method allowlists, trusted Lambda Function URL validation, a 300 KB request-body limit, secret-header injection, auth-cookie forwarding only for routes that need a specific cookie, no query-string forwarding, and `Authorization` forwarding only for protected backend routes. Unknown `/auth/...` paths are rejected at the edge instead of being forwarded to AWS. The proxy source/IP auth limiter uses Upstash Redis when `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are configured, falls back to local memory for development or Redis outages, stays enabled with the Cloudflare Free-plan-compatible single auth rule, and should be disabled with `LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS=false` only if Cloudflare has equivalent granular route-specific auth rate limits.
 - Current CSP `connect-src` allows `'self'`, `https://s3.ap-southeast-1.amazonaws.com`, and `https://*.s3.ap-southeast-1.amazonaws.com`. This supports the same-origin proxy and S3 presigned uploads without allowing browser calls to direct Cognito or Lambda Function URL origins.
 
 AWS:
@@ -717,8 +747,9 @@ Deployment must keep these aligned:
 4. SAM `LearningBackendProxySecret` must match Cloudflare Pages Function `LEARNING_BACKEND_PROXY_SECRET`.
 5. The Cloudflare auth rate limiting rule from `docs/cloudflare-auth-rate-limiting.md` must be active on the production custom domain, the Pages proxy limiter must stay enabled unless Cloudflare has equivalent granular route-specific auth rate limits, and production Pages must configure Upstash Redis secrets for shared proxy limiter state.
 6. Backend `COGNITO_REGION`, `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`, and `COGNITO_CLIENT_SECRET` must come from the same SAM stack.
-7. `FunctionUrlAllowedOrigins` should remain local/dev only unless a separate review approves direct browser access to the Function URL.
-8. CSP must continue allowing the same-origin proxy plus S3 upload origins; do not add direct Cognito or Lambda Function URL origins without a separate review.
+7. Google sign-in production stacks must set `GoogleOAuthClientId`, `GoogleOAuthClientSecret`, `CognitoOAuthDomainPrefix`, and production `CognitoOAuthCallbackUrls` that include `https://YOUR-DOMAIN/auth/callback/google`.
+8. `FunctionUrlAllowedOrigins` should remain local/dev only unless a separate review approves direct browser access to the Function URL.
+9. CSP must continue allowing the same-origin proxy plus S3 upload origins; do not add direct Lambda Function URL origins without a separate review. Google OAuth uses top-level navigation to Cognito, not browser `connect-src` API calls.
 
 Current `backend/aws/learning-backend/samconfig.toml` deploy defaults use stack `smile-learning-backend`, region `ap-southeast-1`, profile `smile-dev`, `LearningBackendRequireProxySecret=true`, `AllowedOrigins` for local dev plus `https://smile-project.pages.dev`, and `FunctionUrlAllowedOrigins` for local dev only. It intentionally does not store `LearningBackendProxySecret`, `ResendFromEmail`, or `ResendReplyToEmail`; production deploys must pass the current shared secret or preserve the existing CloudFormation `NoEcho` value, and sender overrides must be verified after deploy if they are customized.
 
@@ -736,7 +767,7 @@ SAM outputs map to frontend env like this:
 | `CognitoRegion`              | Backend `COGNITO_REGION`                                                                                     |
 | `CognitoUserPoolId`          | Backend `COGNITO_USER_POOL_ID`                                                                               |
 | `CognitoUserPoolClientId`    | Backend `COGNITO_CLIENT_ID`                                                                                  |
-| `SmileUserPoolClient` secret | Backend `COGNITO_CLIENT_SECRET`; never expose this to the frontend                                           |
+| Cognito app client secret    | Backend `COGNITO_CLIENT_SECRET`; never expose this to the frontend                                           |
 
 Backend auth-related environment is set by SAM:
 
@@ -756,8 +787,11 @@ Backend auth-related environment is set by SAM:
 | `AUTH_REFRESH_SESSION_COOKIE_MAX_AGE_SECONDS` | `604800`                                                |
 | `AUTH_REFRESH_SESSION_COOKIE_SECURE`          | `true`                                                  |
 | `COGNITO_USER_POOL_ID`                        | `SmileUserPool`                                         |
-| `COGNITO_CLIENT_ID`                           | `SmileUserPoolClient`                                   |
-| `COGNITO_CLIENT_SECRET`                       | `SmileUserPoolClient.ClientSecret`                      |
+| `COGNITO_CLIENT_ID`                           | `SmileUserPoolClient` or `SmileGoogleUserPoolClient`    |
+| `COGNITO_CLIENT_SECRET`                       | Active app client `ClientSecret`                        |
+| `COGNITO_OAUTH_DOMAIN`                        | Cognito Hosted UI domain when Google OAuth is enabled   |
+| `COGNITO_OAUTH_REDIRECT_URIS`                 | `CognitoOAuthCallbackUrls` parameter                    |
+| `COGNITO_GOOGLE_IDP_NAME`                     | `Google`                                                |
 | `COGNITO_REGION`                              | AWS region                                              |
 | `COGNITO_EMAIL_SENDER_KMS_KEY_ARN`            | `CognitoEmailSenderKmsKey` for custom sender            |
 | `RESEND_API_KEY_SECRET_ID`                    | `ResendApiKeySecretName` parameter                      |
@@ -784,6 +818,7 @@ Frontend auth-related tests:
 - `src/features/auth/cognito-auth.test.ts`
   - Starts sign-up through learning backend.
   - Confirms sign-up through learning backend with password.
+  - Starts and completes Google OAuth through the backend.
   - Signs in with username through the backend without receiving the resolved account email.
   - Requests and confirms Cognito password reset.
   - Refreshes sessions through the backend instead of calling Cognito directly.
@@ -796,7 +831,7 @@ Frontend auth-related tests:
   - Forwards allowed backend requests with auth and original source headers.
   - Applies edge cooldown before repeated public auth requests reach AWS.
   - Applies edge sign-in burst caps.
-  - Forwards only the whitelisted refresh-session cookie for cookie-backed auth routes.
+  - Forwards only the whitelisted auth cookie for cookie-backed auth routes.
   - Rate-limits refresh requests by `userSub` without requiring email.
 - `src/features/learning/progress/learning-progress.test.tsx`
   - Merges guest progress into signed-in account.

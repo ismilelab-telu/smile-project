@@ -23,6 +23,10 @@ import { createPortal } from "react-dom";
 
 import { useAuth } from "@/features/auth/auth-context";
 import { CognitoAuthError } from "@/features/auth/cognito-auth";
+import {
+  getGoogleOAuthRedirectUri,
+  storeGoogleOAuthReturnTo,
+} from "@/features/auth/google-oauth-return";
 import { localeOptions, useLocalization, type Locale } from "@/features/localization/localization";
 
 type AuthMode = "login" | "register";
@@ -121,6 +125,8 @@ const authIllustrationImageUrl = new URL(
   "../../assets/43096caa-9b82-474a-a51d-99d4721a99ca.png",
   import.meta.url,
 ).href;
+const googleLogoImageUrl = new URL("../../assets/brands/Google_Favicon_2025.svg", import.meta.url)
+  .href;
 const passwordMinLength = 12;
 const passwordSymbols = "^$*.[]{}()?\"!@#%&/\\,><':;|_~`=+-";
 const passwordRules: Array<{ id: PasswordRule; label: Record<Locale, string> }> = [
@@ -909,6 +915,23 @@ function AuthFormPanel({
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setErrorMessage("");
+    setStatusMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      const redirectUri = getGoogleOAuthRedirectUri();
+      storeGoogleOAuthReturnTo(successHref);
+      const result = await auth.startGoogleSignIn({ redirectUri });
+
+      window.location.assign(result.authorizationUrl);
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error, locale));
+      setIsSubmitting(false);
+    }
+  };
+
   const handleResendCode = async () => {
     const resendEmail = passwordResetEmail || confirmationEmail || email.trim().toLowerCase();
 
@@ -1549,8 +1572,32 @@ function AuthFormPanel({
             ) : null}
           </motion.div>
 
+          <motion.div className="mt-7" layout="position" transition={authSharedLayoutTransition}>
+            <button
+              className="inline-flex h-10 w-full cursor-pointer items-center justify-center gap-3 rounded-none border border-zinc-300 bg-white px-4 text-sm font-semibold text-foreground transition-colors hover:border-zinc-500 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:text-neutral-400"
+              disabled={isSubmitting}
+              onClick={handleGoogleSignIn}
+              type="button"
+            >
+              <img
+                alt=""
+                aria-hidden="true"
+                className="size-5 shrink-0"
+                height="20"
+                src={googleLogoImageUrl}
+                width="20"
+              />
+              {locale === "en" ? "Continue with Google" : "Lanjut dengan Google"}
+            </button>
+            <div className="my-5 flex items-center gap-3 text-xs font-semibold text-muted-foreground">
+              <span className="h-px flex-1 bg-zinc-200" />
+              <span>{locale === "en" ? "or" : "atau"}</span>
+              <span className="h-px flex-1 bg-zinc-200" />
+            </div>
+          </motion.div>
+
           <motion.form
-            className="mt-8"
+            className="mt-0"
             layout
             onSubmit={handleSubmit}
             transition={authSharedLayoutTransition}

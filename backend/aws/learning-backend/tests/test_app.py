@@ -38,6 +38,7 @@ from app import (
     sanitize_file_name,
     sign_in_with_email,
     sign_in_with_username,
+    start_google_oauth_sign_in,
     start_sign_up,
     validate_pandas_loading_code,
 )
@@ -97,6 +98,20 @@ def create_unverified_jwt(payload: dict[str, object]) -> str:
     )
 
     return f"header.{encoded_payload}.signature"
+
+
+class FakeUrlopenResponse:
+    def __init__(self, payload: dict[str, object]) -> None:
+        self.payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, _exc_type, _exc_value, _traceback):
+        return None
+
+    def read(self) -> bytes:
+        return json.dumps(self.payload).encode("utf-8")
 
 
 class FakeDynamoDbClient:
@@ -724,6 +739,21 @@ class LearningBackendTest(unittest.TestCase):
         self.assertNotIn("expiresAt", confirmed_item)
         self.assertEqual(get_confirmed_email_for_username("student_one"), "student@example.com")
 
+    def test_post_confirmation_ignores_federated_user_without_username_reservation(self) -> None:
+        app.USERNAME_RESERVATION_TABLE = "username-reservations"
+        fake_dynamodb = FakeDynamoDbClient()
+        app._dynamodb_client = fake_dynamodb
+
+        confirm_username_reservation(
+            create_cognito_event(
+                "student@example.com",
+                "Student One",
+                trigger_source="PostConfirmation_ConfirmSignUp",
+            )
+        )
+
+        self.assertEqual(fake_dynamodb.items, {})
+
     def test_rejects_duplicate_username_reservation(self) -> None:
         app.USERNAME_RESERVATION_TABLE = "username-reservations"
         fake_dynamodb = FakeDynamoDbClient()
@@ -886,6 +916,112 @@ class LearningBackendTest(unittest.TestCase):
         self.assertIn("HttpOnly", result["cookies"][0])
         self.assertIn("Secure", result["cookies"][0])
         self.assertIn("SameSite=Lax", result["cookies"][0])
+
+    def test_google_oauth_start_returns_authorization_url_and_state_cookie(self) -> None:
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        app.COGNITO_OAUTH_DOMAIN = "https://smile.auth.ap-southeast-1.amazoncognito.com"
+        app.COGNITO_OAUTH_REDIRECT_URIS = "https://smile.test/auth/callback/google"
+
+        result = start_google_oauth_sign_in(
+            {"redirectUri": "https://smile.test/auth/callback/google"},
+            now=1_700_000_000,
+        )
+        authorization_url = result["body"]["authorizationUrl"]
+        parsed_url = app.urllib.parse.urlparse(authorization_url)
+        query = app.urllib.parse.parse_qs(parsed_url.query)
+        cookie_value = str(result["cookie"]).split(";", 1)[0].partition("=")[2]
+        state_payload = app.parse_signed_google_oauth_state_value(
+            cookie_value,
+            now=1_700_000_000,
+        )
+
+        self.assertEqual(parsed_url.scheme, "https")
+        self.assertEqual(parsed_url.path, "/oauth2/authorize")
+        self.assertEqual(query["client_id"], ["web-client"])
+        self.assertEqual(query["identity_provider"], ["Google"])
+        self.assertEqual(query["redirect_uri"], ["https://smile.test/auth/callback/google"])
+        self.assertEqual(query["response_type"], ["code"])
+        self.assertEqual(query["code_challenge_method"], ["S256"])
+        self.assertEqual(state_payload["provider"], "google")
+        self.assertEqual(state_payload["redirectUri"], "https://smile.test/auth/callback/google")
+        self.assertEqual(query["state"], [state_payload["state"]])
+
+    def test_google_oauth_callback_sets_session_cookie_without_returning_refresh_token(self) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        app.COGNITO_OAUTH_DOMAIN = "https://smile.auth.ap-southeast-1.amazoncognito.com"
+        app.COGNITO_OAUTH_REDIRECT_URIS = "https://smile.test/auth/callback/google"
+        app._dynamodb_client = FakeDynamoDbClient()
+        id_token = create_unverified_jwt(
+            {
+                "email": "student@example.com",
+                "exp": 1_800_000_000,
+                "name": "Student One",
+                "sub": "student-sub",
+            }
+        )
+        oauth_start = start_google_oauth_sign_in(
+            {"redirectUri": "https://smile.test/auth/callback/google"}
+        )
+        authorization_url = oauth_start["body"]["authorizationUrl"]
+        state = app.urllib.parse.parse_qs(app.urllib.parse.urlparse(authorization_url).query)[
+            "state"
+        ][0]
+        oauth_cookie = str(oauth_start["cookie"]).split(";", 1)[0]
+        captured_requests: list[object] = []
+        original_urlopen = app.urllib.request.urlopen
+
+        def fake_urlopen(request, timeout):
+            captured_requests.append(request)
+            self.assertEqual(timeout, app.COGNITO_OAUTH_REQUEST_TIMEOUT_SECONDS)
+            return FakeUrlopenResponse(
+                {
+                    "access_token": "access-token",
+                    "expires_in": 3600,
+                    "id_token": id_token,
+                    "refresh_token": "refresh-token",
+                }
+            )
+
+        app.urllib.request.urlopen = fake_urlopen
+        try:
+            result = app.lambda_handler(
+                {
+                    "body": json.dumps(
+                        {
+                            "code": "authorization-code",
+                            "redirectUri": "https://smile.test/auth/callback/google",
+                            "state": state,
+                        }
+                    ),
+                    "headers": {"cookie": oauth_cookie},
+                    "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.10"}},
+                    "rawPath": "/auth/oauth/google/callback",
+                },
+                None,
+            )
+        finally:
+            app.urllib.request.urlopen = original_urlopen
+
+        body = json.loads(result["body"])
+        token_request = captured_requests[0]
+        token_body = app.urllib.parse.parse_qs(token_request.data.decode("utf-8"))
+
+        self.assertEqual(result["statusCode"], 200)
+        self.assertNotIn("RefreshToken", body["authenticationResult"])
+        self.assertEqual(body["authenticationResult"]["AccessToken"], "access-token")
+        self.assertEqual(token_request.full_url, f"{app.COGNITO_OAUTH_DOMAIN}/oauth2/token")
+        self.assertEqual(token_body["grant_type"], ["authorization_code"])
+        self.assertEqual(token_body["code"], ["authorization-code"])
+        self.assertEqual(token_body["redirect_uri"], ["https://smile.test/auth/callback/google"])
+        self.assertIn("code_verifier", token_body)
+        self.assertTrue(token_request.get_header("Authorization").startswith("Basic "))
+        self.assertEqual(len(result["cookies"]), 2)
+        self.assertIn("__Host-smile-refresh-session=", result["cookies"][0])
+        self.assertIn("__Host-smile-oauth-google=", result["cookies"][1])
+        self.assertIn("Max-Age=0", result["cookies"][1])
 
     def test_session_refresh_uses_backend_owned_admin_auth(self) -> None:
         app.COGNITO_CLIENT_ID = "web-client"

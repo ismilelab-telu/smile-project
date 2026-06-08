@@ -22,8 +22,10 @@ type AuthRequestLocale = "id" | "en";
 
 type LearningBackendAuthResponse = {
   authenticationResult?: CognitoAuthResult;
+  authorizationUrl?: string;
   code?: string;
   cooldownSeconds?: number;
+  expiresAt?: number;
   message?: string;
   nextAllowedAt?: number;
   retryAfterSeconds?: number;
@@ -263,6 +265,75 @@ export async function signInWithUsername({
   return createAuthSession({
     authResult: responseBody.authenticationResult,
     fallbackName: username,
+  });
+}
+
+export async function startGoogleOAuthSignIn({ redirectUri }: { redirectUri: string }) {
+  const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/oauth/google/start`, {
+    body: JSON.stringify({ redirectUri }),
+    credentials: "same-origin",
+    headers: {
+      "content-type": "application/json",
+    },
+    method: "POST",
+  });
+  const responseBody = (await response.json().catch(() => ({}))) as LearningBackendAuthResponse;
+
+  if (!response.ok) {
+    const code = responseBody.code ?? "CognitoError";
+    throw new CognitoAuthError(code, responseBody.message ?? getFallbackCognitoErrorMessage(code), {
+      nextAllowedAt: responseBody.nextAllowedAt,
+      retryAfterSeconds: responseBody.retryAfterSeconds,
+    });
+  }
+
+  if (!responseBody.authorizationUrl) {
+    throw new CognitoAuthError("CognitoError", "Backend did not return a Google sign-in URL.");
+  }
+
+  return {
+    authorizationUrl: responseBody.authorizationUrl,
+    expiresAt: responseBody.expiresAt,
+  };
+}
+
+export async function completeGoogleOAuthSignIn({
+  code,
+  redirectUri,
+  state,
+}: {
+  code: string;
+  redirectUri: string;
+  state: string;
+}) {
+  const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/oauth/google/callback`, {
+    body: JSON.stringify({ code, redirectUri, state }),
+    credentials: "same-origin",
+    headers: {
+      "content-type": "application/json",
+    },
+    method: "POST",
+  });
+  const responseBody = (await response.json().catch(() => ({}))) as LearningBackendAuthResponse;
+
+  if (!response.ok) {
+    const errorCode = responseBody.code ?? "CognitoError";
+    throw new CognitoAuthError(
+      errorCode,
+      responseBody.message ?? getFallbackCognitoErrorMessage(errorCode),
+      {
+        nextAllowedAt: responseBody.nextAllowedAt,
+        retryAfterSeconds: responseBody.retryAfterSeconds,
+      },
+    );
+  }
+
+  if (!responseBody.authenticationResult) {
+    throw new CognitoAuthError("CognitoError", "Backend did not return a complete auth session.");
+  }
+
+  return createAuthSession({
+    authResult: responseBody.authenticationResult,
   });
 }
 

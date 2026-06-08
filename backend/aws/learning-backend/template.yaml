@@ -44,6 +44,37 @@ Parameters:
       - "true"
       - "false"
     Description: Require the Cloudflare Pages proxy secret for every non-health HTTP backend route.
+  GoogleOAuthClientId:
+    Type: String
+    Default: ""
+    Description: Google OAuth client ID for Cognito federated sign-in. Leave empty to disable Google sign-in.
+  GoogleOAuthClientSecret:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Google OAuth client secret for Cognito federated sign-in. Leave empty to disable Google sign-in.
+  CognitoOAuthDomainPrefix:
+    Type: String
+    Default: ""
+    Description: Cognito Hosted UI domain prefix for OAuth sign-in. Leave empty to disable Google sign-in.
+  CognitoOAuthCallbackUrls:
+    Type: CommaDelimitedList
+    Default: "http://127.0.0.1:5317/auth/callback/google,http://localhost:5317/auth/callback/google"
+    Description: Exact callback URLs allowed by Cognito and the backend OAuth callback validator.
+  CognitoOAuthLogoutUrls:
+    Type: CommaDelimitedList
+    Default: "http://127.0.0.1:5317/learn,http://localhost:5317/learn"
+    Description: Logout URLs allowed by Cognito Hosted UI when Google OAuth is enabled.
+
+Conditions:
+  HasGoogleOAuthClientId: !Not [!Equals [!Ref GoogleOAuthClientId, ""]]
+  HasGoogleOAuthClientSecret: !Not [!Equals [!Ref GoogleOAuthClientSecret, ""]]
+  HasCognitoOAuthDomainPrefix: !Not [!Equals [!Ref CognitoOAuthDomainPrefix, ""]]
+  EnableGoogleOAuth: !And
+    - !Condition HasGoogleOAuthClientId
+    - !Condition HasGoogleOAuthClientSecret
+    - !Condition HasCognitoOAuthDomainPrefix
+  DisableGoogleOAuth: !Not [!Condition EnableGoogleOAuth]
 
 Globals:
   Function:
@@ -172,6 +203,7 @@ Resources:
 
   SmileUserPoolClient:
     Type: AWS::Cognito::UserPoolClient
+    Condition: DisableGoogleOAuth
     Properties:
       ClientName: !Sub "${AWS::StackName}-web-client"
       UserPoolId: !Ref SmileUserPool
@@ -188,6 +220,62 @@ Resources:
         AccessToken: hours
         IdToken: hours
         RefreshToken: days
+
+  CognitoGoogleIdentityProvider:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Condition: EnableGoogleOAuth
+    Properties:
+      UserPoolId: !Ref SmileUserPool
+      ProviderName: Google
+      ProviderType: Google
+      ProviderDetails:
+        authorize_scopes: "openid email profile"
+        client_id: !Ref GoogleOAuthClientId
+        client_secret: !Ref GoogleOAuthClientSecret
+      AttributeMapping:
+        email: email
+        name: name
+
+  SmileUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Condition: EnableGoogleOAuth
+    Properties:
+      Domain: !Ref CognitoOAuthDomainPrefix
+      UserPoolId: !Ref SmileUserPool
+
+  SmileGoogleUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Condition: EnableGoogleOAuth
+    DependsOn:
+      - CognitoGoogleIdentityProvider
+    Properties:
+      ClientName: !Sub "${AWS::StackName}-web-client-google"
+      UserPoolId: !Ref SmileUserPool
+      GenerateSecret: true
+      ExplicitAuthFlows:
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+      RefreshTokenValidity: 7
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+      SupportedIdentityProviders:
+        - COGNITO
+        - Google
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+      CallbackURLs: !Ref CognitoOAuthCallbackUrls
+      LogoutURLs: !Ref CognitoOAuthLogoutUrls
 
   DatasetUploadBucket:
     Type: AWS::S3::Bucket
@@ -241,8 +329,20 @@ Resources:
           MAX_UNZIPPED_BYTES: "104857600"
           MAX_PROGRESS_JSON_BYTES: "300000"
           COGNITO_USER_POOL_ID: !Ref SmileUserPool
-          COGNITO_CLIENT_ID: !Ref SmileUserPoolClient
-          COGNITO_CLIENT_SECRET: !GetAtt SmileUserPoolClient.ClientSecret
+          COGNITO_CLIENT_ID: !If
+            - EnableGoogleOAuth
+            - !Ref SmileGoogleUserPoolClient
+            - !Ref SmileUserPoolClient
+          COGNITO_CLIENT_SECRET: !If
+            - EnableGoogleOAuth
+            - !GetAtt SmileGoogleUserPoolClient.ClientSecret
+            - !GetAtt SmileUserPoolClient.ClientSecret
+          COGNITO_OAUTH_DOMAIN: !If
+            - EnableGoogleOAuth
+            - !Sub "https://${CognitoOAuthDomainPrefix}.auth.${AWS::Region}.amazoncognito.com"
+            - ""
+          COGNITO_OAUTH_REDIRECT_URIS: !Join [",", !Ref CognitoOAuthCallbackUrls]
+          COGNITO_GOOGLE_IDP_NAME: "Google"
           COGNITO_REGION: !Ref AWS::Region
           RESEND_API_KEY_SECRET_ID: !Ref ResendApiKeySecretName
           RESEND_FROM_EMAIL: !Ref ResendFromEmail
@@ -353,10 +453,17 @@ Outputs:
     Value: !Ref SmileUserPool
   CognitoUserPoolClientId:
     Description: Confidential Cognito app client ID used by backend-owned auth.
-    Value: !Ref SmileUserPoolClient
+    Value: !If
+      - EnableGoogleOAuth
+      - !Ref SmileGoogleUserPoolClient
+      - !Ref SmileUserPoolClient
   CognitoRegion:
     Description: Cognito region used by backend-owned auth.
     Value: !Ref AWS::Region
+  CognitoOAuthDomain:
+    Condition: EnableGoogleOAuth
+    Description: Cognito Hosted UI OAuth domain used for Google sign-in.
+    Value: !Sub "https://${CognitoOAuthDomainPrefix}.auth.${AWS::Region}.amazoncognito.com"
   DatasetUploadBucketName:
     Description: Private temporary dataset upload bucket.
     Value: !Ref DatasetUploadBucket

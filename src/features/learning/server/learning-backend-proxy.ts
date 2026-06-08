@@ -28,6 +28,7 @@ const authRateLimitTtlMs = 60 * 60 * 1000;
 const authRateLimitState = new Map<string, number>();
 const authBurstLimitState = new Map<string, { count: number; resetAt: number }>();
 const refreshSessionCookieName = "__Host-smile-refresh-session";
+const googleOAuthCookieName = "__Host-smile-oauth-google";
 const authProxySignInBurstLimit = 8;
 const authProxySignInBurstWindowMs = 5 * 60 * 1000;
 const authProxyRevokeBurstLimit = 20;
@@ -62,6 +63,14 @@ const authProxyCooldowns = [
     seconds: 2,
   },
   {
+    path: "/auth/oauth/google/start",
+    seconds: 2,
+  },
+  {
+    path: "/auth/oauth/google/callback",
+    seconds: 2,
+  },
+  {
     identifierKey: "userSub",
     path: "/auth/session/refresh",
     seconds: 2,
@@ -88,6 +97,8 @@ const allowedAuthProxyPaths = new Set([
   "/auth/confirmation/confirm",
   "/auth/email/sign-in",
   "/auth/username/sign-in",
+  "/auth/oauth/google/start",
+  "/auth/oauth/google/callback",
   "/auth/session/refresh",
   "/auth/session/bootstrap",
   "/auth/session/revoke",
@@ -685,27 +696,49 @@ function createForwardHeaders(
 }
 
 function createForwardCookieHeader(request: Request, pathname: string) {
-  if (!shouldForwardRefreshSessionCookie(pathname)) {
-    return "";
-  }
-
   const cookie = request.headers.get("cookie");
   if (!cookie) {
     return "";
   }
 
-  const refreshSessionCookie = cookie
+  const allowedCookieNames = getForwardedCookieNames(pathname);
+  if (allowedCookieNames.size === 0) {
+    return "";
+  }
+
+  return cookie
     .split(";")
     .map((part) => part.trim())
-    .find((part) => part.startsWith(`${refreshSessionCookieName}=`));
+    .filter((part) => {
+      const [name] = part.split("=", 1);
 
-  return refreshSessionCookie ?? "";
+      return Boolean(name && allowedCookieNames.has(name));
+    })
+    .join("; ");
 }
 
 function shouldForwardRefreshSessionCookie(pathname: string) {
   return ["/auth/session/bootstrap", "/auth/session/refresh", "/auth/session/revoke"].includes(
     pathname,
   );
+}
+
+function shouldForwardGoogleOAuthCookie(pathname: string) {
+  return pathname === "/auth/oauth/google/callback";
+}
+
+function getForwardedCookieNames(pathname: string) {
+  const cookieNames = new Set<string>();
+
+  if (shouldForwardRefreshSessionCookie(pathname)) {
+    cookieNames.add(refreshSessionCookieName);
+  }
+
+  if (shouldForwardGoogleOAuthCookie(pathname)) {
+    cookieNames.add(googleOAuthCookieName);
+  }
+
+  return cookieNames;
 }
 
 function isProxyAuthRateLimitEnabled(env: LearningBackendProxyEnv | undefined) {
@@ -715,7 +748,7 @@ function isProxyAuthRateLimitEnabled(env: LearningBackendProxyEnv | undefined) {
 }
 
 function getCookieBackedAuthOriginResponse(request: Request, pathname: string) {
-  if (!shouldForwardRefreshSessionCookie(pathname)) {
+  if (!shouldValidateAuthRequestOrigin(pathname)) {
     return null;
   }
 
@@ -741,6 +774,14 @@ function getCookieBackedAuthOriginResponse(request: Request, pathname: string) {
   }
 
   return null;
+}
+
+function shouldValidateAuthRequestOrigin(pathname: string) {
+  return (
+    shouldForwardRefreshSessionCookie(pathname) ||
+    shouldForwardGoogleOAuthCookie(pathname) ||
+    pathname === "/auth/oauth/google/start"
+  );
 }
 
 function isProtectedLearningBackendProxyPath(pathname: string) {
