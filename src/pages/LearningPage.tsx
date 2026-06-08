@@ -144,8 +144,14 @@ function LearningAuthRequiredAuthPortal({
 
 export function LearningPage({ path = "/learn" }: LearningPageProps) {
   const { isAuthenticated, isReady: isAuthReady } = useAuth();
-  const { completeLesson, progress, saveExerciseSubmission, saveLessonAnswer } =
-    useLearningProgress();
+  const {
+    completeLesson,
+    isProgressReady,
+    progress,
+    progressOwnerKey,
+    saveExerciseSubmission,
+    saveLessonAnswer,
+  } = useLearningProgress();
   const route = getLearningRoute(path);
 
   if (route.kind === "hub") {
@@ -276,6 +282,10 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
       );
     }
 
+    if (!isProgressReady) {
+      return <LearningLessonFallback backHref={trackHomeHref} />;
+    }
+
     if (!isLessonUnlocked(lesson, progress)) {
       return (
         <LearningGridCanvas>
@@ -337,7 +347,7 @@ export function LearningPage({ path = "/learn" }: LearningPageProps) {
           initialAnswer={progress.lessonAnswers[lesson.id]}
           initialSubmittedAnswersByExerciseId={progress.submittedExerciseAnswers}
           isCompleted={progress.completedLessonIds.includes(lesson.id)}
-          key={lesson.id}
+          key={`${progressOwnerKey}:${lesson.id}`}
           lesson={lesson}
           nextLessonHref={nextLessonHref}
           onAnswerChange={saveLessonAnswer}

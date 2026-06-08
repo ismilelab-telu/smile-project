@@ -15,6 +15,8 @@ export const learningAccountProgressStorageKeyPrefix = "smile-learning-progress-
 
 type ProgressSyncState = "local" | "synced" | "syncing";
 
+const guestProgressOwnerKey = "guest";
+
 export function createInitialLearningProgress(): LearningProgress {
   return {
     attempts: {},
@@ -158,9 +160,14 @@ function getAccountProgressStorageKey(userId: string) {
   return `${learningAccountProgressStorageKeyPrefix}${encodeURIComponent(userId)}`;
 }
 
+function getAccountProgressOwnerKey(userId: string) {
+  return `account:${userId}`;
+}
+
 export function useLearningProgress() {
   const { getFreshSession, isReady: isAuthReady, session } = useAuth();
   const [progress, setProgress] = useState<LearningProgress>(() => readLearningProgress());
+  const [progressOwnerKey, setProgressOwnerKey] = useState(guestProgressOwnerKey);
   const [syncState, setSyncState] = useState<ProgressSyncState>("local");
   const activeProgressOwnerRef = useRef("");
   const lastRemoteProgressJsonRef = useRef("");
@@ -169,6 +176,12 @@ export function useLearningProgress() {
   const progressRef = useRef(progress);
   const syncRunRef = useRef(0);
   const syncedUserIdRef = useRef<string | null>(null);
+  const sessionUserId = getSessionUserId(session);
+  const expectedProgressOwnerKey = sessionUserId
+    ? getAccountProgressOwnerKey(sessionUserId)
+    : guestProgressOwnerKey;
+  const isProgressReady =
+    isAuthReady && progressOwnerKey === expectedProgressOwnerKey && syncState !== "syncing";
 
   useEffect(() => {
     progressRef.current = progress;
@@ -204,6 +217,7 @@ export function useLearningProgress() {
       pendingGuestClaimProgressJsonRef.current = "";
       syncedUserIdRef.current = null;
       lastRemoteProgressJsonRef.current = "";
+      setProgressOwnerKey(guestProgressOwnerKey);
       setProgress(readLearningProgress());
       setSyncState("local");
       return;
@@ -231,6 +245,7 @@ export function useLearningProgress() {
 
       if (!freshSession) {
         activeProgressOwnerRef.current = "";
+        setProgressOwnerKey(guestProgressOwnerKey);
         setProgress(readLearningProgress());
         setSyncState("local");
         return;
@@ -276,6 +291,7 @@ export function useLearningProgress() {
       }
 
       progressRef.current = mergedProgress;
+      setProgressOwnerKey(getAccountProgressOwnerKey(userId));
       setProgress(mergedProgress);
       setSyncState("synced");
     })().catch(() => {
@@ -286,6 +302,7 @@ export function useLearningProgress() {
       activeProgressOwnerRef.current = userId;
       progressRef.current = localProgressForSync;
       writeLocalLearningProgressForUser(userId, localProgressForSync);
+      setProgressOwnerKey(getAccountProgressOwnerKey(userId));
       setProgress(localProgressForSync);
       setSyncState("local");
     });
@@ -439,12 +456,22 @@ export function useLearningProgress() {
   return useMemo(
     () => ({
       completeLesson,
+      isProgressReady,
       progress,
+      progressOwnerKey,
       resetProgress,
       saveExerciseSubmission,
       saveLessonAnswer,
     }),
-    [completeLesson, progress, resetProgress, saveExerciseSubmission, saveLessonAnswer],
+    [
+      completeLesson,
+      isProgressReady,
+      progress,
+      progressOwnerKey,
+      resetProgress,
+      saveExerciseSubmission,
+      saveLessonAnswer,
+    ],
   );
 }
 

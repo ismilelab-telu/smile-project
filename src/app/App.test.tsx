@@ -1,10 +1,13 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
 import { clearAuthSession, storeAuthSession } from "@/features/auth/auth-session";
 import { localizationStorageKey } from "@/features/localization/localization";
-import { learningProgressStorageKey } from "@/features/learning/progress/learning-progress";
+import {
+  learningAccountProgressStorageKeyPrefix,
+  learningProgressStorageKey,
+} from "@/features/learning/progress/learning-progress";
 
 const foundationsTrackPath = "/learn/track-machine-learning-foundations";
 const lesson01Path = `${foundationsTrackPath}/lesson-0-1-what-is-machine-learning`;
@@ -39,17 +42,23 @@ function seedCompletedLessons(completedLessonIds: string[]) {
   );
 }
 
-function seedAuthSession() {
+function seedAuthSession({
+  accessToken = "access-token",
+  email = "student@example.com",
+  initials = "ST",
+  name = "Student",
+  sub = "student-1",
+} = {}) {
   storeAuthSession({
-    accessToken: "access-token",
+    accessToken,
     expiresAt: Date.now() + 60 * 60 * 1000,
     idToken: "id-token",
     refreshToken: "refresh-token",
     user: {
-      email: "student@example.com",
-      initials: "ST",
-      name: "Student",
-      sub: "student-1",
+      email,
+      initials,
+      name,
+      sub,
     },
   });
 }
@@ -98,6 +107,20 @@ function getStoredLearningProgress() {
       }
     >;
   };
+}
+
+function getAccountProgressStorageKey(userId: string) {
+  return `${learningAccountProgressStorageKeyPrefix}${encodeURIComponent(userId)}`;
+}
+
+function readStoredAccountProgress(userId: string) {
+  const stored = window.localStorage.getItem(getAccountProgressStorageKey(userId));
+
+  if (!stored) {
+    return undefined;
+  }
+
+  return JSON.parse(stored) as ReturnType<typeof getStoredLearningProgress>;
 }
 
 async function chooseColumnRole(columnLabel: string, roleLabel: string) {
@@ -649,6 +672,63 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Kirim jawaban" }));
 
     expect(await screen.findByRole("img", { name: "Benar" })).toBeInTheDocument();
+  });
+
+  it("resets an in-progress exercise edit when the signed-in account changes", async () => {
+    const lessonId = "lesson-0-1-what-is-machine-learning";
+    const exerciseId = "exercise-0-1-what-is-machine-learning";
+    const wrongOptionLabel =
+      "Komputer menjalankan daftar aturan tetap yang ditulis manusia untuk semua kondisi.";
+    const correctOptionLabel =
+      "Komputer belajar pola dari data agar dapat membuat prediksi, rekomendasi, atau keputusan untuk contoh baru.";
+
+    seedAuthSession();
+    window.history.pushState(null, "", lesson01Path);
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Apa Itu Machine Learning" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText(correctOptionLabel));
+    fireEvent.click(screen.getByRole("button", { name: "Kirim jawaban" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    fireEvent.click(screen.getByLabelText(wrongOptionLabel));
+
+    expect(screen.getByRole("button", { name: "Batal" })).toBeInTheDocument();
+    expect(screen.getByLabelText(wrongOptionLabel)).toBeChecked();
+
+    await waitFor(() => {
+      expect(
+        readStoredAccountProgress("student-1")?.lessonAnswers?.[lessonId]
+          ?.selectedOptionIdsByExerciseId?.[exerciseId],
+      ).toEqual(["manual-rules-only"]);
+    });
+
+    await act(async () => {
+      seedAuthSession({
+        accessToken: "second-access-token",
+        email: "second@example.com",
+        initials: "SS",
+        name: "Second Student",
+        sub: "student-2",
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(correctOptionLabel)).not.toBeChecked();
+      expect(screen.getByLabelText(wrongOptionLabel)).not.toBeChecked();
+      expect(screen.queryByRole("button", { name: "Batal" })).not.toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(
+        readStoredAccountProgress("student-2")?.lessonAnswers?.[lessonId]
+          ?.selectedOptionIdsByExerciseId?.[exerciseId] ?? [],
+      ).toEqual([]);
+    });
   });
 
   it("blocks direct access to locked Learning Mode lessons", async () => {
