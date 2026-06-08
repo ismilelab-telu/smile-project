@@ -68,6 +68,7 @@ COGNITO_CLIENT_SECRET = os.environ.get("COGNITO_CLIENT_SECRET", "")
 COGNITO_OAUTH_DOMAIN = os.environ.get("COGNITO_OAUTH_DOMAIN", "").strip().rstrip("/")
 COGNITO_OAUTH_REDIRECT_URIS = os.environ.get("COGNITO_OAUTH_REDIRECT_URIS", "")
 COGNITO_GOOGLE_IDP_NAME = os.environ.get("COGNITO_GOOGLE_IDP_NAME", "Google")
+COGNITO_MICROSOFT_IDP_NAME = os.environ.get("COGNITO_MICROSOFT_IDP_NAME", "Microsoft")
 COGNITO_EMAIL_SENDER_KMS_KEY_ARN = os.environ.get("COGNITO_EMAIL_SENDER_KMS_KEY_ARN", "")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 RESEND_API_KEY_SECRET_ID = os.environ.get("RESEND_API_KEY_SECRET_ID", "")
@@ -117,11 +118,21 @@ AUTH_GOOGLE_OAUTH_COOKIE_NAME = os.environ.get(
     "AUTH_GOOGLE_OAUTH_COOKIE_NAME",
     "__Host-smile-oauth-google",
 )
+AUTH_MICROSOFT_OAUTH_COOKIE_NAME = os.environ.get(
+    "AUTH_MICROSOFT_OAUTH_COOKIE_NAME",
+    "__Host-smile-oauth-microsoft",
+)
 AUTH_REFRESH_SESSION_COOKIE_MAX_AGE_SECONDS = int(
     os.environ.get("AUTH_REFRESH_SESSION_COOKIE_MAX_AGE_SECONDS", str(7 * 24 * 60 * 60))
 )
 AUTH_GOOGLE_OAUTH_COOKIE_MAX_AGE_SECONDS = int(
     os.environ.get("AUTH_GOOGLE_OAUTH_COOKIE_MAX_AGE_SECONDS", "600")
+)
+AUTH_OAUTH_COOKIE_MAX_AGE_SECONDS = int(
+    os.environ.get(
+        "AUTH_OAUTH_COOKIE_MAX_AGE_SECONDS",
+        str(AUTH_GOOGLE_OAUTH_COOKIE_MAX_AGE_SECONDS),
+    )
 )
 AUTH_REFRESH_SESSION_COOKIE_SECURE = (
     os.environ.get("AUTH_REFRESH_SESSION_COOKIE_SECURE", "true").strip().lower() != "false"
@@ -290,6 +301,17 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             oauth_start = start_google_oauth_sign_in(body)
             return response(200, oauth_start["body"], cookies=[oauth_start["cookie"]])
 
+        if method == "POST" and path == "/auth/oauth/microsoft/start":
+            body = parse_json_body(event)
+            enforce_public_auth_rate_limit(
+                event,
+                "microsoft-oauth-start",
+                None,
+                cooldown_seconds=AUTH_SIGN_IN_COOLDOWN_SECONDS,
+            )
+            oauth_start = start_microsoft_oauth_sign_in(body)
+            return response(200, oauth_start["body"], cookies=[oauth_start["cookie"]])
+
         if method == "POST" and path == "/auth/oauth/google/callback":
             body = parse_json_body(event)
             enforce_public_auth_rate_limit(
@@ -301,6 +323,19 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             return auth_session_response(
                 complete_google_oauth_sign_in(body, event),
                 cookies=[create_clear_google_oauth_cookie()],
+            )
+
+        if method == "POST" and path == "/auth/oauth/microsoft/callback":
+            body = parse_json_body(event)
+            enforce_public_auth_rate_limit(
+                event,
+                "microsoft-oauth-callback",
+                None,
+                cooldown_seconds=AUTH_SIGN_IN_COOLDOWN_SECONDS,
+            )
+            return auth_session_response(
+                complete_microsoft_oauth_sign_in(body, event),
+                cookies=[create_clear_microsoft_oauth_cookie()],
             )
 
         if method == "POST" and path == "/auth/username/resolve":
@@ -975,6 +1010,10 @@ def create_clear_google_oauth_cookie() -> str:
     return create_cookie_header(AUTH_GOOGLE_OAUTH_COOKIE_NAME, "", max_age_seconds=0)
 
 
+def create_clear_microsoft_oauth_cookie() -> str:
+    return create_cookie_header(AUTH_MICROSOFT_OAUTH_COOKIE_NAME, "", max_age_seconds=0)
+
+
 def create_cookie_header(name: str, value: str, *, max_age_seconds: int) -> str:
     attributes = [
         f"{name}={value}",
@@ -1107,25 +1146,59 @@ def get_request_cookie(event: dict[str, Any], name: str) -> str:
     return ""
 
 
-def get_google_oauth_state_from_request(
+def get_oauth_provider_config(provider: str) -> dict[str, str]:
+    normalized_provider = provider.strip().lower()
+    if normalized_provider == "google":
+        return {
+            "cookie_name": AUTH_GOOGLE_OAUTH_COOKIE_NAME,
+            "expired_message": "Google sign-in session expired. Try again.",
+            "failed_code": "GoogleOAuthFailedException",
+            "failed_message": "Google sign-in could not be completed. Try again.",
+            "idp_name": COGNITO_GOOGLE_IDP_NAME,
+            "provider": "google",
+        }
+
+    if normalized_provider == "microsoft":
+        return {
+            "cookie_name": AUTH_MICROSOFT_OAUTH_COOKIE_NAME,
+            "expired_message": "Microsoft sign-in session expired. Try again.",
+            "failed_code": "MicrosoftOAuthFailedException",
+            "failed_message": "Microsoft sign-in could not be completed. Try again.",
+            "idp_name": COGNITO_MICROSOFT_IDP_NAME,
+            "provider": "microsoft",
+        }
+
+    raise AuthConfigurationError("OAuth provider is not configured.")
+
+
+def get_oauth_state_from_request(
+    provider: str,
     event: dict[str, Any] | None,
     now: int | None = None,
 ) -> dict[str, Any]:
+    provider_config = get_oauth_provider_config(provider)
     if event is None:
         raise CognitoSignInError(
             "InvalidOAuthStateException",
-            "Google sign-in session expired. Try again.",
+            provider_config["expired_message"],
         )
 
-    cookie_value = get_request_cookie(event, AUTH_GOOGLE_OAUTH_COOKIE_NAME)
+    cookie_value = get_request_cookie(event, provider_config["cookie_name"])
     oauth_state = parse_signed_google_oauth_state_value(cookie_value, now=now) if cookie_value else {}
     if oauth_state:
         return oauth_state
 
     raise CognitoSignInError(
         "InvalidOAuthStateException",
-        "Google sign-in session expired. Try again.",
+        provider_config["expired_message"],
     )
+
+
+def get_google_oauth_state_from_request(
+    event: dict[str, Any] | None,
+    now: int | None = None,
+) -> dict[str, Any]:
+    return get_oauth_state_from_request("google", event, now=now)
 
 
 def get_authentication_result_user_sub(authentication_result: dict[str, Any]) -> str:
@@ -1509,31 +1582,48 @@ def start_google_oauth_sign_in(
     body: dict[str, Any],
     now: int | None = None,
 ) -> dict[str, Any]:
+    return start_cognito_oauth_sign_in("google", body, now=now)
+
+
+def start_microsoft_oauth_sign_in(
+    body: dict[str, Any],
+    now: int | None = None,
+) -> dict[str, Any]:
+    return start_cognito_oauth_sign_in("microsoft", body, now=now)
+
+
+def start_cognito_oauth_sign_in(
+    provider: str,
+    body: dict[str, Any],
+    now: int | None = None,
+) -> dict[str, Any]:
+    provider_config = get_oauth_provider_config(provider)
     request_time = int(time.time()) if now is None else now
     redirect_uri = validate_cognito_oauth_redirect_uri(get_required_string(body, "redirectUri"))
     state = secrets.token_urlsafe(32)
     code_verifier = secrets.token_urlsafe(64)
     code_challenge = create_oauth_code_challenge(code_verifier)
-    expires_at = request_time + max(1, AUTH_GOOGLE_OAUTH_COOKIE_MAX_AGE_SECONDS)
+    cookie_max_age_seconds = max(1, AUTH_OAUTH_COOKIE_MAX_AGE_SECONDS)
+    expires_at = request_time + cookie_max_age_seconds
     oauth_state_cookie = create_cookie_header(
-        AUTH_GOOGLE_OAUTH_COOKIE_NAME,
+        provider_config["cookie_name"],
         create_signed_google_oauth_state_value(
             {
                 "codeVerifier": code_verifier,
                 "expiresAt": expires_at,
-                "provider": "google",
+                "provider": provider_config["provider"],
                 "redirectUri": redirect_uri,
                 "state": state,
             }
         ),
-        max_age_seconds=AUTH_GOOGLE_OAUTH_COOKIE_MAX_AGE_SECONDS,
+        max_age_seconds=cookie_max_age_seconds,
     )
     query = urllib.parse.urlencode(
         {
             "client_id": require_cognito_client_id(),
             "code_challenge": code_challenge,
             "code_challenge_method": "S256",
-            "identity_provider": COGNITO_GOOGLE_IDP_NAME,
+            "identity_provider": provider_config["idp_name"],
             "redirect_uri": redirect_uri,
             "response_type": "code",
             "scope": COGNITO_OAUTH_SCOPES,
@@ -1555,38 +1645,63 @@ def complete_google_oauth_sign_in(
     event: dict[str, Any] | None = None,
     now: int | None = None,
 ) -> dict[str, Any]:
+    return complete_cognito_oauth_sign_in("google", body, event, now=now)
+
+
+def complete_microsoft_oauth_sign_in(
+    body: dict[str, Any],
+    event: dict[str, Any] | None = None,
+    now: int | None = None,
+) -> dict[str, Any]:
+    return complete_cognito_oauth_sign_in("microsoft", body, event, now=now)
+
+
+def complete_cognito_oauth_sign_in(
+    provider: str,
+    body: dict[str, Any],
+    event: dict[str, Any] | None = None,
+    now: int | None = None,
+) -> dict[str, Any]:
+    provider_config = get_oauth_provider_config(provider)
     code = get_required_string(body, "code")
     state = get_required_string(body, "state")
     redirect_uri = validate_cognito_oauth_redirect_uri(get_required_string(body, "redirectUri"))
-    oauth_state = get_google_oauth_state_from_request(event, now=now)
+    oauth_state = get_oauth_state_from_request(provider_config["provider"], event, now=now)
 
-    if oauth_state.get("provider") != "google":
+    if oauth_state.get("provider") != provider_config["provider"]:
         raise CognitoSignInError(
             "InvalidOAuthStateException",
-            "Google sign-in session expired. Try again.",
+            provider_config["expired_message"],
         )
 
     expected_state = str(oauth_state.get("state") or "")
     if not expected_state or not hmac.compare_digest(state, expected_state):
         raise CognitoSignInError(
             "InvalidOAuthStateException",
-            "Google sign-in session expired. Try again.",
+            provider_config["expired_message"],
         )
 
     if oauth_state.get("redirectUri") != redirect_uri:
         raise CognitoSignInError(
             "InvalidOAuthStateException",
-            "Google sign-in session expired. Try again.",
+            provider_config["expired_message"],
         )
 
     code_verifier = str(oauth_state.get("codeVerifier") or "")
     if not code_verifier:
         raise CognitoSignInError(
             "InvalidOAuthStateException",
-            "Google sign-in session expired. Try again.",
+            provider_config["expired_message"],
         )
 
-    return {"authenticationResult": exchange_cognito_oauth_code(code, redirect_uri, code_verifier)}
+    return {
+        "authenticationResult": exchange_cognito_oauth_code(
+            code,
+            redirect_uri,
+            code_verifier,
+            provider_config,
+        )
+    }
 
 
 def create_oauth_code_challenge(code_verifier: str) -> str:
@@ -1599,7 +1714,9 @@ def exchange_cognito_oauth_code(
     code: str,
     redirect_uri: str,
     code_verifier: str,
+    provider_config: dict[str, str] | None = None,
 ) -> dict[str, Any]:
+    resolved_provider_config = provider_config or get_oauth_provider_config("google")
     encoded_body = urllib.parse.urlencode(
         {
             "code": code,
@@ -1636,14 +1753,14 @@ def exchange_cognito_oauth_code(
         UnicodeDecodeError,
     ) as error:
         raise CognitoSignInError(
-            "GoogleOAuthFailedException",
-            "Google sign-in could not be completed. Try again.",
+            resolved_provider_config["failed_code"],
+            resolved_provider_config["failed_message"],
         ) from error
 
     if not isinstance(payload, dict):
         raise CognitoSignInError(
-            "GoogleOAuthFailedException",
-            "Google sign-in could not be completed. Try again.",
+            resolved_provider_config["failed_code"],
+            resolved_provider_config["failed_message"],
         )
 
     access_token = str(payload.get("access_token") or "")
@@ -1653,8 +1770,8 @@ def exchange_cognito_oauth_code(
 
     if not access_token or not id_token or not refresh_token:
         raise CognitoSignInError(
-            "GoogleOAuthFailedException",
-            "Google sign-in could not be completed. Try again.",
+            resolved_provider_config["failed_code"],
+            resolved_provider_config["failed_message"],
         )
 
     return {

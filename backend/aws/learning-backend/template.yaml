@@ -53,28 +53,52 @@ Parameters:
     NoEcho: true
     Default: ""
     Description: Google OAuth client secret for Cognito federated sign-in. Leave empty to disable Google sign-in.
+  MicrosoftOAuthClientId:
+    Type: String
+    Default: ""
+    Description: Microsoft OAuth client ID for Cognito federated sign-in. Leave empty to disable Microsoft sign-in.
+  MicrosoftOAuthClientSecret:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Microsoft OAuth client secret for Cognito federated sign-in. Leave empty to disable Microsoft sign-in.
+  MicrosoftOAuthIssuer:
+    Type: String
+    Default: "https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0"
+    Description: Microsoft OIDC issuer. Default supports personal Microsoft accounts only; use a tenant-specific issuer for one work/school organization.
   CognitoOAuthDomainPrefix:
     Type: String
     Default: ""
-    Description: Cognito Hosted UI domain prefix for OAuth sign-in. Leave empty to disable Google sign-in.
+    Description: Cognito Hosted UI domain prefix for OAuth sign-in. Leave empty to disable federated OAuth sign-in.
   CognitoOAuthCallbackUrls:
     Type: CommaDelimitedList
-    Default: "http://127.0.0.1:5317/auth/callback/google,http://localhost:5317/auth/callback/google"
+    Default: "https://learn.smile.me/auth/callback/google,https://learn.smile.me/auth/callback/microsoft"
     Description: Exact callback URLs allowed by Cognito and the backend OAuth callback validator.
   CognitoOAuthLogoutUrls:
     Type: CommaDelimitedList
-    Default: "http://127.0.0.1:5317/learn,http://localhost:5317/learn"
-    Description: Logout URLs allowed by Cognito Hosted UI when Google OAuth is enabled.
+    Default: "https://learn.smile.me/learn"
+    Description: Logout URLs allowed by Cognito Hosted UI when federated OAuth is enabled.
 
 Conditions:
   HasGoogleOAuthClientId: !Not [!Equals [!Ref GoogleOAuthClientId, ""]]
   HasGoogleOAuthClientSecret: !Not [!Equals [!Ref GoogleOAuthClientSecret, ""]]
+  HasMicrosoftOAuthClientId: !Not [!Equals [!Ref MicrosoftOAuthClientId, ""]]
+  HasMicrosoftOAuthClientSecret: !Not [!Equals [!Ref MicrosoftOAuthClientSecret, ""]]
+  HasMicrosoftOAuthIssuer: !Not [!Equals [!Ref MicrosoftOAuthIssuer, ""]]
   HasCognitoOAuthDomainPrefix: !Not [!Equals [!Ref CognitoOAuthDomainPrefix, ""]]
   EnableGoogleOAuth: !And
     - !Condition HasGoogleOAuthClientId
     - !Condition HasGoogleOAuthClientSecret
     - !Condition HasCognitoOAuthDomainPrefix
-  DisableGoogleOAuth: !Not [!Condition EnableGoogleOAuth]
+  EnableMicrosoftOAuth: !And
+    - !Condition HasMicrosoftOAuthClientId
+    - !Condition HasMicrosoftOAuthClientSecret
+    - !Condition HasMicrosoftOAuthIssuer
+    - !Condition HasCognitoOAuthDomainPrefix
+  EnableAnyOAuth: !Or
+    - !Condition EnableGoogleOAuth
+    - !Condition EnableMicrosoftOAuth
+  DisableOAuth: !Not [!Condition EnableAnyOAuth]
 
 Globals:
   Function:
@@ -203,7 +227,7 @@ Resources:
 
   SmileUserPoolClient:
     Type: AWS::Cognito::UserPoolClient
-    Condition: DisableGoogleOAuth
+    Condition: DisableOAuth
     Properties:
       ClientName: !Sub "${AWS::StackName}-web-client"
       UserPoolId: !Ref SmileUserPool
@@ -236,20 +260,35 @@ Resources:
         email: email
         name: name
 
+  CognitoMicrosoftIdentityProvider:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Condition: EnableMicrosoftOAuth
+    Properties:
+      UserPoolId: !Ref SmileUserPool
+      ProviderName: Microsoft
+      ProviderType: OIDC
+      ProviderDetails:
+        attributes_request_method: GET
+        authorize_scopes: "openid email profile"
+        client_id: !Ref MicrosoftOAuthClientId
+        client_secret: !Ref MicrosoftOAuthClientSecret
+        oidc_issuer: !Ref MicrosoftOAuthIssuer
+      AttributeMapping:
+        email: email
+        name: name
+
   SmileUserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
-    Condition: EnableGoogleOAuth
+    Condition: EnableAnyOAuth
     Properties:
       Domain: !Ref CognitoOAuthDomainPrefix
       UserPoolId: !Ref SmileUserPool
 
   SmileGoogleUserPoolClient:
     Type: AWS::Cognito::UserPoolClient
-    Condition: EnableGoogleOAuth
-    DependsOn:
-      - CognitoGoogleIdentityProvider
+    Condition: EnableAnyOAuth
     Properties:
-      ClientName: !Sub "${AWS::StackName}-web-client-google"
+      ClientName: !Sub "${AWS::StackName}-web-client-oauth"
       UserPoolId: !Ref SmileUserPool
       GenerateSecret: true
       ExplicitAuthFlows:
@@ -266,7 +305,8 @@ Resources:
         RefreshToken: days
       SupportedIdentityProviders:
         - COGNITO
-        - Google
+        - !If [EnableGoogleOAuth, !Ref CognitoGoogleIdentityProvider, !Ref AWS::NoValue]
+        - !If [EnableMicrosoftOAuth, !Ref CognitoMicrosoftIdentityProvider, !Ref AWS::NoValue]
       AllowedOAuthFlowsUserPoolClient: true
       AllowedOAuthFlows:
         - code
@@ -330,19 +370,20 @@ Resources:
           MAX_PROGRESS_JSON_BYTES: "300000"
           COGNITO_USER_POOL_ID: !Ref SmileUserPool
           COGNITO_CLIENT_ID: !If
-            - EnableGoogleOAuth
+            - EnableAnyOAuth
             - !Ref SmileGoogleUserPoolClient
             - !Ref SmileUserPoolClient
           COGNITO_CLIENT_SECRET: !If
-            - EnableGoogleOAuth
+            - EnableAnyOAuth
             - !GetAtt SmileGoogleUserPoolClient.ClientSecret
             - !GetAtt SmileUserPoolClient.ClientSecret
           COGNITO_OAUTH_DOMAIN: !If
-            - EnableGoogleOAuth
+            - EnableAnyOAuth
             - !Sub "https://${CognitoOAuthDomainPrefix}.auth.${AWS::Region}.amazoncognito.com"
             - ""
           COGNITO_OAUTH_REDIRECT_URIS: !Join [",", !Ref CognitoOAuthCallbackUrls]
           COGNITO_GOOGLE_IDP_NAME: "Google"
+          COGNITO_MICROSOFT_IDP_NAME: "Microsoft"
           COGNITO_REGION: !Ref AWS::Region
           RESEND_API_KEY_SECRET_ID: !Ref ResendApiKeySecretName
           RESEND_FROM_EMAIL: !Ref ResendFromEmail
@@ -454,15 +495,15 @@ Outputs:
   CognitoUserPoolClientId:
     Description: Confidential Cognito app client ID used by backend-owned auth.
     Value: !If
-      - EnableGoogleOAuth
+      - EnableAnyOAuth
       - !Ref SmileGoogleUserPoolClient
       - !Ref SmileUserPoolClient
   CognitoRegion:
     Description: Cognito region used by backend-owned auth.
     Value: !Ref AWS::Region
   CognitoOAuthDomain:
-    Condition: EnableGoogleOAuth
-    Description: Cognito Hosted UI OAuth domain used for Google sign-in.
+    Condition: EnableAnyOAuth
+    Description: Cognito Hosted UI OAuth domain used for federated sign-in.
     Value: !Sub "https://${CognitoOAuthDomainPrefix}.auth.${AWS::Region}.amazoncognito.com"
   DatasetUploadBucketName:
     Description: Private temporary dataset upload bucket.

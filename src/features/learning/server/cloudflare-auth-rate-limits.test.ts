@@ -15,6 +15,8 @@ const expectedAuthPaths = [
   "/api/learning-backend/auth/username/sign-in",
   "/api/learning-backend/auth/oauth/google/start",
   "/api/learning-backend/auth/oauth/google/callback",
+  "/api/learning-backend/auth/oauth/microsoft/start",
+  "/api/learning-backend/auth/oauth/microsoft/callback",
   "/api/learning-backend/auth/sign-up/start",
   "/api/learning-backend/auth/confirmation/resend",
   "/api/learning-backend/auth/confirmation/confirm",

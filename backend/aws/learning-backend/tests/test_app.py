@@ -39,6 +39,7 @@ from app import (
     sign_in_with_email,
     sign_in_with_username,
     start_google_oauth_sign_in,
+    start_microsoft_oauth_sign_in,
     start_sign_up,
     validate_pandas_loading_code,
 )
@@ -355,6 +356,10 @@ class LearningBackendTest(unittest.TestCase):
         self.original_cognito_client_secret = app.COGNITO_CLIENT_SECRET
         self.original_cognito_region = app.COGNITO_REGION
         self.original_cognito_user_pool_id = app.COGNITO_USER_POOL_ID
+        self.original_cognito_oauth_domain = app.COGNITO_OAUTH_DOMAIN
+        self.original_cognito_oauth_redirect_uris = app.COGNITO_OAUTH_REDIRECT_URIS
+        self.original_cognito_google_idp_name = app.COGNITO_GOOGLE_IDP_NAME
+        self.original_cognito_microsoft_idp_name = app.COGNITO_MICROSOFT_IDP_NAME
         self.original_cognito_identity_provider_client = app._cognito_identity_provider_client
         self.original_create_confirmation_code = app.create_confirmation_code
         self.original_dynamodb_client = app._dynamodb_client
@@ -374,6 +379,9 @@ class LearningBackendTest(unittest.TestCase):
             app.AUTH_SESSION_REVOKE_BURST_WINDOW_SECONDS
         )
         self.original_auth_refresh_session_cookie_name = app.AUTH_REFRESH_SESSION_COOKIE_NAME
+        self.original_auth_google_oauth_cookie_name = app.AUTH_GOOGLE_OAUTH_COOKIE_NAME
+        self.original_auth_microsoft_oauth_cookie_name = app.AUTH_MICROSOFT_OAUTH_COOKIE_NAME
+        self.original_auth_oauth_cookie_max_age_seconds = app.AUTH_OAUTH_COOKIE_MAX_AGE_SECONDS
         self.original_auth_refresh_session_cookie_secure = app.AUTH_REFRESH_SESSION_COOKIE_SECURE
         self.original_auth_refresh_session_cookie_max_age_seconds = (
             app.AUTH_REFRESH_SESSION_COOKIE_MAX_AGE_SECONDS
@@ -398,6 +406,9 @@ class LearningBackendTest(unittest.TestCase):
         app.AUTH_SESSION_REVOKE_BURST_LIMIT = 30
         app.AUTH_SESSION_REVOKE_BURST_WINDOW_SECONDS = 60
         app.AUTH_REFRESH_SESSION_COOKIE_NAME = "__Host-smile-refresh-session"
+        app.AUTH_GOOGLE_OAUTH_COOKIE_NAME = "__Host-smile-oauth-google"
+        app.AUTH_MICROSOFT_OAUTH_COOKIE_NAME = "__Host-smile-oauth-microsoft"
+        app.AUTH_OAUTH_COOKIE_MAX_AGE_SECONDS = 600
         app.AUTH_REFRESH_SESSION_COOKIE_SECURE = True
         app.AUTH_REFRESH_SESSION_COOKIE_MAX_AGE_SECONDS = 604800
 
@@ -406,6 +417,10 @@ class LearningBackendTest(unittest.TestCase):
         app.COGNITO_CLIENT_SECRET = self.original_cognito_client_secret
         app.COGNITO_REGION = self.original_cognito_region
         app.COGNITO_USER_POOL_ID = self.original_cognito_user_pool_id
+        app.COGNITO_OAUTH_DOMAIN = self.original_cognito_oauth_domain
+        app.COGNITO_OAUTH_REDIRECT_URIS = self.original_cognito_oauth_redirect_uris
+        app.COGNITO_GOOGLE_IDP_NAME = self.original_cognito_google_idp_name
+        app.COGNITO_MICROSOFT_IDP_NAME = self.original_cognito_microsoft_idp_name
         app._cognito_identity_provider_client = self.original_cognito_identity_provider_client
         app.create_confirmation_code = self.original_create_confirmation_code
         app._dynamodb_client = self.original_dynamodb_client
@@ -427,6 +442,9 @@ class LearningBackendTest(unittest.TestCase):
             self.original_auth_session_revoke_burst_window_seconds
         )
         app.AUTH_REFRESH_SESSION_COOKIE_NAME = self.original_auth_refresh_session_cookie_name
+        app.AUTH_GOOGLE_OAUTH_COOKIE_NAME = self.original_auth_google_oauth_cookie_name
+        app.AUTH_MICROSOFT_OAUTH_COOKIE_NAME = self.original_auth_microsoft_oauth_cookie_name
+        app.AUTH_OAUTH_COOKIE_MAX_AGE_SECONDS = self.original_auth_oauth_cookie_max_age_seconds
         app.AUTH_REFRESH_SESSION_COOKIE_SECURE = self.original_auth_refresh_session_cookie_secure
         app.AUTH_REFRESH_SESSION_COOKIE_MAX_AGE_SECONDS = (
             self.original_auth_refresh_session_cookie_max_age_seconds
@@ -947,6 +965,39 @@ class LearningBackendTest(unittest.TestCase):
         self.assertEqual(state_payload["redirectUri"], "https://smile.test/auth/callback/google")
         self.assertEqual(query["state"], [state_payload["state"]])
 
+    def test_microsoft_oauth_start_returns_authorization_url_and_state_cookie(self) -> None:
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        app.COGNITO_OAUTH_DOMAIN = "https://smile.auth.ap-southeast-1.amazoncognito.com"
+        app.COGNITO_OAUTH_REDIRECT_URIS = "https://smile.test/auth/callback/microsoft"
+
+        result = start_microsoft_oauth_sign_in(
+            {"redirectUri": "https://smile.test/auth/callback/microsoft"},
+            now=1_700_000_000,
+        )
+        authorization_url = result["body"]["authorizationUrl"]
+        parsed_url = app.urllib.parse.urlparse(authorization_url)
+        query = app.urllib.parse.parse_qs(parsed_url.query)
+        cookie_value = str(result["cookie"]).split(";", 1)[0].partition("=")[2]
+        state_payload = app.parse_signed_google_oauth_state_value(
+            cookie_value,
+            now=1_700_000_000,
+        )
+
+        self.assertEqual(parsed_url.scheme, "https")
+        self.assertEqual(parsed_url.path, "/oauth2/authorize")
+        self.assertEqual(query["client_id"], ["web-client"])
+        self.assertEqual(query["identity_provider"], ["Microsoft"])
+        self.assertEqual(query["redirect_uri"], ["https://smile.test/auth/callback/microsoft"])
+        self.assertEqual(query["response_type"], ["code"])
+        self.assertEqual(query["code_challenge_method"], ["S256"])
+        self.assertEqual(state_payload["provider"], "microsoft")
+        self.assertEqual(
+            state_payload["redirectUri"],
+            "https://smile.test/auth/callback/microsoft",
+        )
+        self.assertEqual(query["state"], [state_payload["state"]])
+
     def test_google_oauth_callback_sets_session_cookie_without_returning_refresh_token(self) -> None:
         app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
         app.COGNITO_CLIENT_ID = "web-client"
@@ -1021,6 +1072,87 @@ class LearningBackendTest(unittest.TestCase):
         self.assertEqual(len(result["cookies"]), 2)
         self.assertIn("__Host-smile-refresh-session=", result["cookies"][0])
         self.assertIn("__Host-smile-oauth-google=", result["cookies"][1])
+        self.assertIn("Max-Age=0", result["cookies"][1])
+
+    def test_microsoft_oauth_callback_sets_session_cookie_without_returning_refresh_token(
+        self,
+    ) -> None:
+        app.AUTH_COOLDOWN_TABLE = "auth-cooldowns"
+        app.COGNITO_CLIENT_ID = "web-client"
+        app.COGNITO_CLIENT_SECRET = "client-secret"
+        app.COGNITO_OAUTH_DOMAIN = "https://smile.auth.ap-southeast-1.amazoncognito.com"
+        app.COGNITO_OAUTH_REDIRECT_URIS = "https://smile.test/auth/callback/microsoft"
+        app._dynamodb_client = FakeDynamoDbClient()
+        id_token = create_unverified_jwt(
+            {
+                "email": "student@example.com",
+                "exp": 1_800_000_000,
+                "name": "Student One",
+                "sub": "student-sub",
+            }
+        )
+        oauth_start = start_microsoft_oauth_sign_in(
+            {"redirectUri": "https://smile.test/auth/callback/microsoft"}
+        )
+        authorization_url = oauth_start["body"]["authorizationUrl"]
+        state = app.urllib.parse.parse_qs(app.urllib.parse.urlparse(authorization_url).query)[
+            "state"
+        ][0]
+        oauth_cookie = str(oauth_start["cookie"]).split(";", 1)[0]
+        captured_requests: list[object] = []
+        original_urlopen = app.urllib.request.urlopen
+
+        def fake_urlopen(request, timeout):
+            captured_requests.append(request)
+            self.assertEqual(timeout, app.COGNITO_OAUTH_REQUEST_TIMEOUT_SECONDS)
+            return FakeUrlopenResponse(
+                {
+                    "access_token": "access-token",
+                    "expires_in": 3600,
+                    "id_token": id_token,
+                    "refresh_token": "refresh-token",
+                }
+            )
+
+        app.urllib.request.urlopen = fake_urlopen
+        try:
+            result = app.lambda_handler(
+                {
+                    "body": json.dumps(
+                        {
+                            "code": "authorization-code",
+                            "redirectUri": "https://smile.test/auth/callback/microsoft",
+                            "state": state,
+                        }
+                    ),
+                    "headers": {"cookie": oauth_cookie},
+                    "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.10"}},
+                    "rawPath": "/auth/oauth/microsoft/callback",
+                },
+                None,
+            )
+        finally:
+            app.urllib.request.urlopen = original_urlopen
+
+        body = json.loads(result["body"])
+        token_request = captured_requests[0]
+        token_body = app.urllib.parse.parse_qs(token_request.data.decode("utf-8"))
+
+        self.assertEqual(result["statusCode"], 200)
+        self.assertNotIn("RefreshToken", body["authenticationResult"])
+        self.assertEqual(body["authenticationResult"]["AccessToken"], "access-token")
+        self.assertEqual(token_request.full_url, f"{app.COGNITO_OAUTH_DOMAIN}/oauth2/token")
+        self.assertEqual(token_body["grant_type"], ["authorization_code"])
+        self.assertEqual(token_body["code"], ["authorization-code"])
+        self.assertEqual(
+            token_body["redirect_uri"],
+            ["https://smile.test/auth/callback/microsoft"],
+        )
+        self.assertIn("code_verifier", token_body)
+        self.assertTrue(token_request.get_header("Authorization").startswith("Basic "))
+        self.assertEqual(len(result["cookies"]), 2)
+        self.assertIn("__Host-smile-refresh-session=", result["cookies"][0])
+        self.assertIn("__Host-smile-oauth-microsoft=", result["cookies"][1])
         self.assertIn("Max-Age=0", result["cookies"][1])
 
     def test_session_refresh_uses_backend_owned_admin_auth(self) -> None:

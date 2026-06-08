@@ -2,7 +2,7 @@
 
 Last audited: 2026-06-03
 
-This document describes the current authentication system in Smile Project from the code that exists today. The app does not use Amplify. Email/password auth remains backend-owned, while Google sign-in uses Cognito Hosted UI only for the federated OAuth redirect. The browser keeps Cognito bearer tokens in memory, the backend stores the Cognito refresh token in a signed HttpOnly refresh-session cookie, Amazon Cognito issues tokens, and the AWS learning backend owns custom sign-up policy, username reservation, verification email delivery, learning-progress sync, and protected guided-download backend work.
+This document describes the current authentication system in Smile Project from the code that exists today. The app does not use Amplify. Email/password auth remains backend-owned, while Google and Microsoft sign-in use Cognito Hosted UI only for the federated OAuth redirect. The browser keeps Cognito bearer tokens in memory, the backend stores the Cognito refresh token in a signed HttpOnly refresh-session cookie, Amazon Cognito issues tokens, and the AWS learning backend owns custom sign-up policy, username reservation, verification email delivery, learning-progress sync, and protected guided-download backend work.
 
 ## Source Map
 
@@ -12,7 +12,7 @@ This document describes the current authentication system in Smile Project from 
 | React auth state and context API                     | `src/features/auth/auth-context.tsx`                                                                              |
 | Cognito/backend auth requests                        | `src/features/auth/cognito-auth.ts`                                                                               |
 | Browser session shape, storage, JWT decoding         | `src/features/auth/auth-session.ts`                                                                               |
-| Google OAuth callback return path helper             | `src/features/auth/google-oauth-return.ts`                                                                        |
+| Federated OAuth callback return path helper          | `src/features/auth/google-oauth-return.ts`                                                                        |
 | Token refresh orchestration                          | `src/features/auth/auth-session-refresh.ts`                                                                       |
 | App routing and auth modal routes                    | `src/app/App.tsx`                                                                                                 |
 | Learning route auth gate                             | `src/pages/LearningPage.tsx`                                                                                      |
@@ -31,7 +31,7 @@ The system has four auth-related layers:
 
 1. The React app renders `/login` and `/register` as a shared modal over the current app route.
 2. The React auth context keeps the Cognito bearer session in browser module memory and exposes `signIn`, `signUp`, `confirmSignUp`, `resendConfirmationCode`, `getFreshSession`, and `signOut`.
-3. Cognito issues ID, access, and refresh tokens through the confidential backend-owned app client. Google sign-in uses Cognito's OAuth authorization-code flow with backend-owned token exchange.
+3. Cognito issues ID, access, and refresh tokens through the confidential backend-owned app client. Google and Microsoft sign-in use Cognito's OAuth authorization-code flow with backend-owned token exchange.
 4. The learning backend is exposed by a Lambda Function URL, but production non-health routes require the Cloudflare Pages proxy secret before route handlers run. It verifies Cognito bearer tokens for protected routes and runs custom backend-owned sign-up endpoints for registration.
 
 Important non-goals in the current implementation:
@@ -58,21 +58,23 @@ The frontend no longer calls Cognito directly for password sign-in, username sig
 
 `AuthProvider` wraps the whole app in `src/app/App.tsx`, inside `LocalizationProvider` and outside app routes. It exposes:
 
-| Field                           | Meaning                                                                                                                |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `session`                       | Current `AuthSession` or `null`. May include an expired session during startup while refresh is attempted.             |
-| `isReady`                       | `true` after the initial in-memory session refresh/check finishes. Learning routes use this before showing auth gates. |
-| `isAuthenticated`               | `true` only when a session exists and is not expired under the default 30 second expiry skew.                          |
-| `signIn(input)`                 | Signs in with email or username and keeps the session in memory.                                                       |
-| `startGoogleSignIn(input)`      | Starts Google OAuth through the backend and returns the Cognito authorization URL.                                     |
-| `completeGoogleSignIn(input)`   | Completes the Google OAuth callback through the backend and keeps the session in memory.                               |
-| `signUp(input)`                 | Clears any current session, starts backend-owned sign-up, and returns masked delivery details.                         |
-| `confirmSignUp(input)`          | Confirms backend-owned sign-up. It does not store a session by itself. The UI signs in after confirmation.             |
-| `resendConfirmationCode(email)` | Resends the backend-owned verification code and returns cooldown details.                                              |
-| `requestPasswordReset(email)`   | Starts Cognito forgot-password and returns masked delivery details.                                                    |
-| `confirmPasswordReset(input)`   | Confirms Cognito forgot-password with the reset code and new password.                                                 |
-| `getFreshSession(options)`      | Returns a usable in-memory session, refreshing it if needed or forced.                                                 |
-| `signOut()`                     | Clears the in-memory session plus legacy auth storage and sets `session` to `null`.                                    |
+| Field                            | Meaning                                                                                                                |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `session`                        | Current `AuthSession` or `null`. May include an expired session during startup while refresh is attempted.             |
+| `isReady`                        | `true` after the initial in-memory session refresh/check finishes. Learning routes use this before showing auth gates. |
+| `isAuthenticated`                | `true` only when a session exists and is not expired under the default 30 second expiry skew.                          |
+| `signIn(input)`                  | Signs in with email or username and keeps the session in memory.                                                       |
+| `startGoogleSignIn(input)`       | Starts Google OAuth through the backend and returns the Cognito authorization URL.                                     |
+| `completeGoogleSignIn(input)`    | Completes the Google OAuth callback through the backend and keeps the session in memory.                               |
+| `startMicrosoftSignIn(input)`    | Starts Microsoft OAuth through the backend and returns the Cognito authorization URL.                                  |
+| `completeMicrosoftSignIn(input)` | Completes the Microsoft OAuth callback through the backend and keeps the session in memory.                            |
+| `signUp(input)`                  | Clears any current session, starts backend-owned sign-up, and returns masked delivery details.                         |
+| `confirmSignUp(input)`           | Confirms backend-owned sign-up. It does not store a session by itself. The UI signs in after confirmation.             |
+| `resendConfirmationCode(email)`  | Resends the backend-owned verification code and returns cooldown details.                                              |
+| `requestPasswordReset(email)`    | Starts Cognito forgot-password and returns masked delivery details.                                                    |
+| `confirmPasswordReset(input)`    | Confirms Cognito forgot-password with the reset code and new password.                                                 |
+| `getFreshSession(options)`       | Returns a usable in-memory session, refreshing it if needed or forced.                                                 |
+| `signOut()`                      | Clears the in-memory session plus legacy auth storage and sets `session` to `null`.                                    |
 
 `AuthProvider` listens for the custom `smile-auth-session-changed` browser event so state updates when helper functions write or clear the in-memory auth session.
 
@@ -83,9 +85,10 @@ Auth is exposed in three places:
 - `/login` opens `AuthPage` in login mode.
 - `/register` opens `AuthPage` in register mode.
 - `/auth/callback/google` completes the Cognito Google OAuth authorization-code flow.
+- `/auth/callback/microsoft` completes the Cognito Microsoft OAuth authorization-code flow.
 - `LearningHeader` shows `Login / Register` links for guests and profile plus logout for authenticated users.
 
-Auth routes are modal routes. When a user opens `/login`, `/register`, or `/auth/callback/google`, `AppRoutes` keeps the previous non-auth route as `backgroundPath`, renders that route underneath, and overlays the auth UI or callback status.
+Auth routes are modal routes. When a user opens `/login`, `/register`, `/auth/callback/google`, or `/auth/callback/microsoft`, `AppRoutes` keeps the previous non-auth route as `backgroundPath`, renders that route underneath, and overlays the auth UI or callback status.
 
 `AuthPage` guards against using `/login` or `/register` as a close or success target. If that happens, it falls back to `/learn`.
 
@@ -147,19 +150,19 @@ The deprecated backend `/auth/username/resolve` route no longer returns emails. 
 
 The UI defaults to username login. Users can toggle to email login with the field label action.
 
-### Google Sign-In
+### Federated OAuth Sign-In
 
 Flow:
 
 ```text
-AuthPage Google button
-  -> auth.startGoogleSignIn({ redirectUri })
-  -> POST /auth/oauth/google/start
+AuthPage Google or Microsoft button
+  -> auth.startGoogleSignIn({ redirectUri }) or auth.startMicrosoftSignIn({ redirectUri })
+  -> POST /auth/oauth/<provider>/start
   -> backend creates signed state + PKCE verifier cookie
-  -> frontend redirects to Cognito Hosted UI with identity_provider=Google
-  -> Cognito redirects to /auth/callback/google with code + state
-  -> auth.completeGoogleSignIn({ code, state, redirectUri })
-  -> POST /auth/oauth/google/callback
+  -> frontend redirects to Cognito Hosted UI with identity_provider=<provider>
+  -> Cognito redirects to /auth/callback/<provider> with code + state
+  -> auth.completeGoogleSignIn(...) or auth.completeMicrosoftSignIn(...)
+  -> POST /auth/oauth/<provider>/callback
   -> backend validates state cookie and redirect URI
   -> backend exchanges the code at Cognito /oauth2/token with confidential client auth
   -> backend returns access/ID tokens, sets refresh token in HttpOnly cookie, and clears OAuth state cookie
@@ -167,25 +170,28 @@ AuthPage Google button
   -> storeAuthSession()
 ```
 
-Google sign-in uses `sessionStorage` only for a non-sensitive local return path. The helper rejects external URLs, `/login`, `/register`, and the callback route before navigating after success.
+Federated OAuth sign-in uses `sessionStorage` only for a non-sensitive local return path. The helper rejects external URLs, `/login`, `/register`, and OAuth callback routes before navigating after success.
 
-The backend allows Google OAuth only when `COGNITO_OAUTH_DOMAIN`, `COGNITO_OAUTH_REDIRECT_URIS`, the Cognito client ID, and the Cognito client secret are configured. The SAM template enables the Google IdP only when `GoogleOAuthClientId`, `GoogleOAuthClientSecret`, and `CognitoOAuthDomainPrefix` are all provided.
+The backend allows federated OAuth only when `COGNITO_OAUTH_DOMAIN`, `COGNITO_OAUTH_REDIRECT_URIS`, the Cognito client ID, and the Cognito client secret are configured. The SAM template enables Google when `GoogleOAuthClientId`, `GoogleOAuthClientSecret`, and `CognitoOAuthDomainPrefix` are provided. It enables Microsoft when `MicrosoftOAuthClientId`, `MicrosoftOAuthClientSecret`, and `CognitoOAuthDomainPrefix` are provided.
 
-### Google OAuth Troubleshooting
+Microsoft OIDC defaults to personal Microsoft accounts only with issuer `https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0`. For one work/school organization, set `MicrosoftOAuthIssuer` to `https://login.microsoftonline.com/<TENANT_ID>/v2.0`. Do not use `/common` with Cognito because Microsoft returns tenant-specific token issuers and Cognito requires an exact issuer match.
 
-Use the browser DevTools Network tab first. The `POST /auth/oauth/google/start` request tells you which layer failed:
+### Federated OAuth Troubleshooting
 
-| Symptom or error                                                                    | Likely cause                                                                                                                                                | Fix                                                                                                                                                                                                                                                                                         |
-| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OAuth redirect URI is not allowed.`                                                | The frontend sent a `redirectUri` such as `https://learn.smile.me/auth/callback/google`, but backend env `COGNITO_OAUTH_REDIRECT_URIS` does not include it. | Deploy backend with `CognitoOAuthCallbackUrls` containing every app callback domain. Then confirm Lambda env includes `COGNITO_OAUTH_REDIRECT_URIS`.                                                                                                                                        |
-| `Learning backend proxy is required.`                                               | Browser request reached Lambda without the correct Cloudflare proxy secret, or frontend is calling the Lambda Function URL directly.                        | Production frontend must use `VITE_LEARNING_BACKEND_URL=/api/learning-backend`. `LearningBackendProxySecret` in SAM, Cloudflare Pages secret `LEARNING_BACKEND_PROXY_SECRET`, and GitHub secret `LEARNING_BACKEND_PROXY_SECRET` must match. Redeploy frontend after changing Pages secrets. |
-| `Route not found.` from `/auth/oauth/google/start`                                  | The active Lambda/proxy code is old and does not contain the Google OAuth routes.                                                                           | Remove stale SAM artifacts with `rm -rf .aws-sam`, run `sam build --template-file template.yaml`, verify `rg "auth/oauth/google                                                                                                                                                             | COGNITO_OAUTH_DOMAIN" .aws-sam/build/template.yaml .aws-sam/build/LearningBackendFunction/app.py`, then deploy `.aws-sam/build/template.yaml`. |
-| `Missing option '--stack-name'` from `sam deploy`                                   | Deploy was run outside `backend/aws/learning-backend` or without the saved SAM config.                                                                      | Run from `backend/aws/learning-backend`, or pass `--stack-name smile-learning-backend` explicitly.                                                                                                                                                                                          |
-| `Parameters: [AuthConfirmationCodePepper] must have values`                         | `AuthConfirmationCodePepper` is a required `NoEcho` parameter and is not stored in `samconfig.toml`.                                                        | Pass `AuthConfirmationCodePepper` on manual deploy, or use the GitHub Actions secret `AUTH_CONFIRMATION_CODE_PEPPER`. Rotating it can invalidate pending sign-up verification codes.                                                                                                        |
-| `http:// cannot use the HTTP protocol.` while creating `SmileGoogleUserPoolClient`  | Cognito app client OAuth callback/logout URLs contain `http://localhost` or `http://127.0.0.1`.                                                             | Cognito OAuth `CallbackURLs` and `LogoutURLs` must be HTTPS. Remove local HTTP URLs from `CognitoOAuthCallbackUrls` and `CognitoOAuthLogoutUrls`; use an HTTPS tunnel for local OAuth testing if needed.                                                                                    |
-| Google Console says `Invalid Origin: URIs must not contain a path or end with '/'`. | The Cognito `/oauth2/idpresponse` URL was pasted into **Authorized JavaScript origins**.                                                                    | Put only origins like `https://learn.smile.me` in JavaScript origins. Put the full Cognito URL in **Authorized redirect URIs**.                                                                                                                                                             |
+Use the browser DevTools Network tab first. The `POST /auth/oauth/<provider>/start` request tells you which layer failed:
 
-Known-good manual backend deploy shape for Google OAuth:
+| Symptom or error                                                                    | Likely cause                                                                                                                                                   | Fix                                                                                                                                                                                                                                                                                                      |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OAuth redirect URI is not allowed.`                                                | The frontend sent a `redirectUri` such as `https://learn.smile.me/auth/callback/microsoft`, but backend env `COGNITO_OAUTH_REDIRECT_URIS` does not include it. | Deploy backend with `CognitoOAuthCallbackUrls` containing every app callback domain for every enabled provider. Then confirm Lambda env includes `COGNITO_OAUTH_REDIRECT_URIS`.                                                                                                                          |
+| `Learning backend proxy is required.`                                               | Browser request reached Lambda without the correct Cloudflare proxy secret, or frontend is calling the Lambda Function URL directly.                           | Production frontend must use `VITE_LEARNING_BACKEND_URL=/api/learning-backend`. `LearningBackendProxySecret` in SAM, Cloudflare Pages secret `LEARNING_BACKEND_PROXY_SECRET`, and GitHub secret `LEARNING_BACKEND_PROXY_SECRET` must match. Redeploy frontend after changing Pages secrets.              |
+| `Route not found.` from `/auth/oauth/<provider>/start`                              | The active Lambda/proxy code is old and does not contain the OAuth provider routes.                                                                            | Remove stale SAM artifacts with `rm -rf .aws-sam`, run `sam build --template-file template.yaml`, verify both provider route strings and `COGNITO_OAUTH_DOMAIN` exist in `.aws-sam/build/template.yaml` and `.aws-sam/build/LearningBackendFunction/app.py`, then deploy `.aws-sam/build/template.yaml`. |
+| `Missing option '--stack-name'` from `sam deploy`                                   | Deploy was run outside `backend/aws/learning-backend` or without the saved SAM config.                                                                         | Run from `backend/aws/learning-backend`, or pass `--stack-name smile-learning-backend` explicitly.                                                                                                                                                                                                       |
+| `Parameters: [AuthConfirmationCodePepper] must have values`                         | `AuthConfirmationCodePepper` is a required `NoEcho` parameter and is not stored in `samconfig.toml`.                                                           | Pass `AuthConfirmationCodePepper` on manual deploy, or use the GitHub Actions secret `AUTH_CONFIRMATION_CODE_PEPPER`. Rotating it can invalidate pending sign-up verification codes.                                                                                                                     |
+| `http:// cannot use the HTTP protocol.` while creating the OAuth app client         | Cognito app client OAuth callback/logout URLs contain `http://localhost` or `http://127.0.0.1`.                                                                | Cognito OAuth `CallbackURLs` and `LogoutURLs` must be HTTPS. Remove local HTTP URLs from `CognitoOAuthCallbackUrls` and `CognitoOAuthLogoutUrls`; use an HTTPS tunnel for local OAuth testing if needed.                                                                                                 |
+| Google Console says `Invalid Origin: URIs must not contain a path or end with '/'`. | The Cognito `/oauth2/idpresponse` URL was pasted into **Authorized JavaScript origins**.                                                                       | Put only origins like `https://learn.smile.me` in JavaScript origins. Put the full Cognito URL in **Authorized redirect URIs**.                                                                                                                                                                          |
+| Microsoft callback returns `Bad id_token issuer`.                                   | Microsoft app registration or Cognito used `/common`, but Cognito expects one exact OIDC issuer.                                                               | Use the default personal Microsoft account issuer or a tenant-specific issuer. Do not use `/common` unless a custom identity proxy is added between Microsoft and Cognito.                                                                                                                               |
+
+Known-good manual backend deploy shape for Google plus Microsoft OAuth:
 
 ```sh
 cd backend/aws/learning-backend
@@ -209,20 +215,24 @@ sam deploy \
     LearningBackendRequireProxySecret="true" \
     GoogleOAuthClientId="REPLACE_WITH_GOOGLE_CLIENT_ID.apps.googleusercontent.com" \
     GoogleOAuthClientSecret="REPLACE_WITH_GOOGLE_CLIENT_SECRET" \
+    MicrosoftOAuthClientId="REPLACE_WITH_MICROSOFT_CLIENT_ID" \
+    MicrosoftOAuthClientSecret="REPLACE_WITH_MICROSOFT_CLIENT_SECRET" \
+    MicrosoftOAuthIssuer="https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0" \
     CognitoOAuthDomainPrefix="smile-learn-auth" \
-    CognitoOAuthCallbackUrls="https://learn.smile.me/auth/callback/google,https://smile-project.pages.dev/auth/callback/google" \
+    CognitoOAuthCallbackUrls="https://learn.smile.me/auth/callback/google,https://learn.smile.me/auth/callback/microsoft,https://smile-project.pages.dev/auth/callback/google,https://smile-project.pages.dev/auth/callback/microsoft" \
     CognitoOAuthLogoutUrls="https://learn.smile.me/learn,https://smile-project.pages.dev/learn"
 ```
 
-Use the same `LearningBackendProxySecret` value in SAM, Cloudflare Pages `LEARNING_BACKEND_PROXY_SECRET`, and GitHub Actions `LEARNING_BACKEND_PROXY_SECRET`. Keep `CognitoOAuthDomainPrefix` stable after Google sign-in is live; changing it changes the Cognito Hosted UI domain and requires a matching Google Cloud Console redirect URI update.
+Use the same `LearningBackendProxySecret` value in SAM, Cloudflare Pages `LEARNING_BACKEND_PROXY_SECRET`, and GitHub Actions `LEARNING_BACKEND_PROXY_SECRET`. Keep `CognitoOAuthDomainPrefix` stable after federated sign-in is live; changing it changes the Cognito Hosted UI domain and requires matching Google and Microsoft redirect URI updates.
 
-Google Cloud Console and Cognito use different redirect URLs:
+Google/Microsoft provider consoles and Cognito use different redirect URLs:
 
 - Google Cloud Console **Authorized redirect URI**: `https://<CognitoOAuthDomainPrefix>.auth.ap-southeast-1.amazoncognito.com/oauth2/idpresponse`
-- Cognito/SAM `CognitoOAuthCallbackUrls`: app callbacks such as `https://learn.smile.me/auth/callback/google`
-- Frontend `redirectUri` sent to backend: exactly the current app origin plus `/auth/callback/google`
+- Microsoft Entra app registration **Web redirect URI**: `https://<CognitoOAuthDomainPrefix>.auth.ap-southeast-1.amazoncognito.com/oauth2/idpresponse`
+- Cognito/SAM `CognitoOAuthCallbackUrls`: app callbacks such as `https://learn.smile.me/auth/callback/google` and `https://learn.smile.me/auth/callback/microsoft`
+- Frontend `redirectUri` sent to backend: exactly the current app origin plus `/auth/callback/<provider>`
 
-After a successful backend deploy, verify that Google OAuth is active:
+After a successful backend deploy, verify that federated OAuth is active:
 
 ```sh
 aws cloudformation describe-stacks \
@@ -530,7 +540,7 @@ Browser
   -> AWS Lambda Function URL
 ```
 
-The proxy forwards only `authorization`, `content-type`, the proxy-derived source IP, the private `x-smile-learning-backend-proxy-secret` header, and auth cookies explicitly needed by each route. It forwards `__Host-smile-refresh-session` only for `/auth/session/bootstrap`, `/auth/session/refresh`, and `/auth/session/revoke`; it forwards `__Host-smile-oauth-google` only for `/auth/oauth/google/callback`. Cookie-backed auth routes also require same-origin `Origin`/`Referer` when those headers are present. The proxy enforces a backend-route and method allowlist, rejects request bodies larger than 300 KB before forwarding, strips query strings, and fails closed for non-health routes when `LEARNING_BACKEND_PROXY_SECRET` is missing. Public auth routes should receive Cloudflare zone rate limiting before Pages Functions and AWS run. The Pages proxy keeps a fallback source/IP limiter unless `LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS=false`; the Lambda keeps its DynamoDB-backed cooldowns and burst caps as the authoritative app-level control.
+The proxy forwards only `authorization`, `content-type`, the proxy-derived source IP, the private `x-smile-learning-backend-proxy-secret` header, and auth cookies explicitly needed by each route. It forwards `__Host-smile-refresh-session` only for `/auth/session/bootstrap`, `/auth/session/refresh`, and `/auth/session/revoke`; it forwards `__Host-smile-oauth-google` only for `/auth/oauth/google/callback`; it forwards `__Host-smile-oauth-microsoft` only for `/auth/oauth/microsoft/callback`. Cookie-backed auth routes also require same-origin `Origin`/`Referer` when those headers are present. The proxy enforces a backend-route and method allowlist, rejects request bodies larger than 300 KB before forwarding, strips query strings, and fails closed for non-health routes when `LEARNING_BACKEND_PROXY_SECRET` is missing. Public auth routes should receive Cloudflare zone rate limiting before Pages Functions and AWS run. The Pages proxy keeps a fallback source/IP limiter unless `LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS=false`; the Lambda keeps its DynamoDB-backed cooldowns and burst caps as the authoritative app-level control.
 
 The proxy reads only Cloudflare's `cf-connecting-ip` header as the browser source. Browser-supplied `x-real-ip` and `x-forwarded-for` values are ignored; the `x-forwarded-for` value sent to Lambda is generated from the trusted Cloudflare source, or `unknown` when Cloudflare did not provide one. The Lambda also trusts only `cf-connecting-ip`, and only when `LEARNING_BACKEND_PROXY_SECRET` is configured and the proxy secret header matches. If that trusted source is unavailable, Lambda falls back to the Function URL `requestContext.http.sourceIp`. In production, `LEARNING_BACKEND_REQUIRE_PROXY_SECRET=true` makes every non-health HTTP route return `403` unless that shared secret is present, so direct Lambda Function URL callers cannot bypass Cloudflare rate limits or spoof the auth cooldown source.
 
@@ -582,20 +592,22 @@ Frontend local learning progress:
 
 Public auth endpoints:
 
-| Method | Path                           | Auth | Purpose                                                                         |
-| ------ | ------------------------------ | ---- | ------------------------------------------------------------------------------- |
-| `POST` | `/auth/sign-up/start`          | None | Start backend-owned pending sign-up and send verification code.                 |
-| `POST` | `/auth/confirmation/confirm`   | None | Verify pending sign-up code, create Cognito user, set password.                 |
-| `POST` | `/auth/confirmation/resend`    | None | Send a new pending sign-up code if cooldown allows.                             |
-| `POST` | `/auth/email/sign-in`          | None | Sign in with email through backend-enforced public auth cooldowns.              |
-| `POST` | `/auth/username/sign-in`       | None | Sign in with display username without returning the resolved account email.     |
-| `POST` | `/auth/oauth/google/start`     | None | Start Google OAuth with signed state and PKCE in an HttpOnly cookie.            |
-| `POST` | `/auth/oauth/google/callback`  | None | Exchange Google OAuth code and create the backend-owned refresh session.        |
-| `POST` | `/auth/session/bootstrap`      | None | Restore an in-memory Cognito bearer session from the signed HttpOnly cookie.    |
-| `POST` | `/auth/session/refresh`        | None | Refresh an in-memory Cognito bearer session through backend-owned Cognito auth. |
-| `POST` | `/auth/session/revoke`         | None | Best-effort Cognito refresh-token revocation and refresh cookie clearing.       |
-| `POST` | `/auth/password-reset/request` | None | Start Cognito password reset through backend-enforced public auth cooldowns.    |
-| `POST` | `/auth/password-reset/confirm` | None | Confirm Cognito password reset through backend-enforced public auth cooldowns.  |
+| Method | Path                             | Auth | Purpose                                                                         |
+| ------ | -------------------------------- | ---- | ------------------------------------------------------------------------------- |
+| `POST` | `/auth/sign-up/start`            | None | Start backend-owned pending sign-up and send verification code.                 |
+| `POST` | `/auth/confirmation/confirm`     | None | Verify pending sign-up code, create Cognito user, set password.                 |
+| `POST` | `/auth/confirmation/resend`      | None | Send a new pending sign-up code if cooldown allows.                             |
+| `POST` | `/auth/email/sign-in`            | None | Sign in with email through backend-enforced public auth cooldowns.              |
+| `POST` | `/auth/username/sign-in`         | None | Sign in with display username without returning the resolved account email.     |
+| `POST` | `/auth/oauth/google/start`       | None | Start Google OAuth with signed state and PKCE in an HttpOnly cookie.            |
+| `POST` | `/auth/oauth/google/callback`    | None | Exchange Google OAuth code and create the backend-owned refresh session.        |
+| `POST` | `/auth/oauth/microsoft/start`    | None | Start Microsoft OAuth with signed state and PKCE in an HttpOnly cookie.         |
+| `POST` | `/auth/oauth/microsoft/callback` | None | Exchange Microsoft OAuth code and create the backend-owned refresh session.     |
+| `POST` | `/auth/session/bootstrap`        | None | Restore an in-memory Cognito bearer session from the signed HttpOnly cookie.    |
+| `POST` | `/auth/session/refresh`          | None | Refresh an in-memory Cognito bearer session through backend-owned Cognito auth. |
+| `POST` | `/auth/session/revoke`           | None | Best-effort Cognito refresh-token revocation and refresh cookie clearing.       |
+| `POST` | `/auth/password-reset/request`   | None | Start Cognito password reset through backend-enforced public auth cooldowns.    |
+| `POST` | `/auth/password-reset/confirm`   | None | Confirm Cognito password reset through backend-enforced public auth cooldowns.  |
 
 Public auth endpoints apply DynamoDB-backed cooldowns by request source and identifier. Sign-in routes also apply a longer DynamoDB-backed burst window by source and identifier. This is an app-level guard and must stay enabled even when Cloudflare rate limiting is active, because Cloudflare cannot reliably count by application email, username, user sub, or wrong verification-code attempts. The deprecated `/auth/username/resolve` compatibility route is intentionally excluded from the production Pages proxy allowlist.
 
@@ -820,9 +832,9 @@ Deployment must keep these aligned:
 4. SAM `LearningBackendProxySecret` must match Cloudflare Pages Function `LEARNING_BACKEND_PROXY_SECRET`.
 5. The Cloudflare auth rate limiting rule from `docs/cloudflare-auth-rate-limiting.md` must be active on the production custom domain, the Pages proxy limiter must stay enabled unless Cloudflare has equivalent granular route-specific auth rate limits, and production Pages must configure Upstash Redis secrets for shared proxy limiter state.
 6. Backend `COGNITO_REGION`, `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`, and `COGNITO_CLIENT_SECRET` must come from the same SAM stack.
-7. Google sign-in production stacks must set `GoogleOAuthClientId`, `GoogleOAuthClientSecret`, `CognitoOAuthDomainPrefix`, and production `CognitoOAuthCallbackUrls` that include `https://YOUR-DOMAIN/auth/callback/google`.
+7. Federated sign-in production stacks must set the provider client ID/secret values, `CognitoOAuthDomainPrefix`, and production `CognitoOAuthCallbackUrls` that include each enabled callback, such as `https://YOUR-DOMAIN/auth/callback/google` and `https://YOUR-DOMAIN/auth/callback/microsoft`.
 8. `FunctionUrlAllowedOrigins` should remain local/dev only unless a separate review approves direct browser access to the Function URL.
-9. CSP must continue allowing the same-origin proxy plus S3 upload origins; do not add direct Lambda Function URL origins without a separate review. Google OAuth uses top-level navigation to Cognito, not browser `connect-src` API calls.
+9. CSP must continue allowing the same-origin proxy plus S3 upload origins; do not add direct Lambda Function URL origins without a separate review. Federated OAuth uses top-level navigation to Cognito, not browser `connect-src` API calls.
 
 Current `backend/aws/learning-backend/samconfig.toml` deploy defaults use stack `smile-learning-backend`, region `ap-southeast-1`, profile `smile-dev`, `LearningBackendRequireProxySecret=true`, `AllowedOrigins` for local dev plus `https://smile-project.pages.dev`, and `FunctionUrlAllowedOrigins` for local dev only. It intentionally does not store `LearningBackendProxySecret`, `ResendFromEmail`, or `ResendReplyToEmail`; production deploys must pass the current shared secret or preserve the existing CloudFormation `NoEcho` value, and sender overrides must be verified after deploy if they are customized.
 
@@ -844,34 +856,35 @@ SAM outputs map to frontend env like this:
 
 Backend auth-related environment is set by SAM:
 
-| Backend env                                   | Source or default                                       |
-| --------------------------------------------- | ------------------------------------------------------- |
-| `UPLOAD_BUCKET`                               | `DatasetUploadBucket`                                   |
-| `LEARNING_PROGRESS_TABLE`                     | `LearningProgressTable`                                 |
-| `USERNAME_RESERVATION_TABLE`                  | `UsernameReservationTable`                              |
-| `AUTH_COOLDOWN_TABLE`                         | `AuthCooldownTable`                                     |
-| `AUTH_RESEND_COOLDOWN_SECONDS`                | `30`                                                    |
-| `AUTH_CONFIRMATION_CODE_TTL_SECONDS`          | `300`                                                   |
-| `AUTH_PUBLIC_REQUEST_COOLDOWN_SECONDS`        | `3`                                                     |
-| `AUTH_SIGN_IN_COOLDOWN_SECONDS`               | `2`                                                     |
-| `AUTH_SIGN_IN_BURST_LIMIT`                    | `8`                                                     |
-| `AUTH_SIGN_IN_BURST_WINDOW_SECONDS`           | `300`                                                   |
-| `AUTH_SIGN_UP_COOLDOWN_SECONDS`               | `5`                                                     |
-| `AUTH_REFRESH_SESSION_COOKIE_MAX_AGE_SECONDS` | `604800`                                                |
-| `AUTH_REFRESH_SESSION_COOKIE_SECURE`          | `true`                                                  |
-| `COGNITO_USER_POOL_ID`                        | `SmileUserPool`                                         |
-| `COGNITO_CLIENT_ID`                           | `SmileUserPoolClient` or `SmileGoogleUserPoolClient`    |
-| `COGNITO_CLIENT_SECRET`                       | Active app client `ClientSecret`                        |
-| `COGNITO_OAUTH_DOMAIN`                        | Cognito Hosted UI domain when Google OAuth is enabled   |
-| `COGNITO_OAUTH_REDIRECT_URIS`                 | `CognitoOAuthCallbackUrls` parameter                    |
-| `COGNITO_GOOGLE_IDP_NAME`                     | `Google`                                                |
-| `COGNITO_REGION`                              | AWS region                                              |
-| `COGNITO_EMAIL_SENDER_KMS_KEY_ARN`            | `CognitoEmailSenderKmsKey` for custom sender            |
-| `RESEND_API_KEY_SECRET_ID`                    | `ResendApiKeySecretName` parameter                      |
-| `RESEND_FROM_EMAIL`                           | `ResendFromEmail` parameter                             |
-| `RESEND_REPLY_TO_EMAIL`                       | `ResendReplyToEmail` parameter                          |
-| `LEARNING_BACKEND_PROXY_SECRET`               | `LearningBackendProxySecret` parameter                  |
-| `LEARNING_BACKEND_REQUIRE_PROXY_SECRET`       | `LearningBackendRequireProxySecret`, defaults to `true` |
+| Backend env                                   | Source or default                                        |
+| --------------------------------------------- | -------------------------------------------------------- |
+| `UPLOAD_BUCKET`                               | `DatasetUploadBucket`                                    |
+| `LEARNING_PROGRESS_TABLE`                     | `LearningProgressTable`                                  |
+| `USERNAME_RESERVATION_TABLE`                  | `UsernameReservationTable`                               |
+| `AUTH_COOLDOWN_TABLE`                         | `AuthCooldownTable`                                      |
+| `AUTH_RESEND_COOLDOWN_SECONDS`                | `30`                                                     |
+| `AUTH_CONFIRMATION_CODE_TTL_SECONDS`          | `300`                                                    |
+| `AUTH_PUBLIC_REQUEST_COOLDOWN_SECONDS`        | `3`                                                      |
+| `AUTH_SIGN_IN_COOLDOWN_SECONDS`               | `2`                                                      |
+| `AUTH_SIGN_IN_BURST_LIMIT`                    | `8`                                                      |
+| `AUTH_SIGN_IN_BURST_WINDOW_SECONDS`           | `300`                                                    |
+| `AUTH_SIGN_UP_COOLDOWN_SECONDS`               | `5`                                                      |
+| `AUTH_REFRESH_SESSION_COOKIE_MAX_AGE_SECONDS` | `604800`                                                 |
+| `AUTH_REFRESH_SESSION_COOKIE_SECURE`          | `true`                                                   |
+| `COGNITO_USER_POOL_ID`                        | `SmileUserPool`                                          |
+| `COGNITO_CLIENT_ID`                           | `SmileUserPoolClient` or federated OAuth app client      |
+| `COGNITO_CLIENT_SECRET`                       | Active app client `ClientSecret`                         |
+| `COGNITO_OAUTH_DOMAIN`                        | Cognito Hosted UI domain when federated OAuth is enabled |
+| `COGNITO_OAUTH_REDIRECT_URIS`                 | `CognitoOAuthCallbackUrls` parameter                     |
+| `COGNITO_GOOGLE_IDP_NAME`                     | `Google`                                                 |
+| `COGNITO_MICROSOFT_IDP_NAME`                  | `Microsoft`                                              |
+| `COGNITO_REGION`                              | AWS region                                               |
+| `COGNITO_EMAIL_SENDER_KMS_KEY_ARN`            | `CognitoEmailSenderKmsKey` for custom sender             |
+| `RESEND_API_KEY_SECRET_ID`                    | `ResendApiKeySecretName` parameter                       |
+| `RESEND_FROM_EMAIL`                           | `ResendFromEmail` parameter                              |
+| `RESEND_REPLY_TO_EMAIL`                       | `ResendReplyToEmail` parameter                           |
+| `LEARNING_BACKEND_PROXY_SECRET`               | `LearningBackendProxySecret` parameter                   |
+| `LEARNING_BACKEND_REQUIRE_PROXY_SECRET`       | `LearningBackendRequireProxySecret`, defaults to `true`  |
 
 Local backend code also supports direct `RESEND_API_KEY`, `RESEND_API_URL`, and AWS SDK region env values, but the SAM path uses Secrets Manager for the Resend key.
 
@@ -891,7 +904,7 @@ Frontend auth-related tests:
 - `src/features/auth/cognito-auth.test.ts`
   - Starts sign-up through learning backend.
   - Confirms sign-up through learning backend with password.
-  - Starts and completes Google OAuth through the backend.
+  - Starts and completes Google and Microsoft OAuth through the backend.
   - Signs in with username through the backend without receiving the resolved account email.
   - Requests and confirms Cognito password reset.
   - Refreshes sessions through the backend instead of calling Cognito directly.

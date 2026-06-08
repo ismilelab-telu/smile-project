@@ -29,6 +29,7 @@ const authRateLimitState = new Map<string, number>();
 const authBurstLimitState = new Map<string, { count: number; resetAt: number }>();
 const refreshSessionCookieName = "__Host-smile-refresh-session";
 const googleOAuthCookieName = "__Host-smile-oauth-google";
+const microsoftOAuthCookieName = "__Host-smile-oauth-microsoft";
 const authProxySignInBurstLimit = 8;
 const authProxySignInBurstWindowMs = 5 * 60 * 1000;
 const authProxyRevokeBurstLimit = 20;
@@ -71,6 +72,14 @@ const authProxyCooldowns = [
     seconds: 2,
   },
   {
+    path: "/auth/oauth/microsoft/start",
+    seconds: 2,
+  },
+  {
+    path: "/auth/oauth/microsoft/callback",
+    seconds: 2,
+  },
+  {
     identifierKey: "userSub",
     path: "/auth/session/refresh",
     seconds: 2,
@@ -99,6 +108,8 @@ const allowedAuthProxyPaths = new Set([
   "/auth/username/sign-in",
   "/auth/oauth/google/start",
   "/auth/oauth/google/callback",
+  "/auth/oauth/microsoft/start",
+  "/auth/oauth/microsoft/callback",
   "/auth/session/refresh",
   "/auth/session/bootstrap",
   "/auth/session/revoke",
@@ -727,6 +738,10 @@ function shouldForwardGoogleOAuthCookie(pathname: string) {
   return pathname === "/auth/oauth/google/callback";
 }
 
+function shouldForwardMicrosoftOAuthCookie(pathname: string) {
+  return pathname === "/auth/oauth/microsoft/callback";
+}
+
 function getForwardedCookieNames(pathname: string) {
   const cookieNames = new Set<string>();
 
@@ -736,6 +751,10 @@ function getForwardedCookieNames(pathname: string) {
 
   if (shouldForwardGoogleOAuthCookie(pathname)) {
     cookieNames.add(googleOAuthCookieName);
+  }
+
+  if (shouldForwardMicrosoftOAuthCookie(pathname)) {
+    cookieNames.add(microsoftOAuthCookieName);
   }
 
   return cookieNames;
@@ -780,7 +799,9 @@ function shouldValidateAuthRequestOrigin(pathname: string) {
   return (
     shouldForwardRefreshSessionCookie(pathname) ||
     shouldForwardGoogleOAuthCookie(pathname) ||
-    pathname === "/auth/oauth/google/start"
+    shouldForwardMicrosoftOAuthCookie(pathname) ||
+    pathname === "/auth/oauth/google/start" ||
+    pathname === "/auth/oauth/microsoft/start"
   );
 }
 

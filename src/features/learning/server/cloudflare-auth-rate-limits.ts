@@ -64,6 +64,8 @@ export const cloudflareAuthRateLimitRules = [
       `${learningBackendAuthPrefix}/username/sign-in`,
       `${learningBackendAuthPrefix}/oauth/google/start`,
       `${learningBackendAuthPrefix}/oauth/google/callback`,
+      `${learningBackendAuthPrefix}/oauth/microsoft/start`,
+      `${learningBackendAuthPrefix}/oauth/microsoft/callback`,
       `${learningBackendAuthPrefix}/sign-up/start`,
       `${learningBackendAuthPrefix}/confirmation/resend`,
       `${learningBackendAuthPrefix}/confirmation/confirm`,

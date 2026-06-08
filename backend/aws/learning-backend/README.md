@@ -18,6 +18,8 @@ For the full frontend/backend authentication architecture, flows, API contracts,
 - `POST /auth/username/sign-in`: signs in with a confirmed display username without returning the resolved account email.
 - `POST /auth/oauth/google/start`: starts Cognito Google OAuth with signed state and PKCE stored in a short-lived HttpOnly cookie.
 - `POST /auth/oauth/google/callback`: exchanges the Google OAuth authorization code through Cognito, sets the refresh-session cookie, and returns access/ID tokens without returning the refresh token.
+- `POST /auth/oauth/microsoft/start`: starts Cognito Microsoft OAuth with signed state and PKCE stored in a short-lived HttpOnly cookie.
+- `POST /auth/oauth/microsoft/callback`: exchanges the Microsoft OAuth authorization code through Cognito, sets the refresh-session cookie, and returns access/ID tokens without returning the refresh token.
 - `POST /auth/username/resolve`: deprecated compatibility route that returns a generic sign-in failure if reached directly in local/dev; it is not exposed by the production Cloudflare Pages proxy.
 - `POST /auth/session/bootstrap`: restores an in-memory Cognito bearer session from the signed HttpOnly refresh-session cookie.
 - `POST /auth/session/refresh`: refreshes an in-memory Cognito bearer session through backend-owned Cognito auth.
@@ -32,9 +34,9 @@ Dataset upload, inspection, validation, and progress endpoints require `Authoriz
 
 Usernames are reserved while a backend-owned sign-up is pending, then marked confirmed only after the backend verifies the code and creates the Cognito user. Pending reservations are not accepted for username sign-in. Username sign-in sends the username and password to the backend; the backend resolves the account email internally, calls Cognito, returns only access/ID tokens, sets the refresh token in a signed HttpOnly cookie, and never returns the resolved email. Unknown usernames take a deterministic dummy Cognito auth path before returning the same generic sign-in failure.
 
-The Cognito app client is confidential (`GenerateSecret: true`). Browser code does not call Cognito directly for password sign-in, username sign-in, password reset, Google OAuth token exchange, or refresh. The backend owns those calls, sends Cognito `SECRET_HASH` or confidential OAuth client authentication, and uses `AdminInitiateAuth` for password and refresh-token auth. Do not re-enable public `USER_PASSWORD_AUTH` or `USER_SRP_AUTH` on the app client.
+The Cognito app client is confidential (`GenerateSecret: true`). Browser code does not call Cognito directly for password sign-in, username sign-in, password reset, federated OAuth token exchange, or refresh. The backend owns those calls, sends Cognito `SECRET_HASH` or confidential OAuth client authentication, and uses `AdminInitiateAuth` for password and refresh-token auth. Do not re-enable public `USER_PASSWORD_AUTH` or `USER_SRP_AUTH` on the app client.
 
-Google sign-in uses Cognito Hosted UI only for the federated redirect. `/auth/oauth/google/start` creates state and PKCE verifier values in a signed short-lived HttpOnly cookie, then returns the Cognito authorization URL. `/auth/oauth/google/callback` validates the state cookie and redirect URI, exchanges the authorization code from the backend, stores Cognito's refresh token in the same signed refresh-session cookie used by email/password login, and clears the OAuth state cookie.
+Google and Microsoft sign-in use Cognito Hosted UI only for the federated redirect. `/auth/oauth/<provider>/start` creates state and PKCE verifier values in a signed short-lived HttpOnly cookie, then returns the Cognito authorization URL. `/auth/oauth/<provider>/callback` validates the state cookie and redirect URI, exchanges the authorization code from the backend, stores Cognito's refresh token in the same signed refresh-session cookie used by email/password login, and clears the OAuth state cookie.
 
 Session refresh and revoke requests rely on the signed HttpOnly refresh-session cookie as the only refresh-token source. Refresh requests may include the Cognito `sub` for proxy rate limiting, but the Lambda derives the authoritative refresh token and user `sub` from the signed cookie; requests do not send account email or JSON refresh tokens. A reload uses `/auth/session/bootstrap` to restore the in-memory access/ID token session from that cookie.
 
@@ -95,17 +97,22 @@ sam deploy \
     LearningBackendRequireProxySecret="true" \
     GoogleOAuthClientId="REPLACE_WITH_GOOGLE_CLIENT_ID.apps.googleusercontent.com" \
     GoogleOAuthClientSecret="REPLACE_WITH_GOOGLE_CLIENT_SECRET" \
+    MicrosoftOAuthClientId="REPLACE_WITH_MICROSOFT_CLIENT_ID" \
+    MicrosoftOAuthClientSecret="REPLACE_WITH_MICROSOFT_CLIENT_SECRET" \
+    MicrosoftOAuthIssuer="https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0" \
     CognitoOAuthDomainPrefix="smile-learn-auth" \
-    CognitoOAuthCallbackUrls="https://learn.smile.me/auth/callback/google,https://smile-project.pages.dev/auth/callback/google" \
+    CognitoOAuthCallbackUrls="https://learn.smile.me/auth/callback/google,https://learn.smile.me/auth/callback/microsoft,https://smile-project.pages.dev/auth/callback/google,https://smile-project.pages.dev/auth/callback/microsoft" \
     CognitoOAuthLogoutUrls="https://learn.smile.me/learn,https://smile-project.pages.dev/learn"
 ```
 
-Keep `CognitoOAuthDomainPrefix` stable after Google sign-in is live; changing it creates a different Cognito Hosted UI domain and requires a matching Google Cloud Console redirect URI update. Do not include `http://localhost` or `http://127.0.0.1` in `CognitoOAuthCallbackUrls` or `CognitoOAuthLogoutUrls` for a Google-enabled Cognito app client.
+Keep `CognitoOAuthDomainPrefix` stable after federated sign-in is live; changing it creates a different Cognito Hosted UI domain and requires matching provider-console redirect URI updates. Do not include `http://localhost` or `http://127.0.0.1` in `CognitoOAuthCallbackUrls` or `CognitoOAuthLogoutUrls` for an OAuth-enabled Cognito app client.
 
 The template default sender is `Smile Lab <auth@smilelab.me>`. If you override `ResendFromEmail`, verify the Lambda environment after deploy because shell and SAM parameter quoting can split display names with spaces.
 
 Google sign-in is disabled unless all Google OAuth parameters are provided. For production, create a Google OAuth web client whose authorized redirect URI is Cognito's IdP response URL, for example `https://smile-learn-auth.auth.ap-southeast-1.amazoncognito.com/oauth2/idpresponse`. Then deploy with `GoogleOAuthClientId`, `GoogleOAuthClientSecret`, `CognitoOAuthDomainPrefix`, `CognitoOAuthCallbackUrls`, and `CognitoOAuthLogoutUrls`. `CognitoOAuthCallbackUrls` must contain app callback URLs such as `https://learn.smile.me/auth/callback/google`. Cognito OAuth callback/logout URLs must be HTTPS; use an HTTPS tunnel rather than `http://localhost` for local OAuth testing.
 
-For Google OAuth deployment and troubleshooting notes, see the "Google OAuth Troubleshooting" section in [`AUTHENTICATION.md`](./AUTHENTICATION.md).
+Microsoft sign-in is disabled unless `MicrosoftOAuthClientId`, `MicrosoftOAuthClientSecret`, and `CognitoOAuthDomainPrefix` are provided. Create a Microsoft Entra app registration with a web redirect URI pointing to the same Cognito IdP response URL, for example `https://smile-learn-auth.auth.ap-southeast-1.amazoncognito.com/oauth2/idpresponse`. The default `MicrosoftOAuthIssuer` supports personal Microsoft accounts only; use `https://login.microsoftonline.com/<TENANT_ID>/v2.0` for one work/school tenant. Do not use `/common` with Cognito because Microsoft returns tenant-specific token issuers and Cognito requires an exact issuer match.
+
+For federated OAuth deployment and troubleshooting notes, see the "Federated OAuth Troubleshooting" section in [`AUTHENTICATION.md`](./AUTHENTICATION.md).
 
 Build the frontend for production with `VITE_LEARNING_BACKEND_URL=/api/learning-backend` so backend traffic uses the Cloudflare Pages proxy. Configure Cloudflare Pages Function env `LEARNING_BACKEND_URL` from the SAM `LearningBackendFunctionUrl` output; the proxy rejects non-HTTPS, credentialed, path-scoped, or non-Lambda Function URL origins before forwarding sensitive headers. Configure the same random value as SAM `LearningBackendProxySecret` plus Cloudflare Pages Function secret `LEARNING_BACKEND_PROXY_SECRET`. Leave `LEARNING_BACKEND_PROXY_AUTH_RATE_LIMITS` unset for the Cloudflare Free-plan-compatible single auth rule; set it to `false` only when Cloudflare has equivalent granular route-specific auth rate limits.

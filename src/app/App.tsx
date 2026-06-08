@@ -6,8 +6,11 @@ import { LinkPreviewProvider } from "@/components/ui/link-preview";
 import { AuthProvider, useAuth } from "@/features/auth/auth-context";
 import {
   consumeGoogleOAuthReturnTo,
+  consumeMicrosoftOAuthReturnTo,
   getGoogleOAuthRedirectUri,
+  getMicrosoftOAuthRedirectUri,
   googleOAuthCallbackPath,
+  microsoftOAuthCallbackPath,
 } from "@/features/auth/google-oauth-return";
 import {
   getLesson,
@@ -113,7 +116,12 @@ function isLearningAuthRequiredRoute(pathname: string) {
 }
 
 function isAuthRoute(pathname: string) {
-  return pathname === "/login" || pathname === "/register" || pathname === googleOAuthCallbackPath;
+  return (
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === googleOAuthCallbackPath ||
+    pathname === microsoftOAuthCallbackPath
+  );
 }
 
 function getRouteDirection(fromPath: string, toPath: string): RouteTransition {
@@ -411,7 +419,9 @@ function AppRoutes() {
       ) : path === "/register" ? (
         <AuthPage closeHref={backgroundPath} mode="register" />
       ) : path === googleOAuthCallbackPath ? (
-        <GoogleOAuthCallbackPage />
+        <OAuthCallbackPage provider="google" />
+      ) : path === microsoftOAuthCallbackPath ? (
+        <OAuthCallbackPage provider="microsoft" />
       ) : null}
       {pendingLearningAuthGate ? (
         <AuthPage
@@ -436,11 +446,13 @@ function AppRoutes() {
   );
 }
 
-function GoogleOAuthCallbackPage() {
+function OAuthCallbackPage({ provider }: { provider: "google" | "microsoft" }) {
   const auth = useAuth();
   const { locale } = useLocalization();
   const hasStartedRef = useRef(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const providerLabel = provider === "google" ? "Google" : "Microsoft";
+  const providerLabelId = provider === "google" ? "Google" : "Microsoft";
 
   useEffect(() => {
     if (hasStartedRef.current) {
@@ -458,8 +470,8 @@ function GoogleOAuthCallbackPage() {
       setErrorMessage(
         oauthErrorDescription ||
           (locale === "en"
-            ? "Google sign-in was canceled or rejected."
-            : "Login Google dibatalkan atau ditolak."),
+            ? `${providerLabel} sign-in was canceled or rejected.`
+            : `Login ${providerLabelId} dibatalkan atau ditolak.`),
       );
       return;
     }
@@ -467,31 +479,37 @@ function GoogleOAuthCallbackPage() {
     if (!code || !state) {
       setErrorMessage(
         locale === "en"
-          ? "Google did not return a complete sign-in response."
-          : "Google tidak mengirim respons login yang lengkap.",
+          ? `${providerLabel} did not return a complete sign-in response.`
+          : `${providerLabelId} tidak mengirim respons login yang lengkap.`,
       );
       return;
     }
 
-    void auth
-      .completeGoogleSignIn({
-        code,
-        redirectUri: getGoogleOAuthRedirectUri(),
-        state,
-      })
+    const completeSignIn =
+      provider === "google" ? auth.completeGoogleSignIn : auth.completeMicrosoftSignIn;
+    const redirectUri =
+      provider === "google" ? getGoogleOAuthRedirectUri() : getMicrosoftOAuthRedirectUri();
+    const consumeReturnTo =
+      provider === "google" ? consumeGoogleOAuthReturnTo : consumeMicrosoftOAuthReturnTo;
+
+    void completeSignIn({
+      code,
+      redirectUri,
+      state,
+    })
       .then(() => {
-        navigateInApp(consumeGoogleOAuthReturnTo("/learn"), { replace: true });
+        navigateInApp(consumeReturnTo("/learn"), { replace: true });
       })
       .catch((error) => {
         setErrorMessage(
           error instanceof Error
             ? error.message
             : locale === "en"
-              ? "Google sign-in could not be completed."
-              : "Login Google belum berhasil diselesaikan.",
+              ? `${providerLabel} sign-in could not be completed.`
+              : `Login ${providerLabelId} belum berhasil diselesaikan.`,
         );
       });
-  }, [auth, locale]);
+  }, [auth, locale, provider, providerLabel, providerLabelId]);
 
   const handleBackToLogin = () => {
     navigateInApp("/login", { replace: true });
@@ -506,11 +524,11 @@ function GoogleOAuthCallbackPage() {
         <h1 className="text-2xl leading-tight font-semibold tracking-normal">
           {errorMessage
             ? locale === "en"
-              ? "Google sign-in failed"
-              : "Login Google gagal"
+              ? `${providerLabel} sign-in failed`
+              : `Login ${providerLabelId} gagal`
             : locale === "en"
-              ? "Finishing Google sign-in"
-              : "Menyelesaikan login Google"}
+              ? `Finishing ${providerLabel} sign-in`
+              : `Menyelesaikan login ${providerLabelId}`}
         </h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
           {errorMessage || (locale === "en" ? "Please wait a moment." : "Tunggu sebentar.")}

@@ -10,6 +10,7 @@ import {
 
 import {
   completeGoogleOAuthSignIn,
+  completeMicrosoftOAuthSignIn,
   confirmPasswordResetWithCognito,
   confirmSignUpWithCognito,
   requestPasswordResetWithCognito,
@@ -18,6 +19,7 @@ import {
   signInWithCognito,
   signInWithUsername,
   startGoogleOAuthSignIn,
+  startMicrosoftOAuthSignIn,
   signUpWithCognito,
 } from "./cognito-auth";
 import {
@@ -41,6 +43,11 @@ type AuthContextValue = {
     redirectUri: string;
     state: string;
   }) => Promise<AuthSession>;
+  completeMicrosoftSignIn: (input: {
+    code: string;
+    redirectUri: string;
+    state: string;
+  }) => Promise<AuthSession>;
   confirmPasswordReset: (input: { code: string; email: string; password: string }) => Promise<void>;
   confirmSignUp: (input: { code: string; email: string; password: string }) => Promise<void>;
   getFreshSession: (options?: { force?: boolean }) => Promise<AuthSession | null>;
@@ -57,6 +64,10 @@ type AuthContextValue = {
   signIn: (input: SignInInput) => Promise<AuthSession>;
   signOut: () => Promise<void>;
   startGoogleSignIn: (input: { redirectUri: string }) => Promise<{
+    authorizationUrl: string;
+    expiresAt?: number;
+  }>;
+  startMicrosoftSignIn: (input: { redirectUri: string }) => Promise<{
     authorizationUrl: string;
     expiresAt?: number;
   }>;
@@ -181,11 +192,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return startGoogleOAuthSignIn(input);
   }, []);
 
+  const startMicrosoftSignIn = useCallback(async (input: { redirectUri: string }) => {
+    invalidateStoredAuthSessionRefresh();
+
+    return startMicrosoftOAuthSignIn(input);
+  }, []);
+
   const completeGoogleSignIn = useCallback(
     async (input: { code: string; redirectUri: string; state: string }) => {
       invalidateStoredAuthSessionRefresh();
 
       const nextSession = await completeGoogleOAuthSignIn(input);
+      storeAuthSession(nextSession);
+      setSession(nextSession);
+
+      return nextSession;
+    },
+    [],
+  );
+
+  const completeMicrosoftSignIn = useCallback(
+    async (input: { code: string; redirectUri: string; state: string }) => {
+      invalidateStoredAuthSessionRefresh();
+
+      const nextSession = await completeMicrosoftOAuthSignIn(input);
       storeAuthSession(nextSession);
       setSession(nextSession);
 
@@ -258,13 +288,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       requestPasswordReset,
       session,
       completeGoogleSignIn,
+      completeMicrosoftSignIn,
       signIn,
       signOut,
       startGoogleSignIn,
+      startMicrosoftSignIn,
       signUp,
     }),
     [
       completeGoogleSignIn,
+      completeMicrosoftSignIn,
       confirmPasswordReset,
       confirmSignUp,
       getFreshSession,
@@ -275,6 +308,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signOut,
       startGoogleSignIn,
+      startMicrosoftSignIn,
       signUp,
     ],
   );

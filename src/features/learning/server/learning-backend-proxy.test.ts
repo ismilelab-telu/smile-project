@@ -508,6 +508,51 @@ describe("learning backend proxy", () => {
     expect(headers.get("cookie")).toBe("__Host-smile-oauth-google=oauth-state");
   });
 
+  it("forwards only the Microsoft OAuth state cookie for Microsoft OAuth callbacks", async () => {
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "set-cookie": "__Host-smile-refresh-session=next; HttpOnly; Secure; SameSite=Lax",
+        },
+        status: 200,
+      }),
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    const response = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      },
+      params: { path: ["auth", "oauth", "microsoft", "callback"] },
+      request: new Request(
+        "https://smile.test/api/learning-backend/auth/oauth/microsoft/callback",
+        {
+          body: JSON.stringify({
+            code: "code",
+            redirectUri: "https://smile.test/auth/callback/microsoft",
+            state: "state",
+          }),
+          headers: {
+            cookie:
+              "analytics=local; __Host-smile-refresh-session=session-cookie; __Host-smile-oauth-microsoft=oauth-state",
+            "content-type": "application/json",
+            origin: "https://smile.test",
+          },
+          method: "POST",
+        },
+      ),
+    });
+
+    expect(response.status).toBe(200);
+
+    const init = fetch.mock.calls[0]?.[1] as RequestInit;
+    const headers = init.headers as Headers;
+
+    expect(headers.get("cookie")).toBe("__Host-smile-oauth-microsoft=oauth-state");
+  });
+
   it("rejects cross-origin cookie-backed session requests", async () => {
     const fetch = vi.fn();
     vi.stubGlobal("fetch", fetch);
@@ -546,6 +591,32 @@ describe("learning backend proxy", () => {
       request: new Request("https://smile.test/api/learning-backend/auth/oauth/google/start", {
         body: JSON.stringify({
           redirectUri: "https://smile.test/auth/callback/google",
+        }),
+        headers: {
+          "content-type": "application/json",
+          origin: "https://evil.example",
+        },
+        method: "POST",
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects cross-origin Microsoft OAuth start requests", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+
+    const response = await handleLearningBackendProxyRequest({
+      env: {
+        LEARNING_BACKEND_PROXY_SECRET: "proxy-secret",
+        LEARNING_BACKEND_URL: trustedLearningBackendUrl,
+      },
+      params: { path: ["auth", "oauth", "microsoft", "start"] },
+      request: new Request("https://smile.test/api/learning-backend/auth/oauth/microsoft/start", {
+        body: JSON.stringify({
+          redirectUri: "https://smile.test/auth/callback/microsoft",
         }),
         headers: {
           "content-type": "application/json",

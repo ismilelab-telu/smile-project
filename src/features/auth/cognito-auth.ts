@@ -268,8 +268,22 @@ export async function signInWithUsername({
   });
 }
 
+type OAuthProvider = "google" | "microsoft";
+
 export async function startGoogleOAuthSignIn({ redirectUri }: { redirectUri: string }) {
-  const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/oauth/google/start`, {
+  return startProviderOAuthSignIn("google", "Google", { redirectUri });
+}
+
+export async function startMicrosoftOAuthSignIn({ redirectUri }: { redirectUri: string }) {
+  return startProviderOAuthSignIn("microsoft", "Microsoft", { redirectUri });
+}
+
+async function startProviderOAuthSignIn(
+  provider: OAuthProvider,
+  providerLabel: string,
+  { redirectUri }: { redirectUri: string },
+) {
+  const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/oauth/${provider}/start`, {
     body: JSON.stringify({ redirectUri }),
     credentials: "same-origin",
     headers: {
@@ -288,7 +302,10 @@ export async function startGoogleOAuthSignIn({ redirectUri }: { redirectUri: str
   }
 
   if (!responseBody.authorizationUrl) {
-    throw new CognitoAuthError("CognitoError", "Backend did not return a Google sign-in URL.");
+    throw new CognitoAuthError(
+      "CognitoError",
+      `Backend did not return a ${providerLabel} sign-in URL.`,
+    );
   }
 
   return {
@@ -306,14 +323,44 @@ export async function completeGoogleOAuthSignIn({
   redirectUri: string;
   state: string;
 }) {
-  const response = await fetch(`${requireLearningBackendAuthUrl()}/auth/oauth/google/callback`, {
-    body: JSON.stringify({ code, redirectUri, state }),
-    credentials: "same-origin",
-    headers: {
-      "content-type": "application/json",
+  return completeProviderOAuthSignIn("google", { code, redirectUri, state });
+}
+
+export async function completeMicrosoftOAuthSignIn({
+  code,
+  redirectUri,
+  state,
+}: {
+  code: string;
+  redirectUri: string;
+  state: string;
+}) {
+  return completeProviderOAuthSignIn("microsoft", { code, redirectUri, state });
+}
+
+async function completeProviderOAuthSignIn(
+  provider: OAuthProvider,
+  {
+    code,
+    redirectUri,
+    state,
+  }: {
+    code: string;
+    redirectUri: string;
+    state: string;
+  },
+) {
+  const response = await fetch(
+    `${requireLearningBackendAuthUrl()}/auth/oauth/${provider}/callback`,
+    {
+      body: JSON.stringify({ code, redirectUri, state }),
+      credentials: "same-origin",
+      headers: {
+        "content-type": "application/json",
+      },
+      method: "POST",
     },
-    method: "POST",
-  });
+  );
   const responseBody = (await response.json().catch(() => ({}))) as LearningBackendAuthResponse;
 
   if (!response.ok) {
