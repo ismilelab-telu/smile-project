@@ -15,7 +15,7 @@ type CopyButtonProps = Omit<HTMLMotionProps<"button">, "children" | "onClick" | 
 };
 
 const contentTransition = { duration: 0.18, ease: [0.22, 1, 0.36, 1] } as const;
-const buttonWidthTransition = { duration: 0.2, ease: [0.22, 1, 0.36, 1] } as const;
+const buttonWidthTransition = "width 0.2s cubic-bezier(0.22, 1, 0.36, 1)";
 
 async function copyTextToClipboard(value: string) {
   if (navigator.clipboard?.writeText) {
@@ -79,6 +79,11 @@ export function CopyButton({
   const copyMeasureRef = useRef<HTMLSpanElement>(null);
   const ariaLabel = isCopied ? (copiedAriaLabel ?? copiedLabel) : (copyAriaLabel ?? copyLabel);
   const buttonWidth = isCopied ? measuredButtonWidths.copied : measuredButtonWidths.copy;
+  const buttonStyle = {
+    ...style,
+    transition: [style?.transition, buttonWidthTransition].filter(Boolean).join(", "),
+    width: buttonWidth ? `${buttonWidth}px` : style?.width,
+  };
 
   useLayoutEffect(() => {
     const measureButtonWidths = () => {
@@ -140,7 +145,6 @@ export function CopyButton({
 
   return (
     <motion.button
-      animate={buttonWidth ? { width: buttonWidth } : undefined}
       aria-label={ariaLabel}
       className={cn(
         "group relative inline-flex h-9 w-fit cursor-pointer items-center justify-center rounded-none border-0 bg-transparent px-4 text-sm font-semibold tracking-normal whitespace-nowrap text-white shadow-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500",
@@ -156,9 +160,8 @@ export function CopyButton({
             setIsCopied(false);
           });
       }}
-      style={style}
+      style={buttonStyle}
       type={type}
-      transition={buttonWidthTransition}
       {...props}
     >
       <span
