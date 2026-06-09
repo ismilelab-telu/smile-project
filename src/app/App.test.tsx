@@ -1404,6 +1404,60 @@ describe("App", () => {
     expect(screen.getAllByRole("button", { name: "Kirim jawaban" })).toHaveLength(2);
   });
 
+  it("restores checked answers from a submitted exercise snapshot", async () => {
+    const submittedUrl =
+      "https://www.kaggle.com/datasets/denkuznetz/food-delivery-time-prediction/data";
+
+    seedAuthSession();
+    window.localStorage.setItem(
+      learningProgressStorageKey,
+      JSON.stringify({
+        attempts: {},
+        completedLessonIds: [
+          ...module0LessonIds,
+          "lesson-1-1-ml-tools-libraries",
+          "lesson-1-2-data-collecting",
+        ],
+        submittedExerciseAnswers: {
+          [lesson12SourceExerciseId]: {
+            datasetSourceAnswersByExerciseId: {
+              [lesson12SourceExerciseId]: {
+                "demand-source": {
+                  notes: "Dataset berisi konteks pengiriman makanan.",
+                  url: submittedUrl,
+                },
+              },
+            },
+          },
+          "exercise-1-3-data-loading": {
+            selectedOptionIdsByExerciseId: {
+              "exercise-1-3-data-loading": ["read-into-table", "check-schema", "preview-rows"],
+            },
+          },
+        },
+        version: 1,
+      }),
+    );
+    window.history.pushState(null, "", lesson13Path);
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Memuat Data" }, lazyRouteTimeout),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByLabelText("Membaca sumber data menjadi tabel atau dataframe."),
+    ).toBeChecked();
+    expect(
+      screen.getByLabelText("Memeriksa nama kolom, tipe data, dan field yang diharapkan."),
+    ).toBeChecked();
+    expect(
+      screen.getByLabelText("Melihat beberapa baris sebelum bekerja lebih jauh."),
+    ).toBeChecked();
+    expect(screen.getByLabelText("Langsung melatih model setelah membuka file.")).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "Terkirim" })).toBeDisabled();
+  });
+
   it("restores the latest Pandas code output after reloading lesson 1.3", async () => {
     const submittedUrl =
       "https://www.kaggle.com/datasets/denkuznetz/food-delivery-time-prediction/data";

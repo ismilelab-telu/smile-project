@@ -1990,7 +1990,9 @@ export function LessonPage({
   );
   const initialAssignments = useMemo(() => {
     const savedAssignments = tableColumnRoleExercise
-      ? initialAnswer?.columnRoleAssignmentsByExerciseId?.[tableColumnRoleExercise.id]
+      ? (initialAnswer?.columnRoleAssignmentsByExerciseId?.[tableColumnRoleExercise.id] ??
+        initialSubmittedAnswersByExerciseId[tableColumnRoleExercise.id]
+          ?.columnRoleAssignmentsByExerciseId?.[tableColumnRoleExercise.id])
       : undefined;
 
     const normalizedSavedAssignments = Object.fromEntries(
@@ -2004,82 +2006,109 @@ export function LessonPage({
       ...baseInitialAssignments,
       ...normalizedSavedAssignments,
     };
-  }, [baseInitialAssignments, initialAnswer, tableColumnRoleExercise]);
+  }, [
+    baseInitialAssignments,
+    initialAnswer,
+    initialSubmittedAnswersByExerciseId,
+    tableColumnRoleExercise,
+  ]);
   const initialOrderedStepIds = useMemo(
     () =>
       exerciseEntries.reduce<Record<string, string[]>>((stepIds, exercise) => {
         if (exercise.type === "ordered-steps") {
           stepIds[exercise.id] =
             initialAnswer?.orderedStepIdsByExerciseId?.[exercise.id] ??
+            initialSubmittedAnswersByExerciseId[exercise.id]?.orderedStepIdsByExerciseId?.[
+              exercise.id
+            ] ??
             exercise.steps.map((step) => step.id);
         }
 
         return stepIds;
       }, {}),
-    [exerciseEntries, initialAnswer],
+    [exerciseEntries, initialAnswer, initialSubmittedAnswersByExerciseId],
   );
   const initialSelectedOptionIdsByExerciseId = useMemo(
     () =>
       exerciseEntries.reduce<Record<string, string[]>>((selectedOptionIds, exercise) => {
         if (exercise.type === "multiple-choice") {
           selectedOptionIds[exercise.id] = [
-            ...(initialAnswer?.selectedOptionIdsByExerciseId?.[exercise.id] ?? []),
+            ...(initialAnswer?.selectedOptionIdsByExerciseId?.[exercise.id] ??
+              initialSubmittedAnswersByExerciseId[exercise.id]?.selectedOptionIdsByExerciseId?.[
+                exercise.id
+              ] ??
+              []),
           ];
         }
 
         return selectedOptionIds;
       }, {}),
-    [exerciseEntries, initialAnswer],
+    [exerciseEntries, initialAnswer, initialSubmittedAnswersByExerciseId],
   );
   const initialDatasetSourceAnswersByExerciseId = useMemo(
     () =>
       exerciseEntries.reduce<Record<string, Record<string, DatasetSourceAnswer>>>(
         (sourceAnswers, exercise) => {
           if (exercise.type === "open-dataset-source") {
-            sourceAnswers[exercise.id] = getDatasetSourceAnswersFromAnswer(exercise, initialAnswer);
+            const answer =
+              initialAnswer?.datasetSourceAnswersByExerciseId?.[exercise.id] !== undefined
+                ? initialAnswer
+                : initialSubmittedAnswersByExerciseId[exercise.id];
+
+            sourceAnswers[exercise.id] = getDatasetSourceAnswersFromAnswer(exercise, answer);
           }
 
           return sourceAnswers;
         },
         {},
       ),
-    [exerciseEntries, initialAnswer],
+    [exerciseEntries, initialAnswer, initialSubmittedAnswersByExerciseId],
   );
   const initialGuidedDownloadCodeByExerciseId = useMemo(
     () =>
       exerciseEntries.reduce<Record<string, string>>((codeByExerciseId, exercise) => {
         if (exercise.type === "guided-download") {
           codeByExerciseId[exercise.id] =
-            initialAnswer?.guidedDownloadCodeByExerciseId?.[exercise.id] ?? "";
+            initialAnswer?.guidedDownloadCodeByExerciseId?.[exercise.id] ??
+            initialSubmittedAnswersByExerciseId[exercise.id]?.guidedDownloadCodeByExerciseId?.[
+              exercise.id
+            ] ??
+            "";
         }
 
         return codeByExerciseId;
       }, {}),
-    [exerciseEntries, initialAnswer],
+    [exerciseEntries, initialAnswer, initialSubmittedAnswersByExerciseId],
   );
   const initialGuidedDownloadExtractedFilePathsByExerciseId = useMemo(
     () =>
       exerciseEntries.reduce<Record<string, string>>((filePathsByExerciseId, exercise) => {
         if (exercise.type === "guided-download") {
           filePathsByExerciseId[exercise.id] =
-            initialAnswer?.guidedDownloadExtractedFilePathsByExerciseId?.[exercise.id] ?? "";
+            initialAnswer?.guidedDownloadExtractedFilePathsByExerciseId?.[exercise.id] ??
+            initialSubmittedAnswersByExerciseId[exercise.id]
+              ?.guidedDownloadExtractedFilePathsByExerciseId?.[exercise.id] ??
+            "";
         }
 
         return filePathsByExerciseId;
       }, {}),
-    [exerciseEntries, initialAnswer],
+    [exerciseEntries, initialAnswer, initialSubmittedAnswersByExerciseId],
   );
   const initialGuidedDownloadObjectKeysByExerciseId = useMemo(
     () =>
       exerciseEntries.reduce<Record<string, string>>((objectKeysByExerciseId, exercise) => {
         if (exercise.type === "guided-download") {
           objectKeysByExerciseId[exercise.id] =
-            initialAnswer?.guidedDownloadObjectKeysByExerciseId?.[exercise.id] ?? "";
+            initialAnswer?.guidedDownloadObjectKeysByExerciseId?.[exercise.id] ??
+            initialSubmittedAnswersByExerciseId[exercise.id]
+              ?.guidedDownloadObjectKeysByExerciseId?.[exercise.id] ??
+            "";
         }
 
         return objectKeysByExerciseId;
       }, {}),
-    [exerciseEntries, initialAnswer],
+    [exerciseEntries, initialAnswer, initialSubmittedAnswersByExerciseId],
   );
   const initialPandasCodeRunResultsByExerciseId = useMemo(
     () =>
@@ -5028,6 +5057,9 @@ function MultipleChoiceExerciseView({
   const shouldShowSubmittedOptionFeedback = result !== null && result.status !== "correct";
   const isSingleOptionExercise = exercise.correctOptionIds.length === 1;
   const reduceOptionFeedbackMotion = shouldReduceMotion();
+  const optionFeedbackStripDuration = reduceOptionFeedbackMotion ? 0.08 : 0.62;
+  const optionFeedbackIconDelay = reduceOptionFeedbackMotion ? 0.08 : 0.52;
+  const optionFeedbackStripFadeDuration = 0.24;
 
   return (
     <LessonFullRow>
@@ -5049,13 +5081,73 @@ function MultipleChoiceExerciseView({
               ? "learning-option-feedback-correct"
               : "learning-option-feedback-incorrect"
             : "";
+          const optionFeedbackBorderClassName = shouldShowOptionFeedback
+            ? isPositiveFeedback
+              ? "learning-option-feedback-border-correct"
+              : "learning-option-feedback-border-incorrect"
+            : "";
+          const optionFeedbackMotion = reduceOptionFeedbackMotion
+            ? {
+                animate: { opacity: 1 },
+                exit: { opacity: 0 },
+                initial: { opacity: 0 },
+                transition: { duration: 0.08 },
+              }
+            : {
+                animate: {
+                  opacity: 1,
+                  scaleX: 1,
+                  transition: {
+                    opacity: {
+                      duration: optionFeedbackStripFadeDuration,
+                      ease: [0.76, 0, 0.24, 1],
+                    },
+                    scaleX: {
+                      duration: optionFeedbackStripDuration,
+                      ease: [0.76, 0, 0.24, 1],
+                    },
+                  },
+                  transformOrigin: "left center",
+                },
+                exit: {
+                  opacity: 0,
+                  scaleX: 0,
+                  transition: {
+                    opacity: {
+                      delay: Math.max(
+                        0,
+                        optionFeedbackStripDuration - optionFeedbackStripFadeDuration,
+                      ),
+                      duration: optionFeedbackStripFadeDuration,
+                      ease: [0.76, 0, 0.24, 1],
+                    },
+                    scaleX: {
+                      duration: optionFeedbackStripDuration,
+                      ease: [0.76, 0, 0.24, 1],
+                    },
+                  },
+                  transformOrigin: "left center",
+                },
+                initial: {
+                  opacity: 0,
+                  scaleX: 0,
+                  transformOrigin: "left center",
+                },
+              };
 
           return (
-            <div className="relative grid" key={option.id}>
+            <div className="relative grid overflow-hidden" key={option.id}>
+              <AnimatePresence initial={false}>
+                {shouldShowOptionFeedback ? (
+                  <motion.span
+                    {...optionFeedbackMotion}
+                    aria-hidden="true"
+                    className={`learning-option-feedback-strip pointer-events-none absolute inset-0 z-0 ${optionFeedbackClassName}`}
+                  />
+                ) : null}
+              </AnimatePresence>
               <label
-                className={`flex min-h-16 items-center gap-4 border learning-grid-border py-4 pr-16 pl-5 transition-[background,border-color] duration-200 ${optionFeedbackClassName} ${
-                  isReviewMode ? "cursor-not-allowed" : "cursor-pointer"
-                }`}
+                className={`relative z-10 flex min-h-16 items-center gap-4 border learning-grid-border py-4 pr-16 pl-5 transition-[border-color] duration-200 ${optionFeedbackBorderClassName} ${isReviewMode ? "cursor-not-allowed" : "cursor-pointer"}`}
               >
                 <input
                   checked={isSelectedOption}
@@ -5068,8 +5160,9 @@ function MultipleChoiceExerciseView({
                 <span className="flex size-5 shrink-0 items-center justify-center border border-neutral-300 bg-white text-transparent transition-colors peer-checked:border-emerald-500 peer-checked:bg-emerald-500 peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-emerald-500">
                   <HugeiconsIcon
                     aria-hidden="true"
-                    className="size-4 stroke-[3.25]"
+                    className="size-[18px]"
                     icon={CheckIcon}
+                    strokeWidth={4}
                   />
                 </span>
                 <span className="min-w-0 text-base leading-7 text-foreground">{option.label}</span>
@@ -5081,6 +5174,13 @@ function MultipleChoiceExerciseView({
                       filter: "blur(0px)",
                       opacity: 1,
                       scale: 1,
+                      transition: reduceOptionFeedbackMotion
+                        ? { delay: optionFeedbackIconDelay, duration: 0.08 }
+                        : {
+                            delay: optionFeedbackIconDelay,
+                            duration: 0.2,
+                            ease: [0.16, 1, 0.3, 1],
+                          },
                       y: "-50%",
                     }}
                     aria-label={
@@ -5093,6 +5193,9 @@ function MultipleChoiceExerciseView({
                       filter: reduceOptionFeedbackMotion ? "blur(0px)" : "blur(6px)",
                       opacity: 0,
                       scale: reduceOptionFeedbackMotion ? 1 : 0.96,
+                      transition: reduceOptionFeedbackMotion
+                        ? { duration: 0.06 }
+                        : { duration: 0.14, ease: [0.76, 0, 0.24, 1] },
                       y: reduceOptionFeedbackMotion ? "-50%" : "calc(-50% - 4px)",
                     }}
                     initial={{
@@ -5101,14 +5204,6 @@ function MultipleChoiceExerciseView({
                       scale: reduceOptionFeedbackMotion ? 1 : 0.96,
                       y: reduceOptionFeedbackMotion ? "-50%" : "calc(-50% + 4px)",
                     }}
-                    transition={
-                      reduceOptionFeedbackMotion
-                        ? { duration: 0.08 }
-                        : {
-                            duration: 0.18,
-                            ease: [0.22, 1, 0.36, 1],
-                          }
-                    }
                     role="img"
                   >
                     {isPositiveFeedback ? (

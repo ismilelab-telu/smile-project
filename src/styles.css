@@ -379,6 +379,29 @@
     background: var(--learning-grid-panel-fill-strong);
   }
 
+  .learning-option-feedback-strip {
+    background-repeat: repeat;
+    background-size: 12px 12px;
+  }
+
+  .learning-option-feedback-strip.learning-option-feedback-correct {
+    background-color: oklch(97.9% 0.023 158);
+    background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-6 6L6 -6M-6 18L18 -6M6 18L18 6' stroke='%2310b981' stroke-width='1' stroke-opacity='.22' stroke-linecap='square'/%3E%3C/svg%3E");
+  }
+
+  .learning-option-feedback-strip.learning-option-feedback-incorrect {
+    background-color: oklch(97.1% 0.013 17.38);
+    background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-6 6L6 -6M-6 18L18 -6M6 18L18 6' stroke='%23f43f5e' stroke-width='1' stroke-opacity='.2' stroke-linecap='square'/%3E%3C/svg%3E");
+  }
+
+  .learning-grid-border.learning-option-feedback-border-correct {
+    border-color: oklch(69.6% 0.17 162.48 / 0.62);
+  }
+
+  .learning-grid-border.learning-option-feedback-border-incorrect {
+    border-color: oklch(64.5% 0.246 16.439 / 0.58);
+  }
+
   .learning-grid-border.learning-option-feedback-correct {
     background-color: oklch(97.9% 0.023 158);
     background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-6 6L6 -6M-6 18L18 -6M6 18L18 6' stroke='%2310b981' stroke-width='1' stroke-opacity='.22' stroke-linecap='square'/%3E%3C/svg%3E");
